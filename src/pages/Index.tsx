@@ -13,7 +13,7 @@ import CheckoutSection from "@/components/CheckoutSection";
 import FAQSection from "@/components/FAQSection";
 
 // ⚠️ IMPORTANTE: Substitua pelo número real do WhatsApp (formato: 55 + DDD + número)
-const WHATSAPP_NUMBER = "5577999999999";
+const WHATSAPP_NUMBER = "5577991001658";
 
 const Index = () => {
   const [selectedKit, setSelectedKit] = useState<Kit | null>(null);
