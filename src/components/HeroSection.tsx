@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Star, CheckCircle2, Calendar } from "lucide-react";
 import heroImage from "@/assets/hero-food.jpg";
 
 interface HeroSectionProps {
@@ -10,14 +10,14 @@ interface HeroSectionProps {
 const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-      {/* Background image with overlay */}
+      {/* Background image with lighter overlay */}
       <div className="absolute inset-0 -z-10">
         <img 
           src={heroImage} 
           alt="Alimentação saudável com sucos verdes e vegetais frescos"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/80 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background/95" />
       </div>
       
       {/* Decorative elements */}
@@ -61,6 +61,7 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
+            className="mb-8"
           >
             <Button 
               variant="cta" 
@@ -71,6 +72,43 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
               Quero cuidar de mim agora
               <ArrowRight className="group-hover:translate-x-1 transition-transform" />
             </Button>
+          </motion.div>
+
+          {/* Social Proof */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 text-sm"
+          >
+            <div className="flex items-center gap-2 text-foreground/80">
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
+                ))}
+              </div>
+              <span className="font-medium">+200 kits entregues</span>
+            </div>
+            
+            <div className="hidden sm:block w-1 h-1 rounded-full bg-muted-foreground/40" />
+            
+            <div className="flex items-center gap-2 text-foreground/80">
+              <CheckCircle2 className="w-4 h-4 text-primary" />
+              <span className="font-medium">98% de satisfação</span>
+            </div>
+          </motion.div>
+
+          {/* Next Production Indicator */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="mt-6"
+          >
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-terracotta-light/30 text-terracotta-dark text-sm font-medium">
+              <Calendar className="w-4 h-4" />
+              Próxima produção: segunda-feira
+            </span>
           </motion.div>
         </div>
       </div>
