@@ -1,7 +1,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Salad, Droplet, MapPin } from "lucide-react";
-import produtosDetox from "@/assets/produtos-detox.jpg";
+import produtosVideo from "@/assets/produtos-detox-video.mp4";
 
 const badges = [
   { icon: Salad, label: "Marmitas prontas" },
@@ -37,9 +37,12 @@ const ProductGallerySection = () => {
           transition={{ duration: 0.6, delay: 0.1 }}
         >
           <div className="relative rounded-2xl overflow-hidden shadow-card">
-            <img
-              src={produtosDetox}
-              alt="Marmitas saudáveis com vegetais coloridos e sucos detox da Dieta Já"
+            <video
+              src={produtosVideo}
+              autoPlay
+              loop
+              muted
+              playsInline
               className="w-full h-auto object-cover"
             />
           </div>
