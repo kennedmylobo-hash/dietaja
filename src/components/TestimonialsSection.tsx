@@ -1,25 +1,28 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Quote, Star } from "lucide-react";
+import testimonialMariana from "@/assets/testimonial-mariana.jpg";
+import testimonialCarla from "@/assets/testimonial-carla.jpg";
+import testimonialJuliana from "@/assets/testimonial-juliana.jpg";
 
 const testimonials = [
   {
     name: "Mariana S.",
     role: "Advogada, mãe de 2 filhos",
     quote: "Entre trabalho, casa e rotina, eu sempre ficava por último. Ter a alimentação pronta foi um cuidado que eu estava devendo comigo mesma.",
-    initials: "MS",
+    photo: testimonialMariana,
   },
   {
     name: "Carla R.",
     role: "Empresária, 38 anos",
     quote: "Chegar cansada e saber que tem comida saudável pronta muda tudo. Perdi 4kg no primeiro mês sem passar fome!",
-    initials: "CR",
+    photo: testimonialCarla,
   },
   {
     name: "Juliana M.",
     role: "Professora, mora sozinha",
     quote: "Antes eu pedia delivery todo dia. Agora como melhor, gasto menos e sobra energia pra academia. Recomendo demais!",
-    initials: "JM",
+    photo: testimonialJuliana,
   },
 ];
 
@@ -55,9 +58,11 @@ const TestimonialsSection = () => {
               
               {/* Avatar */}
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-sm font-semibold text-primary">{testimonial.initials}</span>
-                </div>
+                <img 
+                  src={testimonial.photo} 
+                  alt={testimonial.name}
+                  className="w-12 h-12 rounded-full object-cover border-2 border-primary/20"
+                />
                 <div>
                   <p className="font-semibold text-foreground text-sm">{testimonial.name}</p>
                   <p className="text-xs text-muted-foreground">{testimonial.role}</p>
