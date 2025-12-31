@@ -4,6 +4,7 @@ import Logo from "@/components/Logo";
 import HeroSection from "@/components/HeroSection";
 import IdentificationSection from "@/components/IdentificationSection";
 import SolutionSection from "@/components/SolutionSection";
+import BeforeAfterSection from "@/components/BeforeAfterSection";
 import ProductGallerySection from "@/components/ProductGallerySection";
 import KitsSection, { type Kit } from "@/components/KitsSection";
 import ValueSection from "@/components/ValueSection";
@@ -84,6 +85,7 @@ const Index = () => {
           <HeroSection onCtaClick={scrollToKits} />
           <IdentificationSection />
           <SolutionSection />
+          <BeforeAfterSection />
           <ProductGallerySection />
           <KitsSection onSelectKit={handleSelectKit} />
           <ValueSection />
