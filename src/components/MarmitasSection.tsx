@@ -59,10 +59,19 @@ const marmitas: Marmita[] = [
 const MarmitasSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const isSectionVisible = useInView(ref, { margin: "-50px" });
   const { addItem } = useCart();
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
+
+  const autoplayPlugin = useRef(
+    Autoplay({
+      delay: 3000,
+      stopOnInteraction: true,
+      stopOnMouseEnter: true,
+    })
+  );
 
   useEffect(() => {
     if (!api) return;
@@ -74,6 +83,17 @@ const MarmitasSection = () => {
       setCurrent(api.selectedScrollSnap());
     });
   }, [api]);
+
+  // Pausar/retomar autoplay baseado na visibilidade
+  useEffect(() => {
+    if (!autoplayPlugin.current) return;
+    
+    if (isSectionVisible) {
+      autoplayPlugin.current.play();
+    } else {
+      autoplayPlugin.current.stop();
+    }
+  }, [isSectionVisible]);
 
   const handleAddMarmita = (marmita: Marmita) => {
     addItem({
@@ -122,13 +142,7 @@ const MarmitasSection = () => {
               align: "center",
               loop: true,
             }}
-            plugins={[
-              Autoplay({
-                delay: 3000,
-                stopOnInteraction: true,
-                stopOnMouseEnter: true,
-              }),
-            ]}
+            plugins={[autoplayPlugin.current]}
             setApi={setApi}
             className="w-full"
           >
