@@ -109,7 +109,7 @@ const MarmitasSection = () => {
             }}
             plugins={[
               Autoplay({
-                delay: 4000,
+                delay: 3000,
                 stopOnInteraction: true,
                 stopOnMouseEnter: true,
               }),
@@ -184,7 +184,7 @@ const MarmitasSection = () => {
           
           {/* Indicador de scroll no mobile */}
           <p className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground md:hidden">
-            ← Arraste para ver mais opções →
+            <span>👆</span> Arraste para ver mais <span>→</span>
           </p>
         </motion.div>
       </div>
