@@ -43,7 +43,7 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
           playsInline
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
       </div>
       
       {/* Decorative elements */}
@@ -52,35 +52,47 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
 
       <div className="container px-6 py-16 md:py-24">
         <div className="max-w-2xl mx-auto text-center">
+          {/* Badge de urgência */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-terracotta/90 backdrop-blur-sm border border-terracotta shadow-lg"
           >
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-sage-light text-sage-dark text-sm font-medium mb-6">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              Vitória da Conquista
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            <span className="text-sm font-semibold text-white">
+              🔥 Últimas vagas para entrega desta semana
             </span>
           </motion.div>
 
           <motion.h1 
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mt-6 mb-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             Coma melhor mesmo sem tempo —{" "}
-            <span className="text-gradient">e sinta seu corpo responder.</span>
+            <span className="text-primary">e sinta seu corpo responder.</span>
           </motion.h1>
 
           <motion.p 
-            className="text-lg md:text-xl text-muted-foreground mb-8 leading-relaxed"
+            className="text-lg md:text-xl text-white/90 mb-4 leading-relaxed"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
             Alimentação saudável pronta para mulheres com rotina corrida em{" "}
-            <strong className="text-foreground">Vitória da Conquista</strong>.
+            <strong className="text-white">Vitória da Conquista</strong>.
+          </motion.p>
+
+          {/* Preço âncora */}
+          <motion.p 
+            className="text-lg md:text-xl text-white/80 mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.35 }}
+          >
+            Kits a partir de <span className="text-primary font-bold">R$ 199</span> • Marmitas <span className="text-primary font-bold">R$ 12,10</span>/un
           </motion.p>
 
           <motion.div
@@ -93,11 +105,32 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
               variant="cta" 
               size="xl"
               onClick={onCtaClick}
-              className={`group ${shouldShake ? "animate-shake" : ""}`}
+              className={`group shadow-xl ${shouldShake ? "animate-shake" : ""}`}
             >
-              Quero cuidar de mim agora
+              Garantir meu Kit
               <ArrowRight className="group-hover:translate-x-1 transition-transform" />
             </Button>
+          </motion.div>
+
+          {/* Benefícios em ícones */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="flex flex-wrap justify-center items-center gap-3 md:gap-6 mb-6"
+          >
+            <div className="flex items-center gap-2 text-sm text-white/90 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-full">
+              <span>📍</span>
+              <span>Retirada grátis</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-white/90 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-full">
+              <span>⚡</span>
+              <span>Pronto em 3 min</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-white/90 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-full">
+              <span>✅</span>
+              <span>Garantia total</span>
+            </div>
           </motion.div>
 
           {/* Social Proof */}
@@ -124,14 +157,38 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
             </div>
           </motion.div>
 
-          {/* Countdown Timer */}
+          {/* Social Proof */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-8 flex flex-col items-center gap-3"
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 text-sm mb-6"
           >
-            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-white/80">
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
+                ))}
+              </div>
+              <span className="font-medium">+200 kits entregues</span>
+            </div>
+            
+            <div className="hidden sm:block w-1 h-1 rounded-full bg-white/40" />
+            
+            <div className="flex items-center gap-2 text-white/80">
+              <CheckCircle2 className="w-4 h-4 text-primary" />
+              <span className="font-medium">98% de satisfação</span>
+            </div>
+          </motion.div>
+
+          {/* Countdown Timer */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.7 }}
+            className="flex flex-col items-center gap-3"
+          >
+            <span className="inline-flex items-center gap-2 text-sm text-white/80">
               <Clock className="w-4 h-4" />
               Pedidos encerram em:
             </span>

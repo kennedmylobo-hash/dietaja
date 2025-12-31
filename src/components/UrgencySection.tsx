@@ -7,6 +7,18 @@ const UrgencySection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
+  // Simula vagas restantes (baseado na hora do dia)
+  const getVagasRestantes = () => {
+    const hour = new Date().getHours();
+    // Mais vagas de manhã, menos à noite
+    if (hour < 10) return 12;
+    if (hour < 14) return 8;
+    if (hour < 18) return 5;
+    return 3;
+  };
+
+  const vagasRestantes = getVagasRestantes();
+
   return (
     <section ref={ref} className="py-16 md:py-20 bg-background">
       <div className="container px-6">
@@ -16,6 +28,16 @@ const UrgencySection = () => {
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
         >
+          {/* Contador de vagas */}
+          <div className="text-center p-6 rounded-xl bg-terracotta/10 border-2 border-terracotta/30">
+            <p className="text-lg font-bold text-terracotta mb-1">
+              🔥 Restam apenas {vagasRestantes} vagas para esta semana
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Pedidos feitos até domingo = Entrega na segunda-feira
+            </p>
+          </div>
+
           {/* Local */}
           <div className="flex items-center gap-4 p-5 rounded-xl bg-sage-light/50 border border-primary/20">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -23,10 +45,10 @@ const UrgencySection = () => {
             </div>
             <div>
               <p className="font-semibold text-foreground">
-                Atendemos Vitória da Conquista
+                Vitória da Conquista
               </p>
               <p className="text-sm text-muted-foreground">
-                Produção local, entrega organizada e cuidado em cada pedido.
+                📍 Retirada grátis no Recreio • 🛵 Entrega R$ 10
               </p>
             </div>
           </div>
@@ -39,11 +61,11 @@ const UrgencySection = () => {
               </div>
               <div>
                 <p className="font-semibold text-foreground flex items-center gap-2">
-                  Vagas limitadas!
+                  Produção limitada!
                   <AlertCircle className="w-4 h-4 text-terracotta" />
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Trabalhamos com quantidade limitada para garantir qualidade.
+                  Trabalhamos com quantidade limitada para garantir qualidade e frescor.
                 </p>
               </div>
             </div>
