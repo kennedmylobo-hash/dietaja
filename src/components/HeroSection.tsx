@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Star, CheckCircle2, Clock } from "lucide-react";
-import produtosImage from "@/assets/produtos-detox.jpg";
+import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import CountdownTimer from "@/components/CountdownTimer";
 
 interface HeroSectionProps {
@@ -33,14 +33,17 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
 
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-      {/* Background image with lighter overlay */}
+      {/* Background video with overlay */}
       <div className="absolute inset-0 -z-10">
-        <img 
-          src={produtosImage} 
-          alt="Kits detox com sucos, sopas e marmitas saudáveis congeladas"
+        <video
+          src={produtosVideo}
+          autoPlay
+          loop
+          muted
+          playsInline
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/40 to-background/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background" />
       </div>
       
       {/* Decorative elements */}
