@@ -64,10 +64,14 @@ const MarmitasSection = () => {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+
+  const AUTOPLAY_DELAY = 3000;
 
   const autoplayPlugin = useRef(
     Autoplay({
-      delay: 3000,
+      delay: AUTOPLAY_DELAY,
       stopOnInteraction: true,
       stopOnMouseEnter: true,
     })
@@ -79,9 +83,16 @@ const MarmitasSection = () => {
     setCount(api.scrollSnapList().length);
     setCurrent(api.selectedScrollSnap());
 
-    api.on("select", () => {
+    const onSelect = () => {
       setCurrent(api.selectedScrollSnap());
-    });
+      setProgress(0);
+    };
+
+    api.on("select", onSelect);
+    
+    return () => {
+      api.off("select", onSelect);
+    };
   }, [api]);
 
   // Pausar/retomar autoplay baseado na visibilidade
@@ -90,10 +101,26 @@ const MarmitasSection = () => {
     
     if (isSectionVisible) {
       autoplayPlugin.current.play();
+      setIsPlaying(true);
     } else {
       autoplayPlugin.current.stop();
+      setIsPlaying(false);
     }
   }, [isSectionVisible]);
+
+  // Barra de progresso
+  useEffect(() => {
+    if (!isPlaying || !isSectionVisible) return;
+
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) return 0;
+        return prev + (100 / (AUTOPLAY_DELAY / 50));
+      });
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, isSectionVisible, current]);
 
   const handleAddMarmita = (marmita: Marmita) => {
     addItem({
@@ -212,19 +239,26 @@ const MarmitasSection = () => {
             <CarouselNext className="-right-2 md:-right-4" />
           </Carousel>
           
-          {/* Dots indicadores */}
+          {/* Dots indicadores com barra de progresso */}
           <div className="flex justify-center gap-2 mt-4">
             {Array.from({ length: count }).map((_, index) => (
               <button
                 key={index}
-                className={`rounded-full transition-all duration-300 ${
+                className={`relative rounded-full transition-all duration-300 overflow-hidden ${
                   index === current
-                    ? "w-4 h-2 bg-terracotta"
+                    ? "w-8 h-2 bg-muted-foreground/20"
                     : "w-2 h-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
                 }`}
                 onClick={() => api?.scrollTo(index)}
                 aria-label={`Ir para slide ${index + 1}`}
-              />
+              >
+                {index === current && (
+                  <div 
+                    className="absolute inset-0 bg-terracotta rounded-full origin-left transition-none"
+                    style={{ transform: `scaleX(${progress / 100})` }}
+                  />
+                )}
+              </button>
             ))}
           </div>
         </motion.div>
