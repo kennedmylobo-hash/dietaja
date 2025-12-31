@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Star, CheckCircle2, Clock } from "lucide-react";
 import produtosImage from "@/assets/produtos-detox.jpg";
@@ -9,6 +10,27 @@ interface HeroSectionProps {
 }
 
 const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
+  const [shouldShake, setShouldShake] = useState(false);
+
+  // Trigger shake animation periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShouldShake(true);
+      setTimeout(() => setShouldShake(false), 500);
+    }, 4000);
+
+    // Initial shake after 2 seconds
+    const initialTimeout = setTimeout(() => {
+      setShouldShake(true);
+      setTimeout(() => setShouldShake(false), 500);
+    }, 2000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(initialTimeout);
+    };
+  }, []);
+
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
       {/* Background image with lighter overlay */}
@@ -68,7 +90,7 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
               variant="cta" 
               size="xl"
               onClick={onCtaClick}
-              className="group"
+              className={`group ${shouldShake ? "animate-shake" : ""}`}
             >
               Quero cuidar de mim agora
               <ArrowRight className="group-hover:translate-x-1 transition-transform" />
