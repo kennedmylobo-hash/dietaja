@@ -72,6 +72,31 @@ const CheckoutSection = ({ onWhatsAppClick }: CheckoutSectionProps) => {
             )}
           </div>
 
+          {/* Delivery options */}
+          <div className="bg-background rounded-2xl p-6 shadow-soft border border-border mb-6">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+              Entrega ou retirada
+            </h3>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-sage-light/30">
+                <span className="text-lg">📍</span>
+                <div>
+                  <span className="font-medium text-foreground">Retirada grátis</span>
+                  <p className="text-sm text-muted-foreground">Bairro Recreio</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                <span className="text-lg">🛵</span>
+                <div>
+                  <span className="font-medium text-foreground">Entrega</span>
+                  <span className="text-sm text-muted-foreground ml-2">+ R$ 10,00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Payment methods */}
           <div className="bg-background rounded-2xl p-6 shadow-soft border border-border mb-6">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
