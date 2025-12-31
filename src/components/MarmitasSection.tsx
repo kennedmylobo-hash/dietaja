@@ -1,17 +1,17 @@
 import { motion, useInView } from "framer-motion";
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, ShoppingCart, Clock } from "lucide-react";
+import { ShoppingCart, Clock } from "lucide-react";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
-import Autoplay from "embla-carousel-autoplay";
+import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
+import { CarouselDots } from "./CarouselDots";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselPrevious,
   CarouselNext,
-  type CarouselApi,
 } from "@/components/ui/carousel";
 
 import marmita1 from "@/assets/marmita-1.png";
@@ -57,70 +57,19 @@ const marmitas: Marmita[] = [
 ];
 
 const MarmitasSection = () => {
-  const ref = useRef(null);
+  const ref = useRef<HTMLElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const isSectionVisible = useInView(ref, { margin: "-50px" });
   const { addItem } = useCart();
-  const [api, setApi] = useState<CarouselApi>();
-  const [current, setCurrent] = useState(0);
-  const [count, setCount] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
 
-  const AUTOPLAY_DELAY = 3000;
-
-  const autoplayPlugin = useRef(
-    Autoplay({
-      delay: AUTOPLAY_DELAY,
-      stopOnInteraction: true,
-      stopOnMouseEnter: true,
-    })
-  );
-
-  useEffect(() => {
-    if (!api) return;
-
-    setCount(api.scrollSnapList().length);
-    setCurrent(api.selectedScrollSnap());
-
-    const onSelect = () => {
-      setCurrent(api.selectedScrollSnap());
-      setProgress(0);
-    };
-
-    api.on("select", onSelect);
-    
-    return () => {
-      api.off("select", onSelect);
-    };
-  }, [api]);
-
-  // Pausar/retomar autoplay baseado na visibilidade
-  useEffect(() => {
-    if (!autoplayPlugin.current) return;
-    
-    if (isSectionVisible) {
-      autoplayPlugin.current.play();
-      setIsPlaying(true);
-    } else {
-      autoplayPlugin.current.stop();
-      setIsPlaying(false);
-    }
-  }, [isSectionVisible]);
-
-  // Barra de progresso
-  useEffect(() => {
-    if (!isPlaying || !isSectionVisible) return;
-
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) return 0;
-        return prev + (100 / (AUTOPLAY_DELAY / 50));
-      });
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [isPlaying, isSectionVisible, current]);
+  const {
+    api,
+    setApi,
+    current,
+    count,
+    progress,
+    autoplayPlugin,
+    setIsHoveringDots,
+  } = useCarouselWithProgress(ref, { autoplayDelay: 3000 });
 
   const handleAddMarmita = (marmita: Marmita) => {
     addItem({
@@ -169,7 +118,7 @@ const MarmitasSection = () => {
               align: "center",
               loop: true,
             }}
-            plugins={[autoplayPlugin.current]}
+            plugins={[autoplayPlugin]}
             setApi={setApi}
             className="w-full"
           >
@@ -239,28 +188,15 @@ const MarmitasSection = () => {
             <CarouselNext className="-right-2 md:-right-4" />
           </Carousel>
           
-          {/* Dots indicadores com barra de progresso */}
-          <div className="flex justify-center gap-2 mt-4">
-            {Array.from({ length: count }).map((_, index) => (
-              <button
-                key={index}
-                className={`relative rounded-full transition-all duration-300 overflow-hidden ${
-                  index === current
-                    ? "w-8 h-2 bg-muted-foreground/20"
-                    : "w-2 h-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
-                }`}
-                onClick={() => api?.scrollTo(index)}
-                aria-label={`Ir para slide ${index + 1}`}
-              >
-                {index === current && (
-                  <div 
-                    className="absolute inset-0 bg-terracotta rounded-full origin-left transition-none"
-                    style={{ transform: `scaleX(${progress / 100})` }}
-                  />
-                )}
-              </button>
-            ))}
-          </div>
+          <CarouselDots
+            count={count}
+            current={current}
+            progress={progress}
+            api={api}
+            onMouseEnter={() => setIsHoveringDots(true)}
+            onMouseLeave={() => setIsHoveringDots(false)}
+            activeColor="bg-terracotta"
+          />
         </motion.div>
       </div>
     </section>
