@@ -26,7 +26,7 @@ const faqItems: FAQItem[] = [
   },
   {
     question: "Como recebo meu pedido?",
-    answer: "Tudo é entregue congelado e pronto para consumo. Os kits detox vêm com sucos e sopas, e as marmitas são só aquecer no micro-ondas (3 minutinhos!).",
+    answer: "Tudo é entregue congelado e pronto para consumo. Você pode retirar grátis no bairro Recreio ou receber em casa por R$ 10,00 de taxa de entrega. Os kits detox vêm com sucos e sopas, e as marmitas são só aquecer no micro-ondas (3 minutinhos!).",
   },
   {
     question: "Posso pedir só as marmitas, sem o kit detox?",
@@ -34,7 +34,7 @@ const faqItems: FAQItem[] = [
   },
   {
     question: "Vocês atendem Vitória da Conquista?",
-    answer: "Sim 😊 Produção e entregas organizadas na cidade.",
+    answer: "Sim 😊 Retirada grátis no bairro Recreio ou entrega em toda a cidade por R$ 10,00.",
   },
 ];
 
