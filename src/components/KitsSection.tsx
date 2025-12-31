@@ -94,9 +94,8 @@ const KitsSection = ({ onSelectKit }: KitsSectionProps) => {
             >
               {kit.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
-                    <Star className="w-3 h-3 fill-current" />
-                    Mais escolhido
+                  <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-xs font-bold rounded-full shadow-md animate-pulse">
+                    🔥 Mais Vendido
                   </span>
                 </div>
               )}
