@@ -78,6 +78,52 @@ const CheckoutSection = ({ onWhatsAppClick }: CheckoutSectionProps) => {
               Entrega ou retirada
             </h3>
 
+            {/* Delivery date prediction */}
+            {(() => {
+              const getNextWednesday = (): Date => {
+                const now = new Date();
+                const dayOfWeek = now.getDay(); // 0 = domingo
+                // Quarta = 3. Se hoje é domingo (0), quarta é em 3 dias
+                // Se passamos de domingo, a entrega é na próxima quarta
+                let daysUntilWednesday: number;
+                if (dayOfWeek <= 3) {
+                  // Dom(0), Seg(1), Ter(2), Qua(3) - entrega nesta quarta ou próxima
+                  daysUntilWednesday = dayOfWeek === 0 ? 3 : (3 - dayOfWeek + 7);
+                } else {
+                  // Qui(4), Sex(5), Sab(6) - entrega na próxima quarta
+                  daysUntilWednesday = 3 + (7 - dayOfWeek);
+                }
+                // Se for domingo, a entrega é quarta. Se for segunda ou depois, é a próxima quarta
+                if (dayOfWeek === 0) {
+                  daysUntilWednesday = 3;
+                } else if (dayOfWeek <= 3) {
+                  daysUntilWednesday = 10 - dayOfWeek; // próxima quarta
+                } else {
+                  daysUntilWednesday = 10 - dayOfWeek; // próxima quarta
+                }
+                const nextWednesday = new Date(now);
+                nextWednesday.setDate(now.getDate() + daysUntilWednesday);
+                return nextWednesday;
+              };
+
+              const nextWednesday = getNextWednesday();
+              const months = [
+                "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+              ];
+              const formattedDate = `Quarta, ${nextWednesday.getDate().toString().padStart(2, '0')} de ${months[nextWednesday.getMonth()]}`;
+
+              return (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20 mb-4">
+                  <span className="text-lg">📅</span>
+                  <div>
+                    <span className="font-medium text-foreground">Previsão de entrega</span>
+                    <p className="text-sm text-primary font-semibold">{formattedDate}</p>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 rounded-lg bg-sage-light/30">
                 <span className="text-lg">📍</span>
