@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Check, ShoppingCart } from "lucide-react";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
+import Autoplay from "embla-carousel-autoplay";
 import {
   Carousel,
   CarouselContent,
@@ -119,6 +120,13 @@ const KitsSection = () => {
               align: "center",
               loop: true,
             }}
+            plugins={[
+              Autoplay({
+                delay: 4000,
+                stopOnInteraction: true,
+                stopOnMouseEnter: true,
+              }),
+            ]}
             className="w-full"
           >
             <CarouselContent className="-ml-4">
