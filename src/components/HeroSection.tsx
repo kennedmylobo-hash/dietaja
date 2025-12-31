@@ -58,11 +58,23 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
 
       <div className="relative z-10 container px-6 py-16 md:py-24">
         <div className="max-w-2xl mx-auto text-center">
+          {/* Badge de localização - PRIMEIRO */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 mb-3"
+          >
+            <span className="text-sm font-medium text-white">
+              📍 Entregamos apenas em Vitória da Conquista - BA
+            </span>
+          </motion.div>
+
           {/* Badge de urgência */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-terracotta/90 backdrop-blur-sm border border-terracotta shadow-lg"
           >
             <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
@@ -127,7 +139,7 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
           >
             <div className="flex items-center gap-2 text-sm text-white/90 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-full">
               <span>📍</span>
-              <span>Retirada grátis</span>
+              <span>Retirada grátis no Recreio</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-white/90 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-full">
               <span>⚡</span>
