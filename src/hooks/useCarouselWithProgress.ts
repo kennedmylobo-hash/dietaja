@@ -71,14 +71,16 @@ export function useCarouselWithProgress(
 
   // Pausar/retomar autoplay baseado na visibilidade
   useEffect(() => {
-    if (!autoplayPlugin.current) return;
+    if (!autoplayPlugin.current || !api) return;
 
-    if (isSectionVisible) {
+    const hasSlides = api.scrollSnapList().length > 0;
+
+    if (isSectionVisible && hasSlides) {
       autoplayPlugin.current.play();
     } else {
       autoplayPlugin.current.stop();
     }
-  }, [isSectionVisible]);
+  }, [isSectionVisible, api]);
 
   // Barra de progresso com CSS animation sync
   useEffect(() => {
@@ -108,14 +110,16 @@ export function useCarouselWithProgress(
 
   // Pausar autoplay quando hover nos dots
   useEffect(() => {
-    if (!autoplayPlugin.current) return;
+    if (!autoplayPlugin.current || !api) return;
+
+    const hasSlides = api.scrollSnapList().length > 0;
 
     if (isHoveringDots) {
       autoplayPlugin.current.stop();
-    } else if (isSectionVisible) {
+    } else if (isSectionVisible && hasSlides) {
       autoplayPlugin.current.play();
     }
-  }, [isHoveringDots, isSectionVisible]);
+  }, [isHoveringDots, isSectionVisible, api]);
 
   return {
     api,
