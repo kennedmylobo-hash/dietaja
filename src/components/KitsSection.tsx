@@ -17,6 +17,7 @@ interface Kit {
   name: string;
   days: number;
   price: number;
+  pricePerDay: number;
   description: string;
   features: string[];
   popular?: boolean;
@@ -28,6 +29,7 @@ const kits: Kit[] = [
     name: "Kit Detox 3 Dias",
     days: 3,
     price: 199,
+    pricePerDay: 66.33,
     description: "Um respiro para o corpo e para a rotina. Ideal para desinchar e retomar o controle.",
     features: [
       "2 sopas funcionais por dia",
@@ -40,6 +42,7 @@ const kits: Kit[] = [
     name: "Kit Detox 5 Dias",
     days: 5,
     price: 299,
+    pricePerDay: 59.80,
     description: "O equilíbrio ideal entre resultado e praticidade. Tempo suficiente para o corpo responder de verdade.",
     features: [
       "2 sopas funcionais por dia",
@@ -54,6 +57,7 @@ const kits: Kit[] = [
     name: "Kit Detox 7 Dias",
     days: 7,
     price: 399,
+    pricePerDay: 57.00,
     description: "Para quem quer constância, leveza e uma mudança mais profunda na rotina.",
     features: [
       "2 sopas funcionais por dia",
@@ -143,8 +147,24 @@ const KitsSection = () => {
                       <p className="text-muted-foreground text-sm mt-1">{kit.description}</p>
                     </div>
 
-                    <div className="mb-4">
+                    {/* Estoque baixo para popular */}
+                    {kit.popular && (
+                      <div className="mb-3">
+                        <span className="text-xs font-medium text-terracotta bg-terracotta/10 px-2 py-1 rounded-full">
+                          ⚠️ Restam poucas unidades
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="mb-2">
                       <span className="text-3xl font-bold text-primary">R$ {kit.price}</span>
+                    </div>
+                    
+                    {/* Valor por dia */}
+                    <div className="mb-4 p-2 bg-sage-light/50 rounded-lg text-center">
+                      <span className="text-sm text-foreground font-medium">
+                        = R$ {kit.pricePerDay.toFixed(2).replace('.', ',')}/dia
+                      </span>
                     </div>
 
                     <ul className="space-y-2 mb-6 flex-1">

@@ -16,6 +16,12 @@ const salesData = [
 const SalesNotification = () => {
   const [currentNotification, setCurrentNotification] = useState<typeof salesData[0] | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+  
+  // Contador de pedidos do dia (simulado baseado na hora)
+  const getPedidosHoje = () => {
+    const hour = new Date().getHours();
+    return Math.floor(8 + (hour * 1.2)); // Aumenta ao longo do dia
+  };
 
   useEffect(() => {
     // Show first notification after 5 seconds
@@ -85,11 +91,14 @@ const SalesNotification = () => {
               </div>
             </div>
 
-            {/* Verificado badge */}
-            <div className="mt-2 pt-2 border-t border-border/50">
+            {/* Contador de pedidos */}
+            <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between">
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                Compra verificada
+                Verificado
+              </p>
+              <p className="text-xs font-medium text-primary">
+                {getPedidosHoje()} pedidos hoje
               </p>
             </div>
           </div>
