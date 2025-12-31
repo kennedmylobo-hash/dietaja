@@ -22,7 +22,7 @@ const ValueSection = () => {
           transition={{ duration: 0.6 }}
         >
           <p className="text-xl md:text-2xl text-foreground leading-relaxed mb-4">
-            Não é só sobre sucos e sopas.
+            Não é só sobre sucos, sopas e marmitas.
           </p>
           
           <p className="text-lg text-primary font-semibold mb-8">
