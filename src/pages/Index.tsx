@@ -120,7 +120,7 @@ const IndexContent = () => {
         <SalesNotification />
 
         {/* Mobile Sticky CTA */}
-        <MobileStickyBar onCtaClick={scrollToCheckout} />
+        <MobileStickyBar onCtaClick={items.length === 0 ? scrollToKits : scrollToCheckout} />
 
         {/* Footer */}
         <footer className="py-8 bg-card border-t border-border">
