@@ -10,7 +10,7 @@ interface FAQItem {
 const faqItems: FAQItem[] = [
   {
     question: "Preciso seguir alguma dieta específica?",
-    answer: "Não. Os kits foram pensados para simplificar, não para complicar. É só seguir e cuidar de você.",
+    answer: "Não. Os kits e marmitas foram pensados para simplificar, não para complicar. É só seguir e cuidar de você.",
   },
   {
     question: "Vou passar fome?",
@@ -22,11 +22,15 @@ const faqItems: FAQItem[] = [
   },
   {
     question: "Nunca fiz detox, posso começar?",
-    answer: "Sim. O Kit Detox 5 Dias é o mais escolhido por quem está começando, por equilibrar resultado e praticidade.",
+    answer: "Sim! O Kit Detox 5 Dias é o mais escolhido por quem está começando. E se preferir só as marmitas, o Pacote Quinzenal é o favorito das clientes.",
   },
   {
     question: "Como recebo meu pedido?",
-    answer: "Os kits são entregues congelados, prontos para consumo.",
+    answer: "Tudo é entregue congelado e pronto para consumo. Os kits detox vêm com sucos e sopas, e as marmitas são só aquecer no micro-ondas (3 minutinhos!).",
+  },
+  {
+    question: "Posso pedir só as marmitas, sem o kit detox?",
+    answer: "Claro! Você pode montar seu pedido como preferir: só kits, só marmitas, ou os dois juntos para uma semana completa de praticidade.",
   },
   {
     question: "Vocês atendem Vitória da Conquista?",

@@ -37,7 +37,7 @@ const CheckoutSection = ({ onWhatsAppClick }: CheckoutSectionProps) => {
                 <ShoppingBag className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-muted-foreground">Seu carrinho está vazio</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Escolha um kit detox ou marmitas acima para começar
+                  Escolha um kit detox (sucos e sopas) ou marmitas congeladas acima
                 </p>
               </div>
             ) : (

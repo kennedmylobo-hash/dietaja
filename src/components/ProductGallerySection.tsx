@@ -1,11 +1,12 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
-import { Salad, Droplet, MapPin } from "lucide-react";
+import { Droplet, Flame, UtensilsCrossed, MapPin } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 
 const badges = [
-  { icon: Salad, label: "Marmitas prontas" },
   { icon: Droplet, label: "Sucos detox" },
+  { icon: Flame, label: "Sopas funcionais" },
+  { icon: UtensilsCrossed, label: "Marmitas congeladas" },
   { icon: MapPin, label: "Produção local" },
 ];
 
