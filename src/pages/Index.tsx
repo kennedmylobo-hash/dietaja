@@ -14,6 +14,7 @@ import GuaranteeSection from "@/components/GuaranteeSection";
 import FAQSection from "@/components/FAQSection";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import MobileStickyBar from "@/components/MobileStickyBar";
+import SalesNotification from "@/components/SalesNotification";
 
 // ⚠️ IMPORTANTE: Substitua pelo número real do WhatsApp (formato: 55 + DDD + número)
 const WHATSAPP_NUMBER = "5577991001658";
@@ -98,6 +99,9 @@ const Index = () => {
 
         {/* Floating WhatsApp Button */}
         <WhatsAppFloatingButton phoneNumber={WHATSAPP_NUMBER} />
+
+        {/* Sales Notifications */}
+        <SalesNotification />
 
         {/* Mobile Sticky CTA */}
         <MobileStickyBar selectedKit={selectedKit} onCtaClick={scrollToCheckout} />
