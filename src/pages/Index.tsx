@@ -8,6 +8,7 @@ import BeforeAfterSection from "@/components/BeforeAfterSection";
 import ProductGallerySection from "@/components/ProductGallerySection";
 import KitsSection from "@/components/KitsSection";
 import MarmitasSection from "@/components/MarmitasSection";
+import CustomDietSection from "@/components/CustomDietSection";
 import ValueSection from "@/components/ValueSection";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import UrgencySection from "@/components/UrgencySection";
@@ -95,6 +96,7 @@ const IndexContent = () => {
           <ProductGallerySection />
           <KitsSection />
           <MarmitasSection />
+          <CustomDietSection whatsappNumber={WHATSAPP_NUMBER} />
           <ValueSection />
           <TestimonialsSection />
           <UrgencySection />
