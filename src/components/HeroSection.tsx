@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Star, CheckCircle2, Calendar } from "lucide-react";
-import heroImage from "@/assets/hero-food.jpg";
+import { ArrowRight, Star, CheckCircle2, Clock } from "lucide-react";
+import produtosImage from "@/assets/produtos-detox.jpg";
+import CountdownTimer from "@/components/CountdownTimer";
 
 interface HeroSectionProps {
   onCtaClick: () => void;
@@ -13,11 +14,11 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
       {/* Background image with lighter overlay */}
       <div className="absolute inset-0 -z-10">
         <img 
-          src={heroImage} 
-          alt="Alimentação saudável com sucos verdes e vegetais frescos"
+          src={produtosImage} 
+          alt="Kits detox com sucos verdes e marmitas saudáveis"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background/95" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/40 to-background/90" />
       </div>
       
       {/* Decorative elements */}
@@ -98,17 +99,18 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
             </div>
           </motion.div>
 
-          {/* Next Production Indicator */}
+          {/* Countdown Timer */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-6"
+            className="mt-8 flex flex-col items-center gap-3"
           >
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-terracotta-light/30 text-terracotta-dark text-sm font-medium">
-              <Calendar className="w-4 h-4" />
-              Próxima produção: segunda-feira
+            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              Pedidos encerram em:
             </span>
+            <CountdownTimer variant="hero" />
           </motion.div>
         </div>
       </div>

@@ -10,8 +10,10 @@ import ValueSection from "@/components/ValueSection";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import UrgencySection from "@/components/UrgencySection";
 import CheckoutSection from "@/components/CheckoutSection";
+import GuaranteeSection from "@/components/GuaranteeSection";
 import FAQSection from "@/components/FAQSection";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
+import MobileStickyBar from "@/components/MobileStickyBar";
 
 // ⚠️ IMPORTANTE: Substitua pelo número real do WhatsApp (formato: 55 + DDD + número)
 const WHATSAPP_NUMBER = "5577991001658";
@@ -90,11 +92,15 @@ const Index = () => {
             selectedKit={selectedKit} 
             onWhatsAppClick={handleWhatsAppClick} 
           />
+          <GuaranteeSection />
           <FAQSection onContactClick={handleContactClick} />
         </main>
 
         {/* Floating WhatsApp Button */}
         <WhatsAppFloatingButton phoneNumber={WHATSAPP_NUMBER} />
+
+        {/* Mobile Sticky CTA */}
+        <MobileStickyBar selectedKit={selectedKit} onCtaClick={scrollToCheckout} />
 
         {/* Footer */}
         <footer className="py-8 bg-card border-t border-border">
