@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
-import type { Kit } from "@/components/KitsSection";
+import { ArrowRight, ShoppingCart } from "lucide-react";
+import { useCart } from "./CartContext";
 
 interface MobileStickyBarProps {
-  selectedKit: Kit | null;
   onCtaClick: () => void;
 }
 
-const MobileStickyBar = ({ selectedKit, onCtaClick }: MobileStickyBarProps) => {
+const MobileStickyBar = ({ onCtaClick }: MobileStickyBarProps) => {
   const [isVisible, setIsVisible] = useState(false);
+  const { itemCount, getTotal } = useCart();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -23,23 +23,37 @@ const MobileStickyBar = ({ selectedKit, onCtaClick }: MobileStickyBarProps) => {
 
   if (!isVisible) return null;
 
-  const price = selectedKit?.price || 199;
-  const label = selectedKit ? selectedKit.name : "A partir de";
+  const total = getTotal();
+  const hasItems = itemCount > 0;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card/95 backdrop-blur-md border-t border-border shadow-lg p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col">
-          <span className="text-xs text-muted-foreground">{label}</span>
-          <span className="text-lg font-bold text-foreground">R$ {price}</span>
+          {hasItems ? (
+            <>
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <ShoppingCart className="w-3 h-3" />
+                {itemCount} {itemCount === 1 ? "item" : "itens"}
+              </span>
+              <span className="text-lg font-bold text-foreground">
+                R$ {total.toFixed(2).replace(".", ",")}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-muted-foreground">A partir de</span>
+              <span className="text-lg font-bold text-foreground">R$ 181,30</span>
+            </>
+          )}
         </div>
-        <Button 
-          variant="cta" 
-          size="lg" 
+        <Button
+          variant="cta"
+          size="lg"
           onClick={onCtaClick}
           className="flex-1 max-w-[200px]"
         >
-          Pedir agora
+          {hasItems ? "Finalizar" : "Ver produtos"}
           <ArrowRight className="w-4 h-4 ml-1" />
         </Button>
       </div>

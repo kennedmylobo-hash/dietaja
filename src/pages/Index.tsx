@@ -6,7 +6,8 @@ import IdentificationSection from "@/components/IdentificationSection";
 import SolutionSection from "@/components/SolutionSection";
 import BeforeAfterSection from "@/components/BeforeAfterSection";
 import ProductGallerySection from "@/components/ProductGallerySection";
-import KitsSection, { type Kit } from "@/components/KitsSection";
+import KitsSection from "@/components/KitsSection";
+import MarmitasSection from "@/components/MarmitasSection";
 import ValueSection from "@/components/ValueSection";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import UrgencySection from "@/components/UrgencySection";
@@ -16,12 +17,16 @@ import FAQSection from "@/components/FAQSection";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import MobileStickyBar from "@/components/MobileStickyBar";
 import SalesNotification from "@/components/SalesNotification";
+import { CartProvider, useCart } from "@/components/CartContext";
+import CartFloatingButton from "@/components/CartFloatingButton";
+import CartDrawer from "@/components/CartDrawer";
 
 // ⚠️ IMPORTANTE: Substitua pelo número real do WhatsApp (formato: 55 + DDD + número)
 const WHATSAPP_NUMBER = "5577991001658";
 
-const Index = () => {
-  const [selectedKit, setSelectedKit] = useState<Kit | null>(null);
+const IndexContent = () => {
+  const [cartOpen, setCartOpen] = useState(false);
+  const { items, getTotal, clearCart } = useCart();
 
   const scrollToKits = () => {
     document.getElementById("kits")?.scrollIntoView({ behavior: "smooth" });
@@ -31,25 +36,26 @@ const Index = () => {
     document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleSelectKit = (kit: Kit) => {
-    setSelectedKit(kit);
-    scrollToCheckout();
-  };
-
-  const handleWhatsAppClick = (withMarmitas: boolean) => {
-    const kitName = selectedKit?.name || "Kit Detox 5 Dias";
-    const kitPrice = selectedKit?.price || 299;
-    
-    let message = `Oi 😊\nVi o site da *Dieta Já* e quero cuidar melhor da minha alimentação.\n\n`;
-    message += `📦 *Pedido:* ${kitName} - R$ ${kitPrice}\n`;
-    
-    if (withMarmitas) {
-      message += `➕ *Adicional:* 20 marmitas saudáveis - R$ 400\n`;
-      message += `💰 *Total:* R$ ${kitPrice + 400}\n`;
+  const handleWhatsAppClick = () => {
+    if (items.length === 0) {
+      scrollToKits();
+      return;
     }
-    
-    message += `\n📍 Estou em *Vitória da Conquista*\n\nPode me passar as informações de entrega?`;
-    
+
+    let message = `Oi 😊\nVi o site da *Dieta Já* e quero cuidar melhor da minha alimentação.\n\n`;
+    message += `🛒 *CARRINHO:*\n`;
+
+    items.forEach((item) => {
+      if (item.type === "kit") {
+        message += `📦 ${item.name} - R$ ${item.totalPrice.toFixed(2).replace(".", ",")}\n`;
+      } else {
+        message += `🍱 ${item.name} (${item.quantity} marmitas) - R$ ${item.totalPrice.toFixed(2).replace(".", ",")}\n`;
+      }
+    });
+
+    message += `\n💰 *TOTAL:* R$ ${getTotal().toFixed(2).replace(".", ",")}\n`;
+    message += `\n📍 Estou em *Vitória da Conquista*\n\nPode me passar as informações de entrega e pagamento?`;
+
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`, "_blank");
   };
@@ -64,9 +70,9 @@ const Index = () => {
     <>
       <Helmet>
         <title>Dieta Já | Alimentação Saudável Pronta em Vitória da Conquista</title>
-        <meta 
-          name="description" 
-          content="Kits detox e marmitas saudáveis prontas para mulheres com rotina corrida em Vitória da Conquista. Coma melhor sem precisar cozinhar." 
+        <meta
+          name="description"
+          content="Kits detox e marmitas saudáveis prontas para mulheres com rotina corrida em Vitória da Conquista. Coma melhor sem precisar cozinhar."
         />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://dietaja.com.br" />
@@ -87,17 +93,25 @@ const Index = () => {
           <SolutionSection />
           <BeforeAfterSection />
           <ProductGallerySection />
-          <KitsSection onSelectKit={handleSelectKit} />
+          <KitsSection />
+          <MarmitasSection />
           <ValueSection />
           <TestimonialsSection />
           <UrgencySection />
-          <CheckoutSection 
-            selectedKit={selectedKit} 
-            onWhatsAppClick={handleWhatsAppClick} 
-          />
+          <CheckoutSection onWhatsAppClick={handleWhatsAppClick} />
           <GuaranteeSection />
           <FAQSection onContactClick={handleContactClick} />
         </main>
+
+        {/* Cart Floating Button */}
+        <CartFloatingButton onClick={() => setCartOpen(true)} />
+
+        {/* Cart Drawer */}
+        <CartDrawer
+          open={cartOpen}
+          onOpenChange={setCartOpen}
+          onCheckout={handleWhatsAppClick}
+        />
 
         {/* Floating WhatsApp Button */}
         <WhatsAppFloatingButton phoneNumber={WHATSAPP_NUMBER} />
@@ -106,7 +120,7 @@ const Index = () => {
         <SalesNotification />
 
         {/* Mobile Sticky CTA */}
-        <MobileStickyBar selectedKit={selectedKit} onCtaClick={scrollToCheckout} />
+        <MobileStickyBar onCtaClick={scrollToCheckout} />
 
         {/* Footer */}
         <footer className="py-8 bg-card border-t border-border">
@@ -122,6 +136,14 @@ const Index = () => {
         </footer>
       </div>
     </>
+  );
+};
+
+const Index = () => {
+  return (
+    <CartProvider>
+      <IndexContent />
+    </CartProvider>
   );
 };
 

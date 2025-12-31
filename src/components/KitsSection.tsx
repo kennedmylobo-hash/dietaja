@@ -1,7 +1,16 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, Star } from "lucide-react";
+import { Check, ShoppingCart } from "lucide-react";
+import { useCart } from "./CartContext";
+import { toast } from "@/hooks/use-toast";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from "@/components/ui/carousel";
 
 interface Kit {
   id: string;
@@ -54,13 +63,26 @@ const kits: Kit[] = [
   },
 ];
 
-interface KitsSectionProps {
-  onSelectKit: (kit: Kit) => void;
-}
-
-const KitsSection = ({ onSelectKit }: KitsSectionProps) => {
+const KitsSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const { addItem } = useCart();
+
+  const handleAddKit = (kit: Kit) => {
+    addItem({
+      type: "kit",
+      name: kit.name,
+      quantity: 1,
+      unitPrice: kit.price,
+      totalPrice: kit.price,
+      description: `${kit.days} dias de detox completo`,
+    });
+
+    toast({
+      title: "Adicionado ao carrinho! 🛒",
+      description: kit.name,
+    });
+  };
 
   return (
     <section ref={ref} id="kits" className="py-20 md:py-28 bg-card">
@@ -74,61 +96,82 @@ const KitsSection = ({ onSelectKit }: KitsSectionProps) => {
           <span className="inline-block px-4 py-1.5 bg-sage-light text-sage-dark text-sm font-medium rounded-full mb-4">
             🌿 Kits Detox
           </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
             Escolha seu caminho
           </h2>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Sucos e sopas funcionais para desintoxicar e renovar o corpo.
+          </p>
         </motion.div>
 
-        <div className="max-w-xl mx-auto space-y-6">
-          {kits.map((kit, index) => (
-            <motion.div
-              key={kit.id}
-              className={`relative rounded-2xl p-6 md:p-8 transition-all duration-300 ${
-                kit.popular 
-                  ? "bg-gradient-to-br from-sage-light to-card border-2 border-primary shadow-card" 
-                  : "bg-card border border-border hover:border-primary/30 hover:shadow-soft"
-              }`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              {kit.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-xs font-bold rounded-full shadow-md animate-pulse">
-                    🔥 Mais Vendido
-                  </span>
-                </div>
-              )}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="max-w-4xl mx-auto"
+        >
+          <Carousel
+            opts={{
+              align: "center",
+              loop: true,
+            }}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-4">
+              {kits.map((kit, index) => (
+                <CarouselItem key={kit.id} className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3">
+                  <motion.div
+                    className={`relative rounded-2xl p-6 transition-all duration-300 h-full flex flex-col ${
+                      kit.popular
+                        ? "bg-gradient-to-br from-sage-light to-card border-2 border-primary shadow-card"
+                        : "bg-card border border-border hover:border-primary/30 hover:shadow-soft"
+                    }`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={isInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                  >
+                    {kit.popular && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-xs font-bold rounded-full shadow-md animate-pulse">
+                          🔥 Mais Vendido
+                        </span>
+                      </div>
+                    )}
 
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-foreground">{kit.name}</h3>
-                  <p className="text-muted-foreground text-sm mt-1">{kit.description}</p>
-                </div>
-                <div className="text-right md:text-left">
-                  <span className="text-3xl font-bold text-primary">R$ {kit.price}</span>
-                </div>
-              </div>
+                    <div className="mb-4">
+                      <h3 className="text-lg font-bold text-foreground">{kit.name}</h3>
+                      <p className="text-muted-foreground text-sm mt-1">{kit.description}</p>
+                    </div>
 
-              <ul className="space-y-2 mb-6">
-                {kit.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm text-foreground">
-                    <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
+                    <div className="mb-4">
+                      <span className="text-3xl font-bold text-primary">R$ {kit.price}</span>
+                    </div>
 
-              <Button 
-                variant={kit.popular ? "cta" : "cta-outline"}
-                className="w-full"
-                onClick={() => onSelectKit(kit)}
-              >
-                Quero esse caminho
-              </Button>
-            </motion.div>
-          ))}
-        </div>
+                    <ul className="space-y-2 mb-6 flex-1">
+                      {kit.features.map((feature) => (
+                        <li key={feature} className="flex items-center gap-2 text-sm text-foreground">
+                          <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Button
+                      variant={kit.popular ? "cta" : "cta-outline"}
+                      className="w-full mt-auto"
+                      onClick={() => handleAddKit(kit)}
+                    >
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Adicionar ao carrinho
+                    </Button>
+                  </motion.div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="hidden md:flex -left-4" />
+            <CarouselNext className="hidden md:flex -right-4" />
+          </Carousel>
+        </motion.div>
       </div>
     </section>
   );
