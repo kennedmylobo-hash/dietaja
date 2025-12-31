@@ -184,7 +184,7 @@ const MarmitasSection = () => {
           
           {/* Indicador de scroll no mobile */}
           <p className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground md:hidden">
-            <span>👆</span> Arraste para ver mais <span>→</span>
+            <span>👆</span> Arraste para ver mais <span className="inline-block animate-bounce">→</span>
           </p>
         </motion.div>
       </div>
