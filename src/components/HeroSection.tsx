@@ -110,7 +110,7 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.35 }}
           >
-            Kits a partir de <span className="text-primary font-bold">R$ 199</span> • Marmitas <span className="text-primary font-bold">R$ 12,10</span>/un
+            Kits a partir de <span className="text-primary font-bold">R$ 199</span>
           </motion.p>
 
           <motion.div
