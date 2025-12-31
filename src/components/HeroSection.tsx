@@ -79,7 +79,7 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
           >
             <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
             <span className="text-sm font-semibold text-white">
-              🔥 Últimas vagas para entrega desta semana
+              🔥 Peça até domingo • Entrega quarta-feira
             </span>
           </motion.div>
 
@@ -185,7 +185,7 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
           >
             <span className="inline-flex items-center gap-2 text-sm text-white/80">
               <Clock className="w-4 h-4" />
-              Pedidos encerram em:
+              Pedidos encerram domingo • Entrega quarta:
             </span>
             <CountdownTimer variant="hero" />
           </motion.div>

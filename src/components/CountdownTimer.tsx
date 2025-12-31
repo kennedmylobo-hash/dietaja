@@ -6,21 +6,24 @@ interface TimeLeft {
   minutes: number;
 }
 
-const getNextMonday = (): Date => {
+const getNextSunday = (): Date => {
   const now = new Date();
-  const dayOfWeek = now.getDay();
-  const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
+  const dayOfWeek = now.getDay(); // 0 = domingo
   
-  const nextMonday = new Date(now);
-  nextMonday.setDate(now.getDate() + daysUntilMonday);
-  nextMonday.setHours(8, 0, 0, 0); // 8h da manhã
+  // Se for domingo e antes das 23:59, conta até hoje
+  // Senão, conta até o próximo domingo
+  const daysUntilSunday = dayOfWeek === 0 ? 0 : (7 - dayOfWeek);
   
-  return nextMonday;
+  const nextSunday = new Date(now);
+  nextSunday.setDate(now.getDate() + daysUntilSunday);
+  nextSunday.setHours(23, 59, 59, 999); // 23:59 de domingo
+  
+  return nextSunday;
 };
 
 const calculateTimeLeft = (): TimeLeft => {
   const now = new Date();
-  const target = getNextMonday();
+  const target = getNextSunday();
   const difference = target.getTime() - now.getTime();
   
   if (difference <= 0) {

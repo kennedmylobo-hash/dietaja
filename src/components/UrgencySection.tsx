@@ -34,7 +34,7 @@ const UrgencySection = () => {
               🔥 Restam apenas {vagasRestantes} vagas para esta semana
             </p>
             <p className="text-sm text-muted-foreground">
-              Pedidos feitos até domingo = Entrega na segunda-feira
+              Pedidos feitos até domingo = Entrega na quarta-feira
             </p>
           </div>
 
@@ -71,7 +71,7 @@ const UrgencySection = () => {
             </div>
             
             <div className="bg-card/50 rounded-lg p-4 flex flex-col items-center">
-              <span className="text-sm text-muted-foreground mb-2">Pedidos para próxima entrega encerram em:</span>
+              <span className="text-sm text-muted-foreground mb-2">Pedidos encerram domingo • Entrega na quarta:</span>
               <CountdownTimer />
             </div>
           </div>

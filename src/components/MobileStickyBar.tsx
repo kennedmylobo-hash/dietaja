@@ -39,7 +39,7 @@ const MobileStickyBar = ({ onCtaClick }: MobileStickyBarProps) => {
     <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card/95 backdrop-blur-md border-t border-border shadow-lg">
       {/* Barra de urgência */}
       <div className="bg-terracotta/90 text-white text-center py-1.5 text-xs font-medium">
-        🔥 Restam {getVagasRestantes()} vagas • Entrega segunda
+        🔥 Restam {getVagasRestantes()} vagas • Entrega quarta
       </div>
       
       <div className="flex items-center justify-between gap-4 p-4">
