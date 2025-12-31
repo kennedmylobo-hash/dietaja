@@ -188,9 +188,14 @@ const KitsSection = () => {
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="hidden md:flex -left-4" />
-            <CarouselNext className="hidden md:flex -right-4" />
+            <CarouselPrevious className="-left-2 md:-left-4" />
+            <CarouselNext className="-right-2 md:-right-4" />
           </Carousel>
+          
+          {/* Indicador de scroll no mobile */}
+          <p className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground md:hidden">
+            ← Arraste para ver mais opções →
+          </p>
         </motion.div>
       </div>
     </section>
