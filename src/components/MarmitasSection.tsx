@@ -137,7 +137,7 @@ const MarmitasSection = () => {
         >
           <Carousel
             opts={{
-              align: "center",
+              align: "start",
               loop: true,
             }}
             plugins={[autoplayPlugin]}
@@ -146,7 +146,7 @@ const MarmitasSection = () => {
           >
             <CarouselContent className="-ml-4">
               {marmitas.map((marmita, index) => (
-                <CarouselItem key={marmita.id} className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3">
+                <CarouselItem key={marmita.id} className="pl-4 basis-[85%] sm:basis-1/2 lg:basis-1/3">
                   <motion.div
                     className={`relative rounded-2xl overflow-hidden transition-all duration-300 h-full ${
                       marmita.popular
