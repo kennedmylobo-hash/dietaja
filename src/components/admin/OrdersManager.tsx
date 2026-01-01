@@ -1,0 +1,449 @@
+import { useState, useEffect, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ShoppingCart,
+  Package,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Download,
+  RefreshCw,
+  Eye,
+  MessageCircle,
+  TrendingUp,
+  Calendar,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface Order {
+  id: string;
+  mp_preference_id: string | null;
+  mp_payment_id: string | null;
+  status: string;
+  payment_method: string | null;
+  items: Array<{ name: string; quantity: number; totalPrice: number; type: string }>;
+  subtotal: number;
+  delivery_fee: number;
+  total: number;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  delivery_option: string;
+  delivery_address: string | null;
+  utm_data: Record<string, string> | null;
+  created_at: string;
+  paid_at: string | null;
+}
+
+interface OrdersManagerProps {
+  dateFilter: 'today' | 'week' | 'month';
+}
+
+const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  const getDateRange = () => {
+    const now = new Date();
+    let start = new Date();
+    
+    switch (dateFilter) {
+      case 'today':
+        start.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        start.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        start.setDate(now.getDate() - 30);
+        break;
+    }
+    
+    return start.toISOString();
+  };
+
+  const fetchOrders = async () => {
+    setIsLoading(true);
+    const startDate = getDateRange();
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .gte('created_at', startDate)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching orders:', error);
+    } else {
+      setOrders((data as Order[]) || []);
+    }
+    
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, [dateFilter]);
+
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === 'all') return orders;
+    return orders.filter(o => o.status === statusFilter);
+  }, [orders, statusFilter]);
+
+  const stats = useMemo(() => {
+    const approved = orders.filter(o => o.status === 'approved');
+    const pending = orders.filter(o => o.status === 'pending');
+    const rejected = orders.filter(o => o.status === 'rejected');
+    const totalRevenue = approved.reduce((sum, o) => sum + o.total, 0);
+    
+    return { approved: approved.length, pending: pending.length, rejected: rejected.length, totalRevenue };
+  }, [orders]);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">Aprovado</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20">Pendente</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-500/10 text-red-600 hover:bg-red-500/20">Rejeitado</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const openWhatsApp = (phone: string, name: string, orderId: string) => {
+    const message = encodeURIComponent(
+      `Olá ${name}! 😊\n\nSeu pedido #${orderId.slice(0, 8)} foi recebido com sucesso.\n\nPosso te ajudar com algo?`
+    );
+    window.open(`https://wa.me/55${phone.replace(/\D/g, '')}?text=${message}`, '_blank');
+  };
+
+  const exportOrdersCSV = () => {
+    if (filteredOrders.length === 0) return;
+
+    const headers = ['ID', 'Status', 'Cliente', 'Email', 'Telefone', 'Entrega', 'Endereço', 'Subtotal', 'Frete', 'Total', 'Pago em', 'Criado em'];
+    const rows = filteredOrders.map(order => [
+      order.id.slice(0, 8),
+      order.status,
+      order.customer_name,
+      order.customer_email,
+      order.customer_phone,
+      order.delivery_option === 'pickup' ? 'Retirada' : 'Entrega',
+      order.delivery_address || '',
+      order.subtotal.toFixed(2),
+      order.delivery_fee.toFixed(2),
+      order.total.toFixed(2),
+      order.paid_at ? new Date(order.paid_at).toLocaleString('pt-BR') : '',
+      new Date(order.created_at).toLocaleString('pt-BR'),
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `pedidos-${statusFilter}-${dateFilter}-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <ShoppingCart className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{orders.length}</p>
+                <p className="text-xs text-muted-foreground">Total de pedidos</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.approved}</p>
+                <p className="text-xs text-muted-foreground">Aprovados</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-yellow-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.pending}</p>
+                <p className="text-xs text-muted-foreground">Pendentes</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">
+                  R$ {stats.totalRevenue.toFixed(0)}
+                </p>
+                <p className="text-xs text-muted-foreground">Receita</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Orders Table */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Package className="w-5 h-5" />
+            Pedidos
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="pending">Pendentes</SelectItem>
+                <SelectItem value="approved">Aprovados</SelectItem>
+                <SelectItem value="rejected">Rejeitados</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={fetchOrders}>
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportOrdersCSV} disabled={filteredOrders.length === 0}>
+              <Download className="w-4 h-4 mr-2" />
+              CSV
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filteredOrders.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              Nenhum pedido encontrado no período.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="pb-3 font-medium text-muted-foreground">Pedido</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Cliente</th>
+                    <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Entrega</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Total</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Status</th>
+                    <th className="pb-3 font-medium text-muted-foreground hidden lg:table-cell">Data</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.map((order) => (
+                    <tr key={order.id} className="border-b last:border-0">
+                      <td className="py-3">
+                        <p className="font-mono text-xs">#{order.id.slice(0, 8)}</p>
+                      </td>
+                      <td className="py-3">
+                        <p className="font-medium">{order.customer_name}</p>
+                        <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
+                      </td>
+                      <td className="py-3 hidden md:table-cell">
+                        <p className="text-xs">
+                          {order.delivery_option === 'pickup' ? '📍 Retirada' : '🛵 Entrega'}
+                        </p>
+                      </td>
+                      <td className="py-3">
+                        <p className="font-semibold text-primary">
+                          R$ {order.total.toFixed(2).replace('.', ',')}
+                        </p>
+                      </td>
+                      <td className="py-3">
+                        {getStatusBadge(order.status)}
+                      </td>
+                      <td className="py-3 hidden lg:table-cell">
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(order.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </td>
+                      <td className="py-3">
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedOrder(order)}
+                            title="Ver detalhes"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openWhatsApp(order.customer_phone, order.customer_name, order.id)}
+                            title="Enviar WhatsApp"
+                          >
+                            <MessageCircle className="w-4 h-4 text-green-600" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Order Details Modal */}
+      <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5" />
+              Pedido #{selectedOrder?.id.slice(0, 8)}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedOrder && (
+            <div className="space-y-4">
+              {/* Status */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Status</span>
+                {getStatusBadge(selectedOrder.status)}
+              </div>
+
+              {/* Customer */}
+              <div className="p-3 rounded-lg bg-muted/50">
+                <h4 className="font-medium mb-2">Cliente</h4>
+                <p className="text-sm">{selectedOrder.customer_name}</p>
+                <p className="text-sm text-muted-foreground">{selectedOrder.customer_email}</p>
+                <p className="text-sm text-muted-foreground">{selectedOrder.customer_phone}</p>
+              </div>
+
+              {/* Delivery */}
+              <div className="p-3 rounded-lg bg-muted/50">
+                <h4 className="font-medium mb-2">Entrega</h4>
+                <p className="text-sm">
+                  {selectedOrder.delivery_option === 'pickup' ? '📍 Retirada no Recreio' : '🛵 Entrega em domicílio'}
+                </p>
+                {selectedOrder.delivery_address && (
+                  <p className="text-sm text-muted-foreground mt-1">{selectedOrder.delivery_address}</p>
+                )}
+              </div>
+
+              {/* Items */}
+              <div className="p-3 rounded-lg bg-muted/50">
+                <h4 className="font-medium mb-2">Itens</h4>
+                {selectedOrder.items.map((item, i) => (
+                  <div key={i} className="flex justify-between text-sm py-1">
+                    <span>{item.name} ({item.quantity}x)</span>
+                    <span>R$ {item.totalPrice.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                ))}
+                <div className="border-t mt-2 pt-2 space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal</span>
+                    <span>R$ {selectedOrder.subtotal.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                  {selectedOrder.delivery_fee > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span>Entrega</span>
+                      <span>R$ {selectedOrder.delivery_fee.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold">
+                    <span>Total</span>
+                    <span className="text-primary">R$ {selectedOrder.total.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>Criado: {new Date(selectedOrder.created_at).toLocaleString('pt-BR')}</span>
+                </div>
+                {selectedOrder.paid_at && (
+                  <div className="flex items-center gap-1">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>Pago: {new Date(selectedOrder.paid_at).toLocaleString('pt-BR')}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* UTM Data */}
+              {selectedOrder.utm_data && Object.keys(selectedOrder.utm_data).length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  <span className="font-medium">Origem: </span>
+                  {selectedOrder.utm_data.utm_source || 'Direto'}
+                  {selectedOrder.utm_data.utm_campaign && ` / ${selectedOrder.utm_data.utm_campaign}`}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2">
+                <Button
+                  className="flex-1"
+                  onClick={() => openWhatsApp(selectedOrder.customer_phone, selectedOrder.customer_name, selectedOrder.id)}
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Enviar WhatsApp
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default OrdersManager;

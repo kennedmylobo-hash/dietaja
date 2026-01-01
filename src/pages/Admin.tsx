@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, 
   TrendingUp, 
@@ -19,7 +20,8 @@ import {
   BarChart3,
   Percent,
   Filter,
-  MapPin
+  MapPin,
+  Package
 } from "lucide-react";
 import {
   Select,
@@ -40,6 +42,7 @@ import {
   AreaChart,
   Area
 } from "recharts";
+import OrdersManager from "@/components/admin/OrdersManager";
 
 interface Lead {
   id: string;
@@ -604,8 +607,21 @@ const Admin = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Metrics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <Tabs defaultValue="analytics" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              Pedidos
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="analytics" className="space-y-8">
+            {/* Metrics Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -1042,6 +1058,12 @@ const Admin = () => {
             </Card>
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="orders">
+            <OrdersManager dateFilter={dateFilter} />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
