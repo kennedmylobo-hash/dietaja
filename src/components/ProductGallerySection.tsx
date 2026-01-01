@@ -44,6 +44,7 @@ const ProductGallerySection = () => {
               loop
               muted
               playsInline
+              preload="none"
               className="w-full h-auto object-cover"
             />
           </div>

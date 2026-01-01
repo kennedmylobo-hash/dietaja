@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ShoppingCart } from "lucide-react";
 import { useCart } from "./CartContext";
@@ -7,7 +7,7 @@ interface MobileStickyBarProps {
   onCtaClick: () => void;
 }
 
-const MobileStickyBar = ({ onCtaClick }: MobileStickyBarProps) => {
+const MobileStickyBar = forwardRef<HTMLDivElement, MobileStickyBarProps>(({ onCtaClick }, ref) => {
   const [isVisible, setIsVisible] = useState(false);
   const { itemCount, getTotal } = useCart();
 
@@ -36,7 +36,7 @@ const MobileStickyBar = ({ onCtaClick }: MobileStickyBarProps) => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card/95 backdrop-blur-md border-t border-border shadow-lg">
+    <div ref={ref} className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card/95 backdrop-blur-md border-t border-border shadow-lg">
       {/* Barra de urgência */}
       <div className="bg-terracotta/90 text-white text-center py-1.5 text-xs font-medium">
         🔥 Restam {getVagasRestantes()} vagas • Entrega quarta
@@ -73,6 +73,8 @@ const MobileStickyBar = ({ onCtaClick }: MobileStickyBarProps) => {
       </div>
     </div>
   );
-};
+});
+
+MobileStickyBar.displayName = "MobileStickyBar";
 
 export default MobileStickyBar;

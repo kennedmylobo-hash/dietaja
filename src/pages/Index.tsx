@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Logo from "@/components/Logo";
@@ -9,19 +9,21 @@ import BeforeAfterSection from "@/components/BeforeAfterSection";
 import ProductGallerySection from "@/components/ProductGallerySection";
 import KitsSection from "@/components/KitsSection";
 import MarmitasSection from "@/components/MarmitasSection";
-import CustomDietSection from "@/components/CustomDietSection";
 import ValueSection from "@/components/ValueSection";
-import TestimonialsSection from "@/components/TestimonialsSection";
 import UrgencySection from "@/components/UrgencySection";
 import CheckoutSection from "@/components/CheckoutSection";
-import GuaranteeSection from "@/components/GuaranteeSection";
-import FAQSection from "@/components/FAQSection";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import MobileStickyBar from "@/components/MobileStickyBar";
 import SalesNotification from "@/components/SalesNotification";
 import { CartProvider, useCart } from "@/components/CartContext";
 import CartFloatingButton from "@/components/CartFloatingButton";
 import CartDrawer from "@/components/CartDrawer";
+
+// Lazy load below-the-fold sections
+const CustomDietSection = lazy(() => import("@/components/CustomDietSection"));
+const TestimonialsSection = lazy(() => import("@/components/TestimonialsSection"));
+const GuaranteeSection = lazy(() => import("@/components/GuaranteeSection"));
+const FAQSection = lazy(() => import("@/components/FAQSection"));
 
 // ⚠️ IMPORTANTE: Substitua pelo número real do WhatsApp (formato: 55 + DDD + número)
 const WHATSAPP_NUMBER = "5577991001658";
@@ -121,13 +123,21 @@ const IndexContent = () => {
           <ProductGallerySection />
           <KitsSection />
           <MarmitasSection />
-          <CustomDietSection whatsappNumber={WHATSAPP_NUMBER} />
+          <Suspense fallback={<div className="py-20 bg-background" />}>
+            <CustomDietSection whatsappNumber={WHATSAPP_NUMBER} />
+          </Suspense>
           <ValueSection />
-          <TestimonialsSection />
+          <Suspense fallback={<div className="py-20 bg-sage-light/30" />}>
+            <TestimonialsSection />
+          </Suspense>
           <UrgencySection />
           <CheckoutSection onWhatsAppClick={handleWhatsAppClick} />
-          <GuaranteeSection />
-          <FAQSection onContactClick={handleContactClick} />
+          <Suspense fallback={<div className="py-16 bg-sage-light/20" />}>
+            <GuaranteeSection />
+          </Suspense>
+          <Suspense fallback={<div className="py-20 bg-background" />}>
+            <FAQSection onContactClick={handleContactClick} />
+          </Suspense>
         </main>
 
         {/* Cart Floating Button */}
