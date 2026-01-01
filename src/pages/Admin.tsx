@@ -16,7 +16,8 @@ import {
   MessageCircle,
   LogOut,
   Download,
-  BarChart3
+  BarChart3,
+  Percent
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { 
@@ -57,6 +58,7 @@ interface DailyData {
   date: string;
   leads: number;
   visitors: number;
+  conversionRate: number;
 }
 
 const Admin = () => {
@@ -247,10 +249,16 @@ const Admin = () => {
           .map(e => e.session_id)
       ).size;
       
+      // Calculate conversion rate (leads / visitors * 100)
+      const conversionRate = dayVisitors > 0 
+        ? Math.round((dayLeads / dayVisitors) * 100 * 10) / 10 
+        : 0;
+      
       data.push({
         date: displayDate,
         leads: dayLeads,
         visitors: dayVisitors,
+        conversionRate,
       });
     }
     
@@ -548,7 +556,7 @@ const Admin = () => {
 
         {/* Evolution Charts */}
         {dateFilter !== 'today' && (
-          <div className="grid md:grid-cols-2 gap-4 mb-8">
+          <div className="grid md:grid-cols-3 gap-4 mb-8">
             {/* Leads Evolution */}
             <Card>
               <CardHeader>
@@ -659,6 +667,66 @@ const Admin = () => {
                     <div className="text-center">
                       <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">Sem visitantes no período</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Conversion Rate Evolution */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Percent className="w-5 h-5 text-green-500" />
+                  Taxa de Conversão
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {dailyChartData.some(d => d.visitors > 0) ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={dailyChartData}>
+                      <defs>
+                        <linearGradient id="conversionGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 12 }} 
+                        className="text-muted-foreground"
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12 }} 
+                        allowDecimals={true}
+                        unit="%"
+                        className="text-muted-foreground"
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                        formatter={(value: number) => [`${value}%`, 'Conversão']}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="conversionRate" 
+                        stroke="#22c55e" 
+                        strokeWidth={2}
+                        fill="url(#conversionGradient)"
+                        name="Taxa de Conversão"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Sem dados no período</p>
                     </div>
                   </div>
                 )}
