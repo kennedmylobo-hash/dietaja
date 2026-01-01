@@ -43,19 +43,16 @@ const IndexContent = () => {
       return;
     }
 
-    // Track Contact, InitiateCheckout and Purchase events with Meta Pixel
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'Contact');
-      window.fbq('track', 'InitiateCheckout', {
-        value: getTotal(),
+    const total = getTotal();
+    const itemsCount = items.length;
+
+    // Track Contact and InitiateCheckout events (Purchase será na página de obrigado)
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('track', 'Contact');
+      (window as any).fbq('track', 'InitiateCheckout', {
+        value: total,
         currency: 'BRL',
-        num_items: items.length
-      });
-      // Purchase event para otimização de campanhas
-      window.fbq('track', 'Purchase', {
-        value: getTotal(),
-        currency: 'BRL',
-        num_items: items.length
+        num_items: itemsCount
       });
     }
 
@@ -70,11 +67,17 @@ const IndexContent = () => {
       }
     });
 
-    message += `\n💰 *TOTAL:* R$ ${getTotal().toFixed(2).replace(".", ",")}\n`;
+    message += `\n💰 *TOTAL:* R$ ${total.toFixed(2).replace(".", ",")}\n`;
     message += `\n📍 Estou em *Vitória da Conquista*\n\nPode me passar as informações de entrega e pagamento?`;
 
     const encodedMessage = encodeURIComponent(message);
+    
+    // Abrir WhatsApp
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`, "_blank");
+    
+    // Limpar carrinho e redirecionar para página de obrigado
+    clearCart();
+    window.location.href = `/obrigado?total=${total}&items=${itemsCount}`;
   };
 
   const handleContactClick = () => {
