@@ -14,7 +14,12 @@ import {
   ShoppingCart,
   MessageCircle,
   Check,
-  Loader2
+  Loader2,
+  Droplets,
+  Moon,
+  Heart,
+  Scale,
+  CheckCircle2
 } from "lucide-react";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
@@ -58,6 +63,15 @@ const mealsOptions: { value: QuizMealsPerWeek; label: string; description: strin
   { value: 7, label: '7 refeições', description: 'Uma semana de praticidade' },
   { value: 14, label: '14 refeições', description: 'Quinzenal - melhor custo-benefício' },
   { value: 28, label: '28 refeições', description: 'Mensal - maior economia!' },
+];
+const detoxBenefits = [
+  { icon: Sparkles, text: "Desintoxicação completa do organismo" },
+  { icon: Leaf, text: "Limpeza intestinal profunda" },
+  { icon: Droplets, text: "Redução do inchaço e retenção de líquidos" },
+  { icon: Zap, text: "Mais energia e disposição no dia a dia" },
+  { icon: Moon, text: "Melhora na qualidade do sono" },
+  { icon: Heart, text: "Pele mais bonita e saudável" },
+  { icon: Scale, text: "Eliminação de toxinas acumuladas" },
 ];
 
 const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
@@ -427,6 +441,33 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
                     }
                   </h2>
                 </div>
+
+                {/* Detox Benefits - only show for kit recommendations */}
+                {recommendation.primary.type === 'kit' && (
+                  <div className="bg-primary/5 rounded-xl p-4 mb-5 border border-primary/10">
+                    <h4 className="font-bold text-foreground text-sm mb-3 flex items-center gap-2">
+                      <Leaf className="w-4 h-4 text-primary" />
+                      Por que o Detox é ideal para você:
+                    </h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      {detoxBenefits.map((benefit, index) => {
+                        const Icon = benefit.icon;
+                        return (
+                          <motion.div
+                            key={benefit.text}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+                            <span className="text-muted-foreground">{benefit.text}</span>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Primary recommendation */}
                 <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl p-5 border border-primary/20 mb-4">
