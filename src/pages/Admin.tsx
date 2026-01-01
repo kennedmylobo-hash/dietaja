@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,14 +11,25 @@ import {
   Eye, 
   Lock,
   Phone,
-  Calendar,
   Target,
   ShoppingCart,
   MessageCircle,
   LogOut,
-  Download
+  Download,
+  BarChart3
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  AreaChart,
+  Area
+} from "recharts";
 
 interface Lead {
   id: string;
@@ -42,6 +53,12 @@ interface AnalyticsSummary {
   topSections: { section: string; count: number }[];
 }
 
+interface DailyData {
+  date: string;
+  leads: number;
+  visitors: number;
+}
+
 const Admin = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,6 +69,7 @@ const Admin = () => {
   const [signupSuccess, setSignupSuccess] = useState(false);
   
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [analyticsEvents, setAnalyticsEvents] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month'>('week');
   
@@ -145,6 +163,8 @@ const Admin = () => {
       return;
     }
 
+    setAnalyticsEvents(events || []);
+
     if (!events || events.length === 0) {
       setAnalytics({
         totalPageViews: 0,
@@ -199,6 +219,43 @@ const Admin = () => {
       topSections,
     });
   };
+
+  // Calculate daily chart data
+  const dailyChartData = useMemo((): DailyData[] => {
+    const days = dateFilter === 'today' ? 1 : dateFilter === 'week' ? 7 : 30;
+    const data: DailyData[] = [];
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const displayDate = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      
+      // Count leads for this day
+      const dayLeads = leads.filter(lead => {
+        const leadDate = new Date(lead.created_at).toISOString().split('T')[0];
+        return leadDate === dateStr;
+      }).length;
+      
+      // Count unique visitors for this day
+      const dayVisitors = new Set(
+        analyticsEvents
+          .filter(e => {
+            const eventDate = new Date(e.created_at).toISOString().split('T')[0];
+            return eventDate === dateStr && e.event_type === 'page_view';
+          })
+          .map(e => e.session_id)
+      ).size;
+      
+      data.push({
+        date: displayDate,
+        leads: dayLeads,
+        visitors: dayVisitors,
+      });
+    }
+    
+    return data;
+  }, [leads, analyticsEvents, dateFilter]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -488,6 +545,127 @@ const Admin = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Evolution Charts */}
+        {dateFilter !== 'today' && (
+          <div className="grid md:grid-cols-2 gap-4 mb-8">
+            {/* Leads Evolution */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="w-5 h-5 text-primary" />
+                  Evolução de Leads
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {dailyChartData.some(d => d.leads > 0) ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={dailyChartData}>
+                      <defs>
+                        <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 12 }} 
+                        className="text-muted-foreground"
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12 }} 
+                        allowDecimals={false}
+                        className="text-muted-foreground"
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="leads" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        fill="url(#leadsGradient)"
+                        name="Leads"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Sem leads no período</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Visitors Evolution */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-blue-500" />
+                  Evolução de Visitantes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {dailyChartData.some(d => d.visitors > 0) ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={dailyChartData}>
+                      <defs>
+                        <linearGradient id="visitorsGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 12 }} 
+                        className="text-muted-foreground"
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12 }} 
+                        allowDecimals={false}
+                        className="text-muted-foreground"
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="visitors" 
+                        stroke="#3b82f6" 
+                        strokeWidth={2}
+                        fill="url(#visitorsGradient)"
+                        name="Visitantes"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Sem visitantes no período</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Leads Table */}
         <Card className="mb-8">
