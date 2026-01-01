@@ -22,11 +22,13 @@ import {
   CheckCircle2,
   MapPin,
   Package,
-  MapPinOff
+  MapPinOff,
+  AlertCircle
 } from "lucide-react";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
 import { getUTMSummary } from "@/lib/utm";
+import { saveLead } from "@/lib/leads";
 import { 
   getRecommendation, 
   formatQuizDataForWhatsApp,
@@ -248,44 +250,72 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
     setStep('lead');
   };
 
-  const handleLeadSubmit = (e: React.FormEvent) => {
+  // Validação de campos obrigatórios
+  const isLeadValid = (): boolean => {
+    const name = (answers.name || '').trim();
+    const phone = (answers.phone || '').replace(/\D/g, '');
+    return name.length >= 2 && phone.length === 11;
+  };
+
+  const getNameError = (): string | null => {
+    const name = (answers.name || '').trim();
+    if (!name) return null; // Não mostrar erro se vazio (ainda não digitou)
+    if (name.length < 2) return "Nome deve ter pelo menos 2 caracteres";
+    if (name.length > 100) return "Nome muito longo";
+    return null;
+  };
+
+  const getPhoneError = (): string | null => {
+    const phone = (answers.phone || '').replace(/\D/g, '');
+    if (!phone) return null; // Não mostrar erro se vazio
+    if (phone.length > 0 && phone.length < 11) return "Digite o número completo com DDD";
+    return null;
+  };
+
+  const handleLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate phone if provided
-    if (answers.phone) {
-      const phoneDigits = answers.phone.replace(/\D/g, '');
-      if (phoneDigits.length < 11) {
-        toast({
-          title: "Telefone incompleto",
-          description: "Por favor, digite o número completo com DDD.",
-          variant: "destructive",
-        });
-        return;
-      }
+    // Validar campos obrigatórios
+    if (!isLeadValid()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha seu nome e WhatsApp.",
+        variant: "destructive",
+      });
+      return;
     }
     
     proceedToResult();
   };
 
-  const handleSkipLead = () => {
-    proceedToResult();
-  };
-
-  const proceedToResult = () => {
+  const proceedToResult = async () => {
     setStep('analyzing');
     
-    // Track Lead event if we have contact info
-    if (answers.name || answers.phone) {
-      if (typeof window !== 'undefined' && window.fbq) {
-        window.fbq('track', 'Lead', {
-          content_name: 'Quiz Consultor',
-          lead_type: 'quiz'
-        });
-      }
+    // Track Lead event - agora sempre teremos contato
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'Lead', {
+        content_name: 'Quiz Consultor',
+        lead_type: 'quiz'
+      });
+    }
+
+    // Gerar recomendação
+    const rec = getRecommendation(answers as QuizAnswers);
+    
+    // Salvar lead no banco de dados (Lovable Cloud)
+    if (answers.name && answers.phone) {
+      const locationLabel = isPickup ? 'pickup' : 'vdc';
+      await saveLead({
+        name: answers.name,
+        phone: answers.phone,
+        location: locationLabel,
+        objective: answers.objective,
+        specification: answers.availability || (answers.mealsPerWeek ? `${answers.mealsPerWeek} marmitas` : undefined),
+        recommendation: rec,
+      });
     }
 
     setTimeout(() => {
-      const rec = getRecommendation(answers as QuizAnswers);
       setRecommendation(rec);
       
       // Save to localStorage for analytics/remarketing
@@ -307,7 +337,7 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
       }
       
       setStep('result');
-    }, 1500);
+    }, 1200);
   };
 
   const handleAddToCart = (item: { type: 'kit' | 'marmita'; name: string; price: number; description: string; quantity?: number }) => {
@@ -618,42 +648,59 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
                     Quase lá! 🎉
                   </h2>
                   <p className="text-muted-foreground text-sm">
-                    Opcional: deixe seu contato para receber dicas exclusivas
+                    Preencha seus dados para ver sua recomendação personalizada
                   </p>
                 </div>
 
                 <form onSubmit={handleLeadSubmit} className="space-y-4">
                   <div>
+                    <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1">
+                      Seu nome <span className="text-destructive">*</span>
+                    </label>
                     <Input
-                      placeholder="Seu nome"
+                      placeholder="Digite seu nome"
                       value={answers.name || ''}
                       onChange={(e) => setAnswers({ ...answers, name: e.target.value })}
-                      className="h-12"
+                      className={`h-12 ${getNameError() ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      maxLength={100}
                     />
+                    {getNameError() && (
+                      <p className="text-destructive text-xs mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {getNameError()}
+                      </p>
+                    )}
                   </div>
                   <div>
+                    <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1">
+                      WhatsApp <span className="text-destructive">*</span>
+                    </label>
                     <Input
                       placeholder="(77) 99999-9999"
                       type="tel"
                       value={answers.phone || ''}
                       onChange={(e) => setAnswers({ ...answers, phone: formatPhone(e.target.value) })}
-                      className="h-12"
+                      className={`h-12 ${getPhoneError() ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                       maxLength={16}
                     />
+                    {getPhoneError() && (
+                      <p className="text-destructive text-xs mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {getPhoneError()}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="flex flex-col gap-2 pt-2">
-                    <Button type="submit" variant="cta" className="w-full">
+                  <div className="pt-2">
+                    <Button 
+                      type="submit" 
+                      variant="cta" 
+                      className="w-full"
+                      disabled={!isLeadValid()}
+                    >
                       Ver minha recomendação
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
-                    <button
-                      type="button"
-                      onClick={handleSkipLead}
-                      className="text-muted-foreground hover:text-foreground text-sm py-2"
-                    >
-                      Pular esta etapa
-                    </button>
                   </div>
                 </form>
               </motion.div>

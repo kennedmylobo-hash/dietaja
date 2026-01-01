@@ -19,6 +19,7 @@ import { CartProvider, useCart } from "@/components/CartContext";
 import CartFloatingButton from "@/components/CartFloatingButton";
 import CartDrawer from "@/components/CartDrawer";
 import { getUTMSummary } from "@/lib/utm";
+import { useAnalytics, useScrollTracking } from "@/hooks/useAnalytics";
 import {
   CustomDietSkeleton,
   TestimonialsSkeleton,
@@ -39,6 +40,10 @@ const IndexContent = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const { items, getTotal, clearCart } = useCart();
   const navigate = useNavigate();
+  
+  // Analytics tracking
+  useAnalytics();
+  useScrollTracking();
 
   const scrollToKits = () => {
     document.getElementById("kits")?.scrollIntoView({ behavior: "smooth" });
