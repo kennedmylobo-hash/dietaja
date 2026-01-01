@@ -174,6 +174,20 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
 
   const handleLeadSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate phone if provided
+    if (answers.phone) {
+      const phoneDigits = answers.phone.replace(/\D/g, '');
+      if (phoneDigits.length < 11) {
+        toast({
+          title: "Telefone incompleto",
+          description: "Por favor, digite o número completo com DDD.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     proceedToResult();
   };
 
