@@ -29,7 +29,7 @@ import {
 
 // Lazy load below-the-fold sections
 const CustomDietSection = lazy(() => import("@/components/CustomDietSection"));
-const TestimonialsSection = lazy(() => import("@/components/TestimonialsSection"));
+const ReviewsSection = lazy(() => import("@/components/ReviewsSection"));
 const GuaranteeSection = lazy(() => import("@/components/GuaranteeSection"));
 const FAQSection = lazy(() => import("@/components/FAQSection"));
 
@@ -140,7 +140,7 @@ const IndexContent = () => {
           </Suspense>
           <ValueSection />
           <Suspense fallback={<TestimonialsSkeleton />}>
-            <TestimonialsSection />
+            <ReviewsSection />
           </Suspense>
           <UrgencySection />
           <CheckoutSection onWhatsAppClick={handleWhatsAppClick} />
