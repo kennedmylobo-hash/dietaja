@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2, MessageCircle, ShoppingBag, Loader2 } from "lucide-react";
 import { useCart } from "./CartContext";
 import { hapticFeedback } from "@/lib/haptics";
+import { celebrateCheckout } from "@/lib/confetti";
 
 interface CartDrawerProps {
   open: boolean;
@@ -24,6 +25,9 @@ const CartDrawer = ({ open, onOpenChange, onCheckout }: CartDrawerProps) => {
     
     // Brief loading for feedback
     await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Celebrate with confetti! 🎉
+    celebrateCheckout();
     
     onCheckout();
     onOpenChange(false);
