@@ -214,3 +214,61 @@ export function formatQuizDataForWhatsApp(
 
   return message;
 }
+
+// localStorage key for quiz data
+const QUIZ_STORAGE_KEY = 'dietaja_quiz_data';
+
+export interface QuizStorageEntry {
+  answers: QuizAnswers;
+  recommendation: string;
+  timestamp: string;
+  converted?: boolean;
+}
+
+export function saveQuizToStorage(answers: QuizAnswers, recommendation: Recommendation): void {
+  try {
+    const entry: QuizStorageEntry = {
+      answers,
+      recommendation: recommendation.primary.name,
+      timestamp: new Date().toISOString(),
+      converted: false,
+    };
+
+    // Get existing data
+    const existing = getQuizHistory();
+    
+    // Add new entry (keep last 10)
+    const updated = [entry, ...existing].slice(0, 10);
+    
+    localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {
+    // Silently fail if localStorage is not available
+    console.warn('Could not save quiz data to localStorage');
+  }
+}
+
+export function markQuizAsConverted(): void {
+  try {
+    const existing = getQuizHistory();
+    if (existing.length > 0) {
+      existing[0].converted = true;
+      localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(existing));
+    }
+  } catch (e) {
+    // Silently fail
+  }
+}
+
+export function getQuizHistory(): QuizStorageEntry[] {
+  try {
+    const data = localStorage.getItem(QUIZ_STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function getLastQuizEntry(): QuizStorageEntry | null {
+  const history = getQuizHistory();
+  return history.length > 0 ? history[0] : null;
+}
