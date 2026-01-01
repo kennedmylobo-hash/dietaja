@@ -7,6 +7,13 @@ interface WhatsAppFloatingButtonProps {
 
 const WhatsAppFloatingButton = ({ phoneNumber }: WhatsAppFloatingButtonProps) => {
   const handleClick = () => {
+    // Track Contact event with Meta Pixel
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'Contact', {
+        content_name: 'WhatsApp Flutuante'
+      });
+    }
+
     const message = `Oi 😊\nVi o site da *Dieta Já* e quero saber mais sobre os kits!\n\n📍 Estou em *Vitória da Conquista*`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, "_blank");

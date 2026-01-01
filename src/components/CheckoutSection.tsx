@@ -82,25 +82,21 @@ const CheckoutSection = ({ onWhatsAppClick }: CheckoutSectionProps) => {
             {(() => {
               const getNextWednesday = (): Date => {
                 const now = new Date();
-                const dayOfWeek = now.getDay(); // 0 = domingo
-                // Quarta = 3. Se hoje é domingo (0), quarta é em 3 dias
-                // Se passamos de domingo, a entrega é na próxima quarta
+                const dayOfWeek = now.getDay(); // 0 = domingo, 3 = quarta
+                
+                // Pedidos até domingo (0) = entrega quarta (3 dias)
+                // Segunda a quarta = próxima quarta (7 a 10 dias)
+                // Quinta a sábado = próxima quarta (6 a 4 dias)
                 let daysUntilWednesday: number;
-                if (dayOfWeek <= 3) {
-                  // Dom(0), Seg(1), Ter(2), Qua(3) - entrega nesta quarta ou próxima
-                  daysUntilWednesday = dayOfWeek === 0 ? 3 : (3 - dayOfWeek + 7);
-                } else {
-                  // Qui(4), Sex(5), Sab(6) - entrega na próxima quarta
-                  daysUntilWednesday = 3 + (7 - dayOfWeek);
-                }
-                // Se for domingo, a entrega é quarta. Se for segunda ou depois, é a próxima quarta
+                
                 if (dayOfWeek === 0) {
-                  daysUntilWednesday = 3;
+                  daysUntilWednesday = 3; // Domingo -> Quarta
                 } else if (dayOfWeek <= 3) {
-                  daysUntilWednesday = 10 - dayOfWeek; // próxima quarta
+                  daysUntilWednesday = 10 - dayOfWeek; // Seg=9, Ter=8, Qua=7
                 } else {
-                  daysUntilWednesday = 10 - dayOfWeek; // próxima quarta
+                  daysUntilWednesday = 10 - dayOfWeek; // Qui=6, Sex=5, Sab=4
                 }
+                
                 const nextWednesday = new Date(now);
                 nextWednesday.setDate(now.getDate() + daysUntilWednesday);
                 return nextWednesday;
