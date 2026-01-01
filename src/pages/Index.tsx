@@ -43,10 +43,16 @@ const IndexContent = () => {
       return;
     }
 
-    // Track Contact and InitiateCheckout events with Meta Pixel
+    // Track Contact, InitiateCheckout and Purchase events with Meta Pixel
     if (typeof window !== 'undefined' && window.fbq) {
       window.fbq('track', 'Contact');
       window.fbq('track', 'InitiateCheckout', {
+        value: getTotal(),
+        currency: 'BRL',
+        num_items: items.length
+      });
+      // Purchase event para otimização de campanhas
+      window.fbq('track', 'Purchase', {
         value: getTotal(),
         currency: 'BRL',
         num_items: items.length

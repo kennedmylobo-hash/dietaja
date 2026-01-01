@@ -1,5 +1,5 @@
 import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Clock } from "lucide-react";
 import { useCart } from "./CartContext";
@@ -60,6 +60,16 @@ const MarmitasSection = () => {
   const ref = useRef<HTMLElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { addItem } = useCart();
+
+  // Track ViewContent when section becomes visible
+  useEffect(() => {
+    if (isInView && typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'ViewContent', {
+        content_type: 'product_group',
+        content_name: 'Marmitas Saudáveis'
+      });
+    }
+  }, [isInView]);
 
   const {
     api,
