@@ -1,7 +1,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, ShoppingCart, HelpCircle } from "lucide-react";
+import { Check, ShoppingCart, HelpCircle, Loader2 } from "lucide-react";
 import SalesQuizModal from "./SalesQuizModal";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
@@ -88,6 +88,7 @@ const KitsSection = () => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { addItem } = useCart();
   const [quizOpen, setQuizOpen] = useState(false);
+  const [loadingKit, setLoadingKit] = useState<string | null>(null);
 
   // Track ViewContent when section becomes visible
   useEffect(() => {
@@ -109,7 +110,12 @@ const KitsSection = () => {
     setIsHoveringDots,
   } = useCarouselWithProgress(ref, { autoplayDelay: 3000 });
 
-  const handleAddKit = (kit: Kit) => {
+  const handleAddKit = async (kit: Kit) => {
+    setLoadingKit(kit.id);
+    
+    // Simulate brief loading for feedback
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
     addItem({
       type: "kit",
       name: kit.name,
@@ -123,6 +129,8 @@ const KitsSection = () => {
       title: "Adicionado ao carrinho! 🛒",
       description: kit.name,
     });
+    
+    setLoadingKit(null);
   };
 
   return (
@@ -217,9 +225,19 @@ const KitsSection = () => {
                       variant={kit.popular ? "cta" : "cta-outline"}
                       className="w-full mt-auto"
                       onClick={() => handleAddKit(kit)}
+                      disabled={loadingKit === kit.id}
                     >
-                      <ShoppingCart className="w-4 h-4 mr-2" />
-                      Adicionar ao carrinho
+                      {loadingKit === kit.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Adicionando...
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          Adicionar ao carrinho
+                        </>
+                      )}
                     </Button>
                   </motion.div>
                 </CarouselItem>
