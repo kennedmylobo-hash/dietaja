@@ -131,7 +131,7 @@ export const useScrollTracking = () => {
     return () => observer.disconnect();
   }, [trackSectionView]);
 
-  // Track scroll depth milestones
+// Track scroll depth milestones
   useEffect(() => {
     const milestones = [25, 50, 75, 100];
     const trackedMilestones = new Set<number>();
@@ -145,6 +145,14 @@ export const useScrollTracking = () => {
         if (scrollPercent >= milestone && !trackedMilestones.has(milestone)) {
           trackedMilestones.add(milestone);
           trackScrollDepth(milestone);
+          
+          // Enviar evento customizado para o Meta Pixel
+          if (typeof window.fbq === 'function') {
+            window.fbq('trackCustom', 'ScrollDepth', {
+              depth_percent: milestone,
+              page: window.location.pathname,
+            });
+          }
         }
       });
     };
