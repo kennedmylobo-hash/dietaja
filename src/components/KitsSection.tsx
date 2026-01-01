@@ -311,12 +311,12 @@ const KitsSection = () => {
           >
             <Button
               variant="outline"
-              size="lg"
+              size="default"
               onClick={() => setQuizOpen(true)}
-              className="gap-2 border-primary bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary animate-[pulse_2s_ease-in-out_infinite] hover:animate-none shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
+              className="gap-2 border-primary bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary animate-[pulse_2s_ease-in-out_infinite] hover:animate-none shadow-[0_0_15px_hsl(var(--primary)/0.3)] text-sm md:text-base px-4 md:px-6 max-w-full"
             >
-              <HelpCircle className="w-5 h-5 animate-bounce" />
-              Não sabe qual escolher? Descubra o kit ideal
+              <HelpCircle className="w-4 h-4 md:w-5 md:h-5 animate-bounce flex-shrink-0" />
+              <span className="truncate">Não sabe qual escolher? Descubra o kit ideal</span>
             </Button>
           </motion.div>
         </motion.div>
