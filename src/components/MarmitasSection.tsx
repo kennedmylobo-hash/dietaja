@@ -1,7 +1,7 @@
 import { motion, useInView } from "framer-motion";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Clock } from "lucide-react";
+import { ShoppingCart, Clock, Loader2 } from "lucide-react";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
 import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
@@ -60,6 +60,7 @@ const MarmitasSection = () => {
   const ref = useRef<HTMLElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { addItem } = useCart();
+  const [loadingMarmita, setLoadingMarmita] = useState<string | null>(null);
 
   // Track ViewContent when section becomes visible
   useEffect(() => {
@@ -81,7 +82,12 @@ const MarmitasSection = () => {
     setIsHoveringDots,
   } = useCarouselWithProgress(ref, { autoplayDelay: 3000 });
 
-  const handleAddMarmita = (marmita: Marmita) => {
+  const handleAddMarmita = async (marmita: Marmita) => {
+    setLoadingMarmita(marmita.id);
+    
+    // Simulate brief loading for feedback
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
     addItem({
       type: "marmita",
       name: marmita.name,
@@ -95,6 +101,8 @@ const MarmitasSection = () => {
       title: "Adicionado ao carrinho! 🛒",
       description: `${marmita.name} (${marmita.quantity} marmitas)`,
     });
+    
+    setLoadingMarmita(null);
   };
 
   return (
@@ -189,9 +197,19 @@ const MarmitasSection = () => {
                         variant={marmita.popular ? "cta" : "cta-outline"}
                         className="w-full"
                         onClick={() => handleAddMarmita(marmita)}
+                        disabled={loadingMarmita === marmita.id}
                       >
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                        Adicionar ao carrinho
+                        {loadingMarmita === marmita.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Adicionando...
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-4 h-4 mr-2" />
+                            Adicionar ao carrinho
+                          </>
+                        )}
                       </Button>
                     </div>
                   </motion.div>
