@@ -1,8 +1,9 @@
 import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Smartphone, MessageCircle, ShoppingBag } from "lucide-react";
+import { CreditCard, Smartphone, MessageCircle, ShoppingBag, HelpCircle } from "lucide-react";
 import { useCart } from "./CartContext";
+import SalesQuizModal from "./SalesQuizModal";
 
 interface CheckoutSectionProps {
   onWhatsAppClick: () => void;
@@ -12,6 +13,7 @@ const CheckoutSection = ({ onWhatsAppClick }: CheckoutSectionProps) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { items, getTotal } = useCart();
+  const [quizOpen, setQuizOpen] = useState(false);
 
   const total = getTotal();
   const hasItems = items.length > 0;
@@ -176,21 +178,33 @@ const CheckoutSection = ({ onWhatsAppClick }: CheckoutSectionProps) => {
               Para manter o cuidado em cada pedido, a finalização é feita pelo WhatsApp.
             </p>
 
-            <Button
-              variant="cta"
-              size="xl"
-              className="w-full group"
-              onClick={onWhatsAppClick}
-              disabled={!hasItems}
-            >
-              <MessageCircle className="w-5 h-5" />
-              {hasItems
-                ? "Quero cuidar da minha alimentação agora"
-                : "Adicione produtos ao carrinho"}
-            </Button>
+            <div className="flex flex-col gap-3">
+              <Button
+                variant="cta"
+                size="xl"
+                className="w-full group"
+                onClick={onWhatsAppClick}
+                disabled={!hasItems}
+              >
+                <MessageCircle className="w-5 h-5" />
+                {hasItems
+                  ? "Quero cuidar da minha alimentação agora"
+                  : "Adicione produtos ao carrinho"}
+              </Button>
+
+              <button
+                onClick={() => setQuizOpen(true)}
+                className="flex items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-colors text-sm py-2"
+              >
+                <HelpCircle className="w-4 h-4" />
+                Preciso de ajuda para escolher
+              </button>
+            </div>
           </div>
         </motion.div>
       </div>
+
+      <SalesQuizModal open={quizOpen} onOpenChange={setQuizOpen} />
     </section>
   );
 };
