@@ -237,9 +237,9 @@ const KitsSection = () => {
               variant="outline"
               size="lg"
               onClick={() => setQuizOpen(true)}
-              className="gap-2 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+              className="gap-2 border-primary bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary animate-[pulse_2s_ease-in-out_infinite] hover:animate-none shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
             >
-              <HelpCircle className="w-5 h-5" />
+              <HelpCircle className="w-5 h-5 animate-bounce" />
               Não sabe qual escolher? Descubra o kit ideal
             </Button>
           </motion.div>
