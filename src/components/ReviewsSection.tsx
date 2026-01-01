@@ -138,6 +138,15 @@ const reviews = [
 const averageRating = "4.9";
 const totalReviews = 456;
 
+// Distribuição de notas (simulada para 456 avaliações)
+const ratingDistribution = [
+  { stars: 5, count: 412, percentage: 90 },
+  { stars: 4, count: 32, percentage: 7 },
+  { stars: 3, count: 9, percentage: 2 },
+  { stars: 2, count: 2, percentage: 0.4 },
+  { stars: 1, count: 1, percentage: 0.2 },
+];
+
 const StarRating = ({ rating }: { rating: number }) => (
   <div className="flex gap-0.5">
     {[...Array(5)].map((_, i) => (
@@ -151,6 +160,26 @@ const StarRating = ({ rating }: { rating: number }) => (
   </div>
 );
 
+const RatingDistribution = ({ isInView }: { isInView: boolean }) => (
+  <div className="flex flex-col gap-1.5 w-full max-w-[200px]">
+    {ratingDistribution.map((item, index) => (
+      <div key={item.stars} className="flex items-center gap-2 text-sm">
+        <span className="w-4 text-muted-foreground font-medium">{item.stars}</span>
+        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-amber-400 rounded-full"
+            initial={{ width: 0 }}
+            animate={isInView ? { width: `${item.percentage}%` } : { width: 0 }}
+            transition={{ duration: 0.8, delay: index * 0.1, ease: "easeOut" }}
+          />
+        </div>
+        <span className="w-8 text-xs text-muted-foreground text-right">{item.count}</span>
+      </div>
+    ))}
+  </div>
+);
+
 const ReviewsSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
@@ -158,22 +187,28 @@ const ReviewsSection = () => {
   return (
     <section ref={ref} className="py-12 md:py-20 lg:py-28 bg-sage-light/30">
       <div className="container px-4 md:px-6">
-        {/* Header com nota média */}
+        {/* Header com nota média e distribuição */}
         <motion.div
-          className="flex items-center justify-center gap-3 mb-8 md:mb-10"
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 mb-8 md:mb-10"
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5 }}
         >
-          <span className="text-4xl md:text-5xl font-bold text-foreground">{averageRating}</span>
-          <div className="flex flex-col items-start">
-            <div className="flex gap-0.5">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-5 h-5 md:w-6 md:h-6 text-amber-400 fill-amber-400" />
-              ))}
+          {/* Nota média */}
+          <div className="flex items-center gap-3">
+            <span className="text-4xl md:text-5xl font-bold text-foreground">{averageRating}</span>
+            <div className="flex flex-col items-start">
+              <div className="flex gap-0.5">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 md:w-6 md:h-6 text-amber-400 fill-amber-400" />
+                ))}
+              </div>
+              <span className="text-sm text-muted-foreground">{totalReviews} avaliações</span>
             </div>
-            <span className="text-sm text-muted-foreground">{totalReviews} avaliações</span>
           </div>
+
+          {/* Barra de distribuição */}
+          <RatingDistribution isInView={isInView} />
         </motion.div>
 
         {/* Carrossel de avaliações */}
