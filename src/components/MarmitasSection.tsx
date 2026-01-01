@@ -158,6 +158,10 @@ const MarmitasSection = () => {
                         src={marmita.image}
                         alt={`${marmita.name} - ${marmita.quantity} marmitas`}
                         className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                        decoding="async"
+                        width={400}
+                        height={300}
                       />
                     </div>
 
