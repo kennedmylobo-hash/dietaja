@@ -98,9 +98,45 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     setIsLoading(false);
   };
 
+  // Fetch orders on mount and when dateFilter changes
   useEffect(() => {
     fetchOrders();
   }, [dateFilter]);
+
+  // Real-time subscription for order updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('orders-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders'
+        },
+        (payload) => {
+          console.log('Realtime order update:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            const newOrder = payload.new as Order;
+            setOrders(prev => [newOrder, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedOrder = payload.new as Order;
+            setOrders(prev => 
+              prev.map(o => o.id === updatedOrder.id ? updatedOrder : o)
+            );
+          } else if (payload.eventType === 'DELETE') {
+            const deletedOrder = payload.old as { id: string };
+            setOrders(prev => prev.filter(o => o.id !== deletedOrder.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const filteredOrders = useMemo(() => {
     if (statusFilter === 'all') return orders;
