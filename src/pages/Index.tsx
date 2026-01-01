@@ -53,7 +53,7 @@ const IndexContent = () => {
     document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleWhatsAppClick = () => {
+  const handleWhatsAppClick = (customerData?: { name: string; phone: string; deliveryOption: string; address?: string }) => {
     if (items.length === 0) {
       scrollToKits();
       return;
@@ -62,7 +62,7 @@ const IndexContent = () => {
     const total = getTotal();
     const itemsCount = items.length;
 
-    // Track Contact and InitiateCheckout events (Purchase será na página de obrigado)
+    // Track Contact and InitiateCheckout events
     if (typeof window !== 'undefined' && (window as any).fbq) {
       (window as any).fbq('track', 'Contact');
       (window as any).fbq('track', 'InitiateCheckout', {
@@ -73,6 +73,19 @@ const IndexContent = () => {
     }
 
     let message = `Oi 😊\nVi o site da *Dieta Já* e quero cuidar melhor da minha alimentação.\n\n`;
+    
+    // Add customer data if provided
+    if (customerData) {
+      message += `👤 *DADOS:*\n`;
+      message += `Nome: ${customerData.name}\n`;
+      message += `WhatsApp: ${customerData.phone}\n`;
+      message += `Opção: ${customerData.deliveryOption === 'pickup' ? 'Retirada no Recreio' : 'Entrega em domicílio'}\n`;
+      if (customerData.address) {
+        message += `Endereço: ${customerData.address}\n`;
+      }
+      message += `\n`;
+    }
+    
     message += `🛒 *CARRINHO:*\n`;
 
     items.forEach((item) => {
@@ -83,8 +96,15 @@ const IndexContent = () => {
       }
     });
 
-    message += `\n💰 *TOTAL:* R$ ${total.toFixed(2).replace(".", ",")}\n`;
-    message += `\n📍 Estou em *Vitória da Conquista*${getUTMSummary()}\n\nPode me passar as informações de entrega e pagamento?`;
+    const deliveryFee = customerData?.deliveryOption === 'delivery' ? 10 : 0;
+    const finalTotal = total + deliveryFee;
+
+    message += `\n💰 *SUBTOTAL:* R$ ${total.toFixed(2).replace(".", ",")}\n`;
+    if (deliveryFee > 0) {
+      message += `🛵 *ENTREGA:* R$ ${deliveryFee.toFixed(2).replace(".", ",")}\n`;
+    }
+    message += `✅ *TOTAL:* R$ ${finalTotal.toFixed(2).replace(".", ",")}\n`;
+    message += `\n📍 Estou em *Vitória da Conquista*${getUTMSummary()}\n\nPode me confirmar o pedido?`;
 
     const encodedMessage = encodeURIComponent(message);
     
@@ -96,7 +116,7 @@ const IndexContent = () => {
     
     // Navegar com React Router (SPA, sem reload) após pequeno delay
     setTimeout(() => {
-      navigate(`/obrigado?total=${total}&items=${itemsCount}`);
+      navigate(`/obrigado?total=${finalTotal}&items=${itemsCount}`);
     }, 100);
   };
 

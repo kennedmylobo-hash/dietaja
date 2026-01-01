@@ -9,6 +9,8 @@ import Index from "./pages/Index";
 import Obrigado from "./pages/Obrigado";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import PagamentoSucesso from "./pages/PagamentoSucesso";
+import PagamentoErro from "./pages/PagamentoErro";
 
 const queryClient = new QueryClient();
 
@@ -24,7 +26,8 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/obrigado" element={<Obrigado />} />
               <Route path="/admin" element={<Admin />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />
+              <Route path="/pagamento/erro" element={<PagamentoErro />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

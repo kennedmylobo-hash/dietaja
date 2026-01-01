@@ -116,6 +116,66 @@ export type Database = {
         }
         Relationships: []
       }
+      orders: {
+        Row: {
+          created_at: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string | null
+          delivery_fee: number | null
+          delivery_option: string
+          id: string
+          items: Json
+          mp_payment_id: string | null
+          mp_preference_id: string | null
+          paid_at: string | null
+          payment_method: string | null
+          status: string
+          subtotal: number
+          total: number
+          utm_data: Json | null
+        }
+        Insert: {
+          created_at?: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          delivery_address?: string | null
+          delivery_fee?: number | null
+          delivery_option: string
+          id?: string
+          items: Json
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          subtotal: number
+          total: number
+          utm_data?: Json | null
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string
+          delivery_address?: string | null
+          delivery_fee?: number | null
+          delivery_option?: string
+          id?: string
+          items?: Json
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+          utm_data?: Json | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
