@@ -74,10 +74,18 @@ export const useAnalytics = () => {
     trackEvent({ event_type: 'cta_click', section: ctaName });
   }, [trackEvent]);
 
-  // Track time on page (chamado ao sair)
+// Track time on page (chamado ao sair)
   const trackTimeOnPage = useCallback(() => {
     const timeSpent = Math.round((Date.now() - pageStartTime.current) / 1000);
     trackEvent({ event_type: 'time_on_page', time_on_page: timeSpent });
+    
+    // Enviar evento customizado para o Meta Pixel
+    if (typeof window.fbq === 'function') {
+      window.fbq('trackCustom', 'TimeOnPage', {
+        time_seconds: timeSpent,
+        page: window.location.pathname,
+      });
+    }
   }, [trackEvent]);
 
   // Auto-track page view e time on page
