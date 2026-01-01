@@ -3,6 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/com
 import { Button } from "@/components/ui/button";
 import { Trash2, MessageCircle, ShoppingBag, Loader2 } from "lucide-react";
 import { useCart } from "./CartContext";
+import { hapticFeedback } from "@/lib/haptics";
 
 interface CartDrawerProps {
   open: boolean;
@@ -17,6 +18,9 @@ const CartDrawer = ({ open, onOpenChange, onCheckout }: CartDrawerProps) => {
 
   const handleCheckout = async () => {
     setIsLoading(true);
+    
+    // Haptic feedback on checkout
+    hapticFeedback('medium');
     
     // Brief loading for feedback
     await new Promise(resolve => setTimeout(resolve, 500));

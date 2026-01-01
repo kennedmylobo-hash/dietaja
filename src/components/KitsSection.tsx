@@ -5,6 +5,7 @@ import { Check, ShoppingCart, HelpCircle, Loader2 } from "lucide-react";
 import SalesQuizModal from "./SalesQuizModal";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
+import { hapticFeedback } from "@/lib/haptics";
 import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
 import { CarouselDots } from "./CarouselDots";
 import {
@@ -124,6 +125,9 @@ const KitsSection = () => {
       totalPrice: kit.price,
       description: `${kit.days} dias de detox completo`,
     });
+
+    // Haptic feedback on mobile
+    hapticFeedback('success');
 
     toast({
       title: "Adicionado ao carrinho! 🛒",
