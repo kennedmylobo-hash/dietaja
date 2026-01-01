@@ -41,7 +41,8 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
           muted
           playsInline
           preload="metadata"
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+          style={{ objectPosition: 'center 30%' }}
         />
         {/* Dark overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
