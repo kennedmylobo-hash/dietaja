@@ -18,7 +18,8 @@ import {
   Download,
   BarChart3,
   Percent,
-  Filter
+  Filter,
+  MapPin
 } from "lucide-react";
 import {
   Select,
@@ -83,6 +84,7 @@ const Admin = () => {
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month'>('week');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [locationFilter, setLocationFilter] = useState<string>('all');
   
   const navigate = useNavigate();
 
@@ -243,12 +245,51 @@ const Admin = () => {
     return Array.from(sources).sort();
   }, [leads, analyticsEvents]);
 
-  // Filter data by source
+  // Get unique locations for filter dropdown
+  const availableLocations = useMemo(() => {
+    const locations = new Set<string>();
+    leads.forEach(lead => {
+      if (lead.location) locations.add(lead.location);
+    });
+    return Array.from(locations).sort();
+  }, [leads]);
+
+  // Filter data by source and location
   const filteredLeads = useMemo(() => {
-    if (sourceFilter === 'all') return leads;
-    if (sourceFilter === 'direct') return leads.filter(l => !l.utm_source);
-    return leads.filter(l => l.utm_source === sourceFilter);
-  }, [leads, sourceFilter]);
+    let filtered = leads;
+    
+    // Filter by source
+    if (sourceFilter !== 'all') {
+      if (sourceFilter === 'direct') {
+        filtered = filtered.filter(l => !l.utm_source);
+      } else {
+        filtered = filtered.filter(l => l.utm_source === sourceFilter);
+      }
+    }
+    
+    // Filter by location
+    if (locationFilter !== 'all') {
+      if (locationFilter === 'sem-local') {
+        filtered = filtered.filter(l => !l.location);
+      } else {
+        filtered = filtered.filter(l => l.location === locationFilter);
+      }
+    }
+    
+    return filtered;
+  }, [leads, sourceFilter, locationFilter]);
+
+  // Location distribution data
+  const locationDistribution = useMemo(() => {
+    const distribution: Record<string, number> = {};
+    filteredLeads.forEach(lead => {
+      const loc = lead.location || 'Sem localização';
+      distribution[loc] = (distribution[loc] || 0) + 1;
+    });
+    return Object.entries(distribution)
+      .map(([location, count]) => ({ location, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [filteredLeads]);
 
   const filteredEvents = useMemo(() => {
     if (sourceFilter === 'all') return analyticsEvents;
@@ -516,6 +557,23 @@ const Admin = () => {
                 {availableSources.map(source => (
                   <SelectItem key={source} value={source}>
                     {source}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Location Filter */}
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger className="w-[160px] h-9">
+                <MapPin className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Localização" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas localizações</SelectItem>
+                <SelectItem value="sem-local">Sem localização</SelectItem>
+                {availableLocations.map(location => (
+                  <SelectItem key={location} value={location}>
+                    {location}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -822,9 +880,10 @@ const Admin = () => {
                     <tr className="border-b text-left">
                       <th className="pb-3 font-medium text-muted-foreground">Nome</th>
                       <th className="pb-3 font-medium text-muted-foreground">Contato</th>
+                      <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Local</th>
                       <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Objetivo</th>
                       <th className="pb-3 font-medium text-muted-foreground hidden lg:table-cell">Recomendação</th>
-                      <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Origem</th>
+                      <th className="pb-3 font-medium text-muted-foreground hidden xl:table-cell">Origem</th>
                       <th className="pb-3 font-medium text-muted-foreground">Ações</th>
                     </tr>
                   </thead>
@@ -846,6 +905,16 @@ const Admin = () => {
                           </p>
                         </td>
                         <td className="py-3 hidden md:table-cell">
+                          {lead.location ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-600 rounded text-xs">
+                              <MapPin className="w-3 h-3" />
+                              {lead.location}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 hidden md:table-cell">
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted rounded text-xs">
                             <Target className="w-3 h-3" />
                             {lead.objective || '-'}
@@ -859,7 +928,7 @@ const Admin = () => {
                             </span>
                           )}
                         </td>
-                        <td className="py-3 hidden md:table-cell text-xs text-muted-foreground">
+                        <td className="py-3 hidden xl:table-cell text-xs text-muted-foreground">
                           {lead.utm_source || 'direto'}
                         </td>
                         <td className="py-3">
@@ -880,6 +949,39 @@ const Admin = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Location Distribution */}
+        {locationDistribution.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-blue-500" />
+                Distribuição por Localização
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {locationDistribution.map(({ location, count }) => {
+                  const percentage = Math.round((count / filteredLeads.length) * 100);
+                  return (
+                    <div key={location} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium">{location}</span>
+                        <span className="text-muted-foreground">{count} ({percentage}%)</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-blue-500 rounded-full transition-all"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Analytics Section */}
         {analytics && (analytics.scrollDepth.length > 0 || analytics.topSections.length > 0) && (
