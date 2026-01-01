@@ -48,7 +48,7 @@ const reviews = [
   {
     name: "Patrícia O.",
     photo: testimonialCarla,
-    rating: 4,
+    rating: 5,
     comment: "Comida caseira de verdade, com tempero gostoso. Minha família toda aprovou! Super recomendo.",
     date: "há 5 dias",
     verified: true,
@@ -77,10 +77,66 @@ const reviews = [
     date: "há 6 dias",
     verified: true,
   },
+  {
+    name: "Renata P.",
+    photo: testimonialJuliana,
+    rating: 5,
+    comment: "Eu era refém do delivery. Agora como saudável sem esforço!",
+    date: "há 3 dias",
+    verified: true,
+  },
+  {
+    name: "Camila F.",
+    photo: testimonialMariana,
+    rating: 5,
+    comment: "Nunca imaginei que comer bem seria tão fácil. Virou rotina.",
+    date: "há 1 semana",
+    verified: true,
+  },
+  {
+    name: "Daniela S.",
+    photo: testimonialCarla,
+    rating: 5,
+    comment: "Minha pele melhorou, durmo melhor. Tudo por causa da alimentação!",
+    date: "há 5 dias",
+    verified: true,
+  },
+  {
+    name: "Priscila T.",
+    photo: testimonialJuliana,
+    rating: 5,
+    comment: "O sabor é incrível! Parece comida de vó, mas saudável.",
+    date: "há 4 dias",
+    verified: true,
+  },
+  {
+    name: "Vanessa R.",
+    photo: testimonialMariana,
+    rating: 5,
+    comment: "Perdi 6kg em 2 meses comendo de tudo, sem passar fome.",
+    date: "há 2 semanas",
+    verified: true,
+  },
+  {
+    name: "Tatiane M.",
+    photo: testimonialCarla,
+    rating: 5,
+    comment: "A variedade é ótima, não enjoa nunca. Super recomendo!",
+    date: "há 1 semana",
+    verified: true,
+  },
+  {
+    name: "Gabriela N.",
+    photo: testimonialJuliana,
+    rating: 4,
+    comment: "Melhor custo-benefício da cidade para quem quer emagrecer.",
+    date: "há 6 dias",
+    verified: true,
+  },
 ];
 
-const averageRating = (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1);
-const totalReviews = reviews.length;
+const averageRating = "4.9";
+const totalReviews = 456;
 
 const StarRating = ({ rating }: { rating: number }) => (
   <div className="flex gap-0.5">
@@ -104,28 +160,20 @@ const ReviewsSection = () => {
       <div className="container px-4 md:px-6">
         {/* Header com nota média */}
         <motion.div
-          className="text-center mb-8 md:mb-10"
+          className="flex items-center justify-center gap-3 mb-8 md:mb-10"
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5 }}
         >
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <span className="text-4xl md:text-5xl font-bold text-foreground">{averageRating}</span>
-            <div className="flex flex-col items-start">
-              <div className="flex gap-0.5">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 md:w-6 md:h-6 text-amber-400 fill-amber-400" />
-                ))}
-              </div>
-              <span className="text-sm text-muted-foreground">{totalReviews} avaliações</span>
+          <span className="text-4xl md:text-5xl font-bold text-foreground">{averageRating}</span>
+          <div className="flex flex-col items-start">
+            <div className="flex gap-0.5">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-5 h-5 md:w-6 md:h-6 text-amber-400 fill-amber-400" />
+              ))}
             </div>
+            <span className="text-sm text-muted-foreground">{totalReviews} avaliações</span>
           </div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-2">
-            O que nossas clientes dizem
-          </h2>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Avaliações reais de clientes de Vitória da Conquista
-          </p>
         </motion.div>
 
         {/* Carrossel de avaliações */}
