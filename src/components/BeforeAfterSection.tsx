@@ -36,8 +36,8 @@ const BeforeAfterSection = () => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-16 md:py-24 bg-gradient-to-b from-background to-muted/30">
-      <div className="container px-6">
+    <section ref={ref} className="py-12 md:py-16 lg:py-24 bg-gradient-to-b from-background to-muted/30">
+      <div className="container px-4 md:px-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -57,7 +57,7 @@ const BeforeAfterSection = () => {
         </motion.div>
 
         {/* Before/After Cards */}
-        <div className="grid md:grid-cols-2 gap-6 lg:gap-8 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 max-w-5xl mx-auto">
           {/* Before Card */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
@@ -65,11 +65,11 @@ const BeforeAfterSection = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative"
           >
-            <div className="bg-card border border-destructive/20 rounded-2xl p-6 md:p-8 h-full">
+            <div className="bg-card border border-destructive/20 rounded-2xl p-4 sm:p-6 md:p-8 h-full">
               {/* Header */}
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                  <XCircle className="w-6 h-6 text-destructive" />
+              <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-destructive" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-foreground">Antes</h3>
@@ -78,24 +78,24 @@ const BeforeAfterSection = () => {
               </div>
 
               {/* Items */}
-              <ul className="space-y-4">
+              <ul className="space-y-3 sm:space-y-4">
                 {beforeItems.map((item, index) => (
                   <motion.li
                     key={index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={isInView ? { opacity: 1, x: 0 } : {}}
                     transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-destructive/5 border border-destructive/10"
+                    className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-lg bg-destructive/5 border border-destructive/10"
                   >
-                    <item.icon className="w-5 h-5 text-destructive/70 flex-shrink-0" />
-                    <span className="text-foreground/80">{item.text}</span>
+                    <item.icon className="w-4 h-4 sm:w-5 sm:h-5 text-destructive/70 flex-shrink-0" />
+                    <span className="text-sm sm:text-base text-foreground/80">{item.text}</span>
                   </motion.li>
                 ))}
               </ul>
 
               {/* Emoji */}
-              <div className="mt-6 text-center">
-                <span className="text-4xl">😓</span>
+              <div className="mt-4 sm:mt-6 text-center">
+                <span className="text-3xl sm:text-4xl">😓</span>
               </div>
             </div>
           </motion.div>
@@ -119,18 +119,18 @@ const BeforeAfterSection = () => {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="relative"
           >
-            <div className="bg-card border-2 border-primary/30 rounded-2xl p-6 md:p-8 h-full shadow-lg shadow-primary/5">
+            <div className="bg-card border-2 border-primary/30 rounded-2xl p-4 sm:p-6 md:p-8 h-full shadow-lg shadow-primary/5">
               {/* Destaque badge */}
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="px-4 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
+                <span className="px-3 sm:px-4 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
                   ✨ Com a Dieta Já
                 </span>
               </div>
 
               {/* Header */}
-              <div className="flex items-center gap-3 mb-6 mt-2">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-primary" />
+              <div className="flex items-center gap-3 mb-4 sm:mb-6 mt-2">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-foreground">Depois</h3>
@@ -139,24 +139,24 @@ const BeforeAfterSection = () => {
               </div>
 
               {/* Items */}
-              <ul className="space-y-4">
+              <ul className="space-y-3 sm:space-y-4">
                 {afterItems.map((item, index) => (
                   <motion.li
                     key={index}
                     initial={{ opacity: 0, x: 20 }}
                     animate={isInView ? { opacity: 1, x: 0 } : {}}
                     transition={{ duration: 0.4, delay: 0.5 + index * 0.1 }}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20"
+                    className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-lg bg-primary/5 border border-primary/20"
                   >
-                    <item.icon className="w-5 h-5 text-primary flex-shrink-0" />
-                    <span className="text-foreground font-medium">{item.text}</span>
+                    <item.icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+                    <span className="text-sm sm:text-base text-foreground font-medium">{item.text}</span>
                   </motion.li>
                 ))}
               </ul>
 
               {/* Emoji */}
-              <div className="mt-6 text-center">
-                <span className="text-4xl">😊</span>
+              <div className="mt-4 sm:mt-6 text-center">
+                <span className="text-3xl sm:text-4xl">😊</span>
               </div>
             </div>
           </motion.div>

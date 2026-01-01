@@ -60,24 +60,24 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
       </div>
 
-      <div className="relative z-10 container px-6 py-16 md:py-24">
+      <div className="relative z-10 container px-4 md:px-6 py-12 md:py-24">
         <div className="max-w-2xl mx-auto text-center">
           {/* Badge de localização - PRIMEIRO */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 mb-3 animate-fade-in">
-            <span className="text-sm font-medium text-white">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 mb-3 animate-fade-in">
+            <span className="text-xs sm:text-sm font-medium text-white">
               📍 Entregamos apenas em Vitória da Conquista - BA
             </span>
           </div>
 
           {/* Badge de urgência */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-terracotta/90 backdrop-blur-sm border border-terracotta shadow-lg animate-fade-in">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-terracotta/90 backdrop-blur-sm border border-terracotta shadow-lg animate-fade-in">
             <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-            <span className="text-sm font-semibold text-white">
+            <span className="text-xs sm:text-sm font-semibold text-white">
               🔥 Peça até domingo • Entrega quarta-feira
             </span>
           </div>
 
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mt-6 mb-6 animate-fade-in">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mt-6 mb-6 animate-fade-in">
             Coma melhor mesmo sem tempo —{" "}
             <span className="text-primary">e sinta seu corpo responder.</span>
           </h1>
@@ -105,16 +105,16 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
           </div>
 
           {/* Benefícios em ícones */}
-          <div className="flex flex-wrap justify-center items-center gap-3 md:gap-6 mb-6 animate-fade-in">
-            <div className="flex items-center gap-2 text-sm text-white/90 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-full">
+          <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-3 md:gap-6 mb-6 animate-fade-in">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/90 bg-white/10 backdrop-blur-sm px-2 py-1.5 sm:px-3 sm:py-2 rounded-full">
               <span>📍</span>
-              <span>Retirada grátis no Recreio</span>
+              <span>Retirada grátis</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-white/90 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-full">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/90 bg-white/10 backdrop-blur-sm px-2 py-1.5 sm:px-3 sm:py-2 rounded-full">
               <span>⚡</span>
               <span>Pronto em 3 min</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-white/90 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-full">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/90 bg-white/10 backdrop-blur-sm px-2 py-1.5 sm:px-3 sm:py-2 rounded-full">
               <span>✅</span>
               <span>Garantia total</span>
             </div>
