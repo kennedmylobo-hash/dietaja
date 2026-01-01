@@ -12,6 +12,19 @@ import testimonialMariana from "@/assets/testimonial-mariana.jpg";
 import testimonialCarla from "@/assets/testimonial-carla.jpg";
 import testimonialJuliana from "@/assets/testimonial-juliana.jpg";
 
+// Cores para avatares com iniciais
+const avatarColors = [
+  "bg-rose-500",
+  "bg-amber-500",
+  "bg-emerald-500",
+  "bg-blue-500",
+  "bg-purple-500",
+  "bg-pink-500",
+  "bg-teal-500",
+  "bg-orange-500",
+  "bg-indigo-500",
+];
+
 const reviews = [
   {
     name: "Mariana S.",
@@ -39,7 +52,7 @@ const reviews = [
   },
   {
     name: "Fernanda L.",
-    photo: testimonialMariana,
+    photo: null,
     rating: 5,
     comment: "A praticidade é incrível! Acordo e já sei que minha alimentação do dia está garantida. Melhor investimento que fiz.",
     date: "há 4 dias",
@@ -47,7 +60,7 @@ const reviews = [
   },
   {
     name: "Patrícia O.",
-    photo: testimonialCarla,
+    photo: null,
     rating: 5,
     comment: "Comida caseira de verdade, com tempero gostoso. Minha família toda aprovou! Super recomendo.",
     date: "há 5 dias",
@@ -55,7 +68,7 @@ const reviews = [
   },
   {
     name: "Amanda C.",
-    photo: testimonialJuliana,
+    photo: null,
     rating: 5,
     comment: "Finalmente consegui manter a dieta! As marmitas são deliciosas e variadas. Não enjoa nunca.",
     date: "há 1 semana",
@@ -63,7 +76,7 @@ const reviews = [
   },
   {
     name: "Luciana B.",
-    photo: testimonialMariana,
+    photo: null,
     rating: 5,
     comment: "Entrega sempre pontual e embalagem impecável. Qualidade nota 10!",
     date: "há 2 dias",
@@ -71,7 +84,7 @@ const reviews = [
   },
   {
     name: "Beatriz M.",
-    photo: testimonialCarla,
+    photo: null,
     rating: 5,
     comment: "Melhor custo-benefício da cidade. Comida saudável sem pesar no bolso.",
     date: "há 6 dias",
@@ -79,7 +92,7 @@ const reviews = [
   },
   {
     name: "Renata P.",
-    photo: testimonialJuliana,
+    photo: null,
     rating: 5,
     comment: "Eu era refém do delivery. Agora como saudável sem esforço!",
     date: "há 3 dias",
@@ -87,7 +100,7 @@ const reviews = [
   },
   {
     name: "Camila F.",
-    photo: testimonialMariana,
+    photo: null,
     rating: 5,
     comment: "Nunca imaginei que comer bem seria tão fácil. Virou rotina.",
     date: "há 1 semana",
@@ -95,7 +108,7 @@ const reviews = [
   },
   {
     name: "Daniela S.",
-    photo: testimonialCarla,
+    photo: null,
     rating: 5,
     comment: "Minha pele melhorou, durmo melhor. Tudo por causa da alimentação!",
     date: "há 5 dias",
@@ -103,7 +116,7 @@ const reviews = [
   },
   {
     name: "Priscila T.",
-    photo: testimonialJuliana,
+    photo: null,
     rating: 5,
     comment: "O sabor é incrível! Parece comida de vó, mas saudável.",
     date: "há 4 dias",
@@ -111,7 +124,7 @@ const reviews = [
   },
   {
     name: "Vanessa R.",
-    photo: testimonialMariana,
+    photo: null,
     rating: 5,
     comment: "Perdi 6kg em 2 meses comendo de tudo, sem passar fome.",
     date: "há 2 semanas",
@@ -119,7 +132,7 @@ const reviews = [
   },
   {
     name: "Tatiane M.",
-    photo: testimonialCarla,
+    photo: null,
     rating: 5,
     comment: "A variedade é ótima, não enjoa nunca. Super recomendo!",
     date: "há 1 semana",
@@ -127,13 +140,46 @@ const reviews = [
   },
   {
     name: "Gabriela N.",
-    photo: testimonialJuliana,
+    photo: null,
     rating: 4,
     comment: "Melhor custo-benefício da cidade para quem quer emagrecer.",
     date: "há 6 dias",
     verified: true,
   },
 ];
+
+// Componente de avatar com foto ou iniciais coloridas
+const ReviewAvatar = ({ name, photo, index }: { name: string; photo: string | null; index: number }) => {
+  if (photo) {
+    return (
+      <img
+        src={photo}
+        alt={name}
+        className="w-10 h-10 rounded-full object-cover border-2 border-primary/20"
+        loading="lazy"
+        decoding="async"
+        width={40}
+        height={40}
+      />
+    );
+  }
+
+  // Avatar com iniciais
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+  const colorClass = avatarColors[index % avatarColors.length];
+
+  return (
+    <div
+      className={`w-10 h-10 rounded-full ${colorClass} flex items-center justify-center text-white font-semibold text-sm border-2 border-white/20`}
+    >
+      {initials}
+    </div>
+  );
+};
 
 const averageRating = "4.9";
 const totalReviews = 456;
@@ -230,15 +276,7 @@ const ReviewsSection = () => {
                   <div className="bg-card rounded-2xl p-4 sm:p-5 shadow-soft border border-border h-full flex flex-col">
                     {/* Header do card */}
                     <div className="flex items-center gap-3 mb-3">
-                      <img
-                        src={review.photo}
-                        alt={review.name}
-                        className="w-10 h-10 rounded-full object-cover border-2 border-primary/20"
-                        loading="lazy"
-                        decoding="async"
-                        width={40}
-                        height={40}
-                      />
+                      <ReviewAvatar name={review.name} photo={review.photo} index={index} />
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-foreground text-sm truncate">{review.name}</p>
                         <p className="text-xs text-muted-foreground">{review.date}</p>
