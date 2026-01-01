@@ -46,7 +46,15 @@ export function useCarouselWithProgress(
   useEffect(() => {
     if (!api) return;
 
-    setCount(api.scrollSnapList().length);
+    const slides = api.scrollSnapList();
+    
+    // Guard clause: evitar acesso quando não há slides
+    if (!slides || slides.length === 0) {
+      setCount(0);
+      return;
+    }
+
+    setCount(slides.length);
     setCurrent(api.selectedScrollSnap());
 
     const onSelect = () => {
@@ -73,9 +81,16 @@ export function useCarouselWithProgress(
   useEffect(() => {
     if (!autoplayPlugin.current || !api) return;
 
-    const hasSlides = api.scrollSnapList().length > 0;
+    const slides = api.scrollSnapList();
+    const hasSlides = slides && slides.length > 0;
 
-    if (isSectionVisible && hasSlides) {
+    // Guard clause: nunca iniciar autoplay sem slides
+    if (!hasSlides) {
+      autoplayPlugin.current.stop();
+      return;
+    }
+
+    if (isSectionVisible) {
       autoplayPlugin.current.play();
     } else {
       autoplayPlugin.current.stop();
@@ -84,7 +99,8 @@ export function useCarouselWithProgress(
 
   // Barra de progresso com CSS animation sync
   useEffect(() => {
-    if (!isPlaying || !isSectionVisible || isHoveringDots) {
+    // Guard: não animar se não há slides ou não está tocando
+    if (!isPlaying || !isSectionVisible || isHoveringDots || count === 0) {
       return;
     }
 
@@ -106,17 +122,21 @@ export function useCarouselWithProgress(
     return () => {
       cancelAnimationFrame(animationFrame);
     };
-  }, [isPlaying, isSectionVisible, isHoveringDots, current, autoplayDelay]);
+  }, [isPlaying, isSectionVisible, isHoveringDots, current, autoplayDelay, count]);
 
   // Pausar autoplay quando hover nos dots
   useEffect(() => {
     if (!autoplayPlugin.current || !api) return;
 
-    const hasSlides = api.scrollSnapList().length > 0;
+    const slides = api.scrollSnapList();
+    const hasSlides = slides && slides.length > 0;
+
+    // Guard clause: não permitir play sem slides
+    if (!hasSlides) return;
 
     if (isHoveringDots) {
       autoplayPlugin.current.stop();
-    } else if (isSectionVisible && hasSlides) {
+    } else if (isSectionVisible) {
       autoplayPlugin.current.play();
     }
   }, [isHoveringDots, isSectionVisible, api]);
