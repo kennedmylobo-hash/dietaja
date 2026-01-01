@@ -89,6 +89,19 @@ const mealsOptions: { value: QuizMealsPerWeek; label: string; description: strin
   { value: 14, label: '14 refeições', description: 'Quinzenal - melhor custo-benefício' },
   { value: 28, label: '28 refeições', description: 'Mensal - maior economia!' },
 ];
+const formatPhone = (value: string): string => {
+  const numbers = value.replace(/\D/g, '');
+  const limited = numbers.slice(0, 11);
+  
+  if (limited.length <= 2) {
+    return limited.length ? `(${limited}` : '';
+  }
+  if (limited.length <= 7) {
+    return `(${limited.slice(0, 2)}) ${limited.slice(2)}`;
+  }
+  return `(${limited.slice(0, 2)}) ${limited.slice(2, 7)}-${limited.slice(7)}`;
+};
+
 const detoxBenefits = [
   { icon: Sparkles, text: "Desintoxicação completa do organismo" },
   { icon: Leaf, text: "Limpeza intestinal profunda" },
@@ -525,11 +538,12 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
                   </div>
                   <div>
                     <Input
-                      placeholder="WhatsApp (opcional)"
+                      placeholder="(77) 99999-9999"
                       type="tel"
                       value={answers.phone || ''}
-                      onChange={(e) => setAnswers({ ...answers, phone: e.target.value })}
+                      onChange={(e) => setAnswers({ ...answers, phone: formatPhone(e.target.value) })}
                       className="h-12"
+                      maxLength={16}
                     />
                   </div>
 
