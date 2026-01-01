@@ -8,6 +8,8 @@ import {
   CarouselPrevious,
   CarouselNext,
 } from "@/components/ui/carousel";
+import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
+import { CarouselDots } from "./CarouselDots";
 import testimonialMariana from "@/assets/testimonial-mariana.jpg";
 import testimonialCarla from "@/assets/testimonial-carla.jpg";
 import testimonialJuliana from "@/assets/testimonial-juliana.jpg";
@@ -227,8 +229,17 @@ const RatingDistribution = ({ isInView }: { isInView: boolean }) => (
 );
 
 const ReviewsSection = () => {
-  const ref = useRef(null);
+  const ref = useRef<HTMLElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+
+  const {
+    setApi,
+    current,
+    count,
+    progress,
+    autoplayPlugin,
+    setIsHoveringDots,
+  } = useCarouselWithProgress(ref, { autoplayDelay: 4000 });
 
   return (
     <section ref={ref} className="py-12 md:py-20 lg:py-28 bg-sage-light/30">
@@ -268,11 +279,13 @@ const ReviewsSection = () => {
               align: "start",
               loop: true,
             }}
+            plugins={[autoplayPlugin]}
+            setApi={setApi}
             className="w-full max-w-5xl mx-auto"
           >
             <CarouselContent className="-ml-2 md:-ml-4">
               {reviews.map((review, index) => (
-                <CarouselItem key={index} className="pl-2 md:pl-4 basis-full sm:basis-1/2 lg:basis-1/3">
+                <CarouselItem key={index} className="pl-2 md:pl-4 basis-[85%] sm:basis-1/2 lg:basis-1/3">
                   <div className="bg-card rounded-2xl p-4 sm:p-5 shadow-soft border border-border h-full flex flex-col">
                     {/* Header do card */}
                     <div className="flex items-center gap-3 mb-3">
@@ -305,6 +318,16 @@ const ReviewsSection = () => {
             <CarouselPrevious className="hidden md:flex -left-12" />
             <CarouselNext className="hidden md:flex -right-12" />
           </Carousel>
+          
+          <CarouselDots
+            count={count}
+            current={current}
+            progress={progress}
+            api={undefined}
+            onMouseEnter={() => setIsHoveringDots(true)}
+            onMouseLeave={() => setIsHoveringDots(false)}
+            activeColor="bg-amber-500"
+          />
         </motion.div>
       </div>
     </section>
