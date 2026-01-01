@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Trash2, MessageCircle, ShoppingBag } from "lucide-react";
+import { Trash2, MessageCircle, ShoppingBag, Loader2 } from "lucide-react";
 import { useCart } from "./CartContext";
 
 interface CartDrawerProps {
@@ -11,11 +12,18 @@ interface CartDrawerProps {
 
 const CartDrawer = ({ open, onOpenChange, onCheckout }: CartDrawerProps) => {
   const { items, removeItem, getTotal, clearCart } = useCart();
+  const [isLoading, setIsLoading] = useState(false);
   const total = getTotal();
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
+    setIsLoading(true);
+    
+    // Brief loading for feedback
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     onCheckout();
     onOpenChange(false);
+    setIsLoading(false);
   };
 
   return (
@@ -90,9 +98,19 @@ const CartDrawer = ({ open, onOpenChange, onCheckout }: CartDrawerProps) => {
               size="lg"
               className="w-full"
               onClick={handleCheckout}
+              disabled={isLoading}
             >
-              <MessageCircle className="w-5 h-5" />
-              Finalizar pedido via WhatsApp
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Preparando pedido...
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="w-5 h-5" />
+                  Finalizar pedido via WhatsApp
+                </>
+              )}
             </Button>
             
             <button
