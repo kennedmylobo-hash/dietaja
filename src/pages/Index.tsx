@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Logo from "@/components/Logo";
 import HeroSection from "@/components/HeroSection";
@@ -28,6 +29,7 @@ const WHATSAPP_NUMBER = "5577991001658";
 const IndexContent = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const { items, getTotal, clearCart } = useCart();
+  const navigate = useNavigate();
 
   const scrollToKits = () => {
     document.getElementById("kits")?.scrollIntoView({ behavior: "smooth" });
@@ -75,9 +77,13 @@ const IndexContent = () => {
     // Abrir WhatsApp
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`, "_blank");
     
-    // Limpar carrinho e redirecionar para página de obrigado
+    // Limpar carrinho
     clearCart();
-    window.location.href = `/obrigado?total=${total}&items=${itemsCount}`;
+    
+    // Navegar com React Router (SPA, sem reload) após pequeno delay
+    setTimeout(() => {
+      navigate(`/obrigado?total=${total}&items=${itemsCount}`);
+    }, 100);
   };
 
   const handleContactClick = () => {
