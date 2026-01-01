@@ -126,8 +126,8 @@ const KitsSection = () => {
   };
 
   return (
-    <section ref={ref} id="kits" className="py-20 md:py-28 bg-card">
-      <div className="container px-6">
+    <section ref={ref} id="kits" className="py-12 md:py-20 lg:py-28 bg-card">
+      <div className="container px-4 md:px-6">
         <motion.div
           className="text-center mb-12"
           initial={{ opacity: 0, y: 20 }}
@@ -137,7 +137,7 @@ const KitsSection = () => {
           <span className="inline-block px-4 py-1.5 bg-sage-light text-sage-dark text-sm font-medium rounded-full mb-4">
             🌿 Kits Detox
           </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">
             Escolha seu caminho
           </h2>
           <p className="text-muted-foreground max-w-md mx-auto">
@@ -164,7 +164,7 @@ const KitsSection = () => {
               {kits.map((kit, index) => (
                 <CarouselItem key={kit.id} className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3">
                   <motion.div
-                    className={`relative rounded-2xl p-6 transition-all duration-300 h-full flex flex-col ${
+                    className={`relative rounded-2xl p-4 sm:p-5 md:p-6 transition-all duration-300 h-full flex flex-col ${
                       kit.popular
                         ? "bg-gradient-to-br from-sage-light to-card border-2 border-primary shadow-card"
                         : "bg-card border border-border hover:border-primary/30 hover:shadow-soft"
@@ -195,7 +195,7 @@ const KitsSection = () => {
                     )}
 
                     <div className="mb-2">
-                      <span className="text-3xl font-bold text-primary">R$ {kit.price}</span>
+                      <span className="text-2xl sm:text-3xl font-bold text-primary">R$ {kit.price}</span>
                     </div>
                     
                     <div className="mb-4 p-2 bg-sage-light/50 rounded-lg text-center">
@@ -225,8 +225,8 @@ const KitsSection = () => {
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="-left-2 md:-left-4" />
-            <CarouselNext className="-right-2 md:-right-4" />
+            <CarouselPrevious className="hidden sm:flex -left-2 md:-left-4" />
+            <CarouselNext className="hidden sm:flex -right-2 md:-right-4" />
           </Carousel>
           
           <CarouselDots
@@ -246,11 +246,11 @@ const KitsSection = () => {
             transition={{ duration: 0.5, delay: 0.35 }}
             className="mt-8"
           >
-            <div className="bg-background border border-border rounded-xl p-5">
-              <h3 className="font-semibold text-foreground text-center mb-4">
+            <div className="bg-background border border-border rounded-xl p-3 sm:p-4 md:p-5">
+              <h3 className="font-semibold text-foreground text-center mb-3 sm:mb-4 text-sm sm:text-base">
                 Sabores dos sucos e sopas (Kit Detox)
               </h3>
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
                 {/* Sopas */}
                 <div>
                   <h4 className="font-medium text-foreground mb-2 flex items-center gap-2 text-sm">
@@ -266,7 +266,7 @@ const KitsSection = () => {
                             <span className="font-medium text-foreground">{sopa.nome}</span>
                             <span className="text-muted-foreground"> {sopa.ingredientes}</span>
                           </span>
-                          <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full uppercase">
+                          <span className="px-1.5 sm:px-2 py-0.5 bg-primary/10 text-primary text-[10px] sm:text-xs font-medium rounded-full uppercase">
                             {sopa.beneficio}
                           </span>
                         </div>
@@ -290,7 +290,7 @@ const KitsSection = () => {
                             <span className="font-medium text-foreground">{suco.nome}</span>
                             <span className="text-muted-foreground"> ({suco.ingredientes})</span>
                           </span>
-                          <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full uppercase">
+                          <span className="px-1.5 sm:px-2 py-0.5 bg-primary/10 text-primary text-[10px] sm:text-xs font-medium rounded-full uppercase">
                             {suco.beneficio}
                           </span>
                         </div>
@@ -313,10 +313,11 @@ const KitsSection = () => {
               variant="outline"
               size="default"
               onClick={() => setQuizOpen(true)}
-              className="gap-2 border-primary bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary animate-[pulse_2s_ease-in-out_infinite] hover:animate-none shadow-[0_0_15px_hsl(var(--primary)/0.3)] text-sm md:text-base px-4 md:px-6 max-w-full"
+              className="gap-1.5 sm:gap-2 border-primary bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary animate-[pulse_2s_ease-in-out_infinite] hover:animate-none shadow-[0_0_15px_hsl(var(--primary)/0.3)] text-xs sm:text-sm md:text-base px-3 sm:px-4 md:px-6"
             >
               <HelpCircle className="w-4 h-4 md:w-5 md:h-5 animate-bounce flex-shrink-0" />
-              <span className="truncate">Não sabe qual escolher? Descubra o kit ideal</span>
+              <span className="sm:hidden">Descubra o kit ideal</span>
+              <span className="hidden sm:inline">Não sabe qual escolher? Descubra o kit ideal</span>
             </Button>
           </motion.div>
         </motion.div>
