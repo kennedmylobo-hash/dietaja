@@ -248,7 +248,7 @@ const KitsSection = () => {
           >
             <div className="bg-background border border-border rounded-xl p-5">
               <h3 className="font-semibold text-foreground text-center mb-4">
-                📋 O que você vai receber
+                Sabores dos sucos e sopas (Kit Detox)
               </h3>
               <div className="grid md:grid-cols-2 gap-4">
                 {/* Sopas */}
