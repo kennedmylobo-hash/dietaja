@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, MapPin } from "lucide-react";
+import { ShoppingBag, MapPin, MessageCircle } from "lucide-react";
 
 const salesData = [
   { name: "Ana Paula", location: "Vitória da Conquista", product: "Kit Detox 5 Dias", time: "agora" },
@@ -13,18 +13,61 @@ const salesData = [
   { name: "Daniela", location: "Conquista", product: "Kit Detox 5 Dias + Marmitas", time: "22 min atrás" },
 ];
 
+const testimonialsData = [
+  { 
+    name: "Mariana S.", 
+    role: "Advogada",
+    quote: "Ter a alimentação pronta foi um cuidado que eu estava devendo comigo mesma.",
+    location: "Vitória da Conquista"
+  },
+  { 
+    name: "Carla R.", 
+    role: "Empresária",
+    quote: "Perdi 4kg no primeiro mês sem passar fome!",
+    location: "Conquista"
+  },
+  { 
+    name: "Juliana M.", 
+    role: "Professora",
+    quote: "Agora como melhor, gasto menos e sobra energia pra academia.",
+    location: "Conquista"
+  },
+  { 
+    name: "Patrícia", 
+    role: "Mãe de 3",
+    quote: "Com a correria do dia a dia, não sobrava tempo pra cozinhar. Agora como bem todo dia!",
+    location: "Vitória da Conquista"
+  },
+  { 
+    name: "Fernanda", 
+    role: "Enfermeira",
+    quote: "Trabalho em plantão e não tinha como manter dieta. Mudou minha vida!",
+    location: "Conquista"
+  },
+];
+
+type NotificationType = 'sale' | 'testimonial';
+
+interface Notification {
+  type: NotificationType;
+  name: string;
+  location: string;
+  product?: string;
+  time?: string;
+  role?: string;
+  quote?: string;
+}
+
 const SalesNotification = () => {
-  const [currentNotification, setCurrentNotification] = useState<typeof salesData[0] | null>(null);
+  const [currentNotification, setCurrentNotification] = useState<Notification | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   
-  // Contador de pedidos do dia (simulado baseado na hora)
   const getPedidosHoje = () => {
     const hour = new Date().getHours();
-    return Math.floor(8 + (hour * 1.2)); // Aumenta ao longo do dia
+    return Math.floor(8 + (hour * 1.2));
   };
 
   useEffect(() => {
-    // Show first notification after 5 seconds
     const initialTimeout = setTimeout(() => {
       showRandomNotification();
     }, 5000);
@@ -35,12 +78,10 @@ const SalesNotification = () => {
   useEffect(() => {
     if (!isVisible) return;
 
-    // Hide notification after 4 seconds
     const hideTimeout = setTimeout(() => {
       setIsVisible(false);
     }, 4000);
 
-    // Show next notification after 15-25 seconds
     const nextTimeout = setTimeout(() => {
       showRandomNotification();
     }, 15000 + Math.random() * 10000);
@@ -52,8 +93,29 @@ const SalesNotification = () => {
   }, [isVisible, currentNotification]);
 
   const showRandomNotification = () => {
-    const randomIndex = Math.floor(Math.random() * salesData.length);
-    setCurrentNotification(salesData[randomIndex]);
+    const isTestimonial = Math.random() > 0.5;
+    
+    if (isTestimonial) {
+      const randomIndex = Math.floor(Math.random() * testimonialsData.length);
+      const testimonial = testimonialsData[randomIndex];
+      setCurrentNotification({
+        type: 'testimonial',
+        name: testimonial.name,
+        role: testimonial.role,
+        quote: testimonial.quote,
+        location: testimonial.location,
+      });
+    } else {
+      const randomIndex = Math.floor(Math.random() * salesData.length);
+      const sale = salesData[randomIndex];
+      setCurrentNotification({
+        type: 'sale',
+        name: sale.name,
+        product: sale.product,
+        location: sale.location,
+        time: sale.time,
+      });
+    }
     setIsVisible(true);
   };
 
@@ -71,34 +133,55 @@ const SalesNotification = () => {
             <div className="flex items-start gap-3">
               {/* Icon */}
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <ShoppingBag className="w-5 h-5 text-primary" />
+                {currentNotification.type === 'sale' ? (
+                  <ShoppingBag className="w-5 h-5 text-primary" />
+                ) : (
+                  <MessageCircle className="w-5 h-5 text-primary" />
+                )}
               </div>
 
               {/* Content */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">
-                  {currentNotification.name} comprou
-                </p>
-                <p className="text-sm text-primary font-semibold truncate">
-                  {currentNotification.product}
-                </p>
+                {currentNotification.type === 'sale' ? (
+                  <>
+                    <p className="text-sm font-medium text-foreground">
+                      {currentNotification.name} comprou
+                    </p>
+                    <p className="text-sm text-primary font-semibold truncate">
+                      {currentNotification.product}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-foreground">
+                      {currentNotification.name} <span className="text-muted-foreground font-normal">• {currentNotification.role}</span>
+                    </p>
+                    <p className="text-sm text-foreground/80 italic line-clamp-2">
+                      "{currentNotification.quote}"
+                    </p>
+                  </>
+                )}
                 <div className="flex items-center gap-1 mt-1">
                   <MapPin className="w-3 h-3 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">
-                    {currentNotification.location} • {currentNotification.time}
+                    {currentNotification.location}
+                    {currentNotification.type === 'sale' && ` • ${currentNotification.time}`}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Contador de pedidos */}
+            {/* Footer */}
             <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between">
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                Verificado
+                {currentNotification.type === 'sale' ? 'Verificado' : 'Cliente real'}
               </p>
               <p className="text-xs font-medium text-primary">
-                {getPedidosHoje()} pedidos hoje
+                {currentNotification.type === 'sale' 
+                  ? `${getPedidosHoje()} pedidos hoje`
+                  : '⭐ 5 estrelas'
+                }
               </p>
             </div>
           </div>
