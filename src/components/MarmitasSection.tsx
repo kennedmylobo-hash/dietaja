@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, Clock, Loader2 } from "lucide-react";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
+import { hapticFeedback } from "@/lib/haptics";
 import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
 import { CarouselDots } from "./CarouselDots";
 import {
@@ -96,6 +97,9 @@ const MarmitasSection = () => {
       totalPrice: marmita.totalPrice,
       description: `${marmita.quantity} marmitas saudáveis`,
     });
+
+    // Haptic feedback on mobile
+    hapticFeedback('success');
 
     toast({
       title: "Adicionado ao carrinho! 🛒",
