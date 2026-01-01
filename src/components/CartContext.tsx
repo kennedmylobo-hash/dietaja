@@ -27,6 +27,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const addItem = (newItem: Omit<CartItem, "id">) => {
     const id = `${newItem.type}-${newItem.name}-${Date.now()}`;
     
+    // Track AddToCart event with Meta Pixel
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'AddToCart', {
+        content_name: newItem.name,
+        content_type: 'product',
+        value: newItem.totalPrice,
+        currency: 'BRL'
+      });
+    }
+    
     // Check if same type already exists, replace it
     setItems((prev) => {
       const filtered = prev.filter((item) => item.type !== newItem.type);
