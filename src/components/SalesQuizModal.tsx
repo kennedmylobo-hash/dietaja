@@ -19,7 +19,10 @@ import {
   Moon,
   Heart,
   Scale,
-  CheckCircle2
+  CheckCircle2,
+  MapPin,
+  Package,
+  MapPinOff
 } from "lucide-react";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
@@ -44,7 +47,29 @@ interface SalesQuizModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type Step = 'objective' | 'specification' | 'lead' | 'analyzing' | 'result';
+type Step = 'location' | 'objective' | 'specification' | 'lead' | 'analyzing' | 'result';
+type LocationOption = 'vdc' | 'pickup' | 'other';
+
+const locationOptions: { value: LocationOption; label: string; icon: React.ReactNode; description: string }[] = [
+  { 
+    value: 'vdc', 
+    label: 'Sim, sou de Vitória da Conquista', 
+    icon: <MapPin className="w-5 h-5" />, 
+    description: 'Entrega em domicílio disponível' 
+  },
+  { 
+    value: 'pickup', 
+    label: 'Não, mas posso retirar', 
+    icon: <Package className="w-5 h-5" />, 
+    description: 'Retirada grátis no bairro Recreio' 
+  },
+  { 
+    value: 'other', 
+    label: 'Não posso retirar', 
+    icon: <MapPinOff className="w-5 h-5" />, 
+    description: 'Verificar disponibilidade' 
+  },
+];
 
 const objectiveOptions: { value: QuizObjective; label: string; icon: React.ReactNode; description: string }[] = [
   { value: 'emagrecer', label: 'Emagrecer / Desinchar', icon: <Leaf className="w-5 h-5" />, description: 'Quero perder peso e me sentir mais leve' },
@@ -75,21 +100,34 @@ const detoxBenefits = [
 ];
 
 const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
-  const [step, setStep] = useState<Step>('objective');
+  const [step, setStep] = useState<Step>('location');
   const [answers, setAnswers] = useState<Partial<QuizAnswers>>({});
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [primaryAdded, setPrimaryAdded] = useState(false);
+  const [isPickup, setIsPickup] = useState(false);
+  const [showNotServiced, setShowNotServiced] = useState(false);
   const { addItem, items } = useCart();
 
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      setStep('objective');
+      setStep('location');
       setAnswers({});
       setRecommendation(null);
       setPrimaryAdded(false);
+      setIsPickup(false);
+      setShowNotServiced(false);
     }
   }, [open]);
+
+  const handleLocationSelect = (location: LocationOption) => {
+    if (location === 'other') {
+      setShowNotServiced(true);
+    } else {
+      setIsPickup(location === 'pickup');
+      setStep('objective');
+    }
+  };
 
   const handleObjectiveSelect = (objective: QuizObjective) => {
     setAnswers({ ...answers, objective });
@@ -203,14 +241,24 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
     markQuizAsConverted();
     
     const utmSummary = getUTMSummary();
-    const message = formatQuizDataForWhatsApp(answers as QuizAnswers, recommendation, utmSummary);
+    let message = formatQuizDataForWhatsApp(answers as QuizAnswers, recommendation, utmSummary);
+    
+    // Add delivery method info
+    if (isPickup) {
+      message = message.replace('\n\nPode me ajudar a finalizar?', '\n\n🏪 *Forma de entrega:* Retirada no Recreio\n\nPode me ajudar a finalizar?');
+    } else {
+      message = message.replace('\n\nPode me ajudar a finalizar?', '\n\n🚚 *Forma de entrega:* Delivery em VdC\n\nPode me ajudar a finalizar?');
+    }
+    
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`, "_blank");
     onOpenChange(false);
   };
 
   const goBack = () => {
-    if (step === 'specification') {
+    if (step === 'objective') {
+      setStep('location');
+    } else if (step === 'specification') {
       setStep('objective');
     } else if (step === 'lead') {
       setStep('specification');
@@ -219,10 +267,11 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
 
   const getProgress = () => {
     switch (step) {
-      case 'objective': return 25;
-      case 'specification': return 50;
-      case 'lead': return 75;
-      case 'analyzing': return 90;
+      case 'location': return 0;
+      case 'objective': return 20;
+      case 'specification': return 40;
+      case 'lead': return 60;
+      case 'analyzing': return 80;
       case 'result': return 100;
       default: return 0;
     }
@@ -245,6 +294,93 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
 
         <div className="p-6">
           <AnimatePresence mode="wait">
+            {/* Step 0: Location */}
+            {step === 'location' && !showNotServiced && (
+              <motion.div
+                key="location"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="text-center mb-6">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
+                    <MapPin className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-xl font-bold text-foreground mb-2">
+                    Antes de começar...
+                  </h2>
+                  <p className="text-muted-foreground text-sm">
+                    Você é de Vitória da Conquista - BA?
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {locationOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => handleLocationSelect(option.value)}
+                      className="w-full flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary hover:bg-primary/5 transition-all text-left group"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                        {option.icon}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground">{option.label}</p>
+                        <p className="text-sm text-muted-foreground">{option.description}</p>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Not Serviced State */}
+            {step === 'location' && showNotServiced && (
+              <motion.div
+                key="not-serviced"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.3 }}
+                className="text-center"
+              >
+                <span className="text-5xl mb-4 block">😢</span>
+                <h2 className="text-xl font-bold text-foreground mb-2">
+                  Que pena!
+                </h2>
+                <p className="text-muted-foreground mb-6">
+                  Ainda não entregamos na sua região, mas estamos expandindo! 
+                  A retirada no bairro Recreio é uma ótima opção.
+                </p>
+
+                <div className="space-y-3">
+                  <Button 
+                    variant="cta" 
+                    className="w-full"
+                    onClick={() => {
+                      setShowNotServiced(false);
+                      setIsPickup(true);
+                      setStep('objective');
+                    }}
+                  >
+                    <Package className="w-4 h-4 mr-2" />
+                    Quero retirar no Recreio
+                  </Button>
+                  
+                  <Button 
+                    variant="ghost" 
+                    className="w-full"
+                    onClick={() => setShowNotServiced(false)}
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Voltar
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
             {/* Step 1: Objective */}
             {step === 'objective' && (
               <motion.div
@@ -254,11 +390,25 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
               >
+                <button
+                  onClick={goBack}
+                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground mb-4 text-sm"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Voltar
+                </button>
+
                 <div className="text-center mb-6">
                   <span className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full mb-3">
                     <Sparkles className="w-4 h-4" />
                     Quiz Consultor
                   </span>
+                  {isPickup && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-terracotta/10 text-terracotta text-xs font-medium rounded-full ml-2">
+                      <Package className="w-3 h-3" />
+                      Retirada
+                    </span>
+                  )}
                   <h2 className="text-xl font-bold text-foreground mb-2">
                     Qual é o seu principal objetivo?
                   </h2>
@@ -552,7 +702,11 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
                         ).join('\n');
                         const total = items.reduce((sum, item) => sum + item.totalPrice, 0);
                         
-                        let message = `Olá! Gostaria de finalizar meu pedido:\n\n${itemsList}\n\n💰 *Total: R$ ${total.toFixed(2).replace('.', ',')}*`;
+                        const deliveryMethod = isPickup 
+                          ? '🏪 *Forma de entrega:* Retirada no Recreio' 
+                          : '🚚 *Forma de entrega:* Delivery em VdC';
+                        
+                        let message = `Olá! Gostaria de finalizar meu pedido:\n\n${itemsList}\n\n💰 *Total: R$ ${total.toFixed(2).replace('.', ',')}*\n\n${deliveryMethod}`;
                         if (utmSummary) {
                           message += `\n\n${utmSummary}`;
                         }
