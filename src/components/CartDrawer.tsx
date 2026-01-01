@@ -17,6 +17,14 @@ import { useNavigate } from "react-router-dom";
 
 const WHATSAPP_NUMBER = "5577991001658";
 
+// Phone mask function: (XX) XXXXX-XXXX
+const formatPhone = (value: string): string => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : "";
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
+
 const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
@@ -313,7 +321,11 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                       id="drawer-phone"
                       type="tel"
                       placeholder="(77) 99100-1658"
-                      {...register("phone")}
+                      {...register("phone", {
+                        onChange: (e) => {
+                          e.target.value = formatPhone(e.target.value);
+                        }
+                      })}
                       className="mt-1"
                     />
                     {errors.phone && (
