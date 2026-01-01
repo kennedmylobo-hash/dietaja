@@ -63,7 +63,7 @@ const locationOptions: { value: LocationOption; label: string; icon: React.React
     value: 'pickup', 
     label: 'Não, mas posso retirar', 
     icon: <Package className="w-5 h-5" />, 
-    description: 'Retirada grátis no bairro Recreio' 
+    description: 'Retirada grátis' 
   },
   { 
     value: 'other', 

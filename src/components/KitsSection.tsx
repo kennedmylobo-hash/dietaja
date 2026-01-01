@@ -335,10 +335,10 @@ const KitsSection = () => {
               variant="outline"
               size="default"
               onClick={() => setQuizOpen(true)}
-              className="gap-1.5 sm:gap-2 border-primary bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary animate-[pulse_2s_ease-in-out_infinite] hover:animate-none shadow-[0_0_15px_hsl(var(--primary)/0.3)] text-xs sm:text-sm md:text-base px-3 sm:px-4 md:px-6"
+              className="gap-1.5 sm:gap-2 border-primary bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary animate-[pulse_2s_ease-in-out_infinite] hover:animate-none shadow-[0_0_15px_hsl(var(--primary)/0.3)] text-xs sm:text-sm md:text-base px-2 sm:px-4 md:px-6"
             >
-              <HelpCircle className="w-4 h-4 md:w-5 md:h-5 animate-bounce flex-shrink-0" />
-              <span className="sm:hidden">Descubra o kit ideal</span>
+              <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 animate-bounce flex-shrink-0" />
+              <span className="sm:hidden">Qual kit ideal?</span>
               <span className="hidden sm:inline">Não sabe qual escolher? Descubra o kit ideal</span>
             </Button>
           </motion.div>
