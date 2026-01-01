@@ -10,6 +10,19 @@ const badges = [
   { icon: MapPin, label: "Produção local" },
 ];
 
+const sopas = [
+  { emoji: "🟠", nome: "Abóbora termogênica", ingredientes: "com gengibre" },
+  { emoji: "⚪", nome: "Aipim cremoso", ingredientes: "com alho-poró" },
+  { emoji: "🟢", nome: "Batata-doce", ingredientes: "com couve e chuchu" },
+];
+
+const sucos = [
+  { emoji: "🟢", nome: "Verde", ingredientes: "abacaxi, couve e gengibre" },
+  { emoji: "🩷", nome: "Rosa", ingredientes: "melancia com hortelã" },
+  { emoji: "🟡", nome: "Amarelo", ingredientes: "manga com cenoura" },
+  { emoji: "🔴", nome: "Vermelho", ingredientes: "morango com hortelã" },
+];
+
 const ProductGallerySection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
@@ -66,11 +79,57 @@ const ProductGallerySection = () => {
             ))}
           </motion.div>
 
+          {/* Sabores Section */}
+          <motion.div
+            className="grid md:grid-cols-2 gap-4 mt-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            {/* Sopas */}
+            <div className="bg-card border border-border rounded-xl p-5">
+              <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                🍲 Sopas Funcionais
+                <span className="text-xs font-normal text-muted-foreground">(3 sabores)</span>
+              </h3>
+              <ul className="space-y-2">
+                {sopas.map((sopa) => (
+                  <li key={sopa.nome} className="flex items-start gap-2 text-sm">
+                    <span className="text-base leading-none mt-0.5">{sopa.emoji}</span>
+                    <span>
+                      <span className="font-medium text-foreground">{sopa.nome}</span>
+                      <span className="text-muted-foreground"> {sopa.ingredientes}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Sucos */}
+            <div className="bg-card border border-border rounded-xl p-5">
+              <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                🧃 Sucos Detox
+                <span className="text-xs font-normal text-muted-foreground">(4 sabores)</span>
+              </h3>
+              <ul className="space-y-2">
+                {sucos.map((suco) => (
+                  <li key={suco.nome} className="flex items-start gap-2 text-sm">
+                    <span className="text-base leading-none mt-0.5">{suco.emoji}</span>
+                    <span>
+                      <span className="font-medium text-foreground">{suco.nome}</span>
+                      <span className="text-muted-foreground"> ({suco.ingredientes})</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </motion.div>
+
           <motion.p
-            className="text-center text-muted-foreground mt-4 text-sm"
+            className="text-center text-muted-foreground mt-6 text-sm"
             initial={{ opacity: 0 }}
             animate={isInView ? { opacity: 1 } : {}}
-            transition={{ duration: 0.5, delay: 0.4 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
           >
             Produção semanal em Vitória da Conquista
           </motion.p>
