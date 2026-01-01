@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Star, CheckCircle2, Clock } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
-import produtosImage from "@/assets/produtos-detox.jpg";
 import CountdownTimer from "@/components/CountdownTimer";
 
 interface HeroSectionProps {
@@ -33,37 +32,16 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
 
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-      {/* Background with fallback image + video */}
+      {/* Background with video */}
       <div className="absolute inset-0 z-0">
-        {/* LCP Image - loads first with high priority */}
-        <img 
-          src={produtosImage} 
-          alt="" 
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="eager"
-          decoding="sync"
-          fetchPriority="high"
-          width={1920}
-          height={1080}
-          style={{ contentVisibility: 'auto' }}
-        />
-        {/* Video over image - lazy load after LCP */}
         <video
           src={produtosVideo}
           autoPlay
           loop
           muted
           playsInline
-          preload="none"
+          preload="metadata"
           className="absolute inset-0 w-full h-full object-cover"
-          onLoadStart={(e) => {
-            // Only start loading video after page is interactive
-            const video = e.currentTarget;
-            setTimeout(() => {
-              video.preload = 'auto';
-              video.load();
-            }, 2000);
-          }}
         />
         {/* Dark overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
