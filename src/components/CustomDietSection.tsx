@@ -19,6 +19,13 @@ const CustomDietSection = ({ whatsappNumber }: CustomDietSectionProps) => {
   ];
 
   const handleWhatsAppClick = () => {
+    // Track Lead event with Meta Pixel
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'Lead', {
+        content_name: 'Dieta Personalizada'
+      });
+    }
+
     const message = `Oi! 😊\nQuero montar uma *dieta personalizada* com meu próprio cardápio.\n\nPode me ajudar com um orçamento?`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, "_blank");

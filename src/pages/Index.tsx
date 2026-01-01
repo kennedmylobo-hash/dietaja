@@ -43,6 +43,16 @@ const IndexContent = () => {
       return;
     }
 
+    // Track Contact and InitiateCheckout events with Meta Pixel
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'Contact');
+      window.fbq('track', 'InitiateCheckout', {
+        value: getTotal(),
+        currency: 'BRL',
+        num_items: items.length
+      });
+    }
+
     let message = `Oi 😊\nVi o site da *Dieta Já* e quero cuidar melhor da minha alimentação.\n\n`;
     message += `🛒 *CARRINHO:*\n`;
 
