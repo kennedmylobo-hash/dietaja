@@ -5,6 +5,7 @@ import { CheckCircle, MessageCircle, MapPin, CreditCard, Truck } from "lucide-re
 import { motion } from "framer-motion";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { celebrateCheckout } from "@/lib/confetti";
 
 const Obrigado = () => {
   const params = new URLSearchParams(window.location.search);
@@ -36,8 +37,11 @@ const Obrigado = () => {
     month: "long",
   });
 
-  // Disparar evento Purchase no Meta Pixel
+  // Disparar evento Purchase no Meta Pixel + confetti
   useEffect(() => {
+    // Celebrar a compra com confetti
+    celebrateCheckout();
+
     if (typeof window !== "undefined" && (window as any).fbq && total > 0) {
       (window as any).fbq("track", "Purchase", {
         value: total,

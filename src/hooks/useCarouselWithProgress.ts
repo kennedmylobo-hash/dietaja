@@ -79,24 +79,29 @@ export function useCarouselWithProgress(
 
   // Pausar/retomar autoplay baseado na visibilidade
   useEffect(() => {
-    if (!autoplayPlugin.current || !api) return;
+    const plugin = autoplayPlugin.current;
+    if (!plugin || !api) return;
 
+    // Aguardar o carrossel estar completamente inicializado
     const slides = api.scrollSnapList();
     const hasSlides = slides && slides.length > 0;
 
     // Guard clause: nunca iniciar autoplay sem slides
-    if (!hasSlides) {
-      return;
-    }
+    if (!hasSlides) return;
 
     if (isSectionVisible) {
-      try {
-        autoplayPlugin.current.play();
-      } catch (error) {
-        console.warn('Autoplay não pôde iniciar:', error);
+      // Verificar se o método play existe antes de chamar
+      if (typeof plugin.play === 'function') {
+        try {
+          plugin.play();
+        } catch (error) {
+          // Silenciar erro - carrossel ainda inicializando
+        }
       }
     } else {
-      autoplayPlugin.current.stop();
+      if (typeof plugin.stop === 'function') {
+        plugin.stop();
+      }
     }
   }, [isSectionVisible, api]);
 
@@ -129,7 +134,8 @@ export function useCarouselWithProgress(
 
   // Pausar autoplay quando hover nos dots
   useEffect(() => {
-    if (!autoplayPlugin.current || !api) return;
+    const plugin = autoplayPlugin.current;
+    if (!plugin || !api) return;
 
     const slides = api.scrollSnapList();
     const hasSlides = slides && slides.length > 0;
@@ -138,12 +144,16 @@ export function useCarouselWithProgress(
     if (!hasSlides) return;
 
     if (isHoveringDots) {
-      autoplayPlugin.current.stop();
+      if (typeof plugin.stop === 'function') {
+        plugin.stop();
+      }
     } else if (isSectionVisible) {
-      try {
-        autoplayPlugin.current.play();
-      } catch (error) {
-        console.warn('Autoplay não pôde retomar:', error);
+      if (typeof plugin.play === 'function') {
+        try {
+          plugin.play();
+        } catch (error) {
+          // Silenciar erro - carrossel ainda inicializando
+        }
       }
     }
   }, [isHoveringDots, isSectionVisible, api]);
