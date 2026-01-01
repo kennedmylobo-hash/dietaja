@@ -32,6 +32,8 @@ import {
   formatQuizDataForWhatsApp,
   saveQuizToStorage,
   markQuizAsConverted,
+  saveIncompleteLead,
+  removeIncompleteLead,
   type QuizAnswers, 
   type QuizObjective, 
   type QuizAvailability, 
@@ -119,9 +121,11 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
   const [primaryAdded, setPrimaryAdded] = useState(false);
   const [isPickup, setIsPickup] = useState(false);
   const [showNotServiced, setShowNotServiced] = useState(false);
+  const [currentLeadId, setCurrentLeadId] = useState<string | null>(null);
+  const [quizStartTime, setQuizStartTime] = useState<string | null>(null);
   const { addItem, items } = useCart();
 
-  // Reset state when modal opens
+  // Reset state when modal opens and create incomplete lead
   useEffect(() => {
     if (open) {
       setStep('location');
@@ -130,20 +134,79 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
       setPrimaryAdded(false);
       setIsPickup(false);
       setShowNotServiced(false);
+      
+      const startTime = new Date().toISOString();
+      setQuizStartTime(startTime);
+      
+      const params = new URLSearchParams(window.location.search);
+      const leadId = saveIncompleteLead({
+        step: 'location',
+        startedAt: startTime,
+        source: params.get('utm_source') || undefined,
+        campaign: params.get('utm_campaign') || undefined,
+      });
+      setCurrentLeadId(leadId);
     }
   }, [open]);
+
+  // Save lead data when name/phone changes (debounced)
+  useEffect(() => {
+    if (step === 'lead' && currentLeadId && (answers.name || answers.phone)) {
+      const timer = setTimeout(() => {
+        saveIncompleteLead({
+          id: currentLeadId,
+          step: 'lead',
+          name: answers.name,
+          phone: answers.phone,
+          objective: answers.objective,
+          availability: answers.availability,
+          mealsPerWeek: answers.mealsPerWeek,
+          isPickup,
+          startedAt: quizStartTime || undefined,
+        });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [answers.name, answers.phone, step, currentLeadId, answers.objective, answers.availability, answers.mealsPerWeek, isPickup, quizStartTime]);
 
   const handleLocationSelect = (location: LocationOption) => {
     if (location === 'other') {
       setShowNotServiced(true);
+      if (currentLeadId) {
+        saveIncompleteLead({
+          id: currentLeadId,
+          step: 'location',
+          location,
+          startedAt: quizStartTime || undefined,
+        });
+      }
     } else {
       setIsPickup(location === 'pickup');
+      if (currentLeadId) {
+        saveIncompleteLead({
+          id: currentLeadId,
+          step: 'location',
+          location,
+          isPickup: location === 'pickup',
+          startedAt: quizStartTime || undefined,
+        });
+      }
       setStep('objective');
     }
   };
 
   const handleObjectiveSelect = (objective: QuizObjective) => {
     setAnswers({ ...answers, objective });
+    
+    if (currentLeadId) {
+      saveIncompleteLead({
+        id: currentLeadId,
+        step: 'objective',
+        objective,
+        isPickup,
+        startedAt: quizStartTime || undefined,
+      });
+    }
     
     if (objective === 'nao-sei') {
       // Skip to analyzing and then result
@@ -152,6 +215,7 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
         const rec = getRecommendation({ objective } as QuizAnswers);
         setRecommendation(rec);
         saveQuizToStorage({ objective } as QuizAnswers, rec);
+        if (currentLeadId) removeIncompleteLead(currentLeadId);
         setStep('result');
       }, 1500);
     } else {
@@ -166,6 +230,18 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
       updatedAnswers.mealsPerWeek = value as QuizMealsPerWeek;
     } else {
       updatedAnswers.availability = value as QuizAvailability;
+    }
+    
+    if (currentLeadId) {
+      saveIncompleteLead({
+        id: currentLeadId,
+        step: 'specification',
+        objective: updatedAnswers.objective,
+        availability: updatedAnswers.availability,
+        mealsPerWeek: updatedAnswers.mealsPerWeek,
+        isPickup,
+        startedAt: quizStartTime || undefined,
+      });
     }
     
     setAnswers(updatedAnswers);
@@ -214,6 +290,11 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
       
       // Save to localStorage for analytics/remarketing
       saveQuizToStorage(answers as QuizAnswers, rec);
+      
+      // Remove from incomplete leads since quiz was completed
+      if (currentLeadId) {
+        removeIncompleteLead(currentLeadId);
+      }
       
       // Track ViewContent
       if (typeof window !== 'undefined' && window.fbq) {

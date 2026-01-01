@@ -217,12 +217,30 @@ export function formatQuizDataForWhatsApp(
 
 // localStorage key for quiz data
 const QUIZ_STORAGE_KEY = 'dietaja_quiz_data';
+const INCOMPLETE_LEADS_KEY = 'dietaja_incomplete_leads';
 
 export interface QuizStorageEntry {
   answers: QuizAnswers;
   recommendation: string;
   timestamp: string;
   converted?: boolean;
+}
+
+export interface IncompleteLeadEntry {
+  id: string;
+  step: string;
+  location?: 'vdc' | 'pickup' | 'other';
+  objective?: QuizObjective;
+  availability?: QuizAvailability;
+  mealsPerWeek?: QuizMealsPerWeek;
+  name?: string;
+  phone?: string;
+  isPickup?: boolean;
+  startedAt: string;
+  abandonedAt: string;
+  source?: string;
+  campaign?: string;
+  recovered?: boolean;
 }
 
 export function saveQuizToStorage(answers: QuizAnswers, recommendation: Recommendation): void {
@@ -271,4 +289,70 @@ export function getQuizHistory(): QuizStorageEntry[] {
 export function getLastQuizEntry(): QuizStorageEntry | null {
   const history = getQuizHistory();
   return history.length > 0 ? history[0] : null;
+}
+
+// Incomplete leads for remarketing
+function generateLeadId(): string {
+  return `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function saveIncompleteLead(data: Partial<IncompleteLeadEntry>): string {
+  try {
+    const existing = getIncompleteLeads();
+    const id = data.id || generateLeadId();
+    
+    const entry: IncompleteLeadEntry = {
+      id,
+      step: data.step || 'location',
+      location: data.location,
+      objective: data.objective,
+      availability: data.availability,
+      mealsPerWeek: data.mealsPerWeek,
+      name: data.name,
+      phone: data.phone,
+      isPickup: data.isPickup,
+      startedAt: data.startedAt || new Date().toISOString(),
+      abandonedAt: new Date().toISOString(),
+      source: data.source,
+      campaign: data.campaign,
+      recovered: false,
+    };
+    
+    const index = existing.findIndex(e => e.id === id);
+    if (index >= 0) {
+      existing[index] = entry;
+    } else {
+      existing.unshift(entry);
+    }
+    
+    const updated = existing.slice(0, 50);
+    localStorage.setItem(INCOMPLETE_LEADS_KEY, JSON.stringify(updated));
+    
+    return id;
+  } catch (e) {
+    return data.id || generateLeadId();
+  }
+}
+
+export function removeIncompleteLead(id: string): void {
+  try {
+    const existing = getIncompleteLeads();
+    const filtered = existing.filter(e => e.id !== id);
+    localStorage.setItem(INCOMPLETE_LEADS_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    // Silently fail
+  }
+}
+
+export function getIncompleteLeads(): IncompleteLeadEntry[] {
+  try {
+    const data = localStorage.getItem(INCOMPLETE_LEADS_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function getLeadsWithPhone(): IncompleteLeadEntry[] {
+  return getIncompleteLeads().filter(lead => lead.phone);
 }
