@@ -130,6 +130,9 @@ const IndexContent = () => {
         <main className="pt-16">
           <HeroSection onCtaClick={scrollToKits} />
           <IdentificationSection />
+          <Suspense fallback={<TestimonialsSkeleton />}>
+            <ReviewsSection />
+          </Suspense>
           <SolutionSection />
           <BeforeAfterSection />
           <ProductGallerySection />
@@ -139,9 +142,6 @@ const IndexContent = () => {
             <CustomDietSection whatsappNumber={WHATSAPP_NUMBER} />
           </Suspense>
           <ValueSection />
-          <Suspense fallback={<TestimonialsSkeleton />}>
-            <ReviewsSection />
-          </Suspense>
           <UrgencySection />
           <CheckoutSection onWhatsAppClick={handleWhatsAppClick} />
           <Suspense fallback={<GuaranteeSkeleton />}>
