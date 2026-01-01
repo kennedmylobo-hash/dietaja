@@ -48,7 +48,7 @@ const UrgencySection = () => {
                 Vitória da Conquista
               </p>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                📍 Retirada grátis no Recreio • 🛵 Entrega R$ 10
+                📍 Retirada grátis • 🛵 Entrega R$ 10
               </p>
             </div>
           </div>
