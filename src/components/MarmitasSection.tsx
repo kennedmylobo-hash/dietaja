@@ -98,18 +98,18 @@ const MarmitasSection = () => {
   };
 
   return (
-    <section ref={ref} id="marmitas" className="py-20 md:py-28 bg-background">
-      <div className="container px-6">
+    <section ref={ref} id="marmitas" className="py-12 md:py-20 lg:py-28 bg-background">
+      <div className="container px-4 md:px-6">
         <motion.div
-          className="text-center mb-12"
+          className="text-center mb-8 md:mb-12"
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5 }}
         >
-          <span className="inline-block px-4 py-1.5 bg-terracotta-light text-terracotta text-sm font-medium rounded-full mb-4">
+          <span className="inline-block px-3 sm:px-4 py-1.5 bg-terracotta-light text-terracotta text-xs sm:text-sm font-medium rounded-full mb-4">
             🍱 Marmitas Saudáveis Congeladas
           </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">
             Praticidade no dia a dia
           </h2>
           <p className="text-muted-foreground max-w-md mx-auto">
@@ -165,19 +165,19 @@ const MarmitasSection = () => {
                       />
                     </div>
 
-                    <div className="p-5">
-                      <h3 className="text-lg font-bold text-foreground mb-1">
+                    <div className="p-4 sm:p-5">
+                      <h3 className="text-base sm:text-lg font-bold text-foreground mb-1">
                         {marmita.name}
                       </h3>
-                      <p className="text-sm text-muted-foreground mb-3">
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-3">
                         {marmita.quantity} marmitas saudáveis
                       </p>
 
                       <div className="flex items-baseline gap-2 mb-4">
-                        <span className="text-2xl font-bold text-terracotta">
+                        <span className="text-xl sm:text-2xl font-bold text-terracotta">
                           R$ {marmita.unitPrice.toFixed(2).replace(".", ",")}
                         </span>
-                        <span className="text-sm text-muted-foreground">cada</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">cada</span>
                       </div>
 
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
@@ -198,8 +198,8 @@ const MarmitasSection = () => {
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="-left-2 md:-left-4" />
-            <CarouselNext className="-right-2 md:-right-4" />
+            <CarouselPrevious className="hidden sm:flex -left-2 md:-left-4" />
+            <CarouselNext className="hidden sm:flex -right-2 md:-right-4" />
           </Carousel>
           
           <CarouselDots

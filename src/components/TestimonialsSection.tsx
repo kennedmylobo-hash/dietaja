@@ -31,37 +31,37 @@ const TestimonialsSection = () => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-20 md:py-28 bg-sage-light/30">
-      <div className="container px-6">
+    <section ref={ref} className="py-12 md:py-20 lg:py-28 bg-sage-light/30">
+      <div className="container px-4 md:px-6">
         <motion.div
-          className="text-center mb-10"
+          className="text-center mb-8 md:mb-10"
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-2">
             O que nossas clientes dizem
           </h2>
-          <p className="text-muted-foreground">Histórias reais de Vitória da Conquista</p>
+          <p className="text-sm sm:text-base text-muted-foreground">Histórias reais de Vitória da Conquista</p>
         </motion.div>
 
-        <div className="max-w-4xl mx-auto grid md:grid-cols-3 gap-6">
+        <div className="max-w-4xl mx-auto grid gap-4 sm:gap-6 md:grid-cols-3">
           {testimonials.map((testimonial, index) => (
             <motion.div
               key={testimonial.name}
-              className="bg-card rounded-2xl p-6 shadow-soft border border-border relative"
+              className="bg-card rounded-2xl p-4 sm:p-6 shadow-soft border border-border relative"
               initial={{ opacity: 0, y: 30 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5, delay: 0.1 * (index + 1) }}
             >
-              <Quote className="absolute top-4 right-4 w-6 h-6 text-primary/20" />
+              <Quote className="absolute top-3 right-3 sm:top-4 sm:right-4 w-5 h-5 sm:w-6 sm:h-6 text-primary/20" />
               
               {/* Avatar */}
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3 mb-3 sm:mb-4">
                 <img 
                   src={testimonial.photo} 
                   alt={testimonial.name}
-                  className="w-12 h-12 rounded-full object-cover border-2 border-primary/20"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-primary/20"
                   loading="lazy"
                   decoding="async"
                   width={48}
