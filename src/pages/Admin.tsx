@@ -17,8 +17,16 @@ import {
   LogOut,
   Download,
   BarChart3,
-  Percent
+  Percent,
+  Filter
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { 
   LineChart, 
@@ -74,6 +82,7 @@ const Admin = () => {
   const [analyticsEvents, setAnalyticsEvents] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month'>('week');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   
   const navigate = useNavigate();
 
@@ -222,6 +231,31 @@ const Admin = () => {
     });
   };
 
+  // Get unique sources for filter dropdown
+  const availableSources = useMemo(() => {
+    const sources = new Set<string>();
+    leads.forEach(lead => {
+      if (lead.utm_source) sources.add(lead.utm_source);
+    });
+    analyticsEvents.forEach(event => {
+      if (event.utm_source) sources.add(event.utm_source);
+    });
+    return Array.from(sources).sort();
+  }, [leads, analyticsEvents]);
+
+  // Filter data by source
+  const filteredLeads = useMemo(() => {
+    if (sourceFilter === 'all') return leads;
+    if (sourceFilter === 'direct') return leads.filter(l => !l.utm_source);
+    return leads.filter(l => l.utm_source === sourceFilter);
+  }, [leads, sourceFilter]);
+
+  const filteredEvents = useMemo(() => {
+    if (sourceFilter === 'all') return analyticsEvents;
+    if (sourceFilter === 'direct') return analyticsEvents.filter(e => !e.utm_source);
+    return analyticsEvents.filter(e => e.utm_source === sourceFilter);
+  }, [analyticsEvents, sourceFilter]);
+
   // Calculate daily chart data
   const dailyChartData = useMemo((): DailyData[] => {
     const days = dateFilter === 'today' ? 1 : dateFilter === 'week' ? 7 : 30;
@@ -233,15 +267,15 @@ const Admin = () => {
       const dateStr = date.toISOString().split('T')[0];
       const displayDate = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
       
-      // Count leads for this day
-      const dayLeads = leads.filter(lead => {
+      // Count leads for this day (filtered)
+      const dayLeads = filteredLeads.filter(lead => {
         const leadDate = new Date(lead.created_at).toISOString().split('T')[0];
         return leadDate === dateStr;
       }).length;
       
-      // Count unique visitors for this day
+      // Count unique visitors for this day (filtered)
       const dayVisitors = new Set(
-        analyticsEvents
+        filteredEvents
           .filter(e => {
             const eventDate = new Date(e.created_at).toISOString().split('T')[0];
             return eventDate === dateStr && e.event_type === 'page_view';
@@ -263,7 +297,7 @@ const Admin = () => {
     }
     
     return data;
-  }, [leads, analyticsEvents, dateFilter]);
+  }, [filteredLeads, filteredEvents, dateFilter]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -350,10 +384,10 @@ const Admin = () => {
   };
 
   const exportLeadsCSV = () => {
-    if (leads.length === 0) return;
+    if (filteredLeads.length === 0) return;
 
     const headers = ['Nome', 'Telefone', 'Localização', 'Objetivo', 'Recomendação', 'Preço', 'Convertido', 'Origem', 'Campanha', 'Data'];
-    const rows = leads.map(lead => [
+    const rows = filteredLeads.map(lead => [
       lead.name,
       lead.phone,
       lead.location || '',
@@ -370,7 +404,8 @@ const Admin = () => {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `leads-${dateFilter}-${new Date().toISOString().split('T')[0]}.csv`;
+    const sourceLabel = sourceFilter !== 'all' ? `-${sourceFilter}` : '';
+    link.download = `leads-${dateFilter}${sourceLabel}-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
 
@@ -468,7 +503,25 @@ const Admin = () => {
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold text-foreground">Painel Dieta Já</h1>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4 flex-wrap">
+            {/* Source Filter */}
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-[140px] h-9">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Origem" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas origens</SelectItem>
+                <SelectItem value="direct">Direto</SelectItem>
+                {availableSources.map(source => (
+                  <SelectItem key={source} value={source}>
+                    {source}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Date Filter */}
             <div className="flex gap-1 bg-muted rounded-lg p-1">
               {(['today', 'week', 'month'] as const).map((period) => (
                 <button
@@ -502,7 +555,7 @@ const Admin = () => {
                   <Users className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{leads.length}</p>
+                  <p className="text-2xl font-bold">{filteredLeads.length}</p>
                   <p className="text-xs text-muted-foreground">Leads</p>
                 </div>
               </div>
@@ -516,7 +569,7 @@ const Admin = () => {
                   <TrendingUp className="w-5 h-5 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{leads.filter(l => l.converted).length}</p>
+                  <p className="text-2xl font-bold">{filteredLeads.filter(l => l.converted).length}</p>
                   <p className="text-xs text-muted-foreground">Convertidos</p>
                 </div>
               </div>
@@ -530,7 +583,7 @@ const Admin = () => {
                   <Eye className="w-5 h-5 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{analytics?.uniqueSessions || 0}</p>
+                  <p className="text-2xl font-bold">{new Set(filteredEvents.filter(e => e.event_type === 'page_view').map(e => e.session_id)).size}</p>
                   <p className="text-xs text-muted-foreground">Visitantes</p>
                 </div>
               </div>
@@ -545,7 +598,13 @@ const Admin = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {analytics?.avgTimeOnPage ? `${Math.floor(analytics.avgTimeOnPage / 60)}:${String(analytics.avgTimeOnPage % 60).padStart(2, '0')}` : '0:00'}
+                    {(() => {
+                      const timeEvents = filteredEvents.filter(e => e.event_type === 'time_on_page' && e.time_on_page);
+                      const avgTime = timeEvents.length > 0
+                        ? Math.round(timeEvents.reduce((sum, e) => sum + (e.time_on_page || 0), 0) / timeEvents.length)
+                        : 0;
+                      return avgTime ? `${Math.floor(avgTime / 60)}:${String(avgTime % 60).padStart(2, '0')}` : '0:00';
+                    })()}
                   </p>
                   <p className="text-xs text-muted-foreground">Tempo médio</p>
                 </div>
@@ -738,16 +797,23 @@ const Admin = () => {
         {/* Leads Table */}
         <Card className="mb-8">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Leads Capturados</CardTitle>
-            <Button variant="outline" size="sm" onClick={exportLeadsCSV} disabled={leads.length === 0}>
+            <CardTitle className="text-lg">
+              Leads Capturados
+              {sourceFilter !== 'all' && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  ({sourceFilter === 'direct' ? 'Direto' : sourceFilter})
+                </span>
+              )}
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={exportLeadsCSV} disabled={filteredLeads.length === 0}>
               <Download className="w-4 h-4 mr-2" />
               Exportar CSV
             </Button>
           </CardHeader>
           <CardContent>
-            {leads.length === 0 ? (
+            {filteredLeads.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                Nenhum lead capturado no período selecionado.
+                Nenhum lead capturado no período{sourceFilter !== 'all' ? ` para origem "${sourceFilter === 'direct' ? 'Direto' : sourceFilter}"` : ''}.
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -763,7 +829,7 @@ const Admin = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {leads.map((lead) => (
+                    {filteredLeads.map((lead) => (
                       <tr key={lead.id} className="border-b last:border-0">
                         <td className="py-3">
                           <div>
