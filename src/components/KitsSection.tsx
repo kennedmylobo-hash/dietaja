@@ -165,7 +165,7 @@ const KitsSection = () => {
         >
           <Carousel
             opts={{
-              align: "center",
+              align: "start",
               loop: true,
             }}
             plugins={[autoplayPlugin]}
@@ -174,7 +174,7 @@ const KitsSection = () => {
           >
             <CarouselContent className="-ml-4">
               {kits.map((kit, index) => (
-                <CarouselItem key={kit.id} className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3">
+                <CarouselItem key={kit.id} className="pl-4 basis-[85%] sm:basis-1/2 lg:basis-1/3">
                   <motion.div
                     className={`relative rounded-2xl p-4 sm:p-5 md:p-6 transition-all duration-300 h-full flex flex-col ${
                       kit.popular
