@@ -18,6 +18,7 @@ import SalesNotification from "@/components/SalesNotification";
 import { CartProvider, useCart } from "@/components/CartContext";
 import CartFloatingButton from "@/components/CartFloatingButton";
 import CartDrawer from "@/components/CartDrawer";
+import { getUTMSummary } from "@/lib/utm";
 
 // Lazy load below-the-fold sections
 const CustomDietSection = lazy(() => import("@/components/CustomDietSection"));
@@ -72,7 +73,7 @@ const IndexContent = () => {
     });
 
     message += `\n💰 *TOTAL:* R$ ${total.toFixed(2).replace(".", ",")}\n`;
-    message += `\n📍 Estou em *Vitória da Conquista*\n\nPode me passar as informações de entrega e pagamento?`;
+    message += `\n📍 Estou em *Vitória da Conquista*${getUTMSummary()}\n\nPode me passar as informações de entrega e pagamento?`;
 
     const encodedMessage = encodeURIComponent(message);
     
@@ -89,7 +90,7 @@ const IndexContent = () => {
   };
 
   const handleContactClick = () => {
-    const message = `Oi 😊\nVi o site da *Dieta Já* e quero cuidar melhor da minha alimentação.\n\n📍 Estou em *Vitória da Conquista*\n\nPode me passar as informações dos kits e entrega?`;
+    const message = `Oi 😊\nVi o site da *Dieta Já* e quero cuidar melhor da minha alimentação.\n\n📍 Estou em *Vitória da Conquista*${getUTMSummary()}\n\nPode me passar as informações dos kits e entrega?`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`, "_blank");
   };

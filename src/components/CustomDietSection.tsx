@@ -3,6 +3,7 @@ import { useInView } from "framer-motion";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ClipboardList, Sparkles, Heart, ChefHat } from "lucide-react";
+import { getUTMSummary } from "@/lib/utm";
 
 interface CustomDietSectionProps {
   whatsappNumber: string;
@@ -26,7 +27,7 @@ const CustomDietSection = ({ whatsappNumber }: CustomDietSectionProps) => {
       });
     }
 
-    const message = `Oi! 😊\nQuero montar uma *dieta personalizada* com meu próprio cardápio.\n\nPode me ajudar com um orçamento?`;
+    const message = `Oi! 😊\nQuero montar uma *dieta personalizada* com meu próprio cardápio.${getUTMSummary()}\n\nPode me ajudar com um orçamento?`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, "_blank");
   };

@@ -1,5 +1,6 @@
 import { MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import { getUTMSummary } from "@/lib/utm";
 
 interface WhatsAppFloatingButtonProps {
   phoneNumber: string;
@@ -14,7 +15,7 @@ const WhatsAppFloatingButton = ({ phoneNumber }: WhatsAppFloatingButtonProps) =>
       });
     }
 
-    const message = `Oi 😊\nVi o site da *Dieta Já* e quero saber mais sobre os kits!\n\n📍 Estou em *Vitória da Conquista*`;
+    const message = `Oi 😊\nVi o site da *Dieta Já* e quero saber mais sobre os kits!\n\n📍 Estou em *Vitória da Conquista*${getUTMSummary()}`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, "_blank");
   };
