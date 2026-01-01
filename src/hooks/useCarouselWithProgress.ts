@@ -86,12 +86,15 @@ export function useCarouselWithProgress(
 
     // Guard clause: nunca iniciar autoplay sem slides
     if (!hasSlides) {
-      autoplayPlugin.current.stop();
       return;
     }
 
     if (isSectionVisible) {
-      autoplayPlugin.current.play();
+      try {
+        autoplayPlugin.current.play();
+      } catch (error) {
+        console.warn('Autoplay não pôde iniciar:', error);
+      }
     } else {
       autoplayPlugin.current.stop();
     }
@@ -137,7 +140,11 @@ export function useCarouselWithProgress(
     if (isHoveringDots) {
       autoplayPlugin.current.stop();
     } else if (isSectionVisible) {
-      autoplayPlugin.current.play();
+      try {
+        autoplayPlugin.current.play();
+      } catch (error) {
+        console.warn('Autoplay não pôde retomar:', error);
+      }
     }
   }, [isHoveringDots, isSectionVisible, api]);
 
