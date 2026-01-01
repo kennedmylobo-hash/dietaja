@@ -19,6 +19,12 @@ import { CartProvider, useCart } from "@/components/CartContext";
 import CartFloatingButton from "@/components/CartFloatingButton";
 import CartDrawer from "@/components/CartDrawer";
 import { getUTMSummary } from "@/lib/utm";
+import {
+  CustomDietSkeleton,
+  TestimonialsSkeleton,
+  GuaranteeSkeleton,
+  FAQSkeleton,
+} from "@/components/skeletons/SectionSkeletons";
 
 // Lazy load below-the-fold sections
 const CustomDietSection = lazy(() => import("@/components/CustomDietSection"));
@@ -124,19 +130,19 @@ const IndexContent = () => {
           <ProductGallerySection />
           <KitsSection />
           <MarmitasSection />
-          <Suspense fallback={<div className="py-20 bg-background" />}>
+          <Suspense fallback={<CustomDietSkeleton />}>
             <CustomDietSection whatsappNumber={WHATSAPP_NUMBER} />
           </Suspense>
           <ValueSection />
-          <Suspense fallback={<div className="py-20 bg-sage-light/30" />}>
+          <Suspense fallback={<TestimonialsSkeleton />}>
             <TestimonialsSection />
           </Suspense>
           <UrgencySection />
           <CheckoutSection onWhatsAppClick={handleWhatsAppClick} />
-          <Suspense fallback={<div className="py-16 bg-sage-light/20" />}>
+          <Suspense fallback={<GuaranteeSkeleton />}>
             <GuaranteeSection />
           </Suspense>
-          <Suspense fallback={<div className="py-20 bg-background" />}>
+          <Suspense fallback={<FAQSkeleton />}>
             <FAQSection onContactClick={handleContactClick} />
           </Suspense>
         </main>
