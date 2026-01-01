@@ -1,7 +1,8 @@
 import { motion, useInView } from "framer-motion";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, ShoppingCart } from "lucide-react";
+import { Check, ShoppingCart, HelpCircle } from "lucide-react";
+import SalesQuizModal from "./SalesQuizModal";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
 import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
@@ -73,6 +74,7 @@ const KitsSection = () => {
   const ref = useRef<HTMLElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { addItem } = useCart();
+  const [quizOpen, setQuizOpen] = useState(false);
 
   // Track ViewContent when section becomes visible
   useEffect(() => {
@@ -223,8 +225,28 @@ const KitsSection = () => {
             onMouseLeave={() => setIsHoveringDots(false)}
             activeColor="bg-primary"
           />
+
+          {/* Quiz CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mt-8 text-center"
+          >
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setQuizOpen(true)}
+              className="gap-2 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+            >
+              <HelpCircle className="w-5 h-5" />
+              Não sabe qual escolher? Descubra o kit ideal
+            </Button>
+          </motion.div>
         </motion.div>
       </div>
+
+      <SalesQuizModal open={quizOpen} onOpenChange={setQuizOpen} />
     </section>
   );
 };
