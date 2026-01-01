@@ -42,9 +42,12 @@ interface CountdownTimerProps {
 }
 
 const CountdownTimer = ({ variant = "section" }: CountdownTimerProps) => {
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTimeLeft);
+  // Use lazy initial state to avoid hydration mismatch
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => calculateTimeLeft());
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     const timer = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
     }, 60000); // Atualiza a cada minuto
@@ -52,21 +55,22 @@ const CountdownTimer = ({ variant = "section" }: CountdownTimerProps) => {
     return () => clearInterval(timer);
   }, []);
 
+  // Fixed dimensions to prevent CLS
   const TimeBlock = ({ value, label }: { value: number; label: string }) => (
-    <div className="flex flex-col items-center">
-      <span className={`font-bold ${variant === "hero" ? "text-2xl md:text-3xl" : "text-xl md:text-2xl"} text-foreground`}>
-        {value.toString().padStart(2, "0")}
+    <div className="flex flex-col items-center min-w-[40px] sm:min-w-[48px]">
+      <span className={`font-bold tabular-nums ${variant === "hero" ? "text-xl sm:text-2xl md:text-3xl" : "text-lg sm:text-xl md:text-2xl"} text-foreground`}>
+        {isMounted ? value.toString().padStart(2, "0") : "--"}
       </span>
-      <span className="text-xs text-muted-foreground uppercase tracking-wide">{label}</span>
+      <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">{label}</span>
     </div>
   );
 
   return (
-    <div className="flex items-center gap-3 md:gap-4">
+    <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
       <TimeBlock value={timeLeft.days} label="dias" />
-      <span className="text-xl text-muted-foreground">:</span>
+      <span className="text-lg sm:text-xl text-muted-foreground">:</span>
       <TimeBlock value={timeLeft.hours} label="hrs" />
-      <span className="text-xl text-muted-foreground">:</span>
+      <span className="text-lg sm:text-xl text-muted-foreground">:</span>
       <TimeBlock value={timeLeft.minutes} label="min" />
     </div>
   );

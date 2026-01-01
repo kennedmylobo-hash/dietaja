@@ -35,26 +35,35 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
       {/* Background with fallback image + video */}
       <div className="absolute inset-0 z-0">
-        {/* Fallback image - loads first */}
+        {/* LCP Image - loads first with high priority */}
         <img 
           src={produtosImage} 
           alt="" 
           className="absolute inset-0 w-full h-full object-cover"
           loading="eager"
-          decoding="async"
+          decoding="sync"
           fetchPriority="high"
           width={1920}
           height={1080}
+          style={{ contentVisibility: 'auto' }}
         />
-        {/* Video over image - lazy load */}
+        {/* Video over image - lazy load after LCP */}
         <video
           src={produtosVideo}
           autoPlay
           loop
           muted
           playsInline
-          preload="metadata"
+          preload="none"
           className="absolute inset-0 w-full h-full object-cover"
+          onLoadStart={(e) => {
+            // Only start loading video after page is interactive
+            const video = e.currentTarget;
+            setTimeout(() => {
+              video.preload = 'auto';
+              video.load();
+            }, 2000);
+          }}
         />
         {/* Dark overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
@@ -82,13 +91,13 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
             <span className="text-primary">e sinta seu corpo responder.</span>
           </h1>
 
-          <p className="text-lg md:text-xl text-white/90 mb-4 leading-relaxed animate-fade-in">
+          <p className="text-base sm:text-lg md:text-xl text-white/90 mb-4 leading-relaxed animate-fade-in">
             Alimentação saudável pronta para mulheres com rotina corrida em{" "}
             <strong className="text-white">Vitória da Conquista</strong>.
           </p>
 
           {/* Preço âncora */}
-          <p className="text-lg md:text-xl text-white/80 mb-8 animate-fade-in">
+          <p className="text-base sm:text-lg md:text-xl text-white/80 mb-6 sm:mb-8 animate-fade-in">
             Kits a partir de <span className="text-primary font-bold">R$ 199</span>
           </p>
 
@@ -140,10 +149,11 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
           </div>
 
           {/* Countdown Timer */}
-          <div className="flex flex-col items-center gap-3 animate-fade-in">
-            <span className="inline-flex items-center gap-2 text-sm text-white/80">
-              <Clock className="w-4 h-4" />
-              Pedidos encerram domingo • Entrega quarta:
+          <div className="flex flex-col items-center gap-2 sm:gap-3 animate-fade-in">
+            <span className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/80">
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Pedidos encerram domingo • Entrega quarta:</span>
+              <span className="sm:hidden">Encerra domingo:</span>
             </span>
             <CountdownTimer variant="hero" />
           </div>
