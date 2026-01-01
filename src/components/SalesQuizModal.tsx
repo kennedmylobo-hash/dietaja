@@ -78,7 +78,8 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
   const [step, setStep] = useState<Step>('objective');
   const [answers, setAnswers] = useState<Partial<QuizAnswers>>({});
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
-  const { addItem } = useCart();
+  const [primaryAdded, setPrimaryAdded] = useState(false);
+  const { addItem, items } = useCart();
 
   // Reset state when modal opens
   useEffect(() => {
@@ -86,6 +87,7 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
       setStep('objective');
       setAnswers({});
       setRecommendation(null);
+      setPrimaryAdded(false);
     }
   }, [open]);
 
@@ -500,23 +502,78 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
                       <MessageCircle className="w-4 h-4 mr-2" />
                       Falar com especialista
                     </Button>
+                  ) : primaryAdded ? (
+                    <Button 
+                      variant="outline" 
+                      className="w-full bg-primary/10 border-primary/30 text-primary cursor-default"
+                      disabled
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      Adicionado ao carrinho!
+                    </Button>
                   ) : (
                     <Button 
                       variant="cta" 
                       className="w-full"
-                      onClick={() => handleAddToCart({
-                        type: recommendation.primary.type,
-                        name: recommendation.primary.name,
-                        price: recommendation.primary.price,
-                        description: recommendation.primary.description,
-                        quantity: recommendation.primary.quantity,
-                      })}
+                      onClick={() => {
+                        handleAddToCart({
+                          type: recommendation.primary.type,
+                          name: recommendation.primary.name,
+                          price: recommendation.primary.price,
+                          description: recommendation.primary.description,
+                          quantity: recommendation.primary.quantity,
+                        });
+                        setPrimaryAdded(true);
+                      }}
                     >
                       <ShoppingCart className="w-4 h-4 mr-2" />
                       Adicionar ao carrinho
                     </Button>
                   )}
                 </div>
+
+                {/* Post-add-to-cart actions */}
+                {primaryAdded && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col gap-2 mb-4"
+                  >
+                    <Button
+                      variant="cta"
+                      className="w-full"
+                      onClick={() => {
+                        markQuizAsConverted();
+                        const utmSummary = getUTMSummary();
+                        
+                        // Format cart items for WhatsApp
+                        const itemsList = items.map(item => 
+                          `• ${item.quantity}x ${item.name} - R$ ${item.totalPrice.toFixed(2).replace('.', ',')}`
+                        ).join('\n');
+                        const total = items.reduce((sum, item) => sum + item.totalPrice, 0);
+                        
+                        let message = `Olá! Gostaria de finalizar meu pedido:\n\n${itemsList}\n\n💰 *Total: R$ ${total.toFixed(2).replace('.', ',')}*`;
+                        if (utmSummary) {
+                          message += `\n\n${utmSummary}`;
+                        }
+                        
+                        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank");
+                        onOpenChange(false);
+                      }}
+                    >
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Finalizar pedido via WhatsApp
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      className="w-full"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      Continuar comprando
+                    </Button>
+                  </motion.div>
+                )}
 
                 {/* Cross-sell */}
                 {recommendation.crossSell && (
