@@ -48,6 +48,8 @@ const Admin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [isSignup, setIsSignup] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
   
   const [leads, setLeads] = useState<Lead[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
@@ -198,6 +200,39 @@ const Admin = () => {
     });
   };
 
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/admin`
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        setSignupSuccess(true);
+        toast({
+          title: "Conta criada!",
+          description: "Agora peça ao desenvolvedor para ativar sua permissão de admin.",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro no cadastro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginLoading(true);
@@ -282,8 +317,37 @@ const Admin = () => {
     );
   }
 
-  // Login screen
+  // Login/Signup screen
   if (!isAuthenticated) {
+    if (signupSuccess) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-6 h-6 text-green-500" />
+              </div>
+              <CardTitle>Conta criada com sucesso!</CardTitle>
+              <p className="text-muted-foreground text-sm">
+                Aguarde a ativação da permissão de administrador para fazer login.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full" 
+                onClick={() => {
+                  setSignupSuccess(false);
+                  setIsSignup(false);
+                }}
+              >
+                Voltar para login
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
@@ -291,13 +355,13 @@ const Admin = () => {
             <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Lock className="w-6 h-6 text-primary" />
             </div>
-            <CardTitle>Painel Administrativo</CardTitle>
+            <CardTitle>{isSignup ? 'Criar conta' : 'Painel Administrativo'}</CardTitle>
             <p className="text-muted-foreground text-sm">
-              Faça login para acessar os relatórios
+              {isSignup ? 'Crie sua conta para solicitar acesso' : 'Faça login para acessar os relatórios'}
             </p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={isSignup ? handleSignup : handleLogin} className="space-y-4">
               <Input
                 type="email"
                 placeholder="Email"
@@ -311,11 +375,21 @@ const Admin = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
               />
               <Button type="submit" className="w-full" disabled={loginLoading}>
-                {loginLoading ? 'Entrando...' : 'Entrar'}
+                {loginLoading ? (isSignup ? 'Criando...' : 'Entrando...') : (isSignup ? 'Criar conta' : 'Entrar')}
               </Button>
             </form>
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => setIsSignup(!isSignup)}
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                {isSignup ? 'Já tem conta? Fazer login' : 'Não tem conta? Criar conta'}
+              </button>
+            </div>
           </CardContent>
         </Card>
       </div>
