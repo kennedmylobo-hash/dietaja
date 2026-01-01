@@ -22,6 +22,8 @@ import { getUTMSummary } from "@/lib/utm";
 import { 
   getRecommendation, 
   formatQuizDataForWhatsApp,
+  saveQuizToStorage,
+  markQuizAsConverted,
   type QuizAnswers, 
   type QuizObjective, 
   type QuizAvailability, 
@@ -82,6 +84,7 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
       setTimeout(() => {
         const rec = getRecommendation({ objective } as QuizAnswers);
         setRecommendation(rec);
+        saveQuizToStorage({ objective } as QuizAnswers, rec);
         setStep('result');
       }, 1500);
     } else {
@@ -127,6 +130,9 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
     setTimeout(() => {
       const rec = getRecommendation(answers as QuizAnswers);
       setRecommendation(rec);
+      
+      // Save to localStorage for analytics/remarketing
+      saveQuizToStorage(answers as QuizAnswers, rec);
       
       // Track ViewContent
       if (typeof window !== 'undefined' && window.fbq) {
@@ -176,6 +182,9 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
 
   const handleWhatsAppClick = () => {
     if (!recommendation) return;
+    
+    // Mark as converted
+    markQuizAsConverted();
     
     const utmSummary = getUTMSummary();
     const message = formatQuizDataForWhatsApp(answers as QuizAnswers, recommendation, utmSummary);
