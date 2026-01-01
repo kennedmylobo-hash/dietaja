@@ -24,14 +24,19 @@ const CartDrawer = ({ open, onOpenChange, onCheckout }: CartDrawerProps) => {
     hapticFeedback('medium');
     
     // Brief loading for feedback
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     // Celebrate with confetti! 🎉
     celebrateCheckout();
     
-    onCheckout();
+    // Close drawer and scroll to checkout form
     onOpenChange(false);
     setIsLoading(false);
+    
+    // Scroll to checkout section
+    setTimeout(() => {
+      document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
   };
 
   return (
