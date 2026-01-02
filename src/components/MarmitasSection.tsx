@@ -301,6 +301,20 @@ const MarmitasSection = () => {
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
+          {/* Preview de sabores populares */}
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Mais pedidos:</span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-terracotta-light/50 rounded-full text-xs">
+              🥩 Estrogonofe de Carne
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-terracotta-light/50 rounded-full text-xs">
+              🍗 Frango Xadrez
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-terracotta-light/50 rounded-full text-xs">
+              ✨ Escondidinho
+            </span>
+          </div>
+
           <Collapsible open={menuOpen} onOpenChange={setMenuOpen}>
             <CollapsibleTrigger asChild>
               <button className="w-full bg-gradient-to-r from-terracotta-light to-terracotta-light/50 hover:from-terracotta-light/80 hover:to-terracotta-light/30 border border-terracotta/20 rounded-xl p-4 flex items-center justify-between transition-all duration-300 group">
@@ -308,7 +322,7 @@ const MarmitasSection = () => {
                   <span className="text-xl">🥩🍗🍝✨</span>
                   <div className="text-left">
                     <span className="font-semibold text-foreground text-sm sm:text-base">
-                      Ver cardápio de marmitas
+                      Ver cardápio completo
                     </span>
                     <span className="block text-xs text-muted-foreground">
                       36 sabores • 300g cada
