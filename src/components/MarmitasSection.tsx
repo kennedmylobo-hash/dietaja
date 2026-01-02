@@ -1,7 +1,8 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Clock, Loader2, Beef, Drumstick, Utensils, Sparkles, Scale } from "lucide-react";
+import { ShoppingCart, Clock, Loader2, Beef, Drumstick, Utensils, Sparkles, Scale, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
 import { hapticFeedback } from "@/lib/haptics";
@@ -111,6 +112,7 @@ const MarmitasSection = () => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { addItem } = useCart();
   const [loadingMarmita, setLoadingMarmita] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Track ViewContent when section becomes visible
   useEffect(() => {
@@ -292,99 +294,113 @@ const MarmitasSection = () => {
           />
         </motion.div>
 
-        {/* Seção de Sabores */}
+        {/* Seção de Sabores - Collapsible */}
         <motion.div
-          className="mt-12 md:mt-16"
+          className="mt-12 md:mt-16 max-w-4xl mx-auto"
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
-          <div className="text-center mb-6 md:mb-8">
-            <h3 className="text-xl md:text-2xl font-bold text-foreground mb-2">
-              Cardápio de Sabores
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Todas as marmitas com <strong className="text-terracotta">300g</strong> de pura comida de verdade
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            {/* Carnes */}
-            <div className="bg-card rounded-xl p-4 md:p-5 border border-border">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                  <Beef className="w-4 h-4 text-red-600 dark:text-red-400" />
+          <Collapsible open={menuOpen} onOpenChange={setMenuOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="w-full bg-gradient-to-r from-terracotta-light to-terracotta-light/50 hover:from-terracotta-light/80 hover:to-terracotta-light/30 border border-terracotta/20 rounded-xl p-4 flex items-center justify-between transition-all duration-300 group">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🥩🍗🍝✨</span>
+                  <div className="text-left">
+                    <span className="font-semibold text-foreground text-sm sm:text-base">
+                      Ver cardápio de marmitas
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      36 sabores • 300g cada
+                    </span>
+                  </div>
                 </div>
-                <h4 className="font-semibold text-foreground">Carnes</h4>
-                <span className="text-xs text-muted-foreground">({saboresCarnes.length})</span>
-              </div>
-              <ul className="grid grid-cols-1 gap-1.5">
-                {saboresCarnes.map((sabor, idx) => (
-                  <li key={idx} className="text-xs md:text-sm text-muted-foreground flex items-start gap-1.5">
-                    <span className="text-terracotta mt-0.5">•</span>
-                    {sabor}
-                  </li>
-                ))}
-              </ul>
-            </div>
+                <ChevronDown className={`w-5 h-5 text-terracotta transition-transform duration-300 ${menuOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </CollapsibleTrigger>
+            
+            <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+              <div className="bg-card border border-border border-t-0 rounded-b-xl p-4 md:p-6 -mt-2 pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                  {/* Carnes */}
+                  <div className="bg-background rounded-xl p-4 md:p-5 border border-border">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-1.5 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                        <Beef className="w-4 h-4 text-red-600 dark:text-red-400" />
+                      </div>
+                      <h4 className="font-semibold text-foreground">Carnes</h4>
+                      <span className="text-xs text-muted-foreground">({saboresCarnes.length})</span>
+                    </div>
+                    <ul className="grid grid-cols-1 gap-1.5">
+                      {saboresCarnes.map((sabor, idx) => (
+                        <li key={idx} className="text-xs md:text-sm text-muted-foreground flex items-start gap-1.5">
+                          <span className="text-terracotta mt-0.5">•</span>
+                          {sabor}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-            {/* Frangos */}
-            <div className="bg-card rounded-xl p-4 md:p-5 border border-border">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                  <Drumstick className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <h4 className="font-semibold text-foreground">Frangos</h4>
-                <span className="text-xs text-muted-foreground">({saboresFrangos.length})</span>
-              </div>
-              <ul className="grid grid-cols-1 gap-1.5">
-                {saboresFrangos.map((sabor, idx) => (
-                  <li key={idx} className="text-xs md:text-sm text-muted-foreground flex items-start gap-1.5">
-                    <span className="text-terracotta mt-0.5">•</span>
-                    {sabor}
-                  </li>
-                ))}
-              </ul>
-            </div>
+                  {/* Frangos */}
+                  <div className="bg-background rounded-xl p-4 md:p-5 border border-border">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                        <Drumstick className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <h4 className="font-semibold text-foreground">Frangos</h4>
+                      <span className="text-xs text-muted-foreground">({saboresFrangos.length})</span>
+                    </div>
+                    <ul className="grid grid-cols-1 gap-1.5">
+                      {saboresFrangos.map((sabor, idx) => (
+                        <li key={idx} className="text-xs md:text-sm text-muted-foreground flex items-start gap-1.5">
+                          <span className="text-terracotta mt-0.5">•</span>
+                          {sabor}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-            {/* Massas */}
-            <div className="bg-card rounded-xl p-4 md:p-5 border border-border">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                  <Utensils className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                </div>
-                <h4 className="font-semibold text-foreground">Massas</h4>
-                <span className="text-xs text-muted-foreground">({saboresMassas.length})</span>
-              </div>
-              <ul className="grid grid-cols-1 gap-1.5">
-                {saboresMassas.map((sabor, idx) => (
-                  <li key={idx} className="text-xs md:text-sm text-muted-foreground flex items-start gap-1.5">
-                    <span className="text-terracotta mt-0.5">•</span>
-                    {sabor}
-                  </li>
-                ))}
-              </ul>
-            </div>
+                  {/* Massas */}
+                  <div className="bg-background rounded-xl p-4 md:p-5 border border-border">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-1.5 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                        <Utensils className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <h4 className="font-semibold text-foreground">Massas</h4>
+                      <span className="text-xs text-muted-foreground">({saboresMassas.length})</span>
+                    </div>
+                    <ul className="grid grid-cols-1 gap-1.5">
+                      {saboresMassas.map((sabor, idx) => (
+                        <li key={idx} className="text-xs md:text-sm text-muted-foreground flex items-start gap-1.5">
+                          <span className="text-terracotta mt-0.5">•</span>
+                          {sabor}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-            {/* Especiais */}
-            <div className="bg-card rounded-xl p-4 md:p-5 border border-border">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  {/* Especiais */}
+                  <div className="bg-background rounded-xl p-4 md:p-5 border border-border">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                        <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <h4 className="font-semibold text-foreground">Especiais</h4>
+                      <span className="text-xs text-muted-foreground">({saboresEspeciais.length})</span>
+                    </div>
+                    <ul className="grid grid-cols-1 gap-1.5">
+                      {saboresEspeciais.map((sabor, idx) => (
+                        <li key={idx} className="text-xs md:text-sm text-muted-foreground flex items-start gap-1.5">
+                          <span className="text-terracotta mt-0.5">•</span>
+                          {sabor}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-                <h4 className="font-semibold text-foreground">Especiais</h4>
-                <span className="text-xs text-muted-foreground">({saboresEspeciais.length})</span>
               </div>
-              <ul className="grid grid-cols-1 gap-1.5">
-                {saboresEspeciais.map((sabor, idx) => (
-                  <li key={idx} className="text-xs md:text-sm text-muted-foreground flex items-start gap-1.5">
-                    <span className="text-terracotta mt-0.5">•</span>
-                    {sabor}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         </motion.div>
       </div>
     </section>

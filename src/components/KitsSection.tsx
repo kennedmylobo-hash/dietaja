@@ -1,7 +1,8 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, ShoppingCart, HelpCircle, Loader2 } from "lucide-react";
+import { Check, ShoppingCart, HelpCircle, Loader2, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import SalesQuizModal from "./SalesQuizModal";
 import { useCart } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
@@ -90,6 +91,7 @@ const KitsSection = () => {
   const { addItem } = useCart();
   const [quizOpen, setQuizOpen] = useState(false);
   const [loadingKit, setLoadingKit] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Track ViewContent when section becomes visible
   useEffect(() => {
@@ -261,67 +263,85 @@ const KitsSection = () => {
             activeColor="bg-primary"
           />
 
-          {/* Sabores Section */}
+          {/* Sabores Section - Collapsible */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.5, delay: 0.35 }}
             className="mt-8"
           >
-            <div className="bg-background border border-border rounded-xl p-3 sm:p-4 md:p-5">
-              <h3 className="font-semibold text-foreground text-center mb-3 sm:mb-4 text-sm sm:text-base">
-                Sabores dos sucos e sopas (Kit Detox)
-              </h3>
-              <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-                {/* Sopas */}
-                <div>
-                  <h4 className="font-medium text-foreground mb-2 flex items-center gap-2 text-sm">
-                    🍲 Sopas Funcionais
-                    <span className="text-xs font-normal text-muted-foreground">(3 sabores)</span>
-                  </h4>
-                  <ul className="space-y-1.5">
-                    {sopas.map((sopa) => (
-                      <li key={sopa.nome} className="flex items-start gap-2 text-sm">
-                        <span className="text-base leading-none mt-0.5">{sopa.emoji}</span>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span>
-                            <span className="font-medium text-foreground">{sopa.nome}</span>
-                            <span className="text-muted-foreground"> {sopa.ingredientes}</span>
-                          </span>
-                          <span className="px-1.5 sm:px-2 py-0.5 bg-primary/10 text-primary text-[10px] sm:text-xs font-medium rounded-full uppercase">
-                            {sopa.beneficio}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+            <Collapsible open={menuOpen} onOpenChange={setMenuOpen}>
+              <CollapsibleTrigger asChild>
+                <button className="w-full bg-gradient-to-r from-sage-light to-sage-light/50 hover:from-sage-light/80 hover:to-sage-light/30 border border-primary/20 rounded-xl p-4 flex items-center justify-between transition-all duration-300 group">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">🍲🧃</span>
+                    <div className="text-left">
+                      <span className="font-semibold text-foreground text-sm sm:text-base">
+                        Ver cardápio de sopas e sucos
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        3 sopas + 4 sucos funcionais
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronDown className={`w-5 h-5 text-primary transition-transform duration-300 ${menuOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              
+              <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <div className="bg-background border border-border border-t-0 rounded-b-xl p-3 sm:p-4 md:p-5 -mt-2 pt-5">
+                  <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+                    {/* Sopas */}
+                    <div>
+                      <h4 className="font-medium text-foreground mb-2 flex items-center gap-2 text-sm">
+                        🍲 Sopas Funcionais
+                        <span className="text-xs font-normal text-muted-foreground">(3 sabores)</span>
+                      </h4>
+                      <ul className="space-y-1.5">
+                        {sopas.map((sopa) => (
+                          <li key={sopa.nome} className="flex items-start gap-2 text-sm">
+                            <span className="text-base leading-none mt-0.5">{sopa.emoji}</span>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span>
+                                <span className="font-medium text-foreground">{sopa.nome}</span>
+                                <span className="text-muted-foreground"> {sopa.ingredientes}</span>
+                              </span>
+                              <span className="px-1.5 sm:px-2 py-0.5 bg-primary/10 text-primary text-[10px] sm:text-xs font-medium rounded-full uppercase">
+                                {sopa.beneficio}
+                              </span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
 
-                {/* Sucos */}
-                <div>
-                  <h4 className="font-medium text-foreground mb-2 flex items-center gap-2 text-sm">
-                    🧃 Sucos Detox
-                    <span className="text-xs font-normal text-muted-foreground">(4 sabores)</span>
-                  </h4>
-                  <ul className="space-y-1.5">
-                    {sucos.map((suco) => (
-                      <li key={suco.nome} className="flex items-start gap-2 text-sm">
-                        <span className="text-base leading-none mt-0.5">{suco.emoji}</span>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span>
-                            <span className="font-medium text-foreground">{suco.nome}</span>
-                            <span className="text-muted-foreground"> ({suco.ingredientes})</span>
-                          </span>
-                          <span className="px-1.5 sm:px-2 py-0.5 bg-primary/10 text-primary text-[10px] sm:text-xs font-medium rounded-full uppercase">
-                            {suco.beneficio}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                    {/* Sucos */}
+                    <div>
+                      <h4 className="font-medium text-foreground mb-2 flex items-center gap-2 text-sm">
+                        🧃 Sucos Detox
+                        <span className="text-xs font-normal text-muted-foreground">(4 sabores)</span>
+                      </h4>
+                      <ul className="space-y-1.5">
+                        {sucos.map((suco) => (
+                          <li key={suco.nome} className="flex items-start gap-2 text-sm">
+                            <span className="text-base leading-none mt-0.5">{suco.emoji}</span>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span>
+                                <span className="font-medium text-foreground">{suco.nome}</span>
+                                <span className="text-muted-foreground"> ({suco.ingredientes})</span>
+                              </span>
+                              <span className="px-1.5 sm:px-2 py-0.5 bg-primary/10 text-primary text-[10px] sm:text-xs font-medium rounded-full uppercase">
+                                {suco.beneficio}
+                              </span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
           </motion.div>
 
           {/* Quiz CTA */}
