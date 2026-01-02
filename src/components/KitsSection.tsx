@@ -270,6 +270,20 @@ const KitsSection = () => {
             transition={{ duration: 0.5, delay: 0.35 }}
             className="mt-8"
           >
+            {/* Preview de sabores populares */}
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Destaques:</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-sage-light/50 rounded-full text-xs">
+                🟢 Suco Verde
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-sage-light/50 rounded-full text-xs">
+                🟠 Sopa de Abóbora
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-sage-light/50 rounded-full text-xs">
+                🩷 Suco Rosa
+              </span>
+            </div>
+
             <Collapsible open={menuOpen} onOpenChange={setMenuOpen}>
               <CollapsibleTrigger asChild>
                 <button className="w-full bg-gradient-to-r from-sage-light to-sage-light/50 hover:from-sage-light/80 hover:to-sage-light/30 border border-primary/20 rounded-xl p-4 flex items-center justify-between transition-all duration-300 group">
@@ -277,7 +291,7 @@ const KitsSection = () => {
                     <span className="text-xl">🍲🧃</span>
                     <div className="text-left">
                       <span className="font-semibold text-foreground text-sm sm:text-base">
-                        Ver cardápio de sopas e sucos
+                        Ver cardápio completo
                       </span>
                       <span className="block text-xs text-muted-foreground">
                         3 sopas + 4 sucos funcionais
