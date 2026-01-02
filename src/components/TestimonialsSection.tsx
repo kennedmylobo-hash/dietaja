@@ -13,10 +13,11 @@ const testimonials = [
     photo: testimonialMariana,
   },
   {
-    name: "Carla R.",
-    role: "Empresária, 38 anos",
-    quote: "Chegar cansada e saber que tem comida saudável pronta muda tudo. Perdi 4kg no primeiro mês sem passar fome!",
-    photo: testimonialCarla,
+    name: "Rafael T.",
+    role: "Engenheiro, home office",
+    quote: "Trabalho de casa e acabava comendo qualquer coisa. Agora tenho disciplina sem esforço. Perdi 5kg em 6 semanas!",
+    photo: null,
+    initials: "RT",
   },
   {
     name: "Juliana M.",
@@ -40,7 +41,7 @@ const TestimonialsSection = () => {
           transition={{ duration: 0.5 }}
         >
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-2">
-            O que nossas clientes dizem
+            O que nossos clientes dizem
           </h2>
           <p className="text-sm sm:text-base text-muted-foreground">Histórias reais de Vitória da Conquista</p>
         </motion.div>
@@ -58,15 +59,21 @@ const TestimonialsSection = () => {
               
               {/* Avatar */}
               <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                <img 
-                  src={testimonial.photo} 
-                  alt={testimonial.name}
-                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-primary/20"
-                  loading="lazy"
-                  decoding="async"
-                  width={48}
-                  height={48}
-                />
+                {testimonial.photo ? (
+                  <img 
+                    src={testimonial.photo} 
+                    alt={testimonial.name}
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-primary/20"
+                    loading="lazy"
+                    decoding="async"
+                    width={48}
+                    height={48}
+                  />
+                ) : (
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 border-2 border-primary/20 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-primary">{(testimonial as any).initials}</span>
+                  </div>
+                )}
                 <div>
                   <p className="font-semibold text-foreground text-sm">{testimonial.name}</p>
                   <p className="text-xs text-muted-foreground">{testimonial.role}</p>

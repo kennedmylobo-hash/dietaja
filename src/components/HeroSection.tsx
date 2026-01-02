@@ -71,7 +71,7 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
           </h1>
 
           <p className="text-base sm:text-lg md:text-xl text-white/90 mb-4 leading-relaxed animate-fade-in">
-            Alimentação saudável pronta para mulheres com rotina corrida em{" "}
+            Alimentação saudável pronta para quem tem rotina corrida em{" "}
             <strong className="text-white">Vitória da Conquista</strong>.
           </p>
 

@@ -10,9 +10,9 @@ const testimonialsData = [
     location: "Vitória da Conquista"
   },
   { 
-    name: "Carla R.", 
-    role: "Empresária",
-    quote: "Perdi 4kg no primeiro mês sem passar fome!",
+    name: "Rafael T.", 
+    role: "Engenheiro",
+    quote: "Trabalho home office e agora como bem todo dia sem esforço.",
     location: "Conquista"
   },
   { 
@@ -22,15 +22,21 @@ const testimonialsData = [
     location: "Conquista"
   },
   { 
-    name: "Patrícia", 
-    role: "Mãe de 3",
-    quote: "Com a correria do dia a dia, não sobrava tempo pra cozinhar. Agora como bem todo dia!",
+    name: "Carlos A.", 
+    role: "Representante",
+    quote: "Chego de viagem e a comida saudável já está pronta!",
     location: "Vitória da Conquista"
   },
   { 
     name: "Fernanda", 
     role: "Enfermeira",
     quote: "Trabalho em plantão e não tinha como manter dieta. Mudou minha vida!",
+    location: "Conquista"
+  },
+  { 
+    name: "Bruno M.", 
+    role: "Personal Trainer",
+    quote: "Indico pra todos os meus alunos. Qualidade top!",
     location: "Conquista"
   },
 ];
