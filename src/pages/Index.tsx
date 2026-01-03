@@ -12,8 +12,6 @@ import ProductGallerySection from "@/components/ProductGallerySection";
 import KitsSection from "@/components/KitsSection";
 import MarmitasSection from "@/components/MarmitasSection";
 import ValueSection from "@/components/ValueSection";
-import UrgencySection from "@/components/UrgencySection";
-import CheckoutSection from "@/components/CheckoutSection";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import MobileStickyBar from "@/components/MobileStickyBar";
 import SalesNotification from "@/components/SalesNotification";
@@ -52,7 +50,6 @@ const IndexContent = () => {
   };
 
   const scrollToKits = () => scrollToSection("kits");
-  const scrollToCheckout = () => scrollToSection("checkout");
 
   const handleWhatsAppClick = (customerData?: { name: string; phone: string; deliveryOption: string; address?: string }) => {
     if (items.length === 0) {
@@ -173,8 +170,6 @@ const IndexContent = () => {
             </div>
           </Suspense>
           <ValueSection />
-          <UrgencySection />
-          <CheckoutSection onWhatsAppClick={handleWhatsAppClick} />
           <Suspense fallback={<GuaranteeSkeleton />}>
             <GuaranteeSection />
           </Suspense>
@@ -202,7 +197,7 @@ const IndexContent = () => {
         <SalesNotification />
 
         {/* Mobile Sticky CTA */}
-        <MobileStickyBar onCtaClick={items.length === 0 ? scrollToKits : scrollToCheckout} />
+        <MobileStickyBar onCtaClick={scrollToKits} />
 
         {/* Footer */}
         <footer className="py-8 bg-card border-t border-border">
