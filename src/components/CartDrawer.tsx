@@ -138,9 +138,18 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     hapticFeedback('medium');
     celebrateCheckout();
 
-    // Build WhatsApp message
+    // Build WhatsApp message with flavors
     const itemsList = items
-      .map(item => `• ${item.name} - R$ ${item.totalPrice.toFixed(2).replace(".", ",")}`)
+      .map(item => {
+        let itemText = `• ${item.name} - R$ ${item.totalPrice.toFixed(2).replace(".", ",")}`;
+        if (item.flavors && item.flavors.length > 0) {
+          const flavorsList = item.flavors
+            .map(f => `   → ${f.quantity}x ${f.name}`)
+            .join("\n");
+          itemText += `\n${flavorsList}`;
+        }
+        return itemText;
+      })
       .join("\n");
 
     const deliveryText = data.deliveryOption === "pickup" 
@@ -226,6 +235,17 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                           <p className="text-xs text-muted-foreground mt-1">
                             {item.quantity}x R$ {item.unitPrice.toFixed(2).replace(".", ",")}
                           </p>
+                        )}
+                        {/* Display selected flavors */}
+                        {item.flavors && item.flavors.length > 0 && (
+                          <div className="mt-2 space-y-0.5">
+                            <p className="text-xs font-medium text-foreground">Sabores:</p>
+                            {item.flavors.map((flavor, idx) => (
+                              <p key={idx} className="text-xs text-muted-foreground">
+                                • {flavor.quantity}x {flavor.name}
+                              </p>
+                            ))}
+                          </div>
                         )}
                       </div>
                       <div className="flex items-center gap-3">

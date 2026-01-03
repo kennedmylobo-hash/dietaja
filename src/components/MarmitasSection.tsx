@@ -3,11 +3,12 @@ import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Clock, Loader2, Beef, Drumstick, Utensils, Sparkles, Scale, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useCart } from "./CartContext";
+import { useCart, FlavorSelection } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
 import { hapticFeedback } from "@/lib/haptics";
 import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
 import { CarouselDots } from "./CarouselDots";
+import FlavorSelectionModal from "./FlavorSelectionModal";
 import {
   Carousel,
   CarouselContent,
@@ -113,6 +114,8 @@ const MarmitasSection = () => {
   const { addItem } = useCart();
   const [loadingMarmita, setLoadingMarmita] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedMarmita, setSelectedMarmita] = useState<Marmita | null>(null);
+  const [isFlavorModalOpen, setIsFlavorModalOpen] = useState(false);
 
   // Track ViewContent when section becomes visible
   useEffect(() => {
@@ -134,19 +137,32 @@ const MarmitasSection = () => {
     setIsHoveringDots,
   } = useCarouselWithProgress(ref, { autoplayDelay: 3000 });
 
-  const handleAddMarmita = async (marmita: Marmita) => {
-    setLoadingMarmita(marmita.id);
+  const handleOpenFlavorModal = (marmita: Marmita) => {
+    setSelectedMarmita(marmita);
+    setIsFlavorModalOpen(true);
+  };
+
+  const handleConfirmFlavors = async (flavors: FlavorSelection[]) => {
+    if (!selectedMarmita) return;
+    
+    setLoadingMarmita(selectedMarmita.id);
     
     // Simulate brief loading for feedback
     await new Promise(resolve => setTimeout(resolve, 400));
     
+    // Format flavors description
+    const flavorsDescription = flavors
+      .map(f => `${f.quantity}x ${f.name}`)
+      .join(", ");
+    
     addItem({
       type: "marmita",
-      name: marmita.name,
-      quantity: marmita.quantity,
-      unitPrice: marmita.unitPrice,
-      totalPrice: marmita.totalPrice,
-      description: `${marmita.quantity} marmitas saudáveis`,
+      name: selectedMarmita.name,
+      quantity: selectedMarmita.quantity,
+      unitPrice: selectedMarmita.unitPrice,
+      totalPrice: selectedMarmita.totalPrice,
+      description: `${selectedMarmita.quantity} marmitas saudáveis`,
+      flavors: flavors,
     });
 
     // Haptic feedback on mobile
@@ -154,10 +170,12 @@ const MarmitasSection = () => {
 
     toast({
       title: "Adicionado ao carrinho! 🛒",
-      description: `${marmita.name} (${marmita.quantity} marmitas)`,
+      description: `${selectedMarmita.name} (${selectedMarmita.quantity} marmitas)`,
     });
     
     setLoadingMarmita(null);
+    setIsFlavorModalOpen(false);
+    setSelectedMarmita(null);
   };
 
   return (
@@ -259,7 +277,7 @@ const MarmitasSection = () => {
                       <Button
                         variant={marmita.popular ? "cta" : "cta-outline"}
                         className="w-full"
-                        onClick={() => handleAddMarmita(marmita)}
+                        onClick={() => handleOpenFlavorModal(marmita)}
                         disabled={loadingMarmita === marmita.id}
                       >
                         {loadingMarmita === marmita.id ? (
@@ -270,7 +288,7 @@ const MarmitasSection = () => {
                         ) : (
                           <>
                             <ShoppingCart className="w-4 h-4 mr-2" />
-                            Adicionar ao carrinho
+                            Escolher sabores
                           </>
                         )}
                       </Button>
@@ -416,6 +434,19 @@ const MarmitasSection = () => {
             </CollapsibleContent>
           </Collapsible>
         </motion.div>
+
+        {/* Modal de seleção de sabores */}
+        <FlavorSelectionModal
+          isOpen={isFlavorModalOpen}
+          onClose={() => {
+            setIsFlavorModalOpen(false);
+            setSelectedMarmita(null);
+          }}
+          onConfirm={handleConfirmFlavors}
+          packageName={selectedMarmita?.name || ""}
+          packageQuantity={selectedMarmita?.quantity || 0}
+          isLoading={loadingMarmita !== null}
+        />
       </div>
     </section>
   );
