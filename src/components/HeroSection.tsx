@@ -1,6 +1,4 @@
-import { useState, useEffect } from "react";
 import { Star, CheckCircle2, Clock, ChevronRight } from "lucide-react";
-import Lottie from "lottie-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import CountdownTimer from "@/components/CountdownTimer";
 
@@ -8,62 +6,25 @@ interface HeroSectionProps {
   onScrollToSection: (sectionId: string) => void;
 }
 
-// Real Lottie animation URLs from LottieFiles CDN
-const lottieAnimations = {
-  detox: "https://assets3.lottiefiles.com/packages/lf20_tll0j4bb.json",
-  marmitas: "https://assets4.lottiefiles.com/packages/lf20_ysrn2iwp.json",
-  personalizada: "https://assets2.lottiefiles.com/packages/lf20_touohxv0.json",
-};
-
 const objectiveOptions = [
   {
     id: "kits",
-    emoji: "🧃",
     title: "Kit Detox",
     description: "Emagreça até 3kg em 3 dias",
-    lottieKey: "detox" as const,
   },
   {
     id: "marmitas",
-    emoji: "🍱",
     title: "Marmitas Saudáveis",
-    description: "Refeições prontas congeladas",
-    lottieKey: "marmitas" as const,
+    description: "Economize até R$15/refeição",
   },
   {
     id: "dieta-personalizada",
-    emoji: "✨",
     title: "Dieta Personalizada",
-    description: "Cardápio sob medida",
-    lottieKey: "personalizada" as const,
+    description: "Resultados garantidos",
   },
 ];
 
 const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
-  const [hoveredOption, setHoveredOption] = useState<string | null>(null);
-  const [lottieData, setLottieData] = useState<Record<string, any>>({});
-  const [lottieLoaded, setLottieLoaded] = useState<Record<string, boolean>>({});
-
-  // Fetch Lottie animations on mount
-  useEffect(() => {
-    const fetchAnimations = async () => {
-      for (const [key, url] of Object.entries(lottieAnimations)) {
-        try {
-          const response = await fetch(url);
-          if (response.ok) {
-            const data = await response.json();
-            setLottieData(prev => ({ ...prev, [key]: data }));
-            setLottieLoaded(prev => ({ ...prev, [key]: true }));
-          }
-        } catch {
-          // Fallback to emoji if Lottie fails
-          console.log(`Lottie animation ${key} failed to load`);
-        }
-      }
-    };
-    fetchAnimations();
-  }, []);
-
 
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
@@ -110,50 +71,32 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               {objectiveOptions.map((option) => (
-              <button
+                <button
                   key={option.id}
                   onClick={() => onScrollToSection(option.id)}
-                  onMouseEnter={() => setHoveredOption(option.id)}
-                  onMouseLeave={() => setHoveredOption(null)}
-                  className={`
-                    group relative flex-1 max-w-[280px] mx-auto sm:mx-0
-                    flex flex-col items-center gap-1.5 
-                    px-4 py-4 pb-7 sm:px-5 sm:py-5 sm:pb-8 
-                    rounded-xl 
-                    bg-primary/70 backdrop-blur-md 
-                    border border-primary/40 shadow-lg
+                  className="
+                    group flex-1 max-w-[320px] mx-auto sm:mx-0
+                    flex items-center justify-between gap-3
+                    px-5 py-4 sm:px-6 sm:py-5
+                    rounded-xl
+                    bg-primary/80 backdrop-blur-md
+                    border-2 border-primary/60 shadow-lg
                     transition-all duration-300 ease-out
-                    hover:bg-primary/90 hover:border-primary 
-                    hover:scale-[1.08] hover:-translate-y-1
-                    hover:shadow-[0_0_30px_rgba(134,239,172,0.5)]
+                    hover:bg-primary hover:border-white/50
+                    hover:scale-[1.03] hover:-translate-y-0.5
+                    hover:shadow-[0_0_25px_rgba(134,239,172,0.5)]
                     active:scale-95
-                    ${hoveredOption === option.id ? 'shadow-[0_0_25px_rgba(134,239,172,0.4)]' : ''}
-                  `}
+                  "
                 >
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
-                    {lottieLoaded[option.lottieKey] && lottieData[option.lottieKey] ? (
-                      <Lottie
-                        animationData={lottieData[option.lottieKey]}
-                        loop={hoveredOption === option.id}
-                        autoplay={hoveredOption === option.id}
-                        className="w-full h-full"
-                      />
-                    ) : (
-                      <span className="text-2xl sm:text-3xl group-hover:animate-bounce">
-                        {option.emoji}
-                      </span>
-                    )}
+                  <div className="flex flex-col items-start text-left">
+                    <span className="text-white font-bold text-base sm:text-lg">
+                      {option.title}
+                    </span>
+                    <span className="text-white/90 text-xs sm:text-sm">
+                      {option.description}
+                    </span>
                   </div>
-                  <span className="text-white font-semibold text-sm sm:text-base transition-colors duration-300 group-hover:text-primary">
-                    {option.title}
-                  </span>
-                  <span className="text-white/90 text-xs sm:text-sm flex items-center gap-1">
-                    {option.description}
-                    <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 opacity-70 transition-transform duration-300 group-hover:translate-x-1 group-hover:opacity-100" />
-                  </span>
-                  <span className="absolute bottom-2 text-[10px] text-white/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    Clique para ver →
-                  </span>
+                  <ChevronRight className="w-5 h-5 text-white/80 transition-transform group-hover:translate-x-1" />
                 </button>
               ))}
             </div>
