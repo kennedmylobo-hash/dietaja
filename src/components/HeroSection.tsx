@@ -1,6 +1,5 @@
-import { Star, CheckCircle2, Clock } from "lucide-react";
+import { Star, CheckCircle2 } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
-import CountdownTimer from "@/components/CountdownTimer";
 
 const HeroSection = () => {
 
@@ -77,15 +76,6 @@ const HeroSection = () => {
             </div>
           </div>
 
-          {/* Countdown Timer */}
-          <div className="flex flex-col items-center gap-2 sm:gap-3 animate-fade-in">
-            <span className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/80">
-              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Pedidos encerram domingo • Entrega quarta:</span>
-              <span className="sm:hidden">Encerra domingo:</span>
-            </span>
-            <CountdownTimer variant="hero" />
-          </div>
         </div>
       </div>
     </section>
