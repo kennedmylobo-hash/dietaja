@@ -7,12 +7,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface FlavorSelection {
+  name: string;
+  quantity: number;
+  category?: string;
+}
+
 interface CartItem {
   name: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
   type: string;
+  flavors?: FlavorSelection[];
 }
 
 interface RequestBody {

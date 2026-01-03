@@ -160,6 +160,11 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             unitPrice: item.unitPrice,
             totalPrice: item.totalPrice,
             type: item.type,
+            flavors: item.flavors?.map(f => ({
+              name: f.name,
+              quantity: f.quantity,
+              category: f.category,
+            })),
           })),
           customer: {
             name: data.name,
@@ -196,6 +201,52 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
 
     // Create account if checkbox is checked
     await createCustomerAccount(data);
+
+    // Track InitiateCheckout for WhatsApp too
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'InitiateCheckout', {
+        value: total,
+        currency: 'BRL',
+        num_items: items.length,
+      });
+    }
+
+    // Create order in database with whatsapp_pending status
+    try {
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          status: 'whatsapp_pending',
+          payment_method: 'whatsapp',
+          items: items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            type: item.type,
+            flavors: item.flavors?.map(f => ({
+              name: f.name,
+              quantity: f.quantity,
+              category: f.category,
+            })),
+          })),
+          subtotal,
+          delivery_fee: deliveryFee,
+          total,
+          customer_name: data.name,
+          customer_email: data.email,
+          customer_phone: data.phone,
+          delivery_option: data.deliveryOption,
+          delivery_address: data.address || null,
+          utm_data: getUTMParams() || null,
+        });
+
+      if (orderError) {
+        console.error('Error creating WhatsApp order:', orderError);
+      }
+    } catch (error) {
+      console.error('Error saving WhatsApp order:', error);
+    }
 
     // Build WhatsApp message with flavors
     const itemsList = items

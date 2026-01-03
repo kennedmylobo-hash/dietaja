@@ -203,6 +203,31 @@ serve(async (req) => {
 
     console.log('Order updated successfully:', orderId, orderStatus);
 
+    // If payment approved, decrement stock
+    if (orderStatus === 'approved') {
+      console.log(`[mp-webhook] Payment approved, decrementing stock for order ${orderId}`);
+      
+      try {
+        const decrementResponse = await fetch(
+          `${supabaseUrl}/functions/v1/decrement-stock`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({ order_id: orderId }),
+          }
+        );
+        
+        const decrementResult = await decrementResponse.json();
+        console.log('[mp-webhook] Stock decrement result:', decrementResult);
+      } catch (decrementError) {
+        console.error('[mp-webhook] Error decrementing stock:', decrementError);
+        // Don't fail the webhook, stock can be adjusted manually
+      }
+    }
+
     return new Response(
       JSON.stringify({ received: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
