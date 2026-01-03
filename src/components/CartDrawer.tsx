@@ -18,7 +18,7 @@ import { useNavigate } from "react-router-dom";
 import FlavorSelectionModal from "./FlavorSelectionModal";
 import KitFlavorSelectionModal from "./KitFlavorSelectionModal";
 import { toast } from "@/hooks/use-toast";
-import { useMarmitaFlavors } from "@/hooks/useMenuData";
+import { useMarmitaFlavors, useKitJuices, useKitSoups } from "@/hooks/useMenuData";
 
 const WHATSAPP_NUMBER = "5577991001658";
 
@@ -64,8 +64,10 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const [editingKit, setEditingKit] = useState<CartItem | null>(null);
   const navigate = useNavigate();
 
-  // Fetch marmita flavors from database
+  // Fetch menu data from database
   const { data: flavorsData } = useMarmitaFlavors();
+  const { data: juicesData } = useKitJuices();
+  const { data: soupsData } = useKitSoups();
 
   // Process flavors by category for the modal (FlavorCategory[] format)
   const flavorsByCategory = useMemo(() => {
@@ -113,7 +115,33 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     }));
   }, [flavorsData]);
 
-  // Helper to extract kit days from name
+  // Process juice data for kit modal
+  const juiceFlavorsData = useMemo(() => {
+    if (!juicesData) return undefined;
+    
+    return juicesData.map((juice) => ({
+      emoji: juice.emoji,
+      name: juice.name,
+      description: juice.ingredients || "",
+      stock_quantity: juice.stock_quantity,
+      show_stock: juice.show_stock,
+      low_stock_threshold: juice.low_stock_threshold,
+    }));
+  }, [juicesData]);
+
+  // Process soup data for kit modal
+  const soupFlavorsData = useMemo(() => {
+    if (!soupsData) return undefined;
+    
+    return soupsData.map((soup) => ({
+      emoji: soup.emoji,
+      name: soup.name,
+      description: soup.ingredients || "",
+      stock_quantity: soup.stock_quantity,
+      show_stock: soup.show_stock,
+      low_stock_threshold: soup.low_stock_threshold,
+    }));
+  }, [soupsData]);
   const getKitDays = (kitName: string): number => {
     if (kitName.includes("3 Dias")) return 3;
     if (kitName.includes("5 Dias")) return 5;
@@ -701,6 +729,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             soupQuantity={getKitQuantities(getKitDays(editingKit.name)).soups}
             initialJuiceFlavors={editingKit.flavors?.filter(f => f.category === "Suco")}
             initialSoupFlavors={editingKit.flavors?.filter(f => f.category === "Sopa")}
+            juiceFlavorsData={juiceFlavorsData}
+            soupFlavorsData={soupFlavorsData}
           />
         )}
       </SheetContent>
