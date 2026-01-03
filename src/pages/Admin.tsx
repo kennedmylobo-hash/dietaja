@@ -45,6 +45,7 @@ import {
 } from "recharts";
 import OrdersManager from "@/components/admin/OrdersManager";
 import MenuManager from "@/components/admin/MenuManager";
+import StockReport from "@/components/admin/StockReport";
 
 interface Lead {
   id: string;
@@ -610,7 +611,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-3">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Analytics
@@ -618,6 +619,10 @@ const Admin = () => {
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <Package className="w-4 h-4" />
               Pedidos
+            </TabsTrigger>
+            <TabsTrigger value="stock" className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Estoque
             </TabsTrigger>
             <TabsTrigger value="menu" className="flex items-center gap-2">
               <UtensilsCrossed className="w-4 h-4" />
@@ -1068,6 +1073,10 @@ const Admin = () => {
 
           <TabsContent value="orders">
             <OrdersManager dateFilter={dateFilter} />
+          </TabsContent>
+
+          <TabsContent value="stock">
+            <StockReport />
           </TabsContent>
 
           <TabsContent value="menu">
