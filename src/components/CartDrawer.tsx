@@ -385,9 +385,9 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     }
   };
 
-  const handleMarmitaFlavorEditConfirm = (flavors: FlavorSelection[]) => {
+  const handleMarmitaFlavorEditConfirm = (flavors: FlavorSelection[], fishAdditional: number) => {
     if (editingMarmita) {
-      updateItemFlavors(editingMarmita.id, flavors);
+      updateItemFlavors(editingMarmita.id, flavors, fishAdditional);
       setEditingMarmita(null);
     }
   };
@@ -461,6 +461,12 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                             ))}
                           </div>
                         )}
+                        {/* Display fish additional if any */}
+                        {item.fishAdditional && item.fishAdditional > 0 && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            + R$ {item.fishAdditional.toFixed(2).replace(".", ",")} (adicional peixe)
+                          </p>
+                        )}
                         {/* Edit flavors button for marmitas and kits */}
                         {(item.type === "marmita" || (item.type === "kit" && item.flavors && item.flavors.length > 0)) && (
                           <button
@@ -472,9 +478,9 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                           </button>
                         )}
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-col items-end gap-1">
                         <span className="font-bold text-primary">
-                          R$ {item.totalPrice.toFixed(2).replace(".", ",")}
+                          R$ {(item.totalPrice + (item.fishAdditional || 0)).toFixed(2).replace(".", ",")}
                         </span>
                         <button
                           onClick={() => removeItem(item.id)}
