@@ -53,6 +53,7 @@ interface MarmitaFlavor {
   sort_order: number;
   stock_quantity: number | null;
   show_stock: boolean;
+  low_stock_threshold: number | null;
 }
 
 interface KitPackage {
@@ -77,6 +78,7 @@ interface KitSoup {
   sort_order: number;
   stock_quantity: number | null;
   show_stock: boolean;
+  low_stock_threshold: number | null;
 }
 
 interface KitJuice {
@@ -89,6 +91,7 @@ interface KitJuice {
   sort_order: number;
   stock_quantity: number | null;
   show_stock: boolean;
+  low_stock_threshold: number | null;
 }
 
 const MenuManager = () => {
@@ -551,6 +554,16 @@ const MenuManager = () => {
                               onChange={(e) => updateMarmitaFlavor(flavor.id, 'stock_quantity', e.target.value === '' ? null : parseInt(e.target.value))}
                               className="w-16 h-8 text-center"
                               min={0}
+                              title="Quantidade em estoque"
+                            />
+                            <Input
+                              type="number"
+                              placeholder="5"
+                              value={flavor.low_stock_threshold ?? ''}
+                              onChange={(e) => updateMarmitaFlavor(flavor.id, 'low_stock_threshold', e.target.value === '' ? null : parseInt(e.target.value))}
+                              className="w-12 h-8 text-center text-xs"
+                              min={0}
+                              title="Limite para estoque baixo"
                             />
                             <div className="flex items-center gap-1">
                               <Switch
@@ -559,7 +572,7 @@ const MenuManager = () => {
                               />
                               <span className="text-xs text-muted-foreground whitespace-nowrap">Mostrar</span>
                             </div>
-                            {flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity < 5 && (
+                            {flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity < (flavor.low_stock_threshold ?? 5) && (
                               <Badge variant="destructive" className="text-[10px] px-1.5">
                                 {flavor.stock_quantity === 0 ? 'Esgotado' : `${flavor.stock_quantity}`}
                               </Badge>
@@ -701,6 +714,16 @@ const MenuManager = () => {
                         onChange={(e) => updateKitSoup(soup.id, 'stock_quantity', e.target.value === '' ? null : parseInt(e.target.value))}
                         className="w-14 text-center"
                         min={0}
+                        title="Estoque"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="5"
+                        value={soup.low_stock_threshold ?? ''}
+                        onChange={(e) => updateKitSoup(soup.id, 'low_stock_threshold', e.target.value === '' ? null : parseInt(e.target.value))}
+                        className="w-12 text-center text-xs"
+                        min={0}
+                        title="Limite baixo"
                       />
                       <div className="flex items-center gap-1">
                         <Switch
@@ -709,7 +732,7 @@ const MenuManager = () => {
                         />
                         <span className="text-xs text-muted-foreground">Exibir</span>
                       </div>
-                      {soup.show_stock && soup.stock_quantity !== null && soup.stock_quantity < 5 && (
+                      {soup.show_stock && soup.stock_quantity !== null && soup.stock_quantity < (soup.low_stock_threshold ?? 5) && (
                         <Badge variant="destructive" className="text-[10px]">
                           {soup.stock_quantity === 0 ? 'Esgotado' : soup.stock_quantity}
                         </Badge>
@@ -769,6 +792,16 @@ const MenuManager = () => {
                         onChange={(e) => updateKitJuice(juice.id, 'stock_quantity', e.target.value === '' ? null : parseInt(e.target.value))}
                         className="w-14 text-center"
                         min={0}
+                        title="Estoque"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="5"
+                        value={juice.low_stock_threshold ?? ''}
+                        onChange={(e) => updateKitJuice(juice.id, 'low_stock_threshold', e.target.value === '' ? null : parseInt(e.target.value))}
+                        className="w-12 text-center text-xs"
+                        min={0}
+                        title="Limite baixo"
                       />
                       <div className="flex items-center gap-1">
                         <Switch
@@ -777,7 +810,7 @@ const MenuManager = () => {
                         />
                         <span className="text-xs text-muted-foreground">Exibir</span>
                       </div>
-                      {juice.show_stock && juice.stock_quantity !== null && juice.stock_quantity < 5 && (
+                      {juice.show_stock && juice.stock_quantity !== null && juice.stock_quantity < (juice.low_stock_threshold ?? 5) && (
                         <Badge variant="destructive" className="text-[10px]">
                           {juice.stock_quantity === 0 ? 'Esgotado' : juice.stock_quantity}
                         </Badge>

@@ -12,6 +12,7 @@ interface FlavorDataWithStock {
   description: string;
   stock_quantity?: number | null;
   show_stock?: boolean;
+  low_stock_threshold?: number | null;
 }
 
 interface KitFlavorSelectionModalProps {
@@ -319,7 +320,8 @@ const KitFlavorSelectionModal = ({
                   <div className="space-y-2">
                     {juiceFlavors.map((flavor) => {
                       const qty = juiceSelections[flavor.name] || 0;
-                      const hasLowStock = flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && flavor.stock_quantity < 5;
+                      const threshold = flavor.low_stock_threshold ?? 5;
+                      const hasLowStock = flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && flavor.stock_quantity < threshold;
                       const isOutOfStock = flavor.show_stock && flavor.stock_quantity === 0;
                       const maxReached = flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && qty >= flavor.stock_quantity;
                       
@@ -387,7 +389,8 @@ const KitFlavorSelectionModal = ({
                   <div className="space-y-2">
                     {soupFlavors.map((flavor) => {
                       const qty = soupSelections[flavor.name] || 0;
-                      const hasLowStock = flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && flavor.stock_quantity < 5;
+                      const threshold = flavor.low_stock_threshold ?? 5;
+                      const hasLowStock = flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && flavor.stock_quantity < threshold;
                       const isOutOfStock = flavor.show_stock && flavor.stock_quantity === 0;
                       const maxReached = flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && qty >= flavor.stock_quantity;
                       

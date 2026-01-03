@@ -115,6 +115,7 @@ const MarmitasSection = () => {
       name: f.name,
       stock_quantity: f.stock_quantity,
       show_stock: f.show_stock,
+      low_stock_threshold: f.low_stock_threshold,
     }));
   }, [flavorsData]);
 

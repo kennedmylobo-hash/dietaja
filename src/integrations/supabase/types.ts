@@ -67,6 +67,7 @@ export type Database = {
           emoji: string
           id: string
           ingredients: string | null
+          low_stock_threshold: number | null
           name: string
           show_stock: boolean
           sort_order: number
@@ -79,6 +80,7 @@ export type Database = {
           emoji?: string
           id?: string
           ingredients?: string | null
+          low_stock_threshold?: number | null
           name: string
           show_stock?: boolean
           sort_order?: number
@@ -91,6 +93,7 @@ export type Database = {
           emoji?: string
           id?: string
           ingredients?: string | null
+          low_stock_threshold?: number | null
           name?: string
           show_stock?: boolean
           sort_order?: number
@@ -148,6 +151,7 @@ export type Database = {
           emoji: string
           id: string
           ingredients: string | null
+          low_stock_threshold: number | null
           name: string
           show_stock: boolean
           sort_order: number
@@ -160,6 +164,7 @@ export type Database = {
           emoji?: string
           id?: string
           ingredients?: string | null
+          low_stock_threshold?: number | null
           name: string
           show_stock?: boolean
           sort_order?: number
@@ -172,6 +177,7 @@ export type Database = {
           emoji?: string
           id?: string
           ingredients?: string | null
+          low_stock_threshold?: number | null
           name?: string
           show_stock?: boolean
           sort_order?: number
@@ -242,6 +248,7 @@ export type Database = {
           category: string
           created_at: string
           id: string
+          low_stock_threshold: number | null
           name: string
           show_stock: boolean
           sort_order: number
@@ -252,6 +259,7 @@ export type Database = {
           category: string
           created_at?: string
           id?: string
+          low_stock_threshold?: number | null
           name: string
           show_stock?: boolean
           sort_order?: number
@@ -262,6 +270,7 @@ export type Database = {
           category?: string
           created_at?: string
           id?: string
+          low_stock_threshold?: number | null
           name?: string
           show_stock?: boolean
           sort_order?: number

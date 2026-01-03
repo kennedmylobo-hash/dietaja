@@ -21,6 +21,7 @@ interface FlavorData {
   name: string;
   stock_quantity: number | null;
   show_stock: boolean;
+  low_stock_threshold: number | null;
 }
 
 interface FlavorSelectionModalProps {
@@ -325,7 +326,8 @@ const FlavorSelectionModal = ({
                       const qty = selections[flavor] || 0;
                       const isSelected = qty > 0;
                       const stockData = getFlavorStock(flavor);
-                      const hasLowStock = stockData?.show_stock && stockData.stock_quantity !== null && stockData.stock_quantity < 5;
+                      const threshold = stockData?.low_stock_threshold ?? 5;
+                      const hasLowStock = stockData?.show_stock && stockData.stock_quantity !== null && stockData.stock_quantity < threshold;
                       const isOutOfStock = stockData?.show_stock && stockData.stock_quantity === 0;
                       const maxReached = stockData?.stock_quantity !== null && qty >= (stockData?.stock_quantity ?? Infinity);
                       

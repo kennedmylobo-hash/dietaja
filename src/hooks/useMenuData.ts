@@ -20,6 +20,7 @@ export interface MarmitaFlavor {
   sort_order: number;
   stock_quantity: number | null;
   show_stock: boolean;
+  low_stock_threshold: number | null;
 }
 
 export interface KitPackage {
@@ -44,6 +45,7 @@ export interface KitSoup {
   sort_order: number;
   stock_quantity: number | null;
   show_stock: boolean;
+  low_stock_threshold: number | null;
 }
 
 export interface KitJuice {
@@ -56,6 +58,7 @@ export interface KitJuice {
   sort_order: number;
   stock_quantity: number | null;
   show_stock: boolean;
+  low_stock_threshold: number | null;
 }
 
 export const useMarmitaPackages = () => {
