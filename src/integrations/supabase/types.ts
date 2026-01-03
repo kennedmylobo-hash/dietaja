@@ -324,6 +324,7 @@ export type Database = {
           paid_at: string | null
           payment_method: string | null
           status: string
+          stock_decremented: boolean | null
           subtotal: number
           total: number
           utm_data: Json | null
@@ -343,6 +344,7 @@ export type Database = {
           paid_at?: string | null
           payment_method?: string | null
           status?: string
+          stock_decremented?: boolean | null
           subtotal: number
           total: number
           utm_data?: Json | null
@@ -362,6 +364,7 @@ export type Database = {
           paid_at?: string | null
           payment_method?: string | null
           status?: string
+          stock_decremented?: boolean | null
           subtotal?: number
           total?: number
           utm_data?: Json | null

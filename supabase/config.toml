@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.create-customer-account]
 verify_jwt = false
+
+[functions.decrement-stock]
+verify_jwt = false

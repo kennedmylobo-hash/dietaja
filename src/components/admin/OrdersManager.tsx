@@ -30,13 +30,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+interface FlavorItem {
+  name: string;
+  quantity: number;
+  category?: string;
+}
+
+interface OrderItem {
+  name: string;
+  quantity: number;
+  totalPrice: number;
+  type: string;
+  flavors?: FlavorItem[];
+}
+
 interface Order {
   id: string;
   mp_preference_id: string | null;
   mp_payment_id: string | null;
   status: string;
   payment_method: string | null;
-  items: Array<{ name: string; quantity: number; totalPrice: number; type: string }>;
+  items: OrderItem[];
   subtotal: number;
   delivery_fee: number;
   total: number;
@@ -48,6 +62,7 @@ interface Order {
   utm_data: Record<string, string> | null;
   created_at: string;
   paid_at: string | null;
+  stock_decremented?: boolean;
 }
 
 interface OrdersManagerProps {
@@ -92,7 +107,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     if (error) {
       console.error('Error fetching orders:', error);
     } else {
-      setOrders((data as Order[]) || []);
+      setOrders((data as unknown as Order[]) || []);
     }
     
     setIsLoading(false);
@@ -146,10 +161,17 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const stats = useMemo(() => {
     const approved = orders.filter(o => o.status === 'approved');
     const pending = orders.filter(o => o.status === 'pending');
+    const whatsappPending = orders.filter(o => o.status === 'whatsapp_pending');
     const rejected = orders.filter(o => o.status === 'rejected');
     const totalRevenue = approved.reduce((sum, o) => sum + o.total, 0);
     
-    return { approved: approved.length, pending: pending.length, rejected: rejected.length, totalRevenue };
+    return { 
+      approved: approved.length, 
+      pending: pending.length + whatsappPending.length, 
+      whatsappPending: whatsappPending.length,
+      rejected: rejected.length, 
+      totalRevenue 
+    };
   }, [orders]);
 
   const getStatusBadge = (status: string) => {
@@ -158,10 +180,64 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         return <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">Aprovado</Badge>;
       case 'pending':
         return <Badge className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20">Pendente</Badge>;
+      case 'whatsapp_pending':
+        return <Badge className="bg-orange-500/10 text-orange-600 hover:bg-orange-500/20">📲 WhatsApp</Badge>;
       case 'rejected':
         return <Badge className="bg-red-500/10 text-red-600 hover:bg-red-500/20">Rejeitado</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const [isConfirming, setIsConfirming] = useState<string | null>(null);
+
+  const confirmOrder = async (orderId: string) => {
+    setIsConfirming(orderId);
+    
+    try {
+      // Update order status to approved
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'approved',
+          paid_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error('Error confirming order:', updateError);
+        alert('Erro ao confirmar pedido');
+        return;
+      }
+
+      // Call decrement-stock edge function
+      const { error: decrementError } = await supabase.functions.invoke('decrement-stock', {
+        body: { order_id: orderId }
+      });
+
+      if (decrementError) {
+        console.error('Error decrementing stock:', decrementError);
+        // Don't fail - order is confirmed, stock can be adjusted manually
+      }
+
+      // Update local state
+      setOrders(prev => 
+        prev.map(o => o.id === orderId 
+          ? { ...o, status: 'approved', paid_at: new Date().toISOString() } 
+          : o
+        )
+      );
+
+      // Close modal if this order was selected
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, status: 'approved', paid_at: new Date().toISOString() } : null);
+      }
+
+    } catch (error) {
+      console.error('Error in confirmOrder:', error);
+      alert('Erro ao confirmar pedido');
+    } finally {
+      setIsConfirming(null);
     }
   };
 
@@ -284,6 +360,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="whatsapp_pending">📲 WhatsApp</SelectItem>
                 <SelectItem value="pending">Pendentes</SelectItem>
                 <SelectItem value="approved">Aprovados</SelectItem>
                 <SelectItem value="rejected">Rejeitados</SelectItem>
@@ -350,6 +427,22 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                       </td>
                       <td className="py-3">
                         <div className="flex gap-1">
+                          {(order.status === 'whatsapp_pending' || order.status === 'pending') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => confirmOrder(order.id)}
+                              disabled={isConfirming === order.id}
+                              title="Confirmar pedido"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                            >
+                              {isConfirming === order.id ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -418,9 +511,20 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
               <div className="p-3 rounded-lg bg-muted/50">
                 <h4 className="font-medium mb-2">Itens</h4>
                 {selectedOrder.items.map((item, i) => (
-                  <div key={i} className="flex justify-between text-sm py-1">
-                    <span>{item.name} ({item.quantity}x)</span>
-                    <span>R$ {item.totalPrice.toFixed(2).replace('.', ',')}</span>
+                  <div key={i} className="py-1.5 border-b last:border-0">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">{item.name} ({item.quantity}x)</span>
+                      <span>R$ {item.totalPrice.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    {item.flavors && item.flavors.length > 0 && (
+                      <div className="mt-1 ml-2 space-y-0.5">
+                        {item.flavors.map((flavor, fi) => (
+                          <p key={fi} className="text-xs text-muted-foreground">
+                            • {flavor.quantity}x {flavor.name}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
                 <div className="border-t mt-2 pt-2 space-y-1">
@@ -466,7 +570,23 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
 
               {/* Actions */}
               <div className="flex gap-2 pt-2">
+                {(selectedOrder.status === 'whatsapp_pending' || selectedOrder.status === 'pending') && (
+                  <Button
+                    variant="default"
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                    onClick={() => confirmOrder(selectedOrder.id)}
+                    disabled={isConfirming === selectedOrder.id}
+                  >
+                    {isConfirming === selectedOrder.id ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                    )}
+                    Confirmar Pedido
+                  </Button>
+                )}
                 <Button
+                  variant={selectedOrder.status === 'approved' ? "default" : "outline"}
                   className="flex-1"
                   onClick={() => openWhatsApp(selectedOrder.customer_phone, selectedOrder.customer_name, selectedOrder.id)}
                 >
