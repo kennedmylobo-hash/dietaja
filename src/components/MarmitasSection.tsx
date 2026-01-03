@@ -156,7 +156,7 @@ const MarmitasSection = () => {
     setIsFlavorModalOpen(true);
   };
 
-  const handleConfirmFlavors = async (flavors: FlavorSelection[]) => {
+  const handleConfirmFlavors = async (flavors: FlavorSelection[], fishAdditional: number) => {
     if (!selectedMarmita) return;
     
     setLoadingMarmita(selectedMarmita.id);
@@ -172,6 +172,7 @@ const MarmitasSection = () => {
       totalPrice: selectedMarmita.totalPrice,
       description: `${selectedMarmita.quantity} marmitas saudáveis`,
       flavors: flavors,
+      fishAdditional: fishAdditional,
     });
 
     // Haptic feedback on mobile

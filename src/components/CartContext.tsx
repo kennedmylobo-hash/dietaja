@@ -15,13 +15,14 @@ export interface CartItem {
   totalPrice: number;
   description?: string;
   flavors?: FlavorSelection[];
+  fishAdditional?: number;
 }
 
 interface CartContextType {
   items: CartItem[];
   addItem: (item: Omit<CartItem, "id">) => void;
   removeItem: (id: string) => void;
-  updateItemFlavors: (id: string, flavors: FlavorSelection[]) => void;
+  updateItemFlavors: (id: string, flavors: FlavorSelection[], fishAdditional?: number) => void;
   clearCart: () => void;
   getTotal: () => number;
   itemCount: number;
@@ -56,10 +57,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const updateItemFlavors = (id: string, flavors: FlavorSelection[]) => {
+  const updateItemFlavors = (id: string, flavors: FlavorSelection[], fishAdditional?: number) => {
     setItems((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, flavors } : item
+        item.id === id ? { ...item, flavors, fishAdditional: fishAdditional ?? item.fishAdditional } : item
       )
     );
   };
@@ -69,7 +70,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getTotal = () => {
-    return items.reduce((sum, item) => sum + item.totalPrice, 0);
+    return items.reduce((sum, item) => sum + item.totalPrice + (item.fishAdditional || 0), 0);
   };
 
   const itemCount = items.length;

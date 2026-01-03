@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle, Fish } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { celebrateCheckout } from "@/lib/confetti";
 
@@ -27,13 +27,24 @@ interface FlavorData {
 interface FlavorSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (flavors: FlavorSelection[]) => void;
+  onConfirm: (flavors: FlavorSelection[], fishAdditional: number) => void;
   packageName: string;
   packageQuantity: number;
   isLoading?: boolean;
   flavorsByCategory?: FlavorCategory[];
   flavorStockData?: FlavorData[];
 }
+
+// Fish flavor name and surcharge
+const FISH_FLAVOR_NAME = "Filé de peixe com alecrim e arroz";
+const FISH_SURCHARGE = 4.99;
+
+// Calculate max flavors based on package quantity
+const getMaxFlavors = (quantity: number): number => {
+  if (quantity <= 7) return 3;
+  if (quantity <= 14) return 7;
+  return 14; // 28 marmitas
+};
 
 // Default fallback flavors
 const defaultFlavorCategories: FlavorCategory[] = [
@@ -96,6 +107,9 @@ const FlavorSelectionModal = ({
 
   // Use provided flavors or fallback to defaults
   const flavorCategories = flavorsByCategory || defaultFlavorCategories;
+  
+  // Calculate max different flavors allowed
+  const maxFlavors = getMaxFlavors(packageQuantity);
 
   // Helper to get stock data for a flavor
   const getFlavorStock = (flavorName: string): FlavorData | undefined => {
@@ -106,9 +120,22 @@ const FlavorSelectionModal = ({
     return Object.values(selections).reduce((sum, qty) => sum + qty, 0);
   }, [selections]);
 
+  // Count unique flavors selected
+  const uniqueFlavorsCount = useMemo(() => {
+    return Object.values(selections).filter(qty => qty > 0).length;
+  }, [selections]);
+
+  // Calculate fish quantity and surcharge
+  const fishQuantity = useMemo(() => {
+    return selections[FISH_FLAVOR_NAME] || 0;
+  }, [selections]);
+
+  const fishAdditional = fishQuantity * FISH_SURCHARGE;
+
   const remaining = packageQuantity - totalSelected;
   const isComplete = remaining === 0 || leaveToUs;
   const isOverLimit = remaining < 0;
+  const isMaxFlavorsReached = uniqueFlavorsCount >= maxFlavors;
 
   const updateQuantity = (flavor: string, delta: number) => {
     // Disable manual selection if "leave to us" is checked
@@ -130,6 +157,8 @@ const FlavorSelectionModal = ({
       if (delta > 0) {
         if (remaining <= 0) return prev;
         if (newValue > maxStock) return prev;
+        // Block adding NEW flavor if max flavors reached (but allow increasing existing)
+        if (current === 0 && isMaxFlavorsReached) return prev;
       }
       
       return { ...prev, [flavor]: newValue };
@@ -152,7 +181,7 @@ const FlavorSelectionModal = ({
         name: "Deixar a cargo da Dieta Já",
         quantity: packageQuantity,
         category: "Escolha da casa",
-      }]);
+      }], 0);
       setSelections({});
       setLeaveToUs(false);
       return;
@@ -173,7 +202,7 @@ const FlavorSelectionModal = ({
       });
     });
     
-    onConfirm(flavorsArray);
+    onConfirm(flavorsArray, fishAdditional);
     setSelections({});
     setLeaveToUs(false);
   };
@@ -209,9 +238,16 @@ const FlavorSelectionModal = ({
         {/* Progress indicator */}
         <div className="px-4 py-3 bg-muted/50 border-b shrink-0">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">
-              {leaveToUs ? "Escolha da casa" : `${totalSelected} de ${packageQuantity} selecionadas`}
-            </span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium">
+                {leaveToUs ? "Escolha da casa" : `${totalSelected} de ${packageQuantity} selecionadas`}
+              </span>
+              {!leaveToUs && (
+                <span className={`text-xs ${isMaxFlavorsReached ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                  {uniqueFlavorsCount} de {maxFlavors} sabores diferentes
+                </span>
+              )}
+            </div>
             <AnimatePresence mode="wait">
               {isComplete ? (
                 <motion.span
@@ -330,6 +366,9 @@ const FlavorSelectionModal = ({
                       const hasLowStock = stockData?.show_stock && stockData.stock_quantity !== null && stockData.stock_quantity < threshold;
                       const isOutOfStock = stockData?.show_stock && stockData.stock_quantity === 0;
                       const maxReached = stockData?.stock_quantity !== null && qty >= (stockData?.stock_quantity ?? Infinity);
+                      const isFish = flavor === FISH_FLAVOR_NAME;
+                      // Block adding new flavors if max flavors reached (unless already selected)
+                      const cannotAddNewFlavor = !isSelected && isMaxFlavorsReached;
                       
                       return (
                         <div
@@ -344,7 +383,13 @@ const FlavorSelectionModal = ({
                         >
                           <div className="flex flex-col gap-0.5">
                             <span className={`text-sm ${isSelected ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                              {isFish && <Fish className="w-3.5 h-3.5 inline mr-1 text-blue-500" />}
                               {flavor}
+                              {isFish && (
+                                <span className="ml-1.5 text-xs text-blue-600 font-medium">
+                                  (+R$ 4,99/un)
+                                </span>
+                              )}
                             </span>
                             {hasLowStock && !isOutOfStock && (
                               <span className="text-xs text-destructive font-medium animate-pulse">
@@ -382,9 +427,9 @@ const FlavorSelectionModal = ({
                             
                             <button
                               onClick={() => updateQuantity(flavor, 1)}
-                              disabled={(remaining <= 0 && !isSelected) || isOutOfStock || maxReached}
+                              disabled={(remaining <= 0 && !isSelected) || isOutOfStock || maxReached || cannotAddNewFlavor}
                               className={`p-1.5 rounded-full transition-colors ${
-                                (remaining <= 0 && !isSelected) || isOutOfStock || maxReached
+                                (remaining <= 0 && !isSelected) || isOutOfStock || maxReached || cannotAddNewFlavor
                                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                                   : "bg-terracotta hover:bg-terracotta/90 text-white"
                               }`}
@@ -403,7 +448,18 @@ const FlavorSelectionModal = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t bg-background shrink-0">
+        <div className="p-4 border-t bg-background shrink-0 space-y-3">
+          {fishAdditional > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Fish className="w-4 h-4 text-blue-500" />
+                Adicional peixe ({fishQuantity}x)
+              </span>
+              <span className="font-medium text-blue-600">
+                + R$ {fishAdditional.toFixed(2).replace(".", ",")}
+              </span>
+            </div>
+          )}
           <Button
             variant="cta"
             className="w-full"
