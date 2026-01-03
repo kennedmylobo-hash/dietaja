@@ -1,5 +1,11 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 
+export interface FlavorSelection {
+  name: string;
+  quantity: number;
+  category: string;
+}
+
 export interface CartItem {
   id: string;
   type: "kit" | "marmita";
@@ -8,6 +14,7 @@ export interface CartItem {
   unitPrice: number;
   totalPrice: number;
   description?: string;
+  flavors?: FlavorSelection[];
 }
 
 interface CartContextType {
