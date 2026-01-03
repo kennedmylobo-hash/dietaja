@@ -1,6 +1,6 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Droplets, UtensilsCrossed, Salad } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
+import { useRef } from "react";
 
 const banners = [
   {
@@ -98,7 +98,7 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
         rotateY,
         transformStyle: "preserve-3d",
       }}
-      className={`flex-shrink-0 w-[85%] snap-center sm:w-auto sm:flex-shrink group relative overflow-hidden rounded-2xl p-4 md:p-6 lg:p-8 text-left transition-shadow duration-300 shadow-lg hover:shadow-2xl ring-1 ring-white/10 bg-gradient-to-br ${banner.gradient}`}
+      className={`group relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 lg:p-8 text-left transition-shadow duration-300 shadow-lg hover:shadow-2xl ring-1 ring-white/10 bg-gradient-to-br ${banner.gradient}`}
     >
       {/* Background glow effect */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -106,19 +106,19 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
       {/* Content with parallax */}
       <motion.div
         style={{ x: contentX, y: contentY, transformStyle: "preserve-3d" }}
-        className="relative z-10 flex flex-col h-full min-h-[110px] md:min-h-[160px] lg:min-h-[180px]"
+        className="relative z-10 flex flex-col h-full min-h-[70px] sm:min-h-[110px] md:min-h-[160px] lg:min-h-[180px]"
       >
-        <Icon className="w-7 h-7 md:w-10 md:h-10 lg:w-12 lg:h-12 text-white/90 mb-2 md:mb-3" />
+        <Icon className="w-5 h-5 sm:w-7 sm:h-7 md:w-10 md:h-10 lg:w-12 lg:h-12 text-white/90 mb-1.5 sm:mb-2 md:mb-3" />
         
-        <h3 className="text-base md:text-lg lg:text-xl font-bold text-white leading-tight">
+        <h3 className="text-[11px] sm:text-base md:text-lg lg:text-xl font-bold text-white leading-tight">
           {banner.title}
         </h3>
         
-        <p className="text-sm md:text-base text-white/80 font-medium mt-1.5">
+        <p className="hidden sm:block text-sm md:text-base text-white/80 font-medium mt-1.5">
           {banner.subtitle}
         </p>
         
-        <p className="text-xs md:text-sm text-white/70 mt-auto pt-3">
+        <p className="hidden sm:block text-xs md:text-sm text-white/70 mt-auto pt-3">
           {banner.description}
         </p>
       </motion.div>
@@ -129,16 +129,13 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
           x: useTransform(xSpring, [-0.5, 0.5], ["8px", "-8px"]),
           y: useTransform(ySpring, [-0.5, 0.5], ["8px", "-8px"]),
         }}
-        className="absolute -right-6 -bottom-6 w-28 h-28 md:w-32 md:h-32 bg-white/15 rounded-full blur-2xl"
+        className="absolute -right-4 -bottom-4 sm:-right-6 sm:-bottom-6 w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white/15 rounded-full blur-2xl"
       />
     </motion.button>
   );
 };
 
 const PromoBannersSection = () => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -146,38 +143,14 @@ const PromoBannersSection = () => {
     }
   };
 
-  // Track scroll position to update active dot
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const scrollLeft = container.scrollLeft;
-      const cardWidth = container.scrollWidth / banners.length;
-      const newIndex = Math.round(scrollLeft / cardWidth);
-      setActiveIndex(Math.min(newIndex, banners.length - 1));
-    };
-
-    container.addEventListener("scroll", handleScroll, { passive: true });
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const scrollToIndex = (index: number) => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const cardWidth = container.scrollWidth / banners.length;
-    container.scrollTo({ left: cardWidth * index, behavior: "smooth" });
-  };
-
   return (
-    <section className="py-6 md:py-12 bg-background">
+    <section className="py-4 sm:py-6 md:py-12 bg-background">
       <div className="container px-3 md:px-6">
         <motion.div
-          ref={scrollContainerRef}
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 sm:grid sm:grid-cols-3 sm:gap-5 lg:gap-6 sm:overflow-visible scrollbar-hide"
+          className="grid grid-cols-3 gap-2 sm:gap-5 lg:gap-6"
           style={{ perspective: "1000px" }}
         >
           {banners.map((banner) => (
@@ -188,22 +161,6 @@ const PromoBannersSection = () => {
             />
           ))}
         </motion.div>
-
-        {/* Navigation dots - mobile only */}
-        <div className="flex justify-center gap-2 mt-3 sm:hidden">
-          {banners.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => scrollToIndex(index)}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                index === activeIndex
-                  ? "bg-primary w-4"
-                  : "bg-muted-foreground/30"
-              }`}
-              aria-label={`Ir para banner ${index + 1}`}
-            />
-          ))}
-        </div>
       </div>
     </section>
   );
