@@ -191,8 +191,8 @@ const FlavorSelectionModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0">
-        <DialogHeader className="p-4 pb-2 border-b sticky top-0 bg-background z-10">
+      <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0 flex flex-col">
+        <DialogHeader className="p-4 pb-2 border-b bg-background shrink-0">
           <DialogTitle className="text-lg font-bold">
             Escolha seus sabores
           </DialogTitle>
@@ -202,7 +202,7 @@ const FlavorSelectionModal = ({
         </DialogHeader>
 
         {/* Progress indicator */}
-        <div className="px-4 py-3 bg-muted/50 border-b sticky top-[72px] z-10">
+        <div className="px-4 py-3 bg-muted/50 border-b shrink-0">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">
               {leaveToUs ? "Escolha da casa" : `${totalSelected} de ${packageQuantity} selecionadas`}
@@ -252,7 +252,7 @@ const FlavorSelectionModal = ({
           </div>
         </div>
 
-        <ScrollArea className="flex-1 max-h-[50vh]">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="p-4 space-y-6">
             {/* Leave to us option - Highlighted with shimmer and badge */}
             <motion.div 
@@ -378,7 +378,7 @@ const FlavorSelectionModal = ({
         </ScrollArea>
 
         {/* Footer */}
-        <div className="p-4 border-t bg-background sticky bottom-0">
+        <div className="p-4 border-t bg-background shrink-0">
           <Button
             variant="cta"
             className="w-full"
