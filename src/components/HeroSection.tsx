@@ -86,32 +86,36 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               {objectiveOptions.map((option) => (
-                <button
+              <button
                   key={option.id}
                   onClick={() => onScrollToSection(option.id)}
                   onMouseEnter={() => setHoveredOption(option.id)}
                   onMouseLeave={() => setHoveredOption(null)}
                   className={`
-                    flex-1 max-w-[280px] mx-auto sm:mx-0
+                    group flex-1 max-w-[280px] mx-auto sm:mx-0
                     flex flex-col items-center gap-1.5 
                     px-4 py-4 sm:px-5 sm:py-5 
                     rounded-xl 
                     bg-white/10 backdrop-blur-sm 
                     border border-white/20
                     transition-all duration-300 ease-out
-                    hover:bg-primary/20 hover:border-primary hover:scale-105
+                    hover:bg-primary/20 hover:border-primary 
+                    hover:scale-[1.08] hover:-translate-y-1
+                    hover:shadow-[0_0_30px_rgba(134,239,172,0.4)]
                     active:scale-95
-                    ${hoveredOption === option.id ? 'shadow-lg shadow-primary/20' : ''}
+                    ${hoveredOption === option.id ? 'shadow-[0_0_25px_rgba(134,239,172,0.3)]' : ''}
                   `}
                 >
-                  <span className="text-2xl sm:text-3xl">{option.emoji}</span>
-                  <span className="text-white font-semibold text-sm sm:text-base">
+                  <span className="text-2xl sm:text-3xl transition-transform duration-300 group-hover:scale-125 group-hover:animate-bounce">
+                    {option.emoji}
+                  </span>
+                  <span className="text-white font-semibold text-sm sm:text-base transition-colors duration-300 group-hover:text-primary">
                     {option.title}
                   </span>
                   <span className="text-white/70 text-xs sm:text-sm">
                     {option.description}
                   </span>
-                  <span className="text-primary font-bold text-xs sm:text-sm mt-1">
+                  <span className="text-primary font-bold text-xs sm:text-sm mt-1 transition-all duration-300 group-hover:scale-110">
                     {option.price}
                   </span>
                 </button>
