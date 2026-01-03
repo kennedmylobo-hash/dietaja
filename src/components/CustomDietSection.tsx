@@ -81,7 +81,7 @@ const CustomDietSection = ({ whatsappNumber }: CustomDietSectionProps) => {
             <Button
               onClick={handleWhatsAppClick}
               variant="cta"
-              size="lg"
+              size="default"
               className="gap-3"
             >
               <span>Quero montar minha dieta personalizada</span>
