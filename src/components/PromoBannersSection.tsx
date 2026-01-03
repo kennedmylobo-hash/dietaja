@@ -1,6 +1,6 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Droplets, UtensilsCrossed, Salad } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 
 const banners = [
   {
@@ -136,6 +136,9 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
 };
 
 const PromoBannersSection = () => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -143,10 +146,34 @@ const PromoBannersSection = () => {
     }
   };
 
+  // Track scroll position to update active dot
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const scrollLeft = container.scrollLeft;
+      const cardWidth = container.scrollWidth / banners.length;
+      const newIndex = Math.round(scrollLeft / cardWidth);
+      setActiveIndex(Math.min(newIndex, banners.length - 1));
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToIndex = (index: number) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const cardWidth = container.scrollWidth / banners.length;
+    container.scrollTo({ left: cardWidth * index, behavior: "smooth" });
+  };
+
   return (
     <section className="py-6 md:py-12 bg-background">
       <div className="container px-3 md:px-6">
         <motion.div
+          ref={scrollContainerRef}
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -161,6 +188,22 @@ const PromoBannersSection = () => {
             />
           ))}
         </motion.div>
+
+        {/* Navigation dots - mobile only */}
+        <div className="flex justify-center gap-2 mt-3 sm:hidden">
+          {banners.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => scrollToIndex(index)}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                index === activeIndex
+                  ? "bg-primary w-4"
+                  : "bg-muted-foreground/30"
+              }`}
+              aria-label={`Ir para banner ${index + 1}`}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );
