@@ -6,6 +6,59 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Validate Mercado Pago webhook signature
+async function validateSignature(
+  req: Request,
+  url: URL,
+  body: Record<string, unknown>,
+  webhookSecret: string
+): Promise<boolean> {
+  const xSignature = req.headers.get('x-signature');
+  const xRequestId = req.headers.get('x-request-id');
+
+  if (!xSignature || !xRequestId) {
+    console.log('Missing signature headers');
+    return false;
+  }
+
+  // Parse signature parts: ts=xxx,v1=xxx
+  const signatureParts = xSignature.split(',');
+  const ts = signatureParts.find(p => p.startsWith('ts='))?.split('=')[1];
+  const hash = signatureParts.find(p => p.startsWith('v1='))?.split('=')[1];
+
+  if (!ts || !hash) {
+    console.log('Invalid signature format');
+    return false;
+  }
+
+  // Get data.id from query params or body
+  const dataId = url.searchParams.get('data.id') || (body?.data as Record<string, unknown>)?.id || body?.id;
+
+  // Build the manifest string
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+
+  // Calculate HMAC SHA256
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(webhookSecret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(manifest));
+  const computedHash = Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  const isValid = hash === computedHash;
+  if (!isValid) {
+    console.error('Signature mismatch', { received: hash, computed: computedHash });
+  }
+
+  return isValid;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -15,7 +68,11 @@ serve(async (req) => {
   try {
     const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
     if (!mpAccessToken) {
-      throw new Error('MERCADOPAGO_ACCESS_TOKEN not configured');
+      console.error('MERCADOPAGO_ACCESS_TOKEN not configured');
+      return new Response(
+        JSON.stringify({ received: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -38,7 +95,23 @@ serve(async (req) => {
     const paymentId = id || body?.data?.id || body?.id;
     const notificationType = topic || body?.type || body?.topic;
 
-    console.log('Webhook received:', { topic: notificationType, id: paymentId, body });
+    console.log('Webhook received:', { topic: notificationType, id: paymentId });
+
+    // Validate signature if secret is configured
+    const webhookSecret = Deno.env.get('MP_WEBHOOK_SECRET');
+    if (webhookSecret) {
+      const isValid = await validateSignature(req, url, body, webhookSecret);
+      if (!isValid) {
+        console.error('Invalid webhook signature - rejecting request');
+        return new Response('Unauthorized', { 
+          status: 401, 
+          headers: corsHeaders 
+        });
+      }
+      console.log('Webhook signature validated successfully');
+    } else {
+      console.warn('MP_WEBHOOK_SECRET not configured - skipping signature validation');
+    }
 
     // Only process payment notifications
     if (notificationType !== 'payment' && notificationType !== 'merchant_order') {
@@ -69,7 +142,11 @@ serve(async (req) => {
     if (!paymentResponse.ok) {
       const errorText = await paymentResponse.text();
       console.error('Error fetching payment:', paymentResponse.status, errorText);
-      throw new Error(`Failed to fetch payment: ${paymentResponse.status}`);
+      // Return 200 to avoid MP retries for errors we can't fix
+      return new Response(
+        JSON.stringify({ received: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const payment = await paymentResponse.json();
@@ -108,7 +185,7 @@ serve(async (req) => {
       updateData.paid_at = new Date().toISOString();
     }
 
-    console.log('Updating order:', orderId, updateData);
+    console.log('Updating order:', orderId, { status: orderStatus });
 
     const { error: updateError } = await supabase
       .from('orders')
@@ -117,22 +194,25 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('Error updating order:', updateError);
-      throw new Error('Failed to update order');
+      // Return 200 to avoid MP retries
+      return new Response(
+        JSON.stringify({ received: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log('Order updated successfully:', orderId, orderStatus);
 
     return new Response(
-      JSON.stringify({ received: true, order_id: orderId, status: orderStatus }),
+      JSON.stringify({ received: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in mp-webhook:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     // Always return 200 to MP to avoid retries for errors we can't fix
     return new Response(
-      JSON.stringify({ received: true, error: errorMessage }),
+      JSON.stringify({ received: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
