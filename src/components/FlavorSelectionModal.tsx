@@ -254,21 +254,35 @@ const FlavorSelectionModal = ({
 
         <ScrollArea className="flex-1 max-h-[50vh]">
           <div className="p-4 space-y-6">
-            {/* Leave to us option */}
-            <div 
+            {/* Leave to us option - Highlighted with shimmer and badge */}
+            <motion.div 
               onClick={() => handleLeaveToUsChange(!leaveToUs)}
-              className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`relative flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all overflow-hidden ${
                 leaveToUs 
                   ? "border-primary bg-primary/10" 
-                  : "border-border bg-muted/30 hover:border-primary/50"
+                  : "border-primary/60 bg-gradient-to-r from-primary/5 to-primary/10 hover:border-primary"
               }`}
             >
+              {/* Shimmer animation overlay */}
+              {!leaveToUs && (
+                <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+              )}
+              
+              {/* Recommended badge */}
+              <div className="absolute -top-0 -right-0">
+                <div className="bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-bl-lg rounded-tr-lg uppercase tracking-wide">
+                  ⭐ Recomendado
+                </div>
+              </div>
+              
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                leaveToUs ? "border-primary bg-primary" : "border-muted-foreground"
+                leaveToUs ? "border-primary bg-primary" : "border-primary"
               }`}>
                 {leaveToUs && <Check className="w-3 h-3 text-white" />}
               </div>
-              <div className="flex-1">
+              <div className="flex-1 pr-16">
                 <span className="font-semibold text-foreground">
                   🍽️ Deixar a cargo da Dieta Já
                 </span>
@@ -276,7 +290,7 @@ const FlavorSelectionModal = ({
                   Montamos um mix variado com nossos sabores mais pedidos
                 </p>
               </div>
-            </div>
+            </motion.div>
 
             {/* Divider */}
             <div className="flex items-center gap-3">
