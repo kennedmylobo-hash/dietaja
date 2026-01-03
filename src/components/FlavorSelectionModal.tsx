@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { motion, AnimatePresence } from "framer-motion";
 
 interface FlavorSelection {
@@ -252,7 +252,7 @@ const FlavorSelectionModal = ({
           </div>
         </div>
 
-        <ScrollArea className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-4 space-y-6">
             {/* Leave to us option - Highlighted with shimmer and badge */}
             <motion.div 
@@ -375,7 +375,7 @@ const FlavorSelectionModal = ({
               );
             })}
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Footer */}
         <div className="p-4 border-t bg-background shrink-0">
