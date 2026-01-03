@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Logo from "@/components/Logo";
 import HeroSection from "@/components/HeroSection";
+import PromoBannersSection from "@/components/PromoBannersSection";
+import SideNavigation from "@/components/SideNavigation";
 import IdentificationSection from "@/components/IdentificationSection";
 import SolutionSection from "@/components/SolutionSection";
 import BeforeAfterSection from "@/components/BeforeAfterSection";
@@ -145,9 +147,13 @@ const IndexContent = () => {
           </div>
         </header>
 
+        {/* Side Navigation - appears after scrolling past Hero */}
+        <SideNavigation />
+
         {/* Main content */}
-        <main className="pt-16">
+        <main className="pt-16 lg:pl-0">
           <HeroSection onScrollToSection={scrollToSection} />
+          <PromoBannersSection />
           <IdentificationSection />
           <Suspense fallback={<TestimonialsSkeleton />}>
             <ReviewsSection />
@@ -173,7 +179,9 @@ const IndexContent = () => {
             <GuaranteeSection />
           </Suspense>
           <Suspense fallback={<FAQSkeleton />}>
-            <FAQSection onContactClick={handleContactClick} />
+            <div id="faq">
+              <FAQSection onContactClick={handleContactClick} />
+            </div>
           </Suspense>
         </main>
 
