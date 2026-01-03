@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { Droplets, UtensilsCrossed, Salad, HelpCircle } from "lucide-react";
 import { useActiveSection } from "@/hooks/useActiveSection";
 import { cn } from "@/lib/utils";
+import { hapticFeedback } from "@/lib/haptics";
 
 const navItems = [
   { id: "kits", label: "Kits Detox", icon: Droplets },
@@ -42,6 +43,7 @@ const SideNavigation = () => {
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
+      hapticFeedback("light");
       element.scrollIntoView({ behavior: "smooth" });
     }
   };
