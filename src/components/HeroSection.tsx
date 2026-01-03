@@ -21,7 +21,7 @@ const objectiveOptions = [
   {
     id: "dieta-personalizada",
     title: "Dieta Personalizada",
-    description: "Resultados garantidos",
+    description: "Montamos de acordo a sua dieta",
   },
 ];
 
