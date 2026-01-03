@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { Droplets, UtensilsCrossed, Salad, HelpCircle } from "lucide-react";
 import { useActiveSection } from "@/hooks/useActiveSection";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,14 @@ const SideNavigation = () => {
   const activeSection = useActiveSection({
     sectionIds: navItems.map((item) => item.id),
     offset: 120,
+  });
+
+  // Scroll progress
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001,
   });
 
   useEffect(() => {
@@ -48,29 +56,38 @@ const SideNavigation = () => {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -60, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed top-16 left-0 right-0 z-40 flex lg:hidden justify-around p-2 bg-card/95 backdrop-blur-md border-b border-border/50 shadow-sm"
+            className="fixed top-16 left-0 right-0 z-40 flex lg:hidden flex-col"
           >
-            {navItems.map((item) => {
-              const isActive = activeSection === item.id;
-              const Icon = item.icon;
+            {/* Navigation buttons */}
+            <div className="flex justify-around p-2 bg-card/95 backdrop-blur-md border-b border-border/50 shadow-sm">
+              {navItems.map((item) => {
+                const isActive = activeSection === item.id;
+                const Icon = item.icon;
 
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => scrollToSection(item.id)}
-                  className={cn(
-                    "flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-all duration-200",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground active:scale-95"
-                  )}
-                  aria-label={item.label}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="text-[10px] font-medium">{item.label}</span>
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => scrollToSection(item.id)}
+                    className={cn(
+                      "flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-all duration-200",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground active:scale-95"
+                    )}
+                    aria-label={item.label}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="text-[10px] font-medium">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Scroll progress bar */}
+            <motion.div
+              className="h-0.5 bg-primary origin-left"
+              style={{ scaleX }}
+            />
           </motion.nav>
 
           {/* Desktop Navigation - side menu */}
