@@ -164,6 +164,7 @@ const KitsSection = () => {
       description: j.ingredients || "",
       stock_quantity: j.stock_quantity,
       show_stock: j.show_stock,
+      low_stock_threshold: j.low_stock_threshold,
     }));
   }, [juicesData]);
 
@@ -175,6 +176,7 @@ const KitsSection = () => {
       description: s.ingredients || "",
       stock_quantity: s.stock_quantity,
       show_stock: s.show_stock,
+      low_stock_threshold: s.low_stock_threshold,
     }));
   }, [soupsData]);
 
