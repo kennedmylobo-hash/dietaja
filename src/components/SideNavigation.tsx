@@ -61,8 +61,8 @@ const SideNavigation = () => {
             className="fixed top-16 left-0 right-0 z-40 flex lg:hidden flex-col"
           >
             {/* Navigation buttons */}
-            <div className="flex justify-around p-2 bg-card/95 backdrop-blur-md border-b border-border/50 shadow-sm">
-              {navItems.map((item) => {
+            <div className="relative flex justify-around p-2 bg-card/95 backdrop-blur-md border-b border-border/50 shadow-sm">
+              {navItems.map((item, index) => {
                 const isActive = activeSection === item.id;
                 const Icon = item.icon;
 
@@ -71,15 +71,23 @@ const SideNavigation = () => {
                     key={item.id}
                     onClick={() => scrollToSection(item.id)}
                     className={cn(
-                      "flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-all duration-200",
+                      "relative flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-colors duration-200 z-10",
                       isActive
-                        ? "bg-primary text-primary-foreground"
+                        ? "text-primary-foreground"
                         : "text-muted-foreground active:scale-95"
                     )}
                     aria-label={item.label}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span className="text-[10px] font-medium">{item.label}</span>
+                    {/* Animated background indicator */}
+                    {isActive && (
+                      <motion.div
+                        layoutId="mobile-active-indicator"
+                        className="absolute inset-0 bg-primary rounded-lg"
+                        transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                      />
+                    )}
+                    <Icon className="w-4 h-4 relative z-10" />
+                    <span className="text-[10px] font-medium relative z-10">{item.label}</span>
                   </button>
                 );
               })}
@@ -112,15 +120,23 @@ const SideNavigation = () => {
                   transition={{ delay: index * 0.05 }}
                   onClick={() => scrollToSection(item.id)}
                   className={cn(
-                    "group flex flex-col items-center gap-1 p-3 rounded-xl transition-all duration-200",
+                    "group relative flex flex-col items-center gap-1 p-3 rounded-xl transition-colors duration-200",
                     isActive
-                      ? "bg-primary text-primary-foreground"
+                      ? "text-primary-foreground"
                       : "hover:bg-muted text-muted-foreground hover:text-foreground"
                   )}
                   aria-label={item.label}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="text-[10px] font-medium whitespace-nowrap">
+                  {/* Animated background indicator */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="desktop-active-indicator"
+                      className="absolute inset-0 bg-primary rounded-xl"
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    />
+                  )}
+                  <Icon className="w-5 h-5 relative z-10" />
+                  <span className="text-[10px] font-medium whitespace-nowrap relative z-10">
                     {item.label}
                   </span>
 
@@ -128,7 +144,7 @@ const SideNavigation = () => {
                   <span
                     className={cn(
                       "absolute left-full ml-3 px-2 py-1 text-xs font-medium rounded-md whitespace-nowrap",
-                      "bg-foreground text-background opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none",
+                      "bg-foreground text-background opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20",
                       isActive && "hidden"
                     )}
                   >
