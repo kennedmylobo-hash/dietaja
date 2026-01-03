@@ -1,31 +1,8 @@
-import { Star, CheckCircle2, Clock, ChevronRight } from "lucide-react";
-import { motion } from "framer-motion";
+import { Star, CheckCircle2, Clock } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import CountdownTimer from "@/components/CountdownTimer";
 
-interface HeroSectionProps {
-  onScrollToSection: (sectionId: string) => void;
-}
-
-const objectiveOptions = [
-  {
-    id: "kits",
-    title: "Kit Detox",
-    description: "Emagreça até 3kg em 3 dias",
-  },
-  {
-    id: "marmitas",
-    title: "Marmitas Saudáveis",
-    description: "Economize até R$15/refeição",
-  },
-  {
-    id: "dieta-personalizada",
-    title: "Dieta Personalizada",
-    description: "Montamos de acordo a sua dieta",
-  },
-];
-
-const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
+const HeroSection = () => {
 
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
@@ -64,51 +41,6 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
             Alimentação saudável pronta para quem tem rotina corrida em{" "}
             <strong className="text-white">Vitória da Conquista</strong>.
           </p>
-
-          {/* Objetivo - 3 Opções */}
-          <div className="mb-8 animate-fade-in">
-            <p className="text-sm sm:text-base text-white/80 mb-4 font-medium">
-              Qual é o seu objetivo?
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-              {objectiveOptions.map((option, index) => (
-                <motion.button
-                  key={option.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ 
-                    duration: 0.4, 
-                    delay: 0.3 + index * 0.15,
-                    ease: "easeOut"
-                  }}
-                  onClick={() => onScrollToSection(option.id)}
-                  className="
-                    group flex-1 max-w-[320px] mx-auto sm:mx-0
-                    flex items-center justify-between gap-3
-                    px-5 py-4 sm:px-6 sm:py-5
-                    rounded-xl
-                    bg-primary/80 backdrop-blur-md
-                    border-2 border-primary/60 shadow-lg
-                    transition-all duration-300 ease-out
-                    hover:bg-primary hover:border-white/50
-                    hover:scale-[1.03] hover:-translate-y-0.5
-                    hover:shadow-[0_0_25px_rgba(134,239,172,0.5)]
-                    active:scale-95
-                  "
-                >
-                  <div className="flex flex-col items-start text-left">
-                    <span className="text-white font-bold text-base sm:text-lg">
-                      {option.title}
-                    </span>
-                    <span className="text-white/90 text-xs sm:text-sm">
-                      {option.description}
-                    </span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-white/80 transition-transform group-hover:translate-x-1" />
-                </motion.button>
-              ))}
-            </div>
-          </div>
 
           {/* Benefícios em ícones */}
           <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-3 md:gap-6 mb-6 animate-fade-in">

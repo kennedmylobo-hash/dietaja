@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Droplets, UtensilsCrossed, Salad, Truck } from "lucide-react";
+import { Droplets, UtensilsCrossed, Salad } from "lucide-react";
 
 const banners = [
   {
@@ -28,15 +28,6 @@ const banners = [
     icon: Salad,
     gradient: "from-sage-dark/90 to-sage-dark",
     targetSection: "dieta-personalizada",
-  },
-  {
-    id: "frete",
-    title: "Retirada Grátis",
-    subtitle: "No Recreio - VCA",
-    description: "Ou entrega por R$10",
-    icon: Truck,
-    gradient: "from-muted-foreground/80 to-muted-foreground",
-    targetSection: "checkout",
   },
 ];
 
@@ -75,7 +66,7 @@ const PromoBannersSection = () => {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4"
+          className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4"
         >
           {banners.map((banner) => {
             const Icon = banner.icon;

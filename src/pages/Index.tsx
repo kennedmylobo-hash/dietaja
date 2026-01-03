@@ -152,7 +152,7 @@ const IndexContent = () => {
 
         {/* Main content */}
         <main className="pt-16 lg:pl-0">
-          <HeroSection onScrollToSection={scrollToSection} />
+          <HeroSection />
           <PromoBannersSection />
           <IdentificationSection />
           <Suspense fallback={<TestimonialsSkeleton />}>
