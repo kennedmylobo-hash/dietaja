@@ -226,21 +226,21 @@ const MarmitasSection = () => {
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
-                    {/* Badge 300g */}
-                    <div className="absolute top-3 left-3 z-10">
+                    {/* Badges container - empilhados no canto superior direito */}
+                    <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
+                      {/* Badge 300g - sempre visível, em cima */}
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-sage/90 text-white text-xs font-bold rounded-full backdrop-blur-sm">
                         <Scale className="w-3 h-3" />
                         300g
                       </span>
-                    </div>
-
-                    {marmita.popular && (
-                      <div className="absolute top-3 right-3 z-10">
+                      
+                      {/* Badge Melhor Custo-Benefício - só nos populares, abaixo */}
+                      {marmita.popular && (
                         <span className="inline-flex items-center gap-1 px-3 py-1 bg-terracotta text-white text-xs font-bold rounded-full">
                           💚 Melhor Custo-Benefício
                         </span>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                     <div className="aspect-[4/3] overflow-hidden">
                       <img
