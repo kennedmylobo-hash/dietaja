@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Star, CheckCircle2, Clock } from "lucide-react";
+import { Star, CheckCircle2, Clock, ChevronRight } from "lucide-react";
 import Lottie from "lottie-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import CountdownTimer from "@/components/CountdownTimer";
@@ -147,8 +147,9 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
                   <span className="text-white font-semibold text-sm sm:text-base transition-colors duration-300 group-hover:text-primary">
                     {option.title}
                   </span>
-                  <span className="text-white/90 text-xs sm:text-sm">
+                  <span className="text-white/90 text-xs sm:text-sm flex items-center gap-1">
                     {option.description}
+                    <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 opacity-70 transition-transform duration-300 group-hover:translate-x-1 group-hover:opacity-100" />
                   </span>
                 </button>
               ))}
