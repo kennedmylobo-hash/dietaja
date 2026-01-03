@@ -6,6 +6,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { celebrateCheckout } from "@/lib/confetti";
 import { FlavorSelection } from "./CartContext";
 
+interface FlavorDataWithStock {
+  emoji: string;
+  name: string;
+  description: string;
+  stock_quantity?: number | null;
+  show_stock?: boolean;
+}
+
 interface KitFlavorSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -16,18 +24,20 @@ interface KitFlavorSelectionModalProps {
   isLoading?: boolean;
   initialJuiceFlavors?: FlavorSelection[];
   initialSoupFlavors?: FlavorSelection[];
+  juiceFlavorsData?: FlavorDataWithStock[];
+  soupFlavorsData?: FlavorDataWithStock[];
 }
 
-// Juice flavors with their info
-const juiceFlavors = [
+// Default juice flavors with their info
+const defaultJuiceFlavors: FlavorDataWithStock[] = [
   { emoji: "🟢", name: "Suco Verde", description: "abacaxi, couve e gengibre" },
   { emoji: "🩷", name: "Suco Rosa", description: "melancia com hortelã" },
   { emoji: "🟡", name: "Suco Amarelo", description: "manga com cenoura" },
   { emoji: "🔴", name: "Suco Vermelho", description: "morango com hortelã" },
 ];
 
-// Soup flavors with their info
-const soupFlavors = [
+// Default soup flavors with their info
+const defaultSoupFlavors: FlavorDataWithStock[] = [
   { emoji: "🟠", name: "Sopa de Abóbora", description: "termogênica com gengibre" },
   { emoji: "⚪", name: "Sopa de Aipim", description: "cremoso com alho-poró" },
   { emoji: "🟢", name: "Sopa de Batata-doce", description: "com couve e chuchu" },
@@ -43,7 +53,12 @@ const KitFlavorSelectionModal = ({
   isLoading = false,
   initialJuiceFlavors = [],
   initialSoupFlavors = [],
+  juiceFlavorsData,
+  soupFlavorsData,
 }: KitFlavorSelectionModalProps) => {
+  // Use provided flavors or fallback to defaults
+  const juiceFlavors = juiceFlavorsData || defaultJuiceFlavors;
+  const soupFlavors = soupFlavorsData || defaultSoupFlavors;
   // Initialize juice selections
   const initJuiceSelections = (): Record<string, number> => {
     const selections: Record<string, number> = {};
@@ -83,18 +98,20 @@ const KitFlavorSelectionModal = ({
   const isSoupsOverLimit = totalSoupsSelected > soupQuantity;
 
   const updateJuiceQuantity = (flavor: string, delta: number) => {
+    const flavorData = juiceFlavors.find(f => f.name === flavor);
+    const maxStock = flavorData?.stock_quantity ?? Infinity;
+    
     setJuiceSelections((prev) => {
       const current = prev[flavor] || 0;
       const newValue = Math.max(0, current + delta);
       
-      // Prevent exceeding limit
+      // Prevent exceeding limit or stock
       const otherTotal = Object.entries(prev)
         .filter(([name]) => name !== flavor)
         .reduce((sum, [_, qty]) => sum + qty, 0);
       
-      if (otherTotal + newValue > juiceQuantity) {
-        return prev; // Don't update if it would exceed limit
-      }
+      if (otherTotal + newValue > juiceQuantity) return prev;
+      if (newValue > maxStock) return prev;
       
       return { ...prev, [flavor]: newValue };
     });
@@ -102,18 +119,20 @@ const KitFlavorSelectionModal = ({
   };
 
   const updateSoupQuantity = (flavor: string, delta: number) => {
+    const flavorData = soupFlavors.find(f => f.name === flavor);
+    const maxStock = flavorData?.stock_quantity ?? Infinity;
+    
     setSoupSelections((prev) => {
       const current = prev[flavor] || 0;
       const newValue = Math.max(0, current + delta);
       
-      // Prevent exceeding limit
+      // Prevent exceeding limit or stock
       const otherTotal = Object.entries(prev)
         .filter(([name]) => name !== flavor)
         .reduce((sum, [_, qty]) => sum + qty, 0);
       
-      if (otherTotal + newValue > soupQuantity) {
-        return prev; // Don't update if it would exceed limit
-      }
+      if (otherTotal + newValue > soupQuantity) return prev;
+      if (newValue > maxStock) return prev;
       
       return { ...prev, [flavor]: newValue };
     });
@@ -300,11 +319,17 @@ const KitFlavorSelectionModal = ({
                   <div className="space-y-2">
                     {juiceFlavors.map((flavor) => {
                       const qty = juiceSelections[flavor.name] || 0;
+                      const hasLowStock = flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && flavor.stock_quantity < 5;
+                      const isOutOfStock = flavor.show_stock && flavor.stock_quantity === 0;
+                      const maxReached = flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && qty >= flavor.stock_quantity;
+                      
                       return (
                         <div
                           key={flavor.name}
                           className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${
-                            qty > 0 ? "bg-primary/5 border-primary/30" : "bg-muted/30 border-transparent"
+                            isOutOfStock
+                              ? "bg-destructive/5 border-destructive/30 opacity-60"
+                              : qty > 0 ? "bg-primary/5 border-primary/30" : "bg-muted/30 border-transparent"
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -312,6 +337,14 @@ const KitFlavorSelectionModal = ({
                             <div>
                               <span className="text-sm font-medium text-foreground">{flavor.name}</span>
                               <span className="text-xs text-muted-foreground block">{flavor.description}</span>
+                              {hasLowStock && !isOutOfStock && (
+                                <span className="text-xs text-destructive font-medium animate-pulse">
+                                  🔥 Apenas {flavor.stock_quantity} disponíveis
+                                </span>
+                              )}
+                              {isOutOfStock && (
+                                <span className="text-xs text-destructive font-medium">Esgotado</span>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -327,7 +360,12 @@ const KitFlavorSelectionModal = ({
                             <button
                               type="button"
                               onClick={() => updateJuiceQuantity(flavor.name, 1)}
-                              className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center hover:bg-primary/30 transition-colors"
+                              disabled={isOutOfStock || maxReached}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                                isOutOfStock || maxReached
+                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                  : "bg-primary/20 text-primary hover:bg-primary/30"
+                              }`}
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -349,11 +387,17 @@ const KitFlavorSelectionModal = ({
                   <div className="space-y-2">
                     {soupFlavors.map((flavor) => {
                       const qty = soupSelections[flavor.name] || 0;
+                      const hasLowStock = flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && flavor.stock_quantity < 5;
+                      const isOutOfStock = flavor.show_stock && flavor.stock_quantity === 0;
+                      const maxReached = flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && qty >= flavor.stock_quantity;
+                      
                       return (
                         <div
                           key={flavor.name}
                           className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${
-                            qty > 0 ? "bg-terracotta/5 border-terracotta/30" : "bg-muted/30 border-transparent"
+                            isOutOfStock
+                              ? "bg-destructive/5 border-destructive/30 opacity-60"
+                              : qty > 0 ? "bg-terracotta/5 border-terracotta/30" : "bg-muted/30 border-transparent"
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -361,6 +405,14 @@ const KitFlavorSelectionModal = ({
                             <div>
                               <span className="text-sm font-medium text-foreground">{flavor.name}</span>
                               <span className="text-xs text-muted-foreground block">{flavor.description}</span>
+                              {hasLowStock && !isOutOfStock && (
+                                <span className="text-xs text-destructive font-medium animate-pulse">
+                                  🔥 Apenas {flavor.stock_quantity} disponíveis
+                                </span>
+                              )}
+                              {isOutOfStock && (
+                                <span className="text-xs text-destructive font-medium">Esgotado</span>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -376,7 +428,12 @@ const KitFlavorSelectionModal = ({
                             <button
                               type="button"
                               onClick={() => updateSoupQuantity(flavor.name, 1)}
-                              className="w-7 h-7 rounded-full bg-terracotta/20 text-terracotta flex items-center justify-center hover:bg-terracotta/30 transition-colors"
+                              disabled={isOutOfStock || maxReached}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                                isOutOfStock || maxReached
+                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                  : "bg-terracotta/20 text-terracotta hover:bg-terracotta/30"
+                              }`}
                             >
                               <Plus className="w-3 h-3" />
                             </button>

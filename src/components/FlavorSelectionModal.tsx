@@ -17,6 +17,12 @@ interface FlavorCategory {
   flavors: string[];
 }
 
+interface FlavorData {
+  name: string;
+  stock_quantity: number | null;
+  show_stock: boolean;
+}
+
 interface FlavorSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -25,6 +31,7 @@ interface FlavorSelectionModalProps {
   packageQuantity: number;
   isLoading?: boolean;
   flavorsByCategory?: FlavorCategory[];
+  flavorStockData?: FlavorData[];
 }
 
 // Default fallback flavors
@@ -81,12 +88,18 @@ const FlavorSelectionModal = ({
   packageQuantity,
   isLoading = false,
   flavorsByCategory,
+  flavorStockData = [],
 }: FlavorSelectionModalProps) => {
   const [selections, setSelections] = useState<Record<string, number>>({});
   const [leaveToUs, setLeaveToUs] = useState(false);
 
   // Use provided flavors or fallback to defaults
   const flavorCategories = flavorsByCategory || defaultFlavorCategories;
+
+  // Helper to get stock data for a flavor
+  const getFlavorStock = (flavorName: string): FlavorData | undefined => {
+    return flavorStockData.find(f => f.name === flavorName);
+  };
 
   const totalSelected = useMemo(() => {
     return Object.values(selections).reduce((sum, qty) => sum + qty, 0);
@@ -100,6 +113,9 @@ const FlavorSelectionModal = ({
     // Disable manual selection if "leave to us" is checked
     if (leaveToUs) return;
     
+    const stockData = getFlavorStock(flavor);
+    const maxStock = stockData?.stock_quantity ?? Infinity;
+    
     setSelections((prev) => {
       const current = prev[flavor] || 0;
       const newValue = current + delta;
@@ -109,9 +125,10 @@ const FlavorSelectionModal = ({
         return rest;
       }
       
-      // Don't allow adding more if already at limit
-      if (delta > 0 && remaining <= 0) {
-        return prev;
+      // Don't allow adding more if already at limit or stock limit
+      if (delta > 0) {
+        if (remaining <= 0) return prev;
+        if (newValue > maxStock) return prev;
       }
       
       return { ...prev, [flavor]: newValue };
@@ -307,19 +324,37 @@ const FlavorSelectionModal = ({
                     {category.flavors.map((flavor) => {
                       const qty = selections[flavor] || 0;
                       const isSelected = qty > 0;
+                      const stockData = getFlavorStock(flavor);
+                      const hasLowStock = stockData?.show_stock && stockData.stock_quantity !== null && stockData.stock_quantity < 5;
+                      const isOutOfStock = stockData?.show_stock && stockData.stock_quantity === 0;
+                      const maxReached = stockData?.stock_quantity !== null && qty >= (stockData?.stock_quantity ?? Infinity);
                       
                       return (
                         <div
                           key={flavor}
                           className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
-                            isSelected
+                            isOutOfStock
+                              ? "border-destructive/30 bg-destructive/5 opacity-60"
+                              : isSelected
                               ? "border-terracotta bg-terracotta-light/30"
                               : "border-border bg-background hover:border-terracotta/30"
                           }`}
                         >
-                          <span className={`text-sm ${isSelected ? "font-medium text-foreground" : "text-muted-foreground"}`}>
-                            {flavor}
-                          </span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className={`text-sm ${isSelected ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                              {flavor}
+                            </span>
+                            {hasLowStock && !isOutOfStock && (
+                              <span className="text-xs text-destructive font-medium animate-pulse">
+                                🔥 Apenas {stockData.stock_quantity} disponíveis
+                              </span>
+                            )}
+                            {isOutOfStock && (
+                              <span className="text-xs text-destructive font-medium">
+                                Esgotado
+                              </span>
+                            )}
+                          </div>
                           
                           <div className="flex items-center gap-2">
                             {isSelected && (
@@ -345,9 +380,9 @@ const FlavorSelectionModal = ({
                             
                             <button
                               onClick={() => updateQuantity(flavor, 1)}
-                              disabled={remaining <= 0 && !isSelected}
+                              disabled={(remaining <= 0 && !isSelected) || isOutOfStock || maxReached}
                               className={`p-1.5 rounded-full transition-colors ${
-                                remaining <= 0 && !isSelected
+                                (remaining <= 0 && !isSelected) || isOutOfStock || maxReached
                                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                                   : "bg-terracotta hover:bg-terracotta/90 text-white"
                               }`}

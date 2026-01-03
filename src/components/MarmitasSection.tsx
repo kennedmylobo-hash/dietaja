@@ -108,6 +108,16 @@ const MarmitasSection = () => {
     })).filter(cat => cat.flavors.length > 0);
   }, [flavorsData]);
 
+  // Extract stock data for modal
+  const flavorStockData = useMemo(() => {
+    if (!flavorsData) return [];
+    return flavorsData.map(f => ({
+      name: f.name,
+      stock_quantity: f.stock_quantity,
+      show_stock: f.show_stock,
+    }));
+  }, [flavorsData]);
+
   // Group flavors by category for display
   const saboresCarnes = useMemo(() => 
     flavorsData?.filter(f => f.category === 'carnes').map(f => f.name) || [], [flavorsData]);
@@ -445,6 +455,7 @@ const MarmitasSection = () => {
           packageQuantity={selectedMarmita?.quantity || 0}
           isLoading={loadingMarmita !== null}
           flavorsByCategory={flavorsByCategory}
+          flavorStockData={flavorStockData}
         />
       </div>
     </section>
