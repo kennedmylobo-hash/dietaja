@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, MessageCircle, ShoppingBag, Loader2, ArrowLeft, Smartphone, Pencil } from "lucide-react";
 import { useCart, CartItem, FlavorSelection } from "./CartContext";
 import { hapticFeedback } from "@/lib/haptics";
@@ -16,6 +17,7 @@ import { getUTMParams } from "@/lib/utm";
 import { useNavigate } from "react-router-dom";
 import FlavorSelectionModal from "./FlavorSelectionModal";
 import KitFlavorSelectionModal from "./KitFlavorSelectionModal";
+import { toast } from "@/hooks/use-toast";
 
 const WHATSAPP_NUMBER = "5577991001658";
 
@@ -33,6 +35,7 @@ const formSchema = z.object({
   phone: z.string().min(10, "Telefone inválido").max(15),
   deliveryOption: z.enum(["pickup", "delivery"]),
   address: z.string().optional(),
+  saveData: z.boolean().optional(),
 }).refine((data) => {
   if (data.deliveryOption === "delivery" && (!data.address || data.address.length < 10)) {
     return false;
@@ -55,6 +58,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const { items, removeItem, updateItemFlavors, getTotal, clearCart } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout'>('cart');
   const [isLoading, setIsLoading] = useState(false);
+  const [saveData, setSaveData] = useState(false);
   const [editingMarmita, setEditingMarmita] = useState<CartItem | null>(null);
   const [editingKit, setEditingKit] = useState<CartItem | null>(null);
   const navigate = useNavigate();
@@ -72,6 +76,36 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     juices: days * 4,
     soups: days * 2,
   });
+
+  const createCustomerAccount = async (data: FormData) => {
+    if (!saveData) return;
+    
+    try {
+      const { data: response, error } = await supabase.functions.invoke('create-customer-account', {
+        body: {
+          email: data.email,
+          name: data.name,
+          phone: data.phone,
+          deliveryOption: data.deliveryOption,
+          address: data.address,
+        },
+      });
+
+      if (error) {
+        console.error('Error creating account:', error);
+        return;
+      }
+
+      if (response?.success) {
+        toast({
+          title: response.isExisting ? "Dados atualizados!" : "Conta criada!",
+          description: "Enviamos um link de acesso para seu email.",
+        });
+      }
+    } catch (error) {
+      console.error('Error creating customer account:', error);
+    }
+  };
 
   const {
     register,
@@ -93,6 +127,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
 
   const handleProceedToCheckout = () => {
     hapticFeedback('light');
+    setSaveData(false); // Reset checkbox
     setStep('checkout');
   };
 
@@ -103,6 +138,9 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const handlePixPayment = async (data: FormData) => {
     setIsLoading(true);
     hapticFeedback('medium');
+
+    // Create account if checkbox is checked
+    await createCustomerAccount(data);
 
     // Track InitiateCheckout
     if (typeof window !== 'undefined' && window.fbq) {
@@ -152,9 +190,12 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     }
   };
 
-  const handleWhatsApp = (data: FormData) => {
+  const handleWhatsApp = async (data: FormData) => {
     hapticFeedback('medium');
     celebrateCheckout();
+
+    // Create account if checkbox is checked
+    await createCustomerAccount(data);
 
     // Build WhatsApp message with flavors
     const itemsList = items
@@ -453,6 +494,22 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     )}
                   </div>
                 )}
+
+                {/* Save data checkbox */}
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <Checkbox
+                    id="drawer-saveData"
+                    checked={saveData}
+                    onCheckedChange={(checked) => setSaveData(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <Label htmlFor="drawer-saveData" className="text-sm cursor-pointer leading-relaxed">
+                    <span className="font-medium">Salvar meus dados para próximas compras</span>
+                    <span className="text-muted-foreground block text-xs mt-0.5">
+                      Criaremos uma conta e enviaremos um link de acesso para seu email
+                    </span>
+                  </Label>
+                </div>
 
                 {/* Order summary */}
                 <div className="pt-3 border-t border-border">
