@@ -120,14 +120,14 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
                     flex flex-col items-center gap-1.5 
                     px-4 py-4 sm:px-5 sm:py-5 
                     rounded-xl 
-                    bg-white/10 backdrop-blur-sm 
-                    border border-white/20
+                    bg-primary/70 backdrop-blur-md 
+                    border border-primary/40 shadow-lg
                     transition-all duration-300 ease-out
-                    hover:bg-primary/20 hover:border-primary 
+                    hover:bg-primary/90 hover:border-primary 
                     hover:scale-[1.08] hover:-translate-y-1
-                    hover:shadow-[0_0_30px_rgba(134,239,172,0.4)]
+                    hover:shadow-[0_0_30px_rgba(134,239,172,0.5)]
                     active:scale-95
-                    ${hoveredOption === option.id ? 'shadow-[0_0_25px_rgba(134,239,172,0.3)]' : ''}
+                    ${hoveredOption === option.id ? 'shadow-[0_0_25px_rgba(134,239,172,0.4)]' : ''}
                   `}
                 >
                   <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
@@ -147,7 +147,7 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
                   <span className="text-white font-semibold text-sm sm:text-base transition-colors duration-300 group-hover:text-primary">
                     {option.title}
                   </span>
-                  <span className="text-white/70 text-xs sm:text-sm">
+                  <span className="text-white/90 text-xs sm:text-sm">
                     {option.description}
                   </span>
                 </button>
