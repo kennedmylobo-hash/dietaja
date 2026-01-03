@@ -68,7 +68,9 @@ export type Database = {
           id: string
           ingredients: string | null
           name: string
+          show_stock: boolean
           sort_order: number
+          stock_quantity: number | null
         }
         Insert: {
           active?: boolean
@@ -78,7 +80,9 @@ export type Database = {
           id?: string
           ingredients?: string | null
           name: string
+          show_stock?: boolean
           sort_order?: number
+          stock_quantity?: number | null
         }
         Update: {
           active?: boolean
@@ -88,7 +92,9 @@ export type Database = {
           id?: string
           ingredients?: string | null
           name?: string
+          show_stock?: boolean
           sort_order?: number
+          stock_quantity?: number | null
         }
         Relationships: []
       }
@@ -143,7 +149,9 @@ export type Database = {
           id: string
           ingredients: string | null
           name: string
+          show_stock: boolean
           sort_order: number
+          stock_quantity: number | null
         }
         Insert: {
           active?: boolean
@@ -153,7 +161,9 @@ export type Database = {
           id?: string
           ingredients?: string | null
           name: string
+          show_stock?: boolean
           sort_order?: number
+          stock_quantity?: number | null
         }
         Update: {
           active?: boolean
@@ -163,7 +173,9 @@ export type Database = {
           id?: string
           ingredients?: string | null
           name?: string
+          show_stock?: boolean
           sort_order?: number
+          stock_quantity?: number | null
         }
         Relationships: []
       }
@@ -231,7 +243,9 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          show_stock: boolean
           sort_order: number
+          stock_quantity: number | null
         }
         Insert: {
           active?: boolean
@@ -239,7 +253,9 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          show_stock?: boolean
           sort_order?: number
+          stock_quantity?: number | null
         }
         Update: {
           active?: boolean
@@ -247,7 +263,9 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          show_stock?: boolean
           sort_order?: number
+          stock_quantity?: number | null
         }
         Relationships: []
       }

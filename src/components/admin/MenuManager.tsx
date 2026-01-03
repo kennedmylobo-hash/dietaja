@@ -51,6 +51,8 @@ interface MarmitaFlavor {
   category: string;
   active: boolean;
   sort_order: number;
+  stock_quantity: number | null;
+  show_stock: boolean;
 }
 
 interface KitPackage {
@@ -73,6 +75,8 @@ interface KitSoup {
   benefit: string | null;
   active: boolean;
   sort_order: number;
+  stock_quantity: number | null;
+  show_stock: boolean;
 }
 
 interface KitJuice {
@@ -83,6 +87,8 @@ interface KitJuice {
   benefit: string | null;
   active: boolean;
   sort_order: number;
+  stock_quantity: number | null;
+  show_stock: boolean;
 }
 
 const MenuManager = () => {
@@ -223,6 +229,8 @@ const MenuManager = () => {
             name: flavor.name,
             category: flavor.category,
             active: flavor.active,
+            stock_quantity: flavor.stock_quantity,
+            show_stock: flavor.show_stock,
           })
           .eq('id', flavor.id);
         
@@ -319,6 +327,8 @@ const MenuManager = () => {
             ingredients: soup.ingredients,
             benefit: soup.benefit,
             active: soup.active,
+            stock_quantity: soup.stock_quantity,
+            show_stock: soup.show_stock,
           })
           .eq('id', soup.id);
         
@@ -355,6 +365,8 @@ const MenuManager = () => {
             ingredients: juice.ingredients,
             benefit: juice.benefit,
             active: juice.active,
+            stock_quantity: juice.stock_quantity,
+            show_stock: juice.show_stock,
           })
           .eq('id', juice.id);
         
@@ -531,6 +543,28 @@ const MenuManager = () => {
                             onChange={(e) => updateMarmitaFlavor(flavor.id, 'name', e.target.value)}
                             className="flex-1 h-8"
                           />
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              placeholder="∞"
+                              value={flavor.stock_quantity ?? ''}
+                              onChange={(e) => updateMarmitaFlavor(flavor.id, 'stock_quantity', e.target.value === '' ? null : parseInt(e.target.value))}
+                              className="w-16 h-8 text-center"
+                              min={0}
+                            />
+                            <div className="flex items-center gap-1">
+                              <Switch
+                                checked={flavor.show_stock}
+                                onCheckedChange={(checked) => updateMarmitaFlavor(flavor.id, 'show_stock', checked)}
+                              />
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">Mostrar</span>
+                            </div>
+                            {flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity < 5 && (
+                              <Badge variant="destructive" className="text-[10px] px-1.5">
+                                {flavor.stock_quantity === 0 ? 'Esgotado' : `${flavor.stock_quantity}`}
+                              </Badge>
+                            )}
+                          </div>
                           <Switch
                             checked={flavor.active}
                             onCheckedChange={(checked) => updateMarmitaFlavor(flavor.id, 'active', checked)}
@@ -637,7 +671,7 @@ const MenuManager = () => {
             <CardContent className="space-y-3">
               {kitSoups.map((soup) => (
                 <div key={soup.id} className={`p-3 rounded-lg border ${soup.active ? 'bg-card' : 'bg-muted/50 opacity-60'}`}>
-                  <div className="grid gap-3 sm:grid-cols-[60px_1fr_1fr_80px_60px]">
+                  <div className="grid gap-3 sm:grid-cols-[60px_1fr_1fr_80px_auto_60px]">
                     <Input
                       value={soup.emoji}
                       onChange={(e) => updateKitSoup(soup.id, 'emoji', e.target.value)}
@@ -659,6 +693,28 @@ const MenuManager = () => {
                       onChange={(e) => updateKitSoup(soup.id, 'benefit', e.target.value)}
                       placeholder="Benefício"
                     />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="∞"
+                        value={soup.stock_quantity ?? ''}
+                        onChange={(e) => updateKitSoup(soup.id, 'stock_quantity', e.target.value === '' ? null : parseInt(e.target.value))}
+                        className="w-14 text-center"
+                        min={0}
+                      />
+                      <div className="flex items-center gap-1">
+                        <Switch
+                          checked={soup.show_stock}
+                          onCheckedChange={(checked) => updateKitSoup(soup.id, 'show_stock', checked)}
+                        />
+                        <span className="text-xs text-muted-foreground">Exibir</span>
+                      </div>
+                      {soup.show_stock && soup.stock_quantity !== null && soup.stock_quantity < 5 && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          {soup.stock_quantity === 0 ? 'Esgotado' : soup.stock_quantity}
+                        </Badge>
+                      )}
+                    </div>
                     <div className="flex items-center justify-center">
                       <Switch
                         checked={soup.active}
@@ -683,7 +739,7 @@ const MenuManager = () => {
             <CardContent className="space-y-3">
               {kitJuices.map((juice) => (
                 <div key={juice.id} className={`p-3 rounded-lg border ${juice.active ? 'bg-card' : 'bg-muted/50 opacity-60'}`}>
-                  <div className="grid gap-3 sm:grid-cols-[60px_1fr_1fr_80px_60px]">
+                  <div className="grid gap-3 sm:grid-cols-[60px_1fr_1fr_80px_auto_60px]">
                     <Input
                       value={juice.emoji}
                       onChange={(e) => updateKitJuice(juice.id, 'emoji', e.target.value)}
@@ -705,6 +761,28 @@ const MenuManager = () => {
                       onChange={(e) => updateKitJuice(juice.id, 'benefit', e.target.value)}
                       placeholder="Benefício"
                     />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="∞"
+                        value={juice.stock_quantity ?? ''}
+                        onChange={(e) => updateKitJuice(juice.id, 'stock_quantity', e.target.value === '' ? null : parseInt(e.target.value))}
+                        className="w-14 text-center"
+                        min={0}
+                      />
+                      <div className="flex items-center gap-1">
+                        <Switch
+                          checked={juice.show_stock}
+                          onCheckedChange={(checked) => updateKitJuice(juice.id, 'show_stock', checked)}
+                        />
+                        <span className="text-xs text-muted-foreground">Exibir</span>
+                      </div>
+                      {juice.show_stock && juice.stock_quantity !== null && juice.stock_quantity < 5 && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          {juice.stock_quantity === 0 ? 'Esgotado' : juice.stock_quantity}
+                        </Badge>
+                      )}
+                    </div>
                     <div className="flex items-center justify-center">
                       <Switch
                         checked={juice.active}

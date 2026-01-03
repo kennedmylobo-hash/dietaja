@@ -155,6 +155,29 @@ const KitsSection = () => {
     }));
   }, [juicesData]);
 
+  // Prepare flavor data for modal with stock info
+  const juiceFlavorsData = useMemo(() => {
+    if (!juicesData || juicesData.length === 0) return undefined;
+    return juicesData.map(j => ({
+      emoji: j.emoji,
+      name: j.name,
+      description: j.ingredients || "",
+      stock_quantity: j.stock_quantity,
+      show_stock: j.show_stock,
+    }));
+  }, [juicesData]);
+
+  const soupFlavorsData = useMemo(() => {
+    if (!soupsData || soupsData.length === 0) return undefined;
+    return soupsData.map(s => ({
+      emoji: s.emoji,
+      name: `Sopa de ${s.name}`,
+      description: s.ingredients || "",
+      stock_quantity: s.stock_quantity,
+      show_stock: s.show_stock,
+    }));
+  }, [soupsData]);
+
   // Calculate quantities based on kit days
   const getKitQuantities = (days: number) => ({
     juices: days * 4,  // 4 juices per day
@@ -475,6 +498,8 @@ const KitsSection = () => {
           juiceQuantity={getKitQuantities(selectedKit.days).juices}
           soupQuantity={getKitQuantities(selectedKit.days).soups}
           isLoading={loadingKit === selectedKit.id}
+          juiceFlavorsData={juiceFlavorsData}
+          soupFlavorsData={soupFlavorsData}
         />
       )}
     </section>
