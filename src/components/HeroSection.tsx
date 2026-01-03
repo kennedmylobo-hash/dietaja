@@ -20,7 +20,7 @@ const objectiveOptions = [
     id: "kits",
     emoji: "🧃",
     title: "Kit Detox",
-    description: "Sucos e sopas funcionais",
+    description: "Emagreça até 3kg em 3 dias",
     lottieKey: "detox" as const,
   },
   {
@@ -116,9 +116,9 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
                   onMouseEnter={() => setHoveredOption(option.id)}
                   onMouseLeave={() => setHoveredOption(null)}
                   className={`
-                    group flex-1 max-w-[280px] mx-auto sm:mx-0
+                    group relative flex-1 max-w-[280px] mx-auto sm:mx-0
                     flex flex-col items-center gap-1.5 
-                    px-4 py-4 sm:px-5 sm:py-5 
+                    px-4 py-4 pb-7 sm:px-5 sm:py-5 sm:pb-8 
                     rounded-xl 
                     bg-primary/70 backdrop-blur-md 
                     border border-primary/40 shadow-lg
@@ -150,6 +150,9 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
                   <span className="text-white/90 text-xs sm:text-sm flex items-center gap-1">
                     {option.description}
                     <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 opacity-70 transition-transform duration-300 group-hover:translate-x-1 group-hover:opacity-100" />
+                  </span>
+                  <span className="absolute bottom-2 text-[10px] text-white/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    Clique para ver →
                   </span>
                 </button>
               ))}
