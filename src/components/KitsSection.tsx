@@ -1,5 +1,5 @@
 import { motion, useInView } from "framer-motion";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, ShoppingCart, HelpCircle, Loader2, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { hapticFeedback } from "@/lib/haptics";
 import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
 import { CarouselDots } from "./CarouselDots";
+import { useKitPackages, useKitSoups, useKitJuices } from "@/hooks/useMenuData";
 import {
   Carousel,
   CarouselContent,
@@ -29,7 +30,8 @@ interface Kit {
   popular?: boolean;
 }
 
-const kits: Kit[] = [
+// Default fallback data
+const defaultKits: Kit[] = [
   {
     id: "3-dias",
     name: "Kit Detox 3 Dias",
@@ -73,18 +75,19 @@ const kits: Kit[] = [
   },
 ];
 
-const sopas = [
-  { emoji: "🟠", nome: "Abóbora termogênica", ingredientes: "com gengibre", beneficio: "termogênico" },
-  { emoji: "⚪", nome: "Aipim cremoso", ingredientes: "com alho-poró", beneficio: "digestivo" },
-  { emoji: "🟢", nome: "Batata-doce", ingredientes: "com couve e chuchu", beneficio: "energético" },
-];
+interface SopaDisplay {
+  emoji: string;
+  nome: string;
+  ingredientes: string;
+  beneficio: string;
+}
 
-const sucos = [
-  { emoji: "🟢", nome: "Verde", ingredientes: "abacaxi, couve e gengibre", beneficio: "detox" },
-  { emoji: "🩷", nome: "Rosa", ingredientes: "melancia com hortelã", beneficio: "hidratante" },
-  { emoji: "🟡", nome: "Amarelo", ingredientes: "manga com cenoura", beneficio: "antioxidante" },
-  { emoji: "🔴", nome: "Vermelho", ingredientes: "morango com hortelã", beneficio: "vitamina C" },
-];
+interface SucoDisplay {
+  emoji: string;
+  nome: string;
+  ingredientes: string;
+  beneficio: string;
+}
 
 const KitsSection = () => {
   const ref = useRef<HTMLElement>(null);
@@ -95,6 +98,62 @@ const KitsSection = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedKit, setSelectedKit] = useState<Kit | null>(null);
   const [flavorModalOpen, setFlavorModalOpen] = useState(false);
+
+  // Fetch data from database
+  const { data: kitsData } = useKitPackages();
+  const { data: soupsData } = useKitSoups();
+  const { data: juicesData } = useKitJuices();
+
+  // Transform database data to component format
+  const kits = useMemo<Kit[]>(() => {
+    if (!kitsData || kitsData.length === 0) return defaultKits;
+    
+    return kitsData.map(kit => ({
+      id: `${kit.days}-dias`,
+      name: kit.name,
+      days: kit.days,
+      price: Number(kit.price),
+      pricePerDay: Number(kit.price) / kit.days,
+      description: kit.description || "",
+      features: kit.features || [],
+      popular: kit.popular,
+    }));
+  }, [kitsData]);
+
+  const sopas = useMemo<SopaDisplay[]>(() => {
+    if (!soupsData || soupsData.length === 0) {
+      return [
+        { emoji: "🟠", nome: "Abóbora termogênica", ingredientes: "com gengibre", beneficio: "termogênico" },
+        { emoji: "⚪", nome: "Aipim cremoso", ingredientes: "com alho-poró", beneficio: "digestivo" },
+        { emoji: "🟢", nome: "Batata-doce", ingredientes: "com couve e chuchu", beneficio: "energético" },
+      ];
+    }
+    
+    return soupsData.map(s => ({
+      emoji: s.emoji,
+      nome: s.name,
+      ingredientes: s.ingredients || "",
+      beneficio: s.benefit || "",
+    }));
+  }, [soupsData]);
+
+  const sucos = useMemo<SucoDisplay[]>(() => {
+    if (!juicesData || juicesData.length === 0) {
+      return [
+        { emoji: "🟢", nome: "Verde", ingredientes: "abacaxi, couve e gengibre", beneficio: "detox" },
+        { emoji: "🩷", nome: "Rosa", ingredientes: "melancia com hortelã", beneficio: "hidratante" },
+        { emoji: "🟡", nome: "Amarelo", ingredientes: "manga com cenoura", beneficio: "antioxidante" },
+        { emoji: "🔴", nome: "Vermelho", ingredientes: "morango com hortelã", beneficio: "vitamina C" },
+      ];
+    }
+    
+    return juicesData.map(j => ({
+      emoji: j.emoji,
+      nome: j.name,
+      ingredientes: j.ingredients || "",
+      beneficio: j.benefit || "",
+    }));
+  }, [juicesData]);
 
   // Calculate quantities based on kit days
   const getKitQuantities = (days: number) => ({
@@ -316,7 +375,7 @@ const KitsSection = () => {
                         Ver cardápio completo
                       </span>
                       <span className="block text-xs text-muted-foreground">
-                        3 sopas + 4 sucos funcionais
+                        {sopas.length} sopas + {sucos.length} sucos funcionais
                       </span>
                     </div>
                   </div>
@@ -331,7 +390,7 @@ const KitsSection = () => {
                     <div>
                       <h4 className="font-medium text-foreground mb-2 flex items-center gap-2 text-sm">
                         🍲 Sopas Funcionais
-                        <span className="text-xs font-normal text-muted-foreground">(3 sabores)</span>
+                        <span className="text-xs font-normal text-muted-foreground">({sopas.length} sabores)</span>
                       </h4>
                       <ul className="space-y-1.5">
                         {sopas.map((sopa) => (
@@ -355,7 +414,7 @@ const KitsSection = () => {
                     <div>
                       <h4 className="font-medium text-foreground mb-2 flex items-center gap-2 text-sm">
                         🧃 Sucos Detox
-                        <span className="text-xs font-normal text-muted-foreground">(4 sabores)</span>
+                        <span className="text-xs font-normal text-muted-foreground">({sucos.length} sabores)</span>
                       </h4>
                       <ul className="space-y-1.5">
                         {sucos.map((suco) => (

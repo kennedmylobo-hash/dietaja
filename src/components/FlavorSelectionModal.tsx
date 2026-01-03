@@ -11,6 +11,12 @@ interface FlavorSelection {
   category: string;
 }
 
+interface FlavorCategory {
+  id: string;
+  name: string;
+  flavors: string[];
+}
+
 interface FlavorSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -18,79 +24,54 @@ interface FlavorSelectionModalProps {
   packageName: string;
   packageQuantity: number;
   isLoading?: boolean;
+  flavorsByCategory?: FlavorCategory[];
 }
 
-// Sabores organizados por categoria
-const flavorCategories = [
+// Default fallback flavors
+const defaultFlavorCategories: FlavorCategory[] = [
   {
     id: "carnes",
     name: "Carnes",
-    icon: Beef,
-    color: "red",
     flavors: [
       "Almôndegas com Espaguete",
-      "Almôndegas de Carne com Lascas de Abóbora",
       "Carne Desfiada com Arroz à Grega e Purê de Abóbora",
-      "Carne Desfiada com Arroz Branco e Purê de Abóbora",
-      "Carne do Sol com Baião de Dois e Aipim",
       "Carne Moída com Arroz Branco e Feijão Carioca",
-      "Carne Moída com Arroz Branco e Feijão Preto",
-      "Carne Moída com Arroz Integral e Feijão Carioca",
       "Estrogonofe de Carne com Arroz Branco",
-      "Estrogonofe de Carne com Batata Rústica",
-      "Isca de Carne ao Molho de Mostarda com Arroz Integral e Legumes",
-      "Hambúrguer com Arroz Integral e Purê de Abóbora",
     ],
   },
   {
     id: "frangos",
     name: "Frangos",
-    icon: Drumstick,
-    color: "amber",
     flavors: [
-      "Creme de Frango com Arroz Integral e Feijão Carioca",
-      "Creme de Frango com Batata Rústica e Purê de Abóbora",
-      "Creme de Frango com Arroz Branco e Purê de Abóbora",
-      "Escondidinho de Batata Doce com Frango",
       "Estrogonofe de Frango com Arroz Branco",
-      "Estrogonofe de Frango com Batata Doce",
-      "Estrogonofe de Frango com Arroz Branco e Batata Rústica",
-      "Frango à Parmegiana com Purê de Batata",
-      "Frango ao Molho de Laranja com Arroz Integral e Brócolis",
       "Frango Xadrez com Arroz Integral e Legumes",
-      "Frango Xadrez com Arroz à Grega",
-      "Fricassê de Frango com Arroz Branco",
-      "Fricassê de Frango com Batata Rústica",
-      "Panqueca de Frango com Arroz Branco",
+      "Frango à Parmegiana com Purê de Batata",
     ],
   },
   {
     id: "massas",
     name: "Massas",
-    icon: Utensils,
-    color: "orange",
     flavors: [
       "Espaguete Integral com Carne",
-      "Espaguete Integral com Frango",
       "Macarronada à Bolonhesa",
-      "Macarronada de Frango ao Molho Bechamel",
     ],
   },
   {
     id: "especiais",
     name: "Especiais",
-    icon: Sparkles,
-    color: "purple",
     flavors: [
       "Escondidinho de Batata Inglesa com Carne Desfiada",
-      "Escondidinho de Batata Inglesa com Carne Moída",
-      "Escondidinho de Aipim com Carne Desfiada",
       "Feijoada Light com Arroz Branco e Couve",
-      "Filé de Peixe com Alecrim, Arroz Integral e Purê de Abóbora",
-      "Filé Suíno ao Molho de Laranja e Mel com Purê de Aipim",
     ],
   },
 ];
+
+const categoryIcons: Record<string, { icon: any; color: string }> = {
+  carnes: { icon: Beef, color: "red" },
+  frangos: { icon: Drumstick, color: "amber" },
+  massas: { icon: Utensils, color: "orange" },
+  especiais: { icon: Sparkles, color: "purple" },
+};
 
 const FlavorSelectionModal = ({
   isOpen,
@@ -99,9 +80,13 @@ const FlavorSelectionModal = ({
   packageName,
   packageQuantity,
   isLoading = false,
+  flavorsByCategory,
 }: FlavorSelectionModalProps) => {
   const [selections, setSelections] = useState<Record<string, number>>({});
   const [leaveToUs, setLeaveToUs] = useState(false);
+
+  // Use provided flavors or fallback to defaults
+  const flavorCategories = flavorsByCategory || defaultFlavorCategories;
 
   const totalSelected = useMemo(() => {
     return Object.values(selections).reduce((sum, qty) => sum + qty, 0);
@@ -302,8 +287,9 @@ const FlavorSelectionModal = ({
             </div>
 
             {flavorCategories.map((category) => {
-              const Icon = category.icon;
-              const colorClasses = getColorClasses(category.color);
+              const iconData = categoryIcons[category.id] || { icon: Sparkles, color: "purple" };
+              const Icon = iconData.icon;
+              const colorClasses = getColorClasses(iconData.color);
               
               return (
                 <div key={category.id} className={`transition-opacity ${leaveToUs ? "opacity-40 pointer-events-none" : ""}`}>
