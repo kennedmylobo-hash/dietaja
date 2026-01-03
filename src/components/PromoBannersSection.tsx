@@ -98,7 +98,7 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
         rotateY,
         transformStyle: "preserve-3d",
       }}
-      className={`group relative overflow-hidden rounded-2xl p-4 md:p-5 text-left transition-shadow duration-300 hover:shadow-xl bg-gradient-to-br ${banner.gradient}`}
+      className={`group relative overflow-hidden rounded-2xl p-5 md:p-6 lg:p-8 text-left transition-shadow duration-300 shadow-lg hover:shadow-2xl ring-1 ring-white/10 bg-gradient-to-br ${banner.gradient}`}
     >
       {/* Background glow effect */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -106,19 +106,19 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
       {/* Content with parallax */}
       <motion.div
         style={{ x: contentX, y: contentY, transformStyle: "preserve-3d" }}
-        className="relative z-10 flex flex-col h-full min-h-[100px] md:min-h-[120px]"
+        className="relative z-10 flex flex-col h-full min-h-[130px] md:min-h-[160px] lg:min-h-[180px]"
       >
-        <Icon className="w-6 h-6 md:w-8 md:h-8 text-white/90 mb-2" />
+        <Icon className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 text-white/90 mb-3" />
         
-        <h3 className="text-sm md:text-base font-bold text-white leading-tight">
+        <h3 className="text-base md:text-lg lg:text-xl font-bold text-white leading-tight">
           {banner.title}
         </h3>
         
-        <p className="text-xs md:text-sm text-white/80 font-medium mt-1">
+        <p className="text-sm md:text-base text-white/80 font-medium mt-1.5">
           {banner.subtitle}
         </p>
         
-        <p className="text-[10px] md:text-xs text-white/60 mt-auto pt-2">
+        <p className="text-xs md:text-sm text-white/70 mt-auto pt-3">
           {banner.description}
         </p>
       </motion.div>
@@ -129,7 +129,7 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
           x: useTransform(xSpring, [-0.5, 0.5], ["8px", "-8px"]),
           y: useTransform(ySpring, [-0.5, 0.5], ["8px", "-8px"]),
         }}
-        className="absolute -right-4 -bottom-4 w-20 h-20 bg-white/10 rounded-full blur-xl"
+        className="absolute -right-6 -bottom-6 w-28 h-28 md:w-32 md:h-32 bg-white/15 rounded-full blur-2xl"
       />
     </motion.button>
   );
@@ -144,14 +144,13 @@ const PromoBannersSection = () => {
   };
 
   return (
-    <section className="py-8 bg-background">
+    <section className="py-10 md:py-12 bg-background">
       <div className="container px-4 md:px-6">
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4"
+          animate="visible"
+          className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5 lg:gap-6"
           style={{ perspective: "1000px" }}
         >
           {banners.map((banner) => (
