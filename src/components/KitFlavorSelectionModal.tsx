@@ -86,6 +86,16 @@ const KitFlavorSelectionModal = ({
     setJuiceSelections((prev) => {
       const current = prev[flavor] || 0;
       const newValue = Math.max(0, current + delta);
+      
+      // Prevent exceeding limit
+      const otherTotal = Object.entries(prev)
+        .filter(([name]) => name !== flavor)
+        .reduce((sum, [_, qty]) => sum + qty, 0);
+      
+      if (otherTotal + newValue > juiceQuantity) {
+        return prev; // Don't update if it would exceed limit
+      }
+      
       return { ...prev, [flavor]: newValue };
     });
     setLeaveToUs(false);
@@ -95,6 +105,16 @@ const KitFlavorSelectionModal = ({
     setSoupSelections((prev) => {
       const current = prev[flavor] || 0;
       const newValue = Math.max(0, current + delta);
+      
+      // Prevent exceeding limit
+      const otherTotal = Object.entries(prev)
+        .filter(([name]) => name !== flavor)
+        .reduce((sum, [_, qty]) => sum + qty, 0);
+      
+      if (otherTotal + newValue > soupQuantity) {
+        return prev; // Don't update if it would exceed limit
+      }
+      
       return { ...prev, [flavor]: newValue };
     });
     setLeaveToUs(false);

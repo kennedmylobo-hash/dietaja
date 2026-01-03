@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
 import { useNavigate } from "react-router-dom";
 import FlavorSelectionModal from "./FlavorSelectionModal";
+import KitFlavorSelectionModal from "./KitFlavorSelectionModal";
 
 const WHATSAPP_NUMBER = "5577991001658";
 
@@ -54,8 +55,23 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const { items, removeItem, updateItemFlavors, getTotal, clearCart } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout'>('cart');
   const [isLoading, setIsLoading] = useState(false);
-  const [editingItem, setEditingItem] = useState<CartItem | null>(null);
+  const [editingMarmita, setEditingMarmita] = useState<CartItem | null>(null);
+  const [editingKit, setEditingKit] = useState<CartItem | null>(null);
   const navigate = useNavigate();
+
+  // Helper to extract kit days from name
+  const getKitDays = (kitName: string): number => {
+    if (kitName.includes("3 Dias")) return 3;
+    if (kitName.includes("5 Dias")) return 5;
+    if (kitName.includes("7 Dias")) return 7;
+    return 3; // default
+  };
+
+  // Get kit quantities based on days
+  const getKitQuantities = (days: number) => ({
+    juices: days * 4,
+    soups: days * 2,
+  });
 
   const {
     register,
@@ -184,20 +200,33 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setStep('cart');
-      setEditingItem(null);
+      setEditingMarmita(null);
+      setEditingKit(null);
     }
     onOpenChange(newOpen);
   };
 
   const handleEditFlavors = (item: CartItem) => {
     hapticFeedback('light');
-    setEditingItem(item);
+    if (item.type === "kit") {
+      setEditingKit(item);
+    } else {
+      setEditingMarmita(item);
+    }
   };
 
-  const handleFlavorEditConfirm = (flavors: FlavorSelection[]) => {
-    if (editingItem) {
-      updateItemFlavors(editingItem.id, flavors);
-      setEditingItem(null);
+  const handleMarmitaFlavorEditConfirm = (flavors: FlavorSelection[]) => {
+    if (editingMarmita) {
+      updateItemFlavors(editingMarmita.id, flavors);
+      setEditingMarmita(null);
+    }
+  };
+
+  const handleKitFlavorEditConfirm = (juiceFlavors: FlavorSelection[], soupFlavors: FlavorSelection[]) => {
+    if (editingKit) {
+      const allFlavors = [...juiceFlavors, ...soupFlavors];
+      updateItemFlavors(editingKit.id, allFlavors);
+      setEditingKit(null);
     }
   };
 
@@ -492,14 +521,28 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           </>
         )}
 
-        {/* Flavor Edit Modal */}
+        {/* Marmita Flavor Edit Modal */}
         <FlavorSelectionModal
-          isOpen={!!editingItem}
-          onClose={() => setEditingItem(null)}
-          onConfirm={handleFlavorEditConfirm}
-          packageName={editingItem?.name || ""}
-          packageQuantity={editingItem?.quantity || 0}
+          isOpen={!!editingMarmita}
+          onClose={() => setEditingMarmita(null)}
+          onConfirm={handleMarmitaFlavorEditConfirm}
+          packageName={editingMarmita?.name || ""}
+          packageQuantity={editingMarmita?.quantity || 0}
         />
+
+        {/* Kit Flavor Edit Modal */}
+        {editingKit && (
+          <KitFlavorSelectionModal
+            isOpen={!!editingKit}
+            onClose={() => setEditingKit(null)}
+            onConfirm={handleKitFlavorEditConfirm}
+            kitName={editingKit.name}
+            juiceQuantity={getKitQuantities(getKitDays(editingKit.name)).juices}
+            soupQuantity={getKitQuantities(getKitDays(editingKit.name)).soups}
+            initialJuiceFlavors={editingKit.flavors?.filter(f => f.category === "Suco")}
+            initialSoupFlavors={editingKit.flavors?.filter(f => f.category === "Sopa")}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );
