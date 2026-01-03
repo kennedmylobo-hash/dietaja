@@ -416,6 +416,48 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          item_id: string
+          item_name: string
+          item_type: string
+          movement_type: string
+          notes: string | null
+          quantity_after: number | null
+          quantity_before: number | null
+          quantity_change: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id: string
+          item_name: string
+          item_type: string
+          movement_type: string
+          notes?: string | null
+          quantity_after?: number | null
+          quantity_before?: number | null
+          quantity_change: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id?: string
+          item_name?: string
+          item_type?: string
+          movement_type?: string
+          notes?: string | null
+          quantity_after?: number | null
+          quantity_before?: number | null
+          quantity_change?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
