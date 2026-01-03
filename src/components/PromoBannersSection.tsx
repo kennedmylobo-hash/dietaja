@@ -98,7 +98,7 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
         rotateY,
         transformStyle: "preserve-3d",
       }}
-      className={`group relative overflow-hidden rounded-2xl p-5 md:p-6 lg:p-8 text-left transition-shadow duration-300 shadow-lg hover:shadow-2xl ring-1 ring-white/10 bg-gradient-to-br ${banner.gradient}`}
+      className={`flex-shrink-0 w-[85%] snap-center sm:w-auto sm:flex-shrink group relative overflow-hidden rounded-2xl p-4 md:p-6 lg:p-8 text-left transition-shadow duration-300 shadow-lg hover:shadow-2xl ring-1 ring-white/10 bg-gradient-to-br ${banner.gradient}`}
     >
       {/* Background glow effect */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -106,9 +106,9 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
       {/* Content with parallax */}
       <motion.div
         style={{ x: contentX, y: contentY, transformStyle: "preserve-3d" }}
-        className="relative z-10 flex flex-col h-full min-h-[130px] md:min-h-[160px] lg:min-h-[180px]"
+        className="relative z-10 flex flex-col h-full min-h-[110px] md:min-h-[160px] lg:min-h-[180px]"
       >
-        <Icon className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 text-white/90 mb-3" />
+        <Icon className="w-7 h-7 md:w-10 md:h-10 lg:w-12 lg:h-12 text-white/90 mb-2 md:mb-3" />
         
         <h3 className="text-base md:text-lg lg:text-xl font-bold text-white leading-tight">
           {banner.title}
@@ -144,13 +144,13 @@ const PromoBannersSection = () => {
   };
 
   return (
-    <section className="py-10 md:py-12 bg-background">
-      <div className="container px-4 md:px-6">
+    <section className="py-6 md:py-12 bg-background">
+      <div className="container px-3 md:px-6">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5 lg:gap-6"
+          className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 sm:grid sm:grid-cols-3 sm:gap-5 lg:gap-6 sm:overflow-visible scrollbar-hide"
           style={{ perspective: "1000px" }}
         >
           {banners.map((banner) => (
