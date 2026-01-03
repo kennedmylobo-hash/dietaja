@@ -1,6 +1,7 @@
 import { ShoppingCart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "./CartContext";
+import { useEffect, useState } from "react";
 
 interface CartFloatingButtonProps {
   onClick: () => void;
@@ -8,6 +9,16 @@ interface CartFloatingButtonProps {
 
 const CartFloatingButton = ({ onClick }: CartFloatingButtonProps) => {
   const { itemCount, getTotal } = useCart();
+  const [shouldPulse, setShouldPulse] = useState(false);
+
+  // Trigger pulse animation when itemCount changes
+  useEffect(() => {
+    if (itemCount > 0) {
+      setShouldPulse(true);
+      const timer = setTimeout(() => setShouldPulse(false), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [itemCount]);
 
   if (itemCount === 0) return null;
 
@@ -15,8 +26,14 @@ const CartFloatingButton = ({ onClick }: CartFloatingButtonProps) => {
     <AnimatePresence>
       <motion.button
         initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
+        animate={{ 
+          scale: shouldPulse ? [1, 1.15, 1] : 1, 
+          opacity: 1,
+        }}
         exit={{ scale: 0, opacity: 0 }}
+        transition={{ 
+          scale: { duration: 0.4, ease: "easeOut" }
+        }}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={onClick}
@@ -27,9 +44,22 @@ const CartFloatingButton = ({ onClick }: CartFloatingButtonProps) => {
         <span className="font-semibold">
           R$ {getTotal().toFixed(2).replace(".", ",")}
         </span>
-        <span className="absolute -top-2 -right-2 w-6 h-6 bg-terracotta text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+        <motion.span 
+          className="absolute -top-2 -right-2 w-6 h-6 bg-terracotta text-white text-xs font-bold rounded-full flex items-center justify-center"
+          animate={shouldPulse ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
           {itemCount}
-        </span>
+        </motion.span>
+        {/* Ripple effect ring */}
+        {shouldPulse && (
+          <motion.span
+            className="absolute inset-0 rounded-full border-2 border-primary"
+            initial={{ scale: 1, opacity: 0.8 }}
+            animate={{ scale: 1.5, opacity: 0 }}
+            transition={{ duration: 0.5 }}
+          />
+        )}
       </motion.button>
     </AnimatePresence>
   );
