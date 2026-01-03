@@ -1,34 +1,38 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, Star, CheckCircle2, Clock } from "lucide-react";
+import { Star, CheckCircle2, Clock } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import CountdownTimer from "@/components/CountdownTimer";
 
 interface HeroSectionProps {
-  onCtaClick: () => void;
+  onScrollToSection: (sectionId: string) => void;
 }
 
-const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
-  const [shouldShake, setShouldShake] = useState(false);
+const objectiveOptions = [
+  {
+    id: "kits",
+    emoji: "🧃",
+    title: "Kit Detox",
+    description: "Sucos e sopas funcionais",
+    price: "R$ 199",
+  },
+  {
+    id: "marmitas",
+    emoji: "🍱",
+    title: "Marmitas Saudáveis",
+    description: "Refeições prontas congeladas",
+    price: "R$ 25,90/un",
+  },
+  {
+    id: "dieta-personalizada",
+    emoji: "✨",
+    title: "Dieta Personalizada",
+    description: "Cardápio sob medida",
+    price: "Sob consulta",
+  },
+];
 
-  // Trigger shake animation periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setShouldShake(true);
-      setTimeout(() => setShouldShake(false), 500);
-    }, 4000);
-
-    // Initial shake after 2 seconds
-    const initialTimeout = setTimeout(() => {
-      setShouldShake(true);
-      setTimeout(() => setShouldShake(false), 500);
-    }, 2000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(initialTimeout);
-    };
-  }, []);
+const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
+  const [hoveredOption, setHoveredOption] = useState<string | null>(null);
 
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
@@ -70,26 +74,49 @@ const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
             <span className="text-primary">e sinta seu corpo responder.</span>
           </h1>
 
-          <p className="text-base sm:text-lg md:text-xl text-white/90 mb-4 leading-relaxed animate-fade-in">
+          <p className="text-base sm:text-lg md:text-xl text-white/90 mb-8 leading-relaxed animate-fade-in">
             Alimentação saudável pronta para quem tem rotina corrida em{" "}
             <strong className="text-white">Vitória da Conquista</strong>.
           </p>
 
-          {/* Preço âncora */}
-          <p className="text-base sm:text-lg md:text-xl text-white/80 mb-6 sm:mb-8 animate-fade-in">
-            Kits a partir de <span className="text-primary font-bold">R$ 199</span>
-          </p>
-
+          {/* Objetivo - 3 Opções */}
           <div className="mb-8 animate-fade-in">
-            <Button 
-              variant="cta" 
-              size="xl"
-              onClick={onCtaClick}
-              className={`group shadow-xl ${shouldShake ? "animate-shake" : ""}`}
-            >
-              Garantir meu Kit
-              <ArrowRight className="group-hover:translate-x-1 transition-transform" />
-            </Button>
+            <p className="text-sm sm:text-base text-white/80 mb-4 font-medium">
+              Qual é o seu objetivo?
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+              {objectiveOptions.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => onScrollToSection(option.id)}
+                  onMouseEnter={() => setHoveredOption(option.id)}
+                  onMouseLeave={() => setHoveredOption(null)}
+                  className={`
+                    flex-1 max-w-[280px] mx-auto sm:mx-0
+                    flex flex-col items-center gap-1.5 
+                    px-4 py-4 sm:px-5 sm:py-5 
+                    rounded-xl 
+                    bg-white/10 backdrop-blur-sm 
+                    border border-white/20
+                    transition-all duration-300 ease-out
+                    hover:bg-primary/20 hover:border-primary hover:scale-105
+                    active:scale-95
+                    ${hoveredOption === option.id ? 'shadow-lg shadow-primary/20' : ''}
+                  `}
+                >
+                  <span className="text-2xl sm:text-3xl">{option.emoji}</span>
+                  <span className="text-white font-semibold text-sm sm:text-base">
+                    {option.title}
+                  </span>
+                  <span className="text-white/70 text-xs sm:text-sm">
+                    {option.description}
+                  </span>
+                  <span className="text-primary font-bold text-xs sm:text-sm mt-1">
+                    {option.price}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Benefícios em ícones */}

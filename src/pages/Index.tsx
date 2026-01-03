@@ -45,13 +45,12 @@ const IndexContent = () => {
   useAnalytics();
   useScrollTracking();
 
-  const scrollToKits = () => {
-    document.getElementById("kits")?.scrollIntoView({ behavior: "smooth" });
+  const scrollToSection = (sectionId: string) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const scrollToCheckout = () => {
-    document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToKits = () => scrollToSection("kits");
+  const scrollToCheckout = () => scrollToSection("checkout");
 
   const handleWhatsAppClick = (customerData?: { name: string; phone: string; deliveryOption: string; address?: string }) => {
     if (items.length === 0) {
@@ -148,7 +147,7 @@ const IndexContent = () => {
 
         {/* Main content */}
         <main className="pt-16">
-          <HeroSection onCtaClick={scrollToKits} />
+          <HeroSection onScrollToSection={scrollToSection} />
           <IdentificationSection />
           <Suspense fallback={<TestimonialsSkeleton />}>
             <ReviewsSection />
@@ -156,10 +155,16 @@ const IndexContent = () => {
           <SolutionSection />
           <BeforeAfterSection />
           <ProductGallerySection />
-          <KitsSection />
-          <MarmitasSection />
+          <div id="kits">
+            <KitsSection />
+          </div>
+          <div id="marmitas">
+            <MarmitasSection />
+          </div>
           <Suspense fallback={<CustomDietSkeleton />}>
-            <CustomDietSection whatsappNumber={WHATSAPP_NUMBER} />
+            <div id="dieta-personalizada">
+              <CustomDietSection whatsappNumber={WHATSAPP_NUMBER} />
+            </div>
           </Suspense>
           <ValueSection />
           <UrgencySection />
