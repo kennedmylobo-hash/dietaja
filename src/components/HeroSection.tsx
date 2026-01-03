@@ -1,11 +1,19 @@
 import { useState, useEffect } from "react";
 import { Star, CheckCircle2, Clock } from "lucide-react";
+import Lottie from "lottie-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import CountdownTimer from "@/components/CountdownTimer";
 
 interface HeroSectionProps {
   onScrollToSection: (sectionId: string) => void;
 }
+
+// Real Lottie animation URLs from LottieFiles CDN
+const lottieAnimations = {
+  detox: "https://assets3.lottiefiles.com/packages/lf20_tll0j4bb.json",
+  marmitas: "https://assets4.lottiefiles.com/packages/lf20_ysrn2iwp.json",
+  personalizada: "https://assets2.lottiefiles.com/packages/lf20_touohxv0.json",
+};
 
 const objectiveOptions = [
   {
@@ -14,6 +22,7 @@ const objectiveOptions = [
     title: "Kit Detox",
     description: "Sucos e sopas funcionais",
     price: "R$ 199",
+    lottieKey: "detox" as const,
   },
   {
     id: "marmitas",
@@ -21,6 +30,7 @@ const objectiveOptions = [
     title: "Marmitas Saudáveis",
     description: "Refeições prontas congeladas",
     price: "R$ 25,90/un",
+    lottieKey: "marmitas" as const,
   },
   {
     id: "dieta-personalizada",
@@ -28,11 +38,35 @@ const objectiveOptions = [
     title: "Dieta Personalizada",
     description: "Cardápio sob medida",
     price: "Sob consulta",
+    lottieKey: "personalizada" as const,
   },
 ];
 
 const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
   const [hoveredOption, setHoveredOption] = useState<string | null>(null);
+  const [lottieData, setLottieData] = useState<Record<string, any>>({});
+  const [lottieLoaded, setLottieLoaded] = useState<Record<string, boolean>>({});
+
+  // Fetch Lottie animations on mount
+  useEffect(() => {
+    const fetchAnimations = async () => {
+      for (const [key, url] of Object.entries(lottieAnimations)) {
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            setLottieData(prev => ({ ...prev, [key]: data }));
+            setLottieLoaded(prev => ({ ...prev, [key]: true }));
+          }
+        } catch {
+          // Fallback to emoji if Lottie fails
+          console.log(`Lottie animation ${key} failed to load`);
+        }
+      }
+    };
+    fetchAnimations();
+  }, []);
+
 
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
@@ -106,9 +140,20 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
                     ${hoveredOption === option.id ? 'shadow-[0_0_25px_rgba(134,239,172,0.3)]' : ''}
                   `}
                 >
-                  <span className="text-2xl sm:text-3xl transition-transform duration-300 group-hover:scale-125 group-hover:animate-bounce">
-                    {option.emoji}
-                  </span>
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                    {lottieLoaded[option.lottieKey] && lottieData[option.lottieKey] ? (
+                      <Lottie
+                        animationData={lottieData[option.lottieKey]}
+                        loop={hoveredOption === option.id}
+                        autoplay={hoveredOption === option.id}
+                        className="w-full h-full"
+                      />
+                    ) : (
+                      <span className="text-2xl sm:text-3xl group-hover:animate-bounce">
+                        {option.emoji}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-white font-semibold text-sm sm:text-base transition-colors duration-300 group-hover:text-primary">
                     {option.title}
                   </span>
