@@ -1,5 +1,5 @@
 import { motion, useInView } from "framer-motion";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Clock, Loader2, Beef, Drumstick, Utensils, Sparkles, Scale, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -9,6 +9,7 @@ import { hapticFeedback } from "@/lib/haptics";
 import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
 import { CarouselDots } from "./CarouselDots";
 import FlavorSelectionModal from "./FlavorSelectionModal";
+import { useMarmitaPackages, useMarmitaFlavors } from "@/hooks/useMenuData";
 import {
   Carousel,
   CarouselContent,
@@ -31,7 +32,15 @@ interface Marmita {
   popular?: boolean;
 }
 
-const marmitas: Marmita[] = [
+// Map for package images
+const packageImages: Record<number, string> = {
+  7: marmita1,
+  14: marmita2,
+  28: marmita3,
+};
+
+// Default fallback data
+const defaultMarmitas: Marmita[] = [
   {
     id: "7-marmitas",
     name: "Pacote Semanal",
@@ -59,55 +68,6 @@ const marmitas: Marmita[] = [
   },
 ];
 
-// Sabores organizados por categoria
-const saboresCarnes = [
-  "Almôndegas com Espaguete",
-  "Almôndegas de Carne com Lascas de Abóbora",
-  "Carne Desfiada com Arroz à Grega e Purê de Abóbora",
-  "Carne Desfiada com Arroz Branco e Purê de Abóbora",
-  "Carne do Sol com Baião de Dois e Aipim",
-  "Carne Moída com Arroz Branco e Feijão Carioca",
-  "Carne Moída com Arroz Branco e Feijão Preto",
-  "Carne Moída com Arroz Integral e Feijão Carioca",
-  "Estrogonofe de Carne com Arroz Branco",
-  "Estrogonofe de Carne com Batata Rústica",
-  "Isca de Carne ao Molho de Mostarda com Arroz Integral e Legumes",
-  "Hambúrguer com Arroz Integral e Purê de Abóbora",
-];
-
-const saboresFrangos = [
-  "Creme de Frango com Arroz Integral e Feijão Carioca",
-  "Creme de Frango com Batata Rústica e Purê de Abóbora",
-  "Creme de Frango com Arroz Branco e Purê de Abóbora",
-  "Escondidinho de Batata Doce com Frango",
-  "Estrogonofe de Frango com Arroz Branco",
-  "Estrogonofe de Frango com Batata Doce",
-  "Estrogonofe de Frango com Arroz Branco e Batata Rústica",
-  "Frango à Parmegiana com Purê de Batata",
-  "Frango ao Molho de Laranja com Arroz Integral e Brócolis",
-  "Frango Xadrez com Arroz Integral e Legumes",
-  "Frango Xadrez com Arroz à Grega",
-  "Fricassê de Frango com Arroz Branco",
-  "Fricassê de Frango com Batata Rústica",
-  "Panqueca de Frango com Arroz Branco",
-];
-
-const saboresMassas = [
-  "Espaguete Integral com Carne",
-  "Espaguete Integral com Frango",
-  "Macarronada à Bolonhesa",
-  "Macarronada de Frango ao Molho Bechamel",
-];
-
-const saboresEspeciais = [
-  "Escondidinho de Batata Inglesa com Carne Desfiada",
-  "Escondidinho de Batata Inglesa com Carne Moída",
-  "Escondidinho de Aipim com Carne Desfiada",
-  "Feijoada Light com Arroz Branco e Couve",
-  "Filé de Peixe com Alecrim, Arroz Integral e Purê de Abóbora",
-  "Filé Suíno ao Molho de Laranja e Mel com Purê de Aipim",
-];
-
 const MarmitasSection = () => {
   const ref = useRef<HTMLElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
@@ -116,6 +76,49 @@ const MarmitasSection = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedMarmita, setSelectedMarmita] = useState<Marmita | null>(null);
   const [isFlavorModalOpen, setIsFlavorModalOpen] = useState(false);
+
+  // Fetch data from database
+  const { data: packagesData } = useMarmitaPackages();
+  const { data: flavorsData } = useMarmitaFlavors();
+
+  // Transform database data to component format
+  const marmitas = useMemo<Marmita[]>(() => {
+    if (!packagesData || packagesData.length === 0) return defaultMarmitas;
+    
+    return packagesData.map(pkg => ({
+      id: `${pkg.quantity}-marmitas`,
+      name: pkg.name,
+      quantity: pkg.quantity,
+      unitPrice: Number(pkg.unit_price),
+      totalPrice: Number(pkg.unit_price) * pkg.quantity,
+      image: pkg.image_url || packageImages[pkg.quantity] || marmita1,
+      popular: pkg.popular,
+    }));
+  }, [packagesData]);
+
+  // Group flavors by category for modal
+  const flavorsByCategory = useMemo(() => {
+    if (!flavorsData || flavorsData.length === 0) return undefined;
+    
+    const categories = ['carnes', 'frangos', 'massas', 'especiais'];
+    return categories.map(cat => ({
+      id: cat,
+      name: cat.charAt(0).toUpperCase() + cat.slice(1),
+      flavors: flavorsData.filter(f => f.category === cat).map(f => f.name),
+    })).filter(cat => cat.flavors.length > 0);
+  }, [flavorsData]);
+
+  // Group flavors by category for display
+  const saboresCarnes = useMemo(() => 
+    flavorsData?.filter(f => f.category === 'carnes').map(f => f.name) || [], [flavorsData]);
+  const saboresFrangos = useMemo(() => 
+    flavorsData?.filter(f => f.category === 'frangos').map(f => f.name) || [], [flavorsData]);
+  const saboresMassas = useMemo(() => 
+    flavorsData?.filter(f => f.category === 'massas').map(f => f.name) || [], [flavorsData]);
+  const saboresEspeciais = useMemo(() => 
+    flavorsData?.filter(f => f.category === 'especiais').map(f => f.name) || [], [flavorsData]);
+
+  const totalFlavors = saboresCarnes.length + saboresFrangos.length + saboresMassas.length + saboresEspeciais.length;
 
   // Track ViewContent when section becomes visible
   useEffect(() => {
@@ -149,11 +152,6 @@ const MarmitasSection = () => {
     
     // Simulate brief loading for feedback
     await new Promise(resolve => setTimeout(resolve, 400));
-    
-    // Format flavors description
-    const flavorsDescription = flavors
-      .map(f => `${f.quantity}x ${f.name}`)
-      .join(", ");
     
     addItem({
       type: "marmita",
@@ -194,7 +192,7 @@ const MarmitasSection = () => {
             Praticidade no dia a dia
           </h2>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Pronto em 3 minutos no micro-ondas. <strong>36 sabores</strong> para você escolher!
+            Pronto em 3 minutos no micro-ondas. <strong>{totalFlavors || 36} sabores</strong> para você escolher!
           </p>
         </motion.div>
 
@@ -446,6 +444,7 @@ const MarmitasSection = () => {
           packageName={selectedMarmita?.name || ""}
           packageQuantity={selectedMarmita?.quantity || 0}
           isLoading={loadingMarmita !== null}
+          flavorsByCategory={flavorsByCategory}
         />
       </div>
     </section>

@@ -59,6 +59,114 @@ export type Database = {
         }
         Relationships: []
       }
+      kit_juices: {
+        Row: {
+          active: boolean
+          benefit: string | null
+          created_at: string
+          emoji: string
+          id: string
+          ingredients: string | null
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          benefit?: string | null
+          created_at?: string
+          emoji?: string
+          id?: string
+          ingredients?: string | null
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          benefit?: string | null
+          created_at?: string
+          emoji?: string
+          id?: string
+          ingredients?: string | null
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      kit_packages: {
+        Row: {
+          active: boolean
+          created_at: string
+          days: number
+          description: string | null
+          features: Json | null
+          id: string
+          name: string
+          popular: boolean
+          price: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          days: number
+          description?: string | null
+          features?: Json | null
+          id?: string
+          name: string
+          popular?: boolean
+          price: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          days?: number
+          description?: string | null
+          features?: Json | null
+          id?: string
+          name?: string
+          popular?: boolean
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      kit_soups: {
+        Row: {
+          active: boolean
+          benefit: string | null
+          created_at: string
+          emoji: string
+          id: string
+          ingredients: string | null
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          benefit?: string | null
+          created_at?: string
+          emoji?: string
+          id?: string
+          ingredients?: string | null
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          benefit?: string | null
+          created_at?: string
+          emoji?: string
+          id?: string
+          ingredients?: string | null
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           converted: boolean | null
@@ -113,6 +221,72 @@ export type Database = {
           utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+        }
+        Relationships: []
+      }
+      marmita_flavors: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      marmita_packages: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          image_url: string | null
+          name: string
+          popular: boolean
+          quantity: number
+          sort_order: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          name: string
+          popular?: boolean
+          quantity: number
+          sort_order?: number
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          name?: string
+          popular?: boolean
+          quantity?: number
+          sort_order?: number
+          unit_price?: number
+          updated_at?: string
         }
         Relationships: []
       }
