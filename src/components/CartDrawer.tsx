@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import FlavorSelectionModal from "./FlavorSelectionModal";
 import KitFlavorSelectionModal from "./KitFlavorSelectionModal";
 import { toast } from "@/hooks/use-toast";
+import { useMarmitaFlavors } from "@/hooks/useMenuData";
 
 const WHATSAPP_NUMBER = "5577991001658";
 
@@ -62,6 +63,55 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const [editingMarmita, setEditingMarmita] = useState<CartItem | null>(null);
   const [editingKit, setEditingKit] = useState<CartItem | null>(null);
   const navigate = useNavigate();
+
+  // Fetch marmita flavors from database
+  const { data: flavorsData } = useMarmitaFlavors();
+
+  // Process flavors by category for the modal (FlavorCategory[] format)
+  const flavorsByCategory = useMemo(() => {
+    if (!flavorsData) return undefined;
+    
+    const categoryMap: Record<string, string[]> = {
+      carnes: [],
+      frangos: [],
+      massas: [],
+      especiais: [],
+    };
+
+    flavorsData.forEach((flavor) => {
+      const category = flavor.category.toLowerCase();
+      if (categoryMap[category]) {
+        categoryMap[category].push(flavor.name);
+      }
+    });
+
+    const categoryNames: Record<string, string> = {
+      carnes: "Carnes",
+      frangos: "Frangos",
+      massas: "Massas",
+      especiais: "Especiais",
+    };
+
+    return Object.entries(categoryMap)
+      .filter(([_, flavors]) => flavors.length > 0)
+      .map(([id, flavors]) => ({
+        id,
+        name: categoryNames[id] || id,
+        flavors,
+      }));
+  }, [flavorsData]);
+
+  // Process stock data for the modal
+  const flavorStockData = useMemo(() => {
+    if (!flavorsData) return undefined;
+    
+    return flavorsData.map((flavor) => ({
+      name: flavor.name,
+      stock_quantity: flavor.stock_quantity,
+      show_stock: flavor.show_stock,
+      low_stock_threshold: flavor.low_stock_threshold,
+    }));
+  }, [flavorsData]);
 
   // Helper to extract kit days from name
   const getKitDays = (kitName: string): number => {
@@ -636,6 +686,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           onConfirm={handleMarmitaFlavorEditConfirm}
           packageName={editingMarmita?.name || ""}
           packageQuantity={editingMarmita?.quantity || 0}
+          flavorsByCategory={flavorsByCategory}
+          flavorStockData={flavorStockData}
         />
 
         {/* Kit Flavor Edit Modal */}
