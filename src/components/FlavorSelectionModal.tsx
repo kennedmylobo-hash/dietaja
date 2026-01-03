@@ -101,16 +101,20 @@ const FlavorSelectionModal = ({
   isLoading = false,
 }: FlavorSelectionModalProps) => {
   const [selections, setSelections] = useState<Record<string, number>>({});
+  const [leaveToUs, setLeaveToUs] = useState(false);
 
   const totalSelected = useMemo(() => {
     return Object.values(selections).reduce((sum, qty) => sum + qty, 0);
   }, [selections]);
 
   const remaining = packageQuantity - totalSelected;
-  const isComplete = remaining === 0;
+  const isComplete = remaining === 0 || leaveToUs;
   const isOverLimit = remaining < 0;
 
   const updateQuantity = (flavor: string, delta: number) => {
+    // Disable manual selection if "leave to us" is checked
+    if (leaveToUs) return;
+    
     setSelections((prev) => {
       const current = prev[flavor] || 0;
       const newValue = current + delta;
@@ -129,7 +133,26 @@ const FlavorSelectionModal = ({
     });
   };
 
+  const handleLeaveToUsChange = (checked: boolean) => {
+    setLeaveToUs(checked);
+    if (checked) {
+      setSelections({});
+    }
+  };
+
   const handleConfirm = () => {
+    if (leaveToUs) {
+      // Send a special "leave to us" marker
+      onConfirm([{
+        name: "Deixar a cargo da Dieta Já",
+        quantity: packageQuantity,
+        category: "Escolha da casa",
+      }]);
+      setSelections({});
+      setLeaveToUs(false);
+      return;
+    }
+    
     const flavorsArray: FlavorSelection[] = [];
     
     flavorCategories.forEach((category) => {
@@ -147,10 +170,12 @@ const FlavorSelectionModal = ({
     
     onConfirm(flavorsArray);
     setSelections({});
+    setLeaveToUs(false);
   };
 
   const handleClose = () => {
     setSelections({});
+    setLeaveToUs(false);
     onClose();
   };
 
@@ -180,7 +205,7 @@ const FlavorSelectionModal = ({
         <div className="px-4 py-3 bg-muted/50 border-b sticky top-[72px] z-10">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">
-              {totalSelected} de {packageQuantity} selecionadas
+              {leaveToUs ? "Escolha da casa" : `${totalSelected} de ${packageQuantity} selecionadas`}
             </span>
             <AnimatePresence mode="wait">
               {isComplete ? (
@@ -191,7 +216,7 @@ const FlavorSelectionModal = ({
                   className="inline-flex items-center gap-1 text-sm text-primary font-medium"
                 >
                   <Check className="w-4 h-4" />
-                  Completo!
+                  {leaveToUs ? "Mix variado" : "Completo!"}
                 </motion.span>
               ) : isOverLimit ? (
                 <motion.span
@@ -221,7 +246,7 @@ const FlavorSelectionModal = ({
                 isOverLimit ? "bg-destructive" : isComplete ? "bg-primary" : "bg-terracotta"
               }`}
               initial={{ width: 0 }}
-              animate={{ width: `${Math.min((totalSelected / packageQuantity) * 100, 100)}%` }}
+              animate={{ width: leaveToUs ? "100%" : `${Math.min((totalSelected / packageQuantity) * 100, 100)}%` }}
               transition={{ duration: 0.3 }}
             />
           </div>
@@ -229,12 +254,43 @@ const FlavorSelectionModal = ({
 
         <ScrollArea className="flex-1 max-h-[50vh]">
           <div className="p-4 space-y-6">
+            {/* Leave to us option */}
+            <div 
+              onClick={() => handleLeaveToUsChange(!leaveToUs)}
+              className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                leaveToUs 
+                  ? "border-primary bg-primary/10" 
+                  : "border-border bg-muted/30 hover:border-primary/50"
+              }`}
+            >
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                leaveToUs ? "border-primary bg-primary" : "border-muted-foreground"
+              }`}>
+                {leaveToUs && <Check className="w-3 h-3 text-white" />}
+              </div>
+              <div className="flex-1">
+                <span className="font-semibold text-foreground">
+                  🍽️ Deixar a cargo da Dieta Já
+                </span>
+                <p className="text-sm text-muted-foreground">
+                  Montamos um mix variado com nossos sabores mais pedidos
+                </p>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">ou escolha manualmente</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
             {flavorCategories.map((category) => {
               const Icon = category.icon;
               const colorClasses = getColorClasses(category.color);
               
               return (
-                <div key={category.id}>
+                <div key={category.id} className={`transition-opacity ${leaveToUs ? "opacity-40 pointer-events-none" : ""}`}>
                   <div className="flex items-center gap-2 mb-3">
                     <div className={`p-1.5 rounded-lg ${colorClasses.bg}`}>
                       <Icon className={`w-4 h-4 ${colorClasses.icon}`} />
