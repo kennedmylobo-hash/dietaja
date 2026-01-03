@@ -33,7 +33,6 @@ const UrgencySection = () => {
 
           {/* Countdown */}
           <div className="bg-card/50 rounded-xl border border-border p-4 sm:p-6 flex flex-col items-center">
-            <span className="text-xs sm:text-sm text-muted-foreground mb-2">Pedidos encerram domingo • Entrega na quarta:</span>
             <CountdownTimer />
           </div>
         </motion.div>
