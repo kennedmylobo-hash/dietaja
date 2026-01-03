@@ -1,4 +1,5 @@
 import { Star, CheckCircle2, Clock, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import CountdownTimer from "@/components/CountdownTimer";
 
@@ -70,9 +71,16 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
               Qual é o seu objetivo?
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-              {objectiveOptions.map((option) => (
-                <button
+              {objectiveOptions.map((option, index) => (
+                <motion.button
                   key={option.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ 
+                    duration: 0.4, 
+                    delay: 0.3 + index * 0.15,
+                    ease: "easeOut"
+                  }}
                   onClick={() => onScrollToSection(option.id)}
                   className="
                     group flex-1 max-w-[320px] mx-auto sm:mx-0
@@ -97,7 +105,7 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
                     </span>
                   </div>
                   <ChevronRight className="w-5 h-5 text-white/80 transition-transform group-hover:translate-x-1" />
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
