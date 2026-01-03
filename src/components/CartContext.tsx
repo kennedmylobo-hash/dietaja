@@ -21,6 +21,7 @@ interface CartContextType {
   items: CartItem[];
   addItem: (item: Omit<CartItem, "id">) => void;
   removeItem: (id: string) => void;
+  updateItemFlavors: (id: string, flavors: FlavorSelection[]) => void;
   clearCart: () => void;
   getTotal: () => number;
   itemCount: number;
@@ -55,6 +56,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const updateItemFlavors = (id: string, flavors: FlavorSelection[]) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, flavors } : item
+      )
+    );
+  };
+
   const clearCart = () => {
     setItems([]);
   };
@@ -66,7 +75,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const itemCount = items.length;
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, clearCart, getTotal, itemCount }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateItemFlavors, clearCart, getTotal, itemCount }}>
       {children}
     </CartContext.Provider>
   );

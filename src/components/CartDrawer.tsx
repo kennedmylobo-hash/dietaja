@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Trash2, MessageCircle, ShoppingBag, Loader2, ArrowLeft, Smartphone } from "lucide-react";
-import { useCart } from "./CartContext";
+import { Trash2, MessageCircle, ShoppingBag, Loader2, ArrowLeft, Smartphone, Pencil } from "lucide-react";
+import { useCart, CartItem, FlavorSelection } from "./CartContext";
 import { hapticFeedback } from "@/lib/haptics";
 import { celebrateCheckout } from "@/lib/confetti";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
 import { useNavigate } from "react-router-dom";
+import FlavorSelectionModal from "./FlavorSelectionModal";
 
 const WHATSAPP_NUMBER = "5577991001658";
 
@@ -50,9 +51,10 @@ interface CartDrawerProps {
 }
 
 const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
-  const { items, removeItem, getTotal, clearCart } = useCart();
+  const { items, removeItem, updateItemFlavors, getTotal, clearCart } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout'>('cart');
   const [isLoading, setIsLoading] = useState(false);
+  const [editingItem, setEditingItem] = useState<CartItem | null>(null);
   const navigate = useNavigate();
 
   const {
@@ -182,8 +184,21 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setStep('cart');
+      setEditingItem(null);
     }
     onOpenChange(newOpen);
+  };
+
+  const handleEditFlavors = (item: CartItem) => {
+    hapticFeedback('light');
+    setEditingItem(item);
+  };
+
+  const handleFlavorEditConfirm = (flavors: FlavorSelection[]) => {
+    if (editingItem) {
+      updateItemFlavors(editingItem.id, flavors);
+      setEditingItem(null);
+    }
   };
 
   return (
@@ -246,6 +261,16 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                               </p>
                             ))}
                           </div>
+                        )}
+                        {/* Edit flavors button for marmitas */}
+                        {item.type === "marmita" && (
+                          <button
+                            onClick={() => handleEditFlavors(item)}
+                            className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            Editar sabores
+                          </button>
                         )}
                       </div>
                       <div className="flex items-center gap-3">
@@ -466,6 +491,15 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             </SheetFooter>
           </>
         )}
+
+        {/* Flavor Edit Modal */}
+        <FlavorSelectionModal
+          isOpen={!!editingItem}
+          onClose={() => setEditingItem(null)}
+          onConfirm={handleFlavorEditConfirm}
+          packageName={editingItem?.name || ""}
+          packageQuantity={editingItem?.quantity || 0}
+        />
       </SheetContent>
     </Sheet>
   );
