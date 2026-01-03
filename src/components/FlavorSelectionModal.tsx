@@ -2,8 +2,8 @@ import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle } from "lucide-react";
-
 import { motion, AnimatePresence } from "framer-motion";
+import { celebrateCheckout } from "@/lib/confetti";
 
 interface FlavorSelection {
   name: string;
@@ -141,6 +141,8 @@ const FlavorSelectionModal = ({
   };
 
   const handleConfirm = () => {
+    celebrateCheckout();
+    
     if (leaveToUs) {
       // Send a special "leave to us" marker
       onConfirm([{
