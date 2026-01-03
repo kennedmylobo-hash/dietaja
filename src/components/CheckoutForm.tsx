@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Smartphone, MessageCircle } from "lucide-react";
 import { useCart } from "./CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
+import { toast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
@@ -17,6 +19,7 @@ const formSchema = z.object({
   phone: z.string().min(10, "Telefone inválido").max(15),
   deliveryOption: z.enum(["pickup", "delivery"]),
   address: z.string().optional(),
+  saveData: z.boolean().optional(),
 }).refine((data) => {
   if (data.deliveryOption === "delivery" && (!data.address || data.address.length < 10)) {
     return false;
@@ -36,6 +39,7 @@ interface CheckoutFormProps {
 const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   const { items, getTotal } = useCart();
   const [isLoading, setIsLoading] = useState(false);
+  const [saveData, setSaveData] = useState(false);
 
   const {
     register,
@@ -46,6 +50,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       deliveryOption: "pickup",
+      saveData: false,
     },
   });
 
@@ -53,6 +58,36 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   const deliveryFee = deliveryOption === "delivery" ? 10 : 0;
   const subtotal = getTotal();
   const total = subtotal + deliveryFee;
+
+  const createCustomerAccount = async (data: FormData) => {
+    if (!saveData) return;
+    
+    try {
+      const { data: response, error } = await supabase.functions.invoke('create-customer-account', {
+        body: {
+          email: data.email,
+          name: data.name,
+          phone: data.phone,
+          deliveryOption: data.deliveryOption,
+          address: data.address,
+        },
+      });
+
+      if (error) {
+        console.error('Error creating account:', error);
+        return;
+      }
+
+      if (response?.success) {
+        toast({
+          title: response.isExisting ? "Dados atualizados!" : "Conta criada!",
+          description: "Enviamos um link de acesso para seu email.",
+        });
+      }
+    } catch (error) {
+      console.error('Error creating customer account:', error);
+    }
+  };
 
   const handlePixPayment = async (data: FormData) => {
     setIsLoading(true);
@@ -106,13 +141,24 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     }
   };
 
-  const handleWhatsApp = (data: FormData) => {
+  const handleWhatsApp = async (data: FormData) => {
+    // Create account if checkbox is checked
+    await createCustomerAccount(data);
+    
     onWhatsAppClick({
       name: data.name,
       phone: data.phone,
       deliveryOption: data.deliveryOption,
       address: data.address,
     });
+  };
+
+  const handlePixPaymentWithAccount = async (data: FormData) => {
+    // Create account if checkbox is checked
+    await createCustomerAccount(data);
+    
+    // Then proceed with payment
+    await handlePixPayment(data);
   };
 
   const hasItems = items.length > 0;
@@ -215,6 +261,24 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
         </div>
       )}
 
+      {/* Save data checkbox */}
+      {hasItems && (
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+          <Checkbox
+            id="saveData"
+            checked={saveData}
+            onCheckedChange={(checked) => setSaveData(checked === true)}
+            className="mt-0.5"
+          />
+          <Label htmlFor="saveData" className="text-sm cursor-pointer leading-relaxed">
+            <span className="font-medium">Salvar meus dados para próximas compras</span>
+            <span className="text-muted-foreground block text-xs mt-0.5">
+              Criaremos uma conta e enviaremos um link de acesso para seu email
+            </span>
+          </Label>
+        </div>
+      )}
+
       {/* Totals */}
       {hasItems && (
         <div className="pt-3 border-t border-border space-y-1">
@@ -242,7 +306,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           variant="cta"
           size="lg"
           className="w-full"
-          onClick={handleSubmit(handlePixPayment)}
+          onClick={handleSubmit(handlePixPaymentWithAccount)}
           disabled={!hasItems || isLoading}
         >
           {isLoading ? (
