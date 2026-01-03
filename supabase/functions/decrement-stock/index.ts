@@ -123,6 +123,21 @@ serve(async (req) => {
         } else {
           decrementResults.push(`${flavorName}: ${currentItem.stock_quantity} → ${newStock}`);
           console.log(`[decrement-stock] Updated "${flavorName}": ${currentItem.stock_quantity} → ${newStock}`);
+
+          // Log stock movement
+          const itemType = tableName === 'kit_juices' ? 'kit_juice' : 
+                          tableName === 'kit_soups' ? 'kit_soup' : 'marmita_flavor';
+          
+          await supabase.from('stock_movements').insert({
+            item_type: itemType,
+            item_id: currentItem.id,
+            item_name: flavorName,
+            movement_type: 'sale',
+            quantity_before: currentItem.stock_quantity,
+            quantity_after: newStock,
+            quantity_change: -flavorQuantity,
+            notes: `Pedido #${order_id.slice(0, 8)}`,
+          });
         }
       }
     }

@@ -22,7 +22,8 @@ import {
   Filter,
   MapPin,
   Package,
-  UtensilsCrossed
+  UtensilsCrossed,
+  History
 } from "lucide-react";
 import {
   Select,
@@ -46,6 +47,7 @@ import {
 import OrdersManager from "@/components/admin/OrdersManager";
 import MenuManager from "@/components/admin/MenuManager";
 import StockReport from "@/components/admin/StockReport";
+import StockHistory from "@/components/admin/StockHistory";
 
 interface Lead {
   id: string;
@@ -611,22 +613,26 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5">
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
-              Analytics
+              <span className="hidden sm:inline">Analytics</span>
             </TabsTrigger>
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <Package className="w-4 h-4" />
-              Pedidos
+              <span className="hidden sm:inline">Pedidos</span>
             </TabsTrigger>
             <TabsTrigger value="stock" className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
-              Estoque
+              <span className="hidden sm:inline">Estoque</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              <span className="hidden sm:inline">Histórico</span>
             </TabsTrigger>
             <TabsTrigger value="menu" className="flex items-center gap-2">
               <UtensilsCrossed className="w-4 h-4" />
-              Cardápio
+              <span className="hidden sm:inline">Cardápio</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1077,6 +1083,10 @@ const Admin = () => {
 
           <TabsContent value="stock">
             <StockReport />
+          </TabsContent>
+
+          <TabsContent value="history">
+            <StockHistory />
           </TabsContent>
 
           <TabsContent value="menu">
