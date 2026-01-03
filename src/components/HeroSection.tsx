@@ -21,7 +21,6 @@ const objectiveOptions = [
     emoji: "🧃",
     title: "Kit Detox",
     description: "Sucos e sopas funcionais",
-    price: "R$ 199",
     lottieKey: "detox" as const,
   },
   {
@@ -29,7 +28,6 @@ const objectiveOptions = [
     emoji: "🍱",
     title: "Marmitas Saudáveis",
     description: "Refeições prontas congeladas",
-    price: "R$ 25,90/un",
     lottieKey: "marmitas" as const,
   },
   {
@@ -37,7 +35,6 @@ const objectiveOptions = [
     emoji: "✨",
     title: "Dieta Personalizada",
     description: "Cardápio sob medida",
-    price: "Sob consulta",
     lottieKey: "personalizada" as const,
   },
 ];
@@ -95,13 +92,6 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
             </span>
           </div>
 
-          {/* Badge de urgência */}
-          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-terracotta/90 backdrop-blur-sm border border-terracotta shadow-lg animate-fade-in">
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-            <span className="text-xs sm:text-sm font-semibold text-white">
-              🔥 Peça até domingo • Entrega quarta-feira
-            </span>
-          </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mt-6 mb-6 animate-fade-in">
             Coma melhor mesmo sem tempo —{" "}
@@ -159,9 +149,6 @@ const HeroSection = ({ onScrollToSection }: HeroSectionProps) => {
                   </span>
                   <span className="text-white/70 text-xs sm:text-sm">
                     {option.description}
-                  </span>
-                  <span className="text-primary font-bold text-xs sm:text-sm mt-1 transition-all duration-300 group-hover:scale-110">
-                    {option.price}
                   </span>
                 </button>
               ))}
