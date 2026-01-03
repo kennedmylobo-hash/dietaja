@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Check, ShoppingCart, HelpCircle, Loader2, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import SalesQuizModal from "./SalesQuizModal";
-import { useCart } from "./CartContext";
+import { useCart, FlavorSelection } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
 import { hapticFeedback } from "@/lib/haptics";
 import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
@@ -16,6 +16,7 @@ import {
   CarouselPrevious,
   CarouselNext,
 } from "@/components/ui/carousel";
+import KitFlavorSelectionModal from "./KitFlavorSelectionModal";
 
 interface Kit {
   id: string;
@@ -92,6 +93,14 @@ const KitsSection = () => {
   const [quizOpen, setQuizOpen] = useState(false);
   const [loadingKit, setLoadingKit] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedKit, setSelectedKit] = useState<Kit | null>(null);
+  const [flavorModalOpen, setFlavorModalOpen] = useState(false);
+
+  // Calculate quantities based on kit days
+  const getKitQuantities = (days: number) => ({
+    juices: days * 4,  // 4 juices per day
+    soups: days * 2,   // 2 soups per day
+  });
 
   // Track ViewContent when section becomes visible
   useEffect(() => {
@@ -113,19 +122,30 @@ const KitsSection = () => {
     setIsHoveringDots,
   } = useCarouselWithProgress(ref, { autoplayDelay: 3000 });
 
-  const handleAddKit = async (kit: Kit) => {
-    setLoadingKit(kit.id);
+  const handleAddKit = (kit: Kit) => {
+    setSelectedKit(kit);
+    setFlavorModalOpen(true);
+  };
+
+  const handleFlavorConfirm = async (juiceFlavors: FlavorSelection[], soupFlavors: FlavorSelection[]) => {
+    if (!selectedKit) return;
+    
+    setLoadingKit(selectedKit.id);
     
     // Simulate brief loading for feedback
     await new Promise(resolve => setTimeout(resolve, 400));
     
+    // Combine both flavor arrays
+    const allFlavors = [...juiceFlavors, ...soupFlavors];
+    
     addItem({
       type: "kit",
-      name: kit.name,
+      name: selectedKit.name,
       quantity: 1,
-      unitPrice: kit.price,
-      totalPrice: kit.price,
-      description: `${kit.days} dias de detox completo`,
+      unitPrice: selectedKit.price,
+      totalPrice: selectedKit.price,
+      description: `${selectedKit.days} dias de detox completo`,
+      flavors: allFlavors,
     });
 
     // Haptic feedback on mobile
@@ -133,10 +153,12 @@ const KitsSection = () => {
 
     toast({
       title: "Adicionado ao carrinho! 🛒",
-      description: kit.name,
+      description: selectedKit.name,
     });
     
     setLoadingKit(null);
+    setFlavorModalOpen(false);
+    setSelectedKit(null);
   };
 
   return (
@@ -380,6 +402,22 @@ const KitsSection = () => {
       </div>
 
       <SalesQuizModal open={quizOpen} onOpenChange={setQuizOpen} />
+      
+      {/* Kit Flavor Selection Modal */}
+      {selectedKit && (
+        <KitFlavorSelectionModal
+          isOpen={flavorModalOpen}
+          onClose={() => {
+            setFlavorModalOpen(false);
+            setSelectedKit(null);
+          }}
+          onConfirm={handleFlavorConfirm}
+          kitName={selectedKit.name}
+          juiceQuantity={getKitQuantities(selectedKit.days).juices}
+          soupQuantity={getKitQuantities(selectedKit.days).soups}
+          isLoading={loadingKit === selectedKit.id}
+        />
+      )}
     </section>
   );
 };

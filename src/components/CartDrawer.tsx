@@ -262,8 +262,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                             ))}
                           </div>
                         )}
-                        {/* Edit flavors button for marmitas */}
-                        {item.type === "marmita" && (
+                        {/* Edit flavors button for marmitas and kits */}
+                        {(item.type === "marmita" || (item.type === "kit" && item.flavors && item.flavors.length > 0)) && (
                           <button
                             onClick={() => handleEditFlavors(item)}
                             className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
