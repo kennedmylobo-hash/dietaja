@@ -69,9 +69,17 @@ export const useAnalytics = () => {
     trackEvent({ event_type: 'section_view', section });
   }, [trackEvent]);
 
-  // Track CTA click
+  // Track CTA click - now also sends to analytics_events table
   const trackCTAClick = useCallback((ctaName: string) => {
     trackEvent({ event_type: 'cta_click', section: ctaName });
+    
+    // Meta Pixel tracking
+    if (typeof window.fbq === 'function') {
+      window.fbq('trackCustom', 'CTAClick', {
+        cta_name: ctaName,
+        page: window.location.pathname,
+      });
+    }
   }, [trackEvent]);
 
 // Track time on page (chamado ao sair)

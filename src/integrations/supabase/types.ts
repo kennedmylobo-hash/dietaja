@@ -17,12 +17,15 @@ export type Database = {
       analytics_events: {
         Row: {
           created_at: string
+          device_type: string | null
           event_type: string
           id: string
+          metadata: Json | null
           page: string | null
           referrer: string | null
           scroll_depth: number | null
           section: string | null
+          section_time_spent: number | null
           session_id: string
           time_on_page: number | null
           user_agent: string | null
@@ -31,12 +34,15 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          device_type?: string | null
           event_type: string
           id?: string
+          metadata?: Json | null
           page?: string | null
           referrer?: string | null
           scroll_depth?: number | null
           section?: string | null
+          section_time_spent?: number | null
           session_id: string
           time_on_page?: number | null
           user_agent?: string | null
@@ -45,12 +51,15 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          device_type?: string | null
           event_type?: string
           id?: string
+          metadata?: Json | null
           page?: string | null
           referrer?: string | null
           scroll_depth?: number | null
           section?: string | null
+          section_time_spent?: number | null
           session_id?: string
           time_on_page?: number | null
           user_agent?: string | null
