@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Logo from "@/components/Logo";
@@ -20,6 +20,7 @@ import CartFloatingButton from "@/components/CartFloatingButton";
 import CartDrawer from "@/components/CartDrawer";
 import { getUTMSummary } from "@/lib/utm";
 import { useAnalytics, useScrollTracking } from "@/hooks/useAnalytics";
+import { useSectionTracking } from "@/hooks/useSectionTracking";
 import {
   CustomDietSkeleton,
   TestimonialsSkeleton,
@@ -44,6 +45,37 @@ const IndexContent = () => {
   // Analytics tracking
   useAnalytics();
   useScrollTracking();
+  const { observeSection } = useSectionTracking();
+  
+  // Section refs for tracking
+  const heroRef = useRef<HTMLDivElement>(null);
+  const identificationRef = useRef<HTMLDivElement>(null);
+  const reviewsRef = useRef<HTMLDivElement>(null);
+  const solutionRef = useRef<HTMLDivElement>(null);
+  const beforeAfterRef = useRef<HTMLDivElement>(null);
+  const galleryRef = useRef<HTMLDivElement>(null);
+  const kitsRef = useRef<HTMLDivElement>(null);
+  const marmitasRef = useRef<HTMLDivElement>(null);
+  const customDietRef = useRef<HTMLDivElement>(null);
+  const valueRef = useRef<HTMLDivElement>(null);
+  const guaranteeRef = useRef<HTMLDivElement>(null);
+  const faqRef = useRef<HTMLDivElement>(null);
+  
+  // Observe sections for time tracking
+  useEffect(() => {
+    observeSection(heroRef.current, 'Hero');
+    observeSection(identificationRef.current, 'Identificação');
+    observeSection(reviewsRef.current, 'Depoimentos');
+    observeSection(solutionRef.current, 'Solução');
+    observeSection(beforeAfterRef.current, 'Antes/Depois');
+    observeSection(galleryRef.current, 'Galeria');
+    observeSection(kitsRef.current, 'Kits');
+    observeSection(marmitasRef.current, 'Marmitas');
+    observeSection(customDietRef.current, 'Dieta Personalizada');
+    observeSection(valueRef.current, 'Benefícios');
+    observeSection(guaranteeRef.current, 'Garantia');
+    observeSection(faqRef.current, 'FAQ');
+  }, [observeSection]);
 
   const scrollToSection = (sectionId: string) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
@@ -149,32 +181,48 @@ const IndexContent = () => {
 
         {/* Main content */}
         <main className="pt-16 lg:pl-0">
-          <HeroSection />
+          <div ref={heroRef}>
+            <HeroSection />
+          </div>
           <PromoBannersSection />
-          <IdentificationSection />
+          <div ref={identificationRef}>
+            <IdentificationSection />
+          </div>
           <Suspense fallback={<TestimonialsSkeleton />}>
-            <ReviewsSection />
+            <div ref={reviewsRef}>
+              <ReviewsSection />
+            </div>
           </Suspense>
-          <SolutionSection />
-          <BeforeAfterSection />
-          <ProductGallerySection />
-          <div id="kits">
+          <div ref={solutionRef}>
+            <SolutionSection />
+          </div>
+          <div ref={beforeAfterRef}>
+            <BeforeAfterSection />
+          </div>
+          <div ref={galleryRef}>
+            <ProductGallerySection />
+          </div>
+          <div id="kits" ref={kitsRef}>
             <KitsSection />
           </div>
-          <div id="marmitas">
+          <div id="marmitas" ref={marmitasRef}>
             <MarmitasSection />
           </div>
           <Suspense fallback={<CustomDietSkeleton />}>
-            <div id="dieta-personalizada">
+            <div id="dieta-personalizada" ref={customDietRef}>
               <CustomDietSection whatsappNumber={WHATSAPP_NUMBER} />
             </div>
           </Suspense>
-          <ValueSection />
+          <div ref={valueRef}>
+            <ValueSection />
+          </div>
           <Suspense fallback={<GuaranteeSkeleton />}>
-            <GuaranteeSection />
+            <div ref={guaranteeRef}>
+              <GuaranteeSection />
+            </div>
           </Suspense>
           <Suspense fallback={<FAQSkeleton />}>
-            <div id="faq">
+            <div id="faq" ref={faqRef}>
               <FAQSection onContactClick={handleContactClick} />
             </div>
           </Suspense>

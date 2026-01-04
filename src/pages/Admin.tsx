@@ -23,7 +23,8 @@ import {
   MapPin,
   Package,
   UtensilsCrossed,
-  History
+  History,
+  Activity
 } from "lucide-react";
 import {
   Select,
@@ -48,6 +49,7 @@ import OrdersManager from "@/components/admin/OrdersManager";
 import MenuManager from "@/components/admin/MenuManager";
 import StockReport from "@/components/admin/StockReport";
 import StockHistory from "@/components/admin/StockHistory";
+import FunnelReport from "@/components/admin/FunnelReport";
 
 interface Lead {
   id: string;
@@ -613,10 +615,14 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
+          <TabsList className="grid w-full max-w-4xl grid-cols-6">
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Analytics</span>
+            </TabsTrigger>
+            <TabsTrigger value="funnel" className="flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              <span className="hidden sm:inline">Funil</span>
             </TabsTrigger>
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <Package className="w-4 h-4" />
@@ -1075,6 +1081,10 @@ const Admin = () => {
             </Card>
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="funnel">
+            <FunnelReport dateFilter={dateFilter} sourceFilter={sourceFilter} />
           </TabsContent>
 
           <TabsContent value="orders">

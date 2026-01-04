@@ -56,8 +56,13 @@ interface CartDrawerProps {
 }
 
 const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
-  const { items, removeItem, updateItemFlavors, getTotal, clearCart } = useCart();
+  const { items, removeItem, updateItemFlavors, getTotal, clearCart, trackCartOpen, trackCheckoutStart, trackCheckoutComplete } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout'>('cart');
+  
+  const handleGoToCheckout = () => {
+    setStep('checkout');
+    trackCheckoutStart();
+  };
   const [isLoading, setIsLoading] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const [editingMarmita, setEditingMarmita] = useState<CartItem | null>(null);
@@ -206,7 +211,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const handleProceedToCheckout = () => {
     hapticFeedback('light');
     setSaveData(false); // Reset checkbox
-    setStep('checkout');
+    handleGoToCheckout();
   };
 
   const handleBackToCart = () => {
@@ -280,15 +285,6 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     // Create account if checkbox is checked
     await createCustomerAccount(data);
 
-    // Track InitiateCheckout for WhatsApp too
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'InitiateCheckout', {
-        value: total,
-        currency: 'BRL',
-        num_items: items.length,
-      });
-    }
-
     // Create order in database with whatsapp_pending status
     try {
       const { error: orderError } = await supabase
@@ -355,6 +351,9 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
 
     const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
+    
+    // Track checkout complete
+    trackCheckoutComplete(total);
 
     // Clear cart and close drawer
     setTimeout(() => {
@@ -368,7 +367,9 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
 
   // Reset step when drawer closes
   const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
+    if (newOpen) {
+      trackCartOpen();
+    } else {
       setStep('cart');
       setEditingMarmita(null);
       setEditingKit(null);
