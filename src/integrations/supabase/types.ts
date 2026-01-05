@@ -68,6 +68,60 @@ export type Database = {
         }
         Relationships: []
       }
+      carts: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          items: Json | null
+          last_activity_at: string | null
+          name: string | null
+          phone: string
+          reminder_sent_at: string | null
+          status: string | null
+          subtotal: number | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          whatsapp_2_sent_at: string | null
+          whatsapp_sent_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          items?: Json | null
+          last_activity_at?: string | null
+          name?: string | null
+          phone: string
+          reminder_sent_at?: string | null
+          status?: string | null
+          subtotal?: number | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          whatsapp_2_sent_at?: string | null
+          whatsapp_sent_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          items?: Json | null
+          last_activity_at?: string | null
+          name?: string | null
+          phone?: string
+          reminder_sent_at?: string | null
+          status?: string | null
+          subtotal?: number | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          whatsapp_2_sent_at?: string | null
+          whatsapp_sent_at?: string | null
+        }
+        Relationships: []
+      }
       coupon_usage: {
         Row: {
           coupon_code: string
