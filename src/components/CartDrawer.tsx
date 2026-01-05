@@ -984,9 +984,19 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     size="lg"
                     className="w-full"
                     onClick={handleWhatsAppContact}
+                    disabled={isLoading}
                   >
-                    <MessageCircle className="w-5 h-5" />
-                    Falar com Atendente
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle className="w-5 h-5" />
+                        Falar com Atendente
+                      </>
+                    )}
                   </Button>
 
                   <button
