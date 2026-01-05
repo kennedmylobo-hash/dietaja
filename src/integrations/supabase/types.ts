@@ -339,6 +339,7 @@ export type Database = {
           items: Json
           mp_payment_id: string | null
           mp_preference_id: string | null
+          order_number: string | null
           paid_at: string | null
           payment_method: string | null
           status: string
@@ -359,6 +360,7 @@ export type Database = {
           items: Json
           mp_payment_id?: string | null
           mp_preference_id?: string | null
+          order_number?: string | null
           paid_at?: string | null
           payment_method?: string | null
           status?: string
@@ -379,6 +381,7 @@ export type Database = {
           items?: Json
           mp_payment_id?: string | null
           mp_preference_id?: string | null
+          order_number?: string | null
           paid_at?: string | null
           payment_method?: string | null
           status?: string
