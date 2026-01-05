@@ -24,7 +24,8 @@ import {
   Package,
   UtensilsCrossed,
   History,
-  Activity
+  Activity,
+  AlertCircle
 } from "lucide-react";
 import {
   Select,
@@ -50,6 +51,7 @@ import MenuManager from "@/components/admin/MenuManager";
 import StockReport from "@/components/admin/StockReport";
 import StockHistory from "@/components/admin/StockHistory";
 import FunnelReport from "@/components/admin/FunnelReport";
+import PendingOrdersRecovery from "@/components/admin/PendingOrdersRecovery";
 
 interface Lead {
   id: string;
@@ -615,7 +617,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full max-w-4xl grid-cols-6">
+          <TabsList className="grid w-full max-w-5xl grid-cols-7">
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Analytics</span>
@@ -627,6 +629,10 @@ const Admin = () => {
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <Package className="w-4 h-4" />
               <span className="hidden sm:inline">Pedidos</span>
+            </TabsTrigger>
+            <TabsTrigger value="recovery" className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Recuperar</span>
             </TabsTrigger>
             <TabsTrigger value="stock" className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
@@ -1089,6 +1095,10 @@ const Admin = () => {
 
           <TabsContent value="orders">
             <OrdersManager dateFilter={dateFilter} />
+          </TabsContent>
+
+          <TabsContent value="recovery">
+            <PendingOrdersRecovery />
           </TabsContent>
 
           <TabsContent value="stock">
