@@ -39,17 +39,18 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find orders that are 'confirmed' and created more than 1 hour ago
-    // but less than 25 hours ago (to avoid spamming old orders)
+    // Find orders that are 'confirmed', created more than 1 hour ago,
+    // less than 25 hours ago, and haven't received a reminder yet
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
 
-    console.log(`Looking for orders between ${twentyFiveHoursAgo} and ${oneHourAgo}`);
+    console.log(`Looking for orders between ${twentyFiveHoursAgo} and ${oneHourAgo} without reminders`);
 
     const { data: pendingOrders, error: fetchError } = await supabase
       .from("orders")
       .select("*")
       .eq("status", "confirmed")
+      .is("reminder_sent_at", null)
       .lt("created_at", oneHourAgo)
       .gt("created_at", twentyFiveHoursAgo)
       .order("created_at", { ascending: true });
@@ -88,6 +89,17 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
         console.log(`Email sent to ${order.customer_email}:`, emailResponse);
+
+        // Mark reminder as sent
+        const { error: updateError } = await supabase
+          .from("orders")
+          .update({ reminder_sent_at: new Date().toISOString() })
+          .eq("id", order.id);
+
+        if (updateError) {
+          console.error(`Error updating reminder_sent_at for order ${order.id}:`, updateError);
+        }
+
         sentCount++;
 
         // Small delay between emails to avoid rate limiting
