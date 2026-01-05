@@ -134,6 +134,13 @@ const generateEmailHtml = (data: OrderApprovedRequest): string => {
           </div>
         </div>
 
+        <!-- Track Order Button -->
+        <div style="padding: 0 24px 16px; text-align: center;">
+          <a href="https://dietaja.com.br/pedido/${data.order_number}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">
+            📦 Acompanhar Pedido
+          </a>
+        </div>
+
         <!-- WhatsApp Button -->
         <div style="padding: 0 24px 32px; text-align: center;">
           <p style="margin: 0 0 16px; font-size: 14px; color: #666;">Dúvidas sobre seu pedido?</p>

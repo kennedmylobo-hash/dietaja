@@ -1005,6 +1005,17 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     )}
                   </Button>
 
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-muted-foreground"
+                    asChild
+                  >
+                    <a href={`/pedido/${confirmedOrderNumber}`}>
+                      📦 Acompanhar Pedido
+                    </a>
+                  </Button>
+
                   <button
                     onClick={handleCloseAfterSuccess}
                     className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors pt-2"
