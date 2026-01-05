@@ -57,15 +57,27 @@ const STATUS_STEPS: StatusStep[] = [
   },
   { 
     id: "preparing", 
-    label: "Em Preparação", 
+    label: "Em Produção", 
     icon: <Clock className="w-5 h-5" />,
     description: "Preparando suas marmitas"
   },
   { 
     id: "ready", 
-    label: "Pronto", 
+    label: "Separado", 
+    icon: <Package className="w-5 h-5" />,
+    description: "Separado para entrega/retirada"
+  },
+  { 
+    id: "delivering", 
+    label: "Em Entrega", 
     icon: <Truck className="w-5 h-5" />,
-    description: "Pronto para entrega/retirada"
+    description: "Seu pedido está a caminho"
+  },
+  { 
+    id: "delivered", 
+    label: "Entregue", 
+    icon: <CheckCircle2 className="w-5 h-5" />,
+    description: "Entregue com sucesso!"
   },
 ];
 
@@ -80,9 +92,12 @@ const getStepIndex = (status: string): number => {
     case "preparing":
       return 2; // Preparing
     case "ready":
+      return 3; // Ready/Separated
+    case "delivering":
+      return 4; // Delivering
     case "delivered":
     case "completed":
-      return 3; // Ready
+      return 5; // Delivered
     case "rejected":
     case "cancelled":
       return -1; // Error state
@@ -92,7 +107,7 @@ const getStepIndex = (status: string): number => {
 };
 
 const getPaymentStepStatus = (status: string): "completed" | "current" | "pending" => {
-  if (["approved", "preparing", "ready", "delivered", "completed"].includes(status)) {
+  if (["approved", "preparing", "ready", "delivering", "delivered", "completed"].includes(status)) {
     return "completed";
   }
   if (["pending", "confirmed", "whatsapp_pending"].includes(status)) {
