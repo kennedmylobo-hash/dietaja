@@ -53,6 +53,7 @@ interface PendingOrder {
   delivery_address: string | null;
   created_at: string;
   paid_at: string | null;
+  reminder_sent_at: string | null;
 }
 
 const PendingOrdersRecovery = () => {
@@ -119,11 +120,13 @@ const PendingOrdersRecovery = () => {
     const totalValue = pendingOrders.reduce((sum, o) => sum + o.total, 0);
     const confirmedOrders = pendingOrders.filter(o => o.status === 'confirmed');
     const oldPendingOrders = pendingOrders.filter(o => o.status === 'pending');
+    const withReminder = pendingOrders.filter(o => o.reminder_sent_at !== null);
     
     return {
       total: pendingOrders.length,
       confirmed: confirmedOrders.length,
       oldPending: oldPendingOrders.length,
+      withReminder: withReminder.length,
       totalValue,
     };
   }, [pendingOrders]);
@@ -270,6 +273,20 @@ const PendingOrdersRecovery = () => {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                <Mail className="w-5 h-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.withReminder}</p>
+                <p className="text-xs text-muted-foreground">Lembretes enviados</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="border-emerald-500/20 bg-emerald-500/5">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -334,9 +351,15 @@ const PendingOrdersRecovery = () => {
                 >
                   <div className="flex items-center gap-4">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <p className="font-semibold">{order.customer_name}</p>
                         {getUrgencyBadge(order.created_at)}
+                        {order.reminder_sent_at && (
+                          <Badge className="bg-purple-500/10 text-purple-600 text-xs">
+                            <Mail className="w-3 h-3 mr-1" />
+                            Lembrete enviado
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -467,6 +490,17 @@ const PendingOrdersRecovery = () => {
                   {new Date(selectedOrder.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
+
+              {/* Reminder Status */}
+              {selectedOrder.reminder_sent_at && (
+                <div className="flex items-center gap-2 text-sm text-purple-600 bg-purple-500/10 rounded-lg p-3">
+                  <Mail className="w-4 h-4" />
+                  <span>
+                    Lembrete enviado em {new Date(selectedOrder.reminder_sent_at).toLocaleDateString('pt-BR')} às{' '}
+                    {new Date(selectedOrder.reminder_sent_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex gap-2 pt-2">
