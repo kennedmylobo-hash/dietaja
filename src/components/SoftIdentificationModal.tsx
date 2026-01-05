@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShoppingBag, User, Phone } from "lucide-react";
+import { Sparkles, MessageCircle, ArrowRight, Lock } from "lucide-react";
 
 interface SoftIdentificationModalProps {
   open: boolean;
@@ -64,25 +64,24 @@ export const SoftIdentificationModal = ({
       >
         <DialogHeader className="text-center pb-2">
           <div className="mx-auto mb-3 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-            <ShoppingBag className="w-8 h-8 text-primary" />
+            <Sparkles className="w-8 h-8 text-primary" />
           </div>
           <DialogTitle className="text-2xl font-bold text-foreground">
-            Ótima escolha! 🎉
+            Reservando seu pedido... 🛒
           </DialogTitle>
           <p className="text-muted-foreground mt-2 text-base">
-            Para separar seu pedido, informe seus dados:
+            Para agilizar sua compra e garantir atendimento personalizado:
           </p>
         </DialogHeader>
 
         <div className="space-y-5 py-4">
           <div className="space-y-2">
-            <Label htmlFor="soft-name" className="text-base font-medium flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Seu nome
+            <Label htmlFor="soft-name" className="text-base font-medium">
+              Como podemos te chamar?
             </Label>
             <Input
               id="soft-name"
-              placeholder="Ex: Maria"
+              placeholder="Digite seu primeiro nome"
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -98,8 +97,8 @@ export const SoftIdentificationModal = ({
 
           <div className="space-y-2">
             <Label htmlFor="soft-phone" className="text-base font-medium flex items-center gap-2">
-              <Phone className="w-4 h-4" />
-              Seu WhatsApp
+              <MessageCircle className="w-4 h-4 text-primary" />
+              WhatsApp para acompanhar seu pedido
             </Label>
             <Input
               id="soft-phone"
@@ -119,9 +118,10 @@ export const SoftIdentificationModal = ({
           <Button 
             onClick={validateAndSubmit}
             size="lg"
-            className="h-14 text-lg font-semibold rounded-xl"
+            className="h-14 text-lg font-semibold rounded-xl gap-2"
           >
-            ✓ Continuar
+            Reservar meu pedido
+            <ArrowRight className="w-5 h-5" />
           </Button>
           
           {onSkip && (
@@ -135,8 +135,9 @@ export const SoftIdentificationModal = ({
           )}
         </div>
 
-        <p className="text-xs text-center text-muted-foreground mt-2">
-          Seus dados são protegidos e usados apenas para seu pedido
+        <p className="text-xs text-center text-muted-foreground mt-2 flex items-center justify-center gap-2">
+          <Lock className="w-3 h-3" />
+          Dados seguros • +2.000 clientes satisfeitos
         </p>
       </DialogContent>
     </Dialog>
