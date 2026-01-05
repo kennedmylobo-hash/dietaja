@@ -181,6 +181,13 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     };
   }, []);
 
+  // Carregar histórico automaticamente quando um pedido é selecionado
+  useEffect(() => {
+    if (selectedOrder?.id) {
+      fetchStatusHistory(selectedOrder.id);
+    }
+  }, [selectedOrder?.id]);
+
   const filteredOrders = useMemo(() => {
     if (statusFilter === 'all') return orders;
     return orders.filter(o => o.status === statusFilter);
