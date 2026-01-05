@@ -53,6 +53,7 @@ import StockReport from "@/components/admin/StockReport";
 import StockHistory from "@/components/admin/StockHistory";
 import FunnelReport from "@/components/admin/FunnelReport";
 import PendingOrdersRecovery from "@/components/admin/PendingOrdersRecovery";
+import AbandonedCartsRecovery from "@/components/admin/AbandonedCartsRecovery";
 import MarketingManager from "@/components/admin/MarketingManager";
 
 interface Lead {
@@ -1104,7 +1105,22 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="recovery">
-            <PendingOrdersRecovery />
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-orange-500" />
+                  Pedidos Pendentes de Pagamento
+                </h3>
+                <PendingOrdersRecovery />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <ShoppingCart className="w-5 h-5 text-yellow-500" />
+                  Carrinhos Abandonados (sem pedido)
+                </h3>
+                <AbandonedCartsRecovery />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="marketing">
