@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.send-order-approved]
 verify_jwt = false
+
+[functions.get-order-status]
+verify_jwt = false
