@@ -25,7 +25,7 @@ interface OrderData {
 const STATUS_MESSAGES: Record<string, { title: string; message: string; emoji: string; color: string }> = {
   approved: {
     title: "Pagamento Confirmado! ✅",
-    message: "Seu pagamento foi aprovado e seu pedido já está na fila de produção.",
+    message: "Seu pagamento foi aprovado e seu pedido já está na fila de produção. Entrega prevista em até 3 dias úteis.",
     emoji: "✅",
     color: "#22c55e"
   },
