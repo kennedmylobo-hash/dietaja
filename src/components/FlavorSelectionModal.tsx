@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle, Fish } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { celebrateCheckout } from "@/lib/confetti";
@@ -426,17 +427,28 @@ const FlavorSelectionModal = ({
                               </motion.span>
                             )}
                             
-                            <button
-                              onClick={() => updateQuantity(flavor, 1)}
-                              disabled={(remaining <= 0 && !isSelected) || isOutOfStock || maxReached || cannotAddNewFlavor}
-                              className={`p-1.5 rounded-full transition-colors ${
-                                (remaining <= 0 && !isSelected) || isOutOfStock || maxReached || cannotAddNewFlavor
-                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                  : "bg-terracotta hover:bg-terracotta/90 text-white"
-                              }`}
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => updateQuantity(flavor, 1)}
+                                    disabled={(remaining <= 0 && !isSelected) || isOutOfStock || maxReached || cannotAddNewFlavor}
+                                    className={`p-1.5 rounded-full transition-colors ${
+                                      (remaining <= 0 && !isSelected) || isOutOfStock || maxReached || cannotAddNewFlavor
+                                        ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                        : "bg-terracotta hover:bg-terracotta/90 text-white"
+                                    }`}
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                  </button>
+                                </TooltipTrigger>
+                                {cannotAddNewFlavor && (
+                                  <TooltipContent side="left">
+                                    <p>Limite de {maxFlavors} sabores diferentes atingido</p>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         </div>
                       );
