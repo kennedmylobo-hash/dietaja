@@ -180,7 +180,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sending email to ${data.customer_email}`);
 
     const { data: emailResponse, error } = await resend.emails.send({
-      from: "Dieta Já <onboarding@resend.dev>",
+      from: "Dieta Já <pedidos@dietaja.com.br>",
       to: [data.customer_email],
       subject: `Pedido #${data.order_number} Confirmado! 🥗 - Dieta Já`,
       html,
