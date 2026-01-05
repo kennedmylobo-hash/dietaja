@@ -1,5 +1,8 @@
 project_id = "fxlhpizydnbdkhuzrkpr"
 
+[functions.send-pending-reminders]
+verify_jwt = false
+
 [functions.create-mp-preference]
 verify_jwt = false
 
