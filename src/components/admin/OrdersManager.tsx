@@ -24,7 +24,20 @@ import {
   Calendar,
   ChefHat,
   Truck,
+  Ban,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -164,18 +177,22 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     const approved = orders.filter(o => o.status === 'approved');
     const preparing = orders.filter(o => o.status === 'preparing');
     const ready = orders.filter(o => o.status === 'ready');
+    const delivered = orders.filter(o => o.status === 'delivered');
     const pending = orders.filter(o => o.status === 'pending');
     const whatsappPending = orders.filter(o => o.status === 'whatsapp_pending');
     const rejected = orders.filter(o => o.status === 'rejected');
-    const totalRevenue = [...approved, ...preparing, ...ready].reduce((sum, o) => sum + o.total, 0);
+    const cancelled = orders.filter(o => o.status === 'cancelled');
+    const totalRevenue = [...approved, ...preparing, ...ready, ...delivered].reduce((sum, o) => sum + o.total, 0);
     
     return { 
       approved: approved.length, 
       preparing: preparing.length,
       ready: ready.length,
+      delivered: delivered.length,
       pending: pending.length + whatsappPending.length, 
       whatsappPending: whatsappPending.length,
-      rejected: rejected.length, 
+      rejected: rejected.length,
+      cancelled: cancelled.length,
       totalRevenue 
     };
   }, [orders]);
@@ -194,11 +211,32 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         return <Badge className="bg-orange-500/10 text-orange-600 hover:bg-orange-500/20">📲 WhatsApp</Badge>;
       case 'rejected':
         return <Badge className="bg-red-500/10 text-red-600 hover:bg-red-500/20">❌ Rejeitado</Badge>;
+      case 'cancelled':
+        return <Badge className="bg-red-500/10 text-red-600 hover:bg-red-500/20">🚫 Cancelado</Badge>;
       case 'delivered':
         return <Badge className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">🚀 Entregue</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
+  };
+
+  const ALL_STATUSES = [
+    { value: 'pending', label: '⏳ Pendente' },
+    { value: 'whatsapp_pending', label: '📲 WhatsApp' },
+    { value: 'approved', label: '✅ Aprovado' },
+    { value: 'preparing', label: '👨‍🍳 Preparando' },
+    { value: 'ready', label: '📦 Pronto' },
+    { value: 'delivered', label: '🚀 Entregue' },
+    { value: 'cancelled', label: '🚫 Cancelado' },
+    { value: 'rejected', label: '❌ Rejeitado' },
+  ];
+
+  const canCancel = (status: string) => {
+    return !['delivered', 'cancelled', 'rejected'].includes(status);
+  };
+
+  const cancelOrder = async (orderId: string) => {
+    await updateOrderStatus(orderId, 'cancelled');
   };
 
   const [isConfirming, setIsConfirming] = useState<string | null>(null);
@@ -429,6 +467,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                 <SelectItem value="preparing">👨‍🍳 Preparando</SelectItem>
                 <SelectItem value="ready">📦 Prontos</SelectItem>
                 <SelectItem value="delivered">🚀 Entregues</SelectItem>
+                <SelectItem value="cancelled">🚫 Cancelados</SelectItem>
                 <SelectItem value="rejected">❌ Rejeitados</SelectItem>
               </SelectContent>
             </Select>
@@ -541,6 +580,41 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                           >
                             <MessageCircle className="w-4 h-4 text-green-600" />
                           </Button>
+                          {canCancel(order.status) && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Cancelar pedido"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                >
+                                  <Ban className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center gap-2">
+                                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                                    Cancelar Pedido
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja cancelar o pedido #{order.id.slice(0, 8)}?
+                                    Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => cancelOrder(order.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Cancelar Pedido
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -564,10 +638,28 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           
           {selectedOrder && (
             <div className="space-y-4">
-              {/* Status */}
-              <div className="flex items-center justify-between">
+              {/* Status with manual dropdown */}
+              <div className="flex items-center justify-between gap-4">
                 <span className="text-sm text-muted-foreground">Status</span>
-                {getStatusBadge(selectedOrder.status)}
+                <div className="flex items-center gap-2">
+                  {getStatusBadge(selectedOrder.status)}
+                  <Select
+                    value={selectedOrder.status}
+                    onValueChange={(newStatus) => updateOrderStatus(selectedOrder.id, newStatus)}
+                    disabled={isUpdatingStatus === selectedOrder.id}
+                  >
+                    <SelectTrigger className="w-[160px] h-8 text-xs">
+                      <SelectValue placeholder="Alterar status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_STATUSES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Customer */}
@@ -695,6 +787,42 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                   <MessageCircle className="w-4 h-4 mr-2" />
                   Enviar WhatsApp
                 </Button>
+
+                {/* Cancel button */}
+                {canCancel(selectedOrder.status) && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      >
+                        <Ban className="w-4 h-4 mr-2" />
+                        Cancelar Pedido
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5 text-red-500" />
+                          Cancelar Pedido
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja cancelar o pedido #{selectedOrder.id.slice(0, 8)}?
+                          Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Voltar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => cancelOrder(selectedOrder.id)}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Cancelar Pedido
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             </div>
           )}
