@@ -45,7 +45,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface FlavorItem {
   name: string;
@@ -102,6 +104,8 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   const getDateRange = () => {
     const now = new Date();
@@ -282,7 +286,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     setIsLoadingHistory(false);
   };
 
-  const recordStatusChange = async (orderId: string, previousStatus: string, newStatus: string) => {
+  const recordStatusChange = async (orderId: string, previousStatus: string, newStatus: string, notes?: string) => {
     try {
       // Get current user for attribution
       const { data: { user } } = await supabase.auth.getUser();
@@ -294,7 +298,8 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           previous_status: previousStatus,
           new_status: newStatus,
           changed_by: user?.id || null,
-          changed_by_name: user?.email?.split('@')[0] || 'Admin'
+          changed_by_name: user?.email?.split('@')[0] || 'Admin',
+          notes: notes || null
         });
 
       if (error) {
@@ -318,8 +323,54 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     }
   };
 
-  const cancelOrder = async (orderId: string) => {
-    await updateOrderStatus(orderId, 'cancelled');
+  const cancelOrder = async (orderId: string, reason: string) => {
+    setIsUpdatingStatus(orderId);
+    
+    try {
+      const currentOrder = orders.find(o => o.id === orderId);
+      const previousStatus = currentOrder?.status || 'unknown';
+
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ status: 'cancelled' })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error('Error cancelling order:', updateError);
+        alert('Erro ao cancelar pedido');
+        return;
+      }
+
+      // Record the status change with the reason
+      await recordStatusChange(orderId, previousStatus, 'cancelled', reason);
+
+      // Update local state
+      setOrders(prev => 
+        prev.map(o => o.id === orderId 
+          ? { ...o, status: 'cancelled' } 
+          : o
+        )
+      );
+
+      // Update modal if open and refresh history
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, status: 'cancelled' } : null);
+        fetchStatusHistory(orderId);
+      }
+
+      // Send notification
+      sendStatusNotification(orderId, 'cancelled');
+
+      // Clear cancel state
+      setOrderToCancel(null);
+      setCancelReason('');
+
+    } catch (error) {
+      console.error('Error in cancelOrder:', error);
+      alert('Erro ao cancelar pedido');
+    } finally {
+      setIsUpdatingStatus(null);
+    }
   };
 
   const [isConfirming, setIsConfirming] = useState<string | null>(null);
@@ -688,39 +739,15 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                             <MessageCircle className="w-4 h-4 text-green-600" />
                           </Button>
                           {canCancel(order.status) && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  title="Cancelar pedido"
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
-                                >
-                                  <Ban className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle className="flex items-center gap-2">
-                                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                                    Cancelar Pedido
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja cancelar o pedido #{order.id.slice(0, 8)}?
-                                    Esta ação não pode ser desfeita.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Voltar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => cancelOrder(order.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Cancelar Pedido
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Cancelar pedido"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                              onClick={() => setOrderToCancel(order)}
+                            >
+                              <Ban className="w-4 h-4" />
+                            </Button>
                           )}
                         </div>
                       </td>
@@ -965,43 +992,80 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
 
                 {/* Cancel button */}
                 {canCancel(selectedOrder.status) && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
-                      >
-                        <Ban className="w-4 h-4 mr-2" />
-                        Cancelar Pedido
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="flex items-center gap-2">
-                          <AlertTriangle className="w-5 h-5 text-red-500" />
-                          Cancelar Pedido
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Tem certeza que deseja cancelar o pedido #{selectedOrder.id.slice(0, 8)}?
-                          Esta ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Voltar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => cancelOrder(selectedOrder.id)}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          Cancelar Pedido
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <Button
+                    variant="outline"
+                    className="w-full border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => setOrderToCancel(selectedOrder)}
+                  >
+                    <Ban className="w-4 h-4 mr-2" />
+                    Cancelar Pedido
+                  </Button>
                 )}
               </div>
               </div>
             </ScrollArea>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Order Dialog with Reason */}
+      <Dialog 
+        open={!!orderToCancel} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setOrderToCancel(null);
+            setCancelReason('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              Cancelar Pedido #{orderToCancel?.id.slice(0, 8)}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Informe o motivo do cancelamento. Esta informação será registrada no histórico do pedido.
+            </p>
+            
+            <Textarea
+              placeholder="Ex: Cliente desistiu da compra, produto indisponível, endereço incorreto..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              className="min-h-[100px]"
+            />
+            
+            <p className="text-xs text-muted-foreground">
+              Mínimo 10 caracteres ({cancelReason.length}/10)
+            </p>
+          </div>
+          
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setOrderToCancel(null);
+                setCancelReason('');
+              }}
+            >
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={cancelReason.trim().length < 10 || isUpdatingStatus === orderToCancel?.id}
+              onClick={() => orderToCancel && cancelOrder(orderToCancel.id, cancelReason.trim())}
+            >
+              {isUpdatingStatus === orderToCancel?.id ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Ban className="w-4 h-4 mr-2" />
+              )}
+              Confirmar Cancelamento
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
