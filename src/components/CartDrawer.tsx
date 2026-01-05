@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, MessageCircle, ShoppingBag, Loader2, ArrowLeft, Smartphone, Pencil, CheckCircle2, Mail } from "lucide-react";
+import { Trash2, MessageCircle, ShoppingBag, Loader2, ArrowLeft, Smartphone, Pencil, CheckCircle2, Mail, Tag, X } from "lucide-react";
 import { useCart, CartItem, FlavorSelection } from "./CartContext";
 import { hapticFeedback } from "@/lib/haptics";
 import { celebrateCheckout } from "@/lib/confetti";
@@ -62,6 +62,14 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState<string>("");
   const [isConfirming, setIsConfirming] = useState(false);
   const [formData, setFormData] = useState<FormData | null>(null);
+  
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponMessage, setCouponMessage] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState("");
   
   const handleGoToCheckout = () => {
     setStep('checkout');
@@ -212,7 +220,69 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const deliveryOption = watch("deliveryOption");
   const deliveryFee = deliveryOption === "delivery" ? 10 : 0;
   const subtotal = getTotal();
-  const total = subtotal + deliveryFee;
+  const total = subtotal + deliveryFee - couponDiscount;
+
+  // Validate coupon function
+  const handleApplyCoupon = async () => {
+    const email = getValues("email");
+    if (!couponCode.trim()) {
+      setCouponError("Digite um código de cupom");
+      return;
+    }
+    if (!email) {
+      setCouponError("Preencha o email primeiro");
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+    setCouponError("");
+    setCouponMessage("");
+
+    try {
+      const { data: response, error } = await supabase.functions.invoke('validate-coupon', {
+        body: {
+          code: couponCode,
+          customer_email: email,
+          subtotal: subtotal,
+        },
+      });
+
+      if (error) throw error;
+
+      if (response?.valid) {
+        setCouponDiscount(response.discount_amount);
+        setCouponMessage(response.message);
+        setAppliedCoupon(couponCode.toUpperCase());
+        hapticFeedback('success');
+        toast({
+          title: "Cupom aplicado!",
+          description: response.message,
+        });
+      } else {
+        setCouponError(response?.message || "Cupom inválido");
+        setCouponDiscount(0);
+        setAppliedCoupon("");
+        hapticFeedback('error');
+      }
+    } catch (error) {
+      console.error('Error validating coupon:', error);
+      setCouponError("Erro ao validar cupom. Tente novamente.");
+      setCouponDiscount(0);
+      setAppliedCoupon("");
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  // Remove coupon function
+  const handleRemoveCoupon = () => {
+    setCouponCode("");
+    setCouponDiscount(0);
+    setCouponMessage("");
+    setCouponError("");
+    setAppliedCoupon("");
+    hapticFeedback('light');
+  };
 
   const handleProceedToCheckout = () => {
     hapticFeedback('light');
@@ -281,9 +351,26 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           delivery_option: formData.deliveryOption,
           delivery_address: formData.address || null,
           utm_data: getUTMParams() || null,
+          coupon_code: appliedCoupon || null,
+          discount_amount: couponDiscount,
         })
         .select('order_number')
         .single();
+
+      // Record coupon usage if applied
+      if (appliedCoupon && orderData) {
+        try {
+          await supabase.from('coupon_usage').insert({
+            coupon_code: appliedCoupon,
+            customer_email: formData.email.toLowerCase(),
+            order_id: null, // Will be linked later if needed
+          });
+          // Increment usage counter for standalone coupons
+          await supabase.rpc('increment_coupon_usage', { coupon_code_param: appliedCoupon });
+        } catch (usageError) {
+          console.error('Error recording coupon usage:', usageError);
+        }
+      }
 
       if (orderError) {
         console.error('Error creating order:', orderError);
@@ -383,6 +470,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           },
           utm_data: getUTMParams(),
           order_number: confirmedOrderNumber,
+          coupon_code: appliedCoupon || null,
+          discount_amount: couponDiscount,
         },
       });
 
@@ -472,6 +561,12 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     setStep('cart');
     setConfirmedOrderNumber("");
     setFormData(null);
+    // Reset coupon state
+    setCouponCode("");
+    setCouponDiscount(0);
+    setCouponMessage("");
+    setCouponError("");
+    setAppliedCoupon("");
     onOpenChange(false);
     navigate("/obrigado");
   };
@@ -486,6 +581,12 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       setEditingKit(null);
       setConfirmedOrderNumber("");
       setFormData(null);
+      // Reset coupon state on close
+      setCouponCode("");
+      setCouponDiscount(0);
+      setCouponMessage("");
+      setCouponError("");
+      setAppliedCoupon("");
     }
     onOpenChange(newOpen);
   };
@@ -771,6 +872,61 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     </div>
                   )}
 
+                  {/* Coupon section */}
+                  <div className="pt-2">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <Tag className="w-4 h-4" />
+                      Cupom de desconto
+                    </Label>
+                    <div className="mt-2 flex gap-2">
+                      {appliedCoupon ? (
+                        <div className="flex-1 flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                            <span className="text-sm font-medium text-green-700">{appliedCoupon}</span>
+                            <span className="text-xs text-green-600">
+                              (-R$ {couponDiscount.toFixed(2).replace(".", ",")})
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRemoveCoupon}
+                            className="p-1 hover:bg-green-100 rounded transition-colors"
+                          >
+                            <X className="w-4 h-4 text-green-600" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <Input
+                            placeholder="Digite o cupom"
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleApplyCoupon}
+                            disabled={isValidatingCoupon}
+                          >
+                            {isValidatingCoupon ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              "Aplicar"
+                            )}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                    {couponError && (
+                      <p className="text-xs text-destructive mt-1">{couponError}</p>
+                    )}
+                    {couponMessage && !couponError && (
+                      <p className="text-xs text-green-600 mt-1">{couponMessage}</p>
+                    )}
+                  </div>
+
                   {/* Save data checkbox */}
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
                     <Checkbox
@@ -870,6 +1026,12 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Entrega</span>
                           <span>R$ {deliveryFee.toFixed(2).replace(".", ",")}</span>
+                        </div>
+                      )}
+                      {couponDiscount > 0 && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Desconto ({appliedCoupon})</span>
+                          <span>-R$ {couponDiscount.toFixed(2).replace(".", ",")}</span>
                         </div>
                       )}
                       <div className="flex justify-between font-bold text-lg pt-2 border-t border-primary/20">
