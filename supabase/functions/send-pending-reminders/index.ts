@@ -27,6 +27,7 @@ interface PendingOrder {
   created_at: string;
   reminder_sent_at: string | null;
   whatsapp_sent_at: string | null;
+  whatsapp_2_sent_at: string | null;
 }
 
 // Send WhatsApp message via NotificaMe Hub
@@ -79,10 +80,16 @@ async function sendWhatsAppMessage(
 }
 
 // Generate WhatsApp reminder message
-function generateWhatsAppMessage(order: PendingOrder, orderNumber: string, timeSinceOrder: string): string {
+function generateWhatsAppMessage(order: PendingOrder, orderNumber: string, timeSinceOrder: string, isSecondReminder: boolean): string {
+  const urgencyText = isSecondReminder 
+    ? `⚠️ *ÚLTIMA CHANCE!* Seu pedido será cancelado em breve.`
+    : `Você está a um passo de concluir!`;
+
   return `Olá ${order.customer_name}! 😊
 
 Notamos que seu pedido *#${orderNumber}* está aguardando pagamento há ${timeSinceOrder}.
+
+${urgencyText}
 
 💰 *Valor: R$ ${order.total.toFixed(2).replace('.', ',')}*
 
@@ -114,31 +121,53 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn("NotificaMe credentials not configured - WhatsApp messages will be skipped");
     }
 
-    // Find orders that are 'confirmed', created more than 1 hour ago,
-    // less than 25 hours ago, and haven't received BOTH email and whatsapp reminders yet
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+    // Time thresholds
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    console.log(`Looking for orders between ${twentyFiveHoursAgo} and ${oneHourAgo}`);
+    console.log(`Time thresholds - 15min: ${fifteenMinutesAgo}, 6h: ${sixHoursAgo}, 24h: ${twentyFourHoursAgo}`);
 
-    // Get orders that need either email OR whatsapp reminder
-    const { data: pendingOrders, error: fetchError } = await supabase
+    // Get orders that need FIRST reminder (15+ minutes, no reminder sent yet)
+    const { data: firstReminderOrders, error: firstFetchError } = await supabase
       .from("orders")
       .select("*")
       .eq("status", "confirmed")
-      .lt("created_at", oneHourAgo)
-      .gt("created_at", twentyFiveHoursAgo)
-      .or("reminder_sent_at.is.null,whatsapp_sent_at.is.null")
+      .lt("created_at", fifteenMinutesAgo)
+      .gt("created_at", twentyFourHoursAgo)
+      .is("reminder_sent_at", null)
       .order("created_at", { ascending: true });
 
-    if (fetchError) {
-      console.error("Error fetching pending orders:", fetchError);
-      throw fetchError;
+    if (firstFetchError) {
+      console.error("Error fetching first reminder orders:", firstFetchError);
+      throw firstFetchError;
     }
 
-    console.log(`Found ${pendingOrders?.length || 0} pending orders to process`);
+    // Get orders that need SECOND reminder (6+ hours, first reminder sent, no second reminder)
+    const { data: secondReminderOrders, error: secondFetchError } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("status", "confirmed")
+      .lt("created_at", sixHoursAgo)
+      .gt("created_at", twentyFourHoursAgo)
+      .not("reminder_sent_at", "is", null)
+      .is("whatsapp_2_sent_at", null)
+      .order("created_at", { ascending: true });
 
-    if (!pendingOrders || pendingOrders.length === 0) {
+    if (secondFetchError) {
+      console.error("Error fetching second reminder orders:", secondFetchError);
+      throw secondFetchError;
+    }
+
+    console.log(`Found ${firstReminderOrders?.length || 0} orders for 1st reminder (15min)`);
+    console.log(`Found ${secondReminderOrders?.length || 0} orders for 2nd reminder (6h)`);
+
+    const allOrders = [
+      ...(firstReminderOrders || []).map(o => ({ ...o, isSecondReminder: false })),
+      ...(secondReminderOrders || []).map(o => ({ ...o, isSecondReminder: true })),
+    ];
+
+    if (allOrders.length === 0) {
       return new Response(
         JSON.stringify({ message: "No pending orders to remind", sent: { email: 0, whatsapp: 0 } }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -149,39 +178,45 @@ const handler = async (req: Request): Promise<Response> => {
     let whatsappSentCount = 0;
     let errorCount = 0;
 
-    for (const order of pendingOrders as PendingOrder[]) {
+    for (const orderWithFlag of allOrders) {
+      const { isSecondReminder, ...order } = orderWithFlag as PendingOrder & { isSecondReminder: boolean };
+      
       try {
         const orderNumber = order.order_number || order.id.slice(0, 8);
         const timeSinceOrder = getTimeSinceOrder(order.created_at);
         const updateFields: Record<string, string> = {};
 
-        // Send email if not sent yet
-        if (!order.reminder_sent_at) {
-          console.log(`Sending email reminder for order ${orderNumber} to ${order.customer_email}`);
+        console.log(`Processing order ${orderNumber} - ${isSecondReminder ? '2nd' : '1st'} reminder`);
 
-          const emailHtml = generateReminderEmail(order, orderNumber, timeSinceOrder);
+        // Send email
+        console.log(`Sending email reminder for order ${orderNumber} to ${order.customer_email}`);
+        const emailHtml = generateReminderEmail(order, orderNumber, timeSinceOrder, isSecondReminder);
 
-          try {
-            const emailResponse = await resend.emails.send({
-              from: "Dieta Já <pedidos@dietajavca.com.br>",
-              to: [order.customer_email],
-              subject: `⏰ Seu pedido #${orderNumber} está aguardando pagamento`,
-              html: emailHtml,
-            });
+        try {
+          const emailResponse = await resend.emails.send({
+            from: "Dieta Já <pedidos@dietajavca.com.br>",
+            to: [order.customer_email],
+            subject: isSecondReminder 
+              ? `⚠️ ÚLTIMA CHANCE - Pedido #${orderNumber} aguardando pagamento`
+              : `⏰ Seu pedido #${orderNumber} está aguardando pagamento`,
+            html: emailHtml,
+          });
 
-            console.log(`Email sent to ${order.customer_email}:`, emailResponse);
+          console.log(`Email sent to ${order.customer_email}:`, emailResponse);
+          emailSentCount++;
+          
+          if (!isSecondReminder) {
             updateFields.reminder_sent_at = new Date().toISOString();
-            emailSentCount++;
-          } catch (emailError) {
-            console.error(`Error sending email to ${order.customer_email}:`, emailError);
           }
+        } catch (emailError) {
+          console.error(`Error sending email to ${order.customer_email}:`, emailError);
         }
 
-        // Send WhatsApp if not sent yet and credentials are configured
-        if (!order.whatsapp_sent_at && hasWhatsAppCredentials) {
+        // Send WhatsApp if credentials are configured
+        if (hasWhatsAppCredentials) {
           console.log(`Sending WhatsApp reminder for order ${orderNumber} to ${order.customer_phone}`);
 
-          const whatsappMessage = generateWhatsAppMessage(order, orderNumber, timeSinceOrder);
+          const whatsappMessage = generateWhatsAppMessage(order, orderNumber, timeSinceOrder, isSecondReminder);
           const whatsappResult = await sendWhatsAppMessage(
             order.customer_phone,
             whatsappMessage,
@@ -191,8 +226,13 @@ const handler = async (req: Request): Promise<Response> => {
 
           if (whatsappResult.success) {
             console.log(`WhatsApp sent to ${order.customer_phone}`);
-            updateFields.whatsapp_sent_at = new Date().toISOString();
             whatsappSentCount++;
+            
+            if (isSecondReminder) {
+              updateFields.whatsapp_2_sent_at = new Date().toISOString();
+            } else {
+              updateFields.whatsapp_sent_at = new Date().toISOString();
+            }
           } else {
             console.error(`Error sending WhatsApp to ${order.customer_phone}:`, whatsappResult.error);
           }
@@ -220,7 +260,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const result = {
-      message: `Processed ${pendingOrders.length} orders`,
+      message: `Processed ${allOrders.length} orders`,
       sent: {
         email: emailSentCount,
         whatsapp: whatsappSentCount,
@@ -255,7 +295,7 @@ function getTimeSinceOrder(createdAt: string): string {
   return `${minutes} minutos`;
 }
 
-function generateReminderEmail(order: PendingOrder, orderNumber: string, timeSinceOrder: string): string {
+function generateReminderEmail(order: PendingOrder, orderNumber: string, timeSinceOrder: string, isSecondReminder: boolean): string {
   const itemsList = order.items
     .map((item) => `
       <tr>
@@ -272,7 +312,13 @@ function generateReminderEmail(order: PendingOrder, orderNumber: string, timeSin
   const whatsappMessage = encodeURIComponent(
     `Olá! Gostaria de finalizar meu pedido #${orderNumber}`
   );
-  const whatsappLink = `https://wa.me/5511999999999?text=${whatsappMessage}`;
+  const whatsappLink = `https://wa.me/5577991001658?text=${whatsappMessage}`;
+
+  const headerColor = isSecondReminder ? "#ef4444" : "#16a34a";
+  const headerTitle = isSecondReminder ? "⚠️ Última Chance!" : "⏰ Lembrete de Pagamento";
+  const urgencyMessage = isSecondReminder 
+    ? "Seu pedido será <strong>cancelado em breve</strong> se o pagamento não for confirmado."
+    : "Não queremos que você perca sua reserva! Finalize seu pagamento para garantir sua entrega.";
 
   return `
     <!DOCTYPE html>
@@ -289,8 +335,8 @@ function generateReminderEmail(order: PendingOrder, orderNumber: string, timeSin
               
               <!-- Header -->
               <tr>
-                <td style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); padding: 30px; text-align: center;">
-                  <h1 style="color: #ffffff; margin: 0; font-size: 24px;">⏰ Lembrete de Pagamento</h1>
+                <td style="background: linear-gradient(135deg, ${headerColor} 0%, ${isSecondReminder ? '#f97316' : '#22c55e'} 100%); padding: 30px; text-align: center;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 24px;">${headerTitle}</h1>
                 </td>
               </tr>
 
@@ -301,14 +347,14 @@ function generateReminderEmail(order: PendingOrder, orderNumber: string, timeSin
                     Olá <strong>${order.customer_name}</strong>!
                   </p>
                   
-                  <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
-                    <p style="margin: 0; color: #92400e; font-size: 14px;">
-                      Notamos que seu pedido <strong>#${orderNumber}</strong> está aguardando pagamento há <strong>${timeSinceOrder}</strong>.
+                  <div style="background-color: ${isSecondReminder ? '#fef2f2' : '#fef3c7'}; border-left: 4px solid ${isSecondReminder ? '#ef4444' : '#f59e0b'}; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                    <p style="margin: 0; color: ${isSecondReminder ? '#991b1b' : '#92400e'}; font-size: 14px;">
+                      Seu pedido <strong>#${orderNumber}</strong> está aguardando pagamento há <strong>${timeSinceOrder}</strong>.
                     </p>
                   </div>
 
                   <p style="margin: 0 0 20px; font-size: 14px; color: #666;">
-                    Não queremos que você perca sua reserva! Finalize seu pagamento para garantir sua entrega.
+                    ${urgencyMessage}
                   </p>
 
                   <!-- Order Summary -->
