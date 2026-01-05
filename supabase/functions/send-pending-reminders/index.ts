@@ -163,7 +163,7 @@ const handler = async (req: Request): Promise<Response> => {
 
           try {
             const emailResponse = await resend.emails.send({
-              from: "Dieta Já <pedidos@dietaja.com.br>",
+              from: "Dieta Já <pedidos@dietajavca.com.br>",
               to: [order.customer_email],
               subject: `⏰ Seu pedido #${orderNumber} está aguardando pagamento`,
               html: emailHtml,
