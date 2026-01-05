@@ -25,6 +25,72 @@ interface PendingOrder {
   items: OrderItem[];
   total: number;
   created_at: string;
+  reminder_sent_at: string | null;
+  whatsapp_sent_at: string | null;
+}
+
+// Send WhatsApp message via NotificaMe Hub
+async function sendWhatsAppMessage(
+  phone: string, 
+  message: string, 
+  apiToken: string, 
+  channelToken: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Format phone number - remove non-digits and ensure it has country code
+    let formattedPhone = phone.replace(/\D/g, '');
+    if (formattedPhone.startsWith('55')) {
+      // Already has country code
+    } else if (formattedPhone.length === 10 || formattedPhone.length === 11) {
+      formattedPhone = '55' + formattedPhone;
+    }
+
+    console.log(`Sending WhatsApp to ${formattedPhone} via NotificaMe Hub`);
+
+    const response = await fetch('https://hub.notificame.com.br/v1/messages/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        channel: 'whatsapp',
+        channelToken: channelToken,
+        to: formattedPhone,
+        message: {
+          type: 'text',
+          text: message,
+        },
+      }),
+    });
+
+    const responseText = await response.text();
+    console.log(`NotificaMe response status: ${response.status}, body: ${responseText}`);
+
+    if (!response.ok) {
+      return { success: false, error: `NotificaMe API error: ${response.status} - ${responseText}` };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending WhatsApp via NotificaMe:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Generate WhatsApp reminder message
+function generateWhatsAppMessage(order: PendingOrder, orderNumber: string, timeSinceOrder: string): string {
+  return `Olá ${order.customer_name}! 😊
+
+Notamos que seu pedido *#${orderNumber}* está aguardando pagamento há ${timeSinceOrder}.
+
+💰 *Valor: R$ ${order.total.toFixed(2).replace('.', ',')}*
+
+Finalize agora e garanta sua entrega!
+
+Precisa de ajuda? Responda esta mensagem. 💚
+
+- Equipe Dieta Já`;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -39,20 +105,30 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Get NotificaMe credentials
+    const notificameApiToken = Deno.env.get("NOTIFICAME_API_TOKEN");
+    const notificameChannelToken = Deno.env.get("NOTIFICAME_WHATSAPP_CHANNEL_TOKEN");
+
+    const hasWhatsAppCredentials = notificameApiToken && notificameChannelToken;
+    if (!hasWhatsAppCredentials) {
+      console.warn("NotificaMe credentials not configured - WhatsApp messages will be skipped");
+    }
+
     // Find orders that are 'confirmed', created more than 1 hour ago,
-    // less than 25 hours ago, and haven't received a reminder yet
+    // less than 25 hours ago, and haven't received BOTH email and whatsapp reminders yet
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
 
-    console.log(`Looking for orders between ${twentyFiveHoursAgo} and ${oneHourAgo} without reminders`);
+    console.log(`Looking for orders between ${twentyFiveHoursAgo} and ${oneHourAgo}`);
 
+    // Get orders that need either email OR whatsapp reminder
     const { data: pendingOrders, error: fetchError } = await supabase
       .from("orders")
       .select("*")
       .eq("status", "confirmed")
-      .is("reminder_sent_at", null)
       .lt("created_at", oneHourAgo)
       .gt("created_at", twentyFiveHoursAgo)
+      .or("reminder_sent_at.is.null,whatsapp_sent_at.is.null")
       .order("created_at", { ascending: true });
 
     if (fetchError) {
@@ -60,60 +136,95 @@ const handler = async (req: Request): Promise<Response> => {
       throw fetchError;
     }
 
-    console.log(`Found ${pendingOrders?.length || 0} pending orders to remind`);
+    console.log(`Found ${pendingOrders?.length || 0} pending orders to process`);
 
     if (!pendingOrders || pendingOrders.length === 0) {
       return new Response(
-        JSON.stringify({ message: "No pending orders to remind", sent: 0 }),
+        JSON.stringify({ message: "No pending orders to remind", sent: { email: 0, whatsapp: 0 } }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    let sentCount = 0;
+    let emailSentCount = 0;
+    let whatsappSentCount = 0;
     let errorCount = 0;
 
     for (const order of pendingOrders as PendingOrder[]) {
       try {
         const orderNumber = order.order_number || order.id.slice(0, 8);
         const timeSinceOrder = getTimeSinceOrder(order.created_at);
+        const updateFields: Record<string, string> = {};
 
-        console.log(`Sending reminder for order ${orderNumber} to ${order.customer_email}`);
+        // Send email if not sent yet
+        if (!order.reminder_sent_at) {
+          console.log(`Sending email reminder for order ${orderNumber} to ${order.customer_email}`);
 
-        const emailHtml = generateReminderEmail(order, orderNumber, timeSinceOrder);
+          const emailHtml = generateReminderEmail(order, orderNumber, timeSinceOrder);
 
-        const emailResponse = await resend.emails.send({
-          from: "Dieta Já <pedidos@dietaja.com.br>",
-          to: [order.customer_email],
-          subject: `⏰ Seu pedido #${orderNumber} está aguardando pagamento`,
-          html: emailHtml,
-        });
+          try {
+            const emailResponse = await resend.emails.send({
+              from: "Dieta Já <pedidos@dietaja.com.br>",
+              to: [order.customer_email],
+              subject: `⏰ Seu pedido #${orderNumber} está aguardando pagamento`,
+              html: emailHtml,
+            });
 
-        console.log(`Email sent to ${order.customer_email}:`, emailResponse);
-
-        // Mark reminder as sent
-        const { error: updateError } = await supabase
-          .from("orders")
-          .update({ reminder_sent_at: new Date().toISOString() })
-          .eq("id", order.id);
-
-        if (updateError) {
-          console.error(`Error updating reminder_sent_at for order ${order.id}:`, updateError);
+            console.log(`Email sent to ${order.customer_email}:`, emailResponse);
+            updateFields.reminder_sent_at = new Date().toISOString();
+            emailSentCount++;
+          } catch (emailError) {
+            console.error(`Error sending email to ${order.customer_email}:`, emailError);
+          }
         }
 
-        sentCount++;
+        // Send WhatsApp if not sent yet and credentials are configured
+        if (!order.whatsapp_sent_at && hasWhatsAppCredentials) {
+          console.log(`Sending WhatsApp reminder for order ${orderNumber} to ${order.customer_phone}`);
 
-        // Small delay between emails to avoid rate limiting
+          const whatsappMessage = generateWhatsAppMessage(order, orderNumber, timeSinceOrder);
+          const whatsappResult = await sendWhatsAppMessage(
+            order.customer_phone,
+            whatsappMessage,
+            notificameApiToken!,
+            notificameChannelToken!
+          );
+
+          if (whatsappResult.success) {
+            console.log(`WhatsApp sent to ${order.customer_phone}`);
+            updateFields.whatsapp_sent_at = new Date().toISOString();
+            whatsappSentCount++;
+          } else {
+            console.error(`Error sending WhatsApp to ${order.customer_phone}:`, whatsappResult.error);
+          }
+        }
+
+        // Update order with sent timestamps
+        if (Object.keys(updateFields).length > 0) {
+          const { error: updateError } = await supabase
+            .from("orders")
+            .update(updateFields)
+            .eq("id", order.id);
+
+          if (updateError) {
+            console.error(`Error updating order ${order.id}:`, updateError);
+          }
+        }
+
+        // Small delay between messages to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 500));
 
-      } catch (emailError) {
-        console.error(`Error sending reminder to ${order.customer_email}:`, emailError);
+      } catch (orderError) {
+        console.error(`Error processing order ${order.id}:`, orderError);
         errorCount++;
       }
     }
 
     const result = {
       message: `Processed ${pendingOrders.length} orders`,
-      sent: sentCount,
+      sent: {
+        email: emailSentCount,
+        whatsapp: whatsappSentCount,
+      },
       errors: errorCount,
     };
 
