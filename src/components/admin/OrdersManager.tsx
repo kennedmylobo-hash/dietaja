@@ -177,17 +177,19 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     const approved = orders.filter(o => o.status === 'approved');
     const preparing = orders.filter(o => o.status === 'preparing');
     const ready = orders.filter(o => o.status === 'ready');
+    const delivering = orders.filter(o => o.status === 'delivering');
     const delivered = orders.filter(o => o.status === 'delivered');
     const pending = orders.filter(o => o.status === 'pending');
     const whatsappPending = orders.filter(o => o.status === 'whatsapp_pending');
     const rejected = orders.filter(o => o.status === 'rejected');
     const cancelled = orders.filter(o => o.status === 'cancelled');
-    const totalRevenue = [...approved, ...preparing, ...ready, ...delivered].reduce((sum, o) => sum + o.total, 0);
+    const totalRevenue = [...approved, ...preparing, ...ready, ...delivering, ...delivered].reduce((sum, o) => sum + o.total, 0);
     
     return { 
       approved: approved.length, 
       preparing: preparing.length,
       ready: ready.length,
+      delivering: delivering.length,
       delivered: delivered.length,
       pending: pending.length + whatsappPending.length, 
       whatsappPending: whatsappPending.length,
@@ -200,13 +202,15 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">✅ Aprovado</Badge>;
+        return <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">✅ Pago</Badge>;
       case 'preparing':
-        return <Badge className="bg-blue-500/10 text-blue-600 hover:bg-blue-500/20">👨‍🍳 Preparando</Badge>;
+        return <Badge className="bg-blue-500/10 text-blue-600 hover:bg-blue-500/20">👨‍🍳 Produção</Badge>;
       case 'ready':
-        return <Badge className="bg-purple-500/10 text-purple-600 hover:bg-purple-500/20">📦 Pronto</Badge>;
+        return <Badge className="bg-purple-500/10 text-purple-600 hover:bg-purple-500/20">📦 Separado</Badge>;
+      case 'delivering':
+        return <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20">🛵 Em Entrega</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20">⏳ Pendente</Badge>;
+        return <Badge className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20">⏳ Aguardando</Badge>;
       case 'whatsapp_pending':
         return <Badge className="bg-orange-500/10 text-orange-600 hover:bg-orange-500/20">📲 WhatsApp</Badge>;
       case 'rejected':
@@ -214,25 +218,39 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       case 'cancelled':
         return <Badge className="bg-red-500/10 text-red-600 hover:bg-red-500/20">🚫 Cancelado</Badge>;
       case 'delivered':
-        return <Badge className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">🚀 Entregue</Badge>;
+        return <Badge className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">🎉 Entregue</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
   const ALL_STATUSES = [
-    { value: 'pending', label: '⏳ Pendente' },
+    { value: 'pending', label: '⏳ Aguardando Pagamento' },
     { value: 'whatsapp_pending', label: '📲 WhatsApp' },
-    { value: 'approved', label: '✅ Aprovado' },
-    { value: 'preparing', label: '👨‍🍳 Preparando' },
-    { value: 'ready', label: '📦 Pronto' },
-    { value: 'delivered', label: '🚀 Entregue' },
+    { value: 'approved', label: '✅ Pagamento Aprovado' },
+    { value: 'preparing', label: '👨‍🍳 Em Produção' },
+    { value: 'ready', label: '📦 Separado p/ Entrega' },
+    { value: 'delivering', label: '🛵 Em Entrega' },
+    { value: 'delivered', label: '🎉 Entregue' },
     { value: 'cancelled', label: '🚫 Cancelado' },
     { value: 'rejected', label: '❌ Rejeitado' },
   ];
 
   const canCancel = (status: string) => {
     return !['delivered', 'cancelled', 'rejected'].includes(status);
+  };
+
+  const sendStatusNotification = async (orderId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase.functions.invoke('send-status-notification', {
+        body: { order_id: orderId, new_status: newStatus }
+      });
+      if (error) {
+        console.error('Error sending notification:', error);
+      }
+    } catch (error) {
+      console.error('Error invoking notification function:', error);
+    }
   };
 
   const cancelOrder = async (orderId: string) => {
@@ -321,6 +339,11 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
       }
 
+      // Send notification for status change (except pending statuses)
+      if (!['pending', 'whatsapp_pending'].includes(newStatus)) {
+        sendStatusNotification(orderId, newStatus);
+      }
+
     } catch (error) {
       console.error('Error in updateOrderStatus:', error);
       alert('Erro ao atualizar status');
@@ -332,11 +355,13 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const getNextStatusAction = (status: string): { label: string; nextStatus: string; icon: React.ReactNode; color: string } | null => {
     switch (status) {
       case 'approved':
-        return { label: 'Iniciar Preparo', nextStatus: 'preparing', icon: <ChefHat className="w-4 h-4" />, color: 'bg-blue-600 hover:bg-blue-700' };
+        return { label: 'Iniciar Produção', nextStatus: 'preparing', icon: <ChefHat className="w-4 h-4" />, color: 'bg-blue-600 hover:bg-blue-700' };
       case 'preparing':
-        return { label: 'Marcar Pronto', nextStatus: 'ready', icon: <Package className="w-4 h-4" />, color: 'bg-purple-600 hover:bg-purple-700' };
+        return { label: 'Separar p/ Entrega', nextStatus: 'ready', icon: <Package className="w-4 h-4" />, color: 'bg-purple-600 hover:bg-purple-700' };
       case 'ready':
-        return { label: 'Entregue', nextStatus: 'delivered', icon: <Truck className="w-4 h-4" />, color: 'bg-emerald-600 hover:bg-emerald-700' };
+        return { label: 'Saiu p/ Entrega', nextStatus: 'delivering', icon: <Truck className="w-4 h-4" />, color: 'bg-amber-600 hover:bg-amber-700' };
+      case 'delivering':
+        return { label: 'Entregue', nextStatus: 'delivered', icon: <CheckCircle className="w-4 h-4" />, color: 'bg-emerald-600 hover:bg-emerald-700' };
       default:
         return null;
     }
@@ -462,11 +487,12 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="whatsapp_pending">📲 WhatsApp</SelectItem>
-                <SelectItem value="pending">⏳ Pendentes</SelectItem>
-                <SelectItem value="approved">✅ Aprovados</SelectItem>
-                <SelectItem value="preparing">👨‍🍳 Preparando</SelectItem>
-                <SelectItem value="ready">📦 Prontos</SelectItem>
-                <SelectItem value="delivered">🚀 Entregues</SelectItem>
+                <SelectItem value="pending">⏳ Aguardando</SelectItem>
+                <SelectItem value="approved">✅ Pagos</SelectItem>
+                <SelectItem value="preparing">👨‍🍳 Produção</SelectItem>
+                <SelectItem value="ready">📦 Separados</SelectItem>
+                <SelectItem value="delivering">🛵 Em Entrega</SelectItem>
+                <SelectItem value="delivered">🎉 Entregues</SelectItem>
                 <SelectItem value="cancelled">🚫 Cancelados</SelectItem>
                 <SelectItem value="rejected">❌ Rejeitados</SelectItem>
               </SelectContent>
