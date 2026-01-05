@@ -239,16 +239,15 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     return `${diffDays}d`;
   };
 
-  // Group orders by status category
+  // Group orders by status category (6 stages)
   const ordersByCategory = useMemo(() => {
-    const pendingStatuses = ['pending', 'whatsapp_pending'];
-    const inProgressStatuses = ['approved', 'preparing', 'ready', 'delivering'];
-    const finishedStatuses = ['delivered', 'cancelled', 'rejected'];
-
     return {
-      pending: orders.filter(o => pendingStatuses.includes(o.status)),
-      inProgress: orders.filter(o => inProgressStatuses.includes(o.status)),
-      finished: orders.filter(o => finishedStatuses.includes(o.status)),
+      pending: orders.filter(o => ['pending', 'whatsapp_pending'].includes(o.status)),
+      production: orders.filter(o => ['approved', 'preparing'].includes(o.status)),
+      ready: orders.filter(o => o.status === 'ready'),
+      delivering: orders.filter(o => o.status === 'delivering'),
+      delivered: orders.filter(o => o.status === 'delivered'),
+      cancelled: orders.filter(o => ['cancelled', 'rejected'].includes(o.status)),
     };
   }, [orders]);
 
@@ -817,26 +816,47 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="pending" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="pending" className="gap-2">
+            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 mb-4">
+              <TabsTrigger value="pending" className="gap-1 text-xs sm:text-sm">
                 <Clock className="w-4 h-4" />
-                <span className="hidden sm:inline">Aguardando</span>
+                <span className="hidden sm:inline">Pagamento</span>
                 {ordersByCategory.pending.length > 0 && (
                   <Badge variant="secondary" className="ml-1">{ordersByCategory.pending.length}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="inProgress" className="gap-2">
+              <TabsTrigger value="production" className="gap-1 text-xs sm:text-sm">
                 <ChefHat className="w-4 h-4" />
-                <span className="hidden sm:inline">Em Andamento</span>
-                {ordersByCategory.inProgress.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">{ordersByCategory.inProgress.length}</Badge>
+                <span className="hidden sm:inline">Produção</span>
+                {ordersByCategory.production.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">{ordersByCategory.production.length}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="finished" className="gap-2">
+              <TabsTrigger value="ready" className="gap-1 text-xs sm:text-sm">
+                <Package className="w-4 h-4" />
+                <span className="hidden sm:inline">Pronto</span>
+                {ordersByCategory.ready.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">{ordersByCategory.ready.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="delivering" className="gap-1 text-xs sm:text-sm">
+                <Truck className="w-4 h-4" />
+                <span className="hidden sm:inline">Entrega</span>
+                {ordersByCategory.delivering.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">{ordersByCategory.delivering.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="delivered" className="gap-1 text-xs sm:text-sm">
                 <CheckCircle className="w-4 h-4" />
-                <span className="hidden sm:inline">Finalizados</span>
-                {ordersByCategory.finished.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">{ordersByCategory.finished.length}</Badge>
+                <span className="hidden sm:inline">Concluídos</span>
+                {ordersByCategory.delivered.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">{ordersByCategory.delivered.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="cancelled" className="gap-1 text-xs sm:text-sm">
+                <XCircle className="w-4 h-4" />
+                <span className="hidden sm:inline">Cancelados</span>
+                {ordersByCategory.cancelled.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">{ordersByCategory.cancelled.length}</Badge>
                 )}
               </TabsTrigger>
             </TabsList>
@@ -845,12 +865,24 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
               {renderOrdersTable(ordersByCategory.pending)}
             </TabsContent>
 
-            <TabsContent value="inProgress">
-              {renderOrdersTable(ordersByCategory.inProgress)}
+            <TabsContent value="production">
+              {renderOrdersTable(ordersByCategory.production)}
             </TabsContent>
 
-            <TabsContent value="finished">
-              {renderOrdersTable(ordersByCategory.finished)}
+            <TabsContent value="ready">
+              {renderOrdersTable(ordersByCategory.ready)}
+            </TabsContent>
+
+            <TabsContent value="delivering">
+              {renderOrdersTable(ordersByCategory.delivering)}
+            </TabsContent>
+
+            <TabsContent value="delivered">
+              {renderOrdersTable(ordersByCategory.delivered)}
+            </TabsContent>
+
+            <TabsContent value="cancelled">
+              {renderOrdersTable(ordersByCategory.cancelled)}
             </TabsContent>
           </Tabs>
         </CardContent>
