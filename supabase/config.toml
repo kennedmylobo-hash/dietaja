@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.send-order-pending-email]
 verify_jwt = false
+
+[functions.send-order-approved]
+verify_jwt = false
