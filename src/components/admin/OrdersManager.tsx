@@ -106,6 +106,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [lastStatusChanges, setLastStatusChanges] = useState<Record<string, string>>({});
 
   const getDateRange = () => {
     const now = new Date();
@@ -191,6 +192,46 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       fetchStatusHistory(selectedOrder.id);
     }
   }, [selectedOrder?.id]);
+
+  // Fetch last status change timestamp for each order
+  const fetchLastStatusChanges = async (orderIds: string[]) => {
+    if (orderIds.length === 0) return;
+    
+    const { data } = await supabase
+      .from('order_status_history')
+      .select('order_id, created_at')
+      .in('order_id', orderIds)
+      .order('created_at', { ascending: false });
+
+    if (data) {
+      const latestChanges: Record<string, string> = {};
+      data.forEach((entry) => {
+        if (!latestChanges[entry.order_id]) {
+          latestChanges[entry.order_id] = entry.created_at;
+        }
+      });
+      setLastStatusChanges(latestChanges);
+    }
+  };
+
+  useEffect(() => {
+    if (orders.length > 0) {
+      fetchLastStatusChanges(orders.map(o => o.id));
+    }
+  }, [orders]);
+
+  const getTimeSinceChange = (orderId: string, createdAt: string): string => {
+    const lastChange = lastStatusChanges[orderId] || createdAt;
+    const diffMs = Date.now() - new Date(lastChange).getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMinutes < 1) return 'Agora';
+    if (diffMinutes < 60) return `${diffMinutes}min`;
+    if (diffHours < 24) return `${diffHours}h`;
+    return `${diffDays}d`;
+  };
 
   const filteredOrders = useMemo(() => {
     if (statusFilter === 'all') return orders;
@@ -653,6 +694,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                     <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Entrega</th>
                     <th className="pb-3 font-medium text-muted-foreground">Total</th>
                     <th className="pb-3 font-medium text-muted-foreground">Status</th>
+                    <th className="pb-3 font-medium text-muted-foreground hidden sm:table-cell">Tempo</th>
                     <th className="pb-3 font-medium text-muted-foreground hidden lg:table-cell">Data</th>
                     <th className="pb-3 font-medium text-muted-foreground">Ações</th>
                   </tr>
@@ -679,6 +721,14 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                       </td>
                       <td className="py-3">
                         {getStatusBadge(order.status)}
+                      </td>
+                      <td className="py-3 hidden sm:table-cell">
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          <span className="text-xs">
+                            {getTimeSinceChange(order.id, order.created_at)}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-3 hidden lg:table-cell">
                         <p className="text-xs text-muted-foreground">
