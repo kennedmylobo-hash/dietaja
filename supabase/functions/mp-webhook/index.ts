@@ -203,28 +203,78 @@ serve(async (req) => {
 
     console.log('Order updated successfully:', orderId, orderStatus);
 
-    // If payment approved, decrement stock
+    // If payment approved, send confirmation email and decrement stock
     if (orderStatus === 'approved') {
-      console.log(`[mp-webhook] Payment approved, decrementing stock for order ${orderId}`);
+      console.log(`[mp-webhook] Payment approved for order ${orderId}`);
       
-      try {
-        const decrementResponse = await fetch(
-          `${supabaseUrl}/functions/v1/decrement-stock`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseKey}`,
-            },
-            body: JSON.stringify({ order_id: orderId }),
+      // Fetch order details for email
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) {
+        console.error('Error fetching order for email:', orderError);
+      } else if (order) {
+        // Send order approved email
+        console.log('[mp-webhook] Sending order approved email...');
+        try {
+          const emailResponse = await fetch(
+            `${supabaseUrl}/functions/v1/send-order-approved`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseKey}`,
+              },
+              body: JSON.stringify({
+                order_number: order.order_number,
+                customer_email: order.customer_email,
+                customer_name: order.customer_name,
+                customer_phone: order.customer_phone,
+                items: order.items,
+                subtotal: order.subtotal,
+                delivery_fee: order.delivery_fee || 0,
+                total: order.total,
+                delivery_option: order.delivery_option,
+                delivery_address: order.delivery_address,
+                payment_method: 'mercadopago'
+              }),
+            }
+          );
+          
+          const emailResult = await emailResponse.json();
+          console.log('[mp-webhook] Email response:', emailResult);
+        } catch (emailError) {
+          console.error('[mp-webhook] Error sending approved email:', emailError);
+        }
+
+        // Decrement stock if not already done
+        if (!order.stock_decremented) {
+          console.log('[mp-webhook] Decrementing stock...');
+          try {
+            const decrementResponse = await fetch(
+              `${supabaseUrl}/functions/v1/decrement-stock`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseKey}`,
+                },
+                body: JSON.stringify({ order_id: orderId }),
+              }
+            );
+            
+            const decrementResult = await decrementResponse.json();
+            console.log('[mp-webhook] Stock decrement result:', decrementResult);
+          } catch (decrementError) {
+            console.error('[mp-webhook] Error decrementing stock:', decrementError);
+            // Don't fail the webhook, stock can be adjusted manually
           }
-        );
-        
-        const decrementResult = await decrementResponse.json();
-        console.log('[mp-webhook] Stock decrement result:', decrementResult);
-      } catch (decrementError) {
-        console.error('[mp-webhook] Error decrementing stock:', decrementError);
-        // Don't fail the webhook, stock can be adjusted manually
+        } else {
+          console.log('[mp-webhook] Stock already decremented for this order');
+        }
       }
     }
 
