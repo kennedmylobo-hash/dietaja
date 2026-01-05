@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.send-recompra-campaigns]
 verify_jwt = false
+
+[functions.validate-coupon]
+verify_jwt = false

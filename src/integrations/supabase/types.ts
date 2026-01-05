@@ -68,6 +68,86 @@ export type Database = {
         }
         Relationships: []
       }
+      coupon_usage: {
+        Row: {
+          coupon_code: string
+          customer_email: string
+          id: string
+          order_id: string | null
+          used_at: string | null
+        }
+        Insert: {
+          coupon_code: string
+          customer_email: string
+          id?: string
+          order_id?: string | null
+          used_at?: string | null
+        }
+        Update: {
+          coupon_code?: string
+          customer_email?: string
+          id?: string
+          order_id?: string | null
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_usage_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string | null
+          current_uses: number | null
+          description: string | null
+          discount_type: string
+          discount_value: number
+          id: string
+          is_active: boolean | null
+          max_uses: number | null
+          max_uses_per_customer: number | null
+          min_order_value: number | null
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          current_uses?: number | null
+          description?: string | null
+          discount_type?: string
+          discount_value: number
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          max_uses_per_customer?: number | null
+          min_order_value?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          current_uses?: number | null
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          max_uses_per_customer?: number | null
+          min_order_value?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       kit_juices: {
         Row: {
           active: boolean
@@ -417,6 +497,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          coupon_code: string | null
           created_at: string
           customer_email: string
           customer_name: string
@@ -425,6 +506,7 @@ export type Database = {
           delivery_address: string | null
           delivery_fee: number | null
           delivery_option: string
+          discount_amount: number | null
           id: string
           items: Json
           mp_payment_id: string | null
@@ -443,6 +525,7 @@ export type Database = {
           whatsapp_sent_at: string | null
         }
         Insert: {
+          coupon_code?: string | null
           created_at?: string
           customer_email: string
           customer_name: string
@@ -451,6 +534,7 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number | null
           delivery_option: string
+          discount_amount?: number | null
           id?: string
           items: Json
           mp_payment_id?: string | null
@@ -469,6 +553,7 @@ export type Database = {
           whatsapp_sent_at?: string | null
         }
         Update: {
+          coupon_code?: string | null
           created_at?: string
           customer_email?: string
           customer_name?: string
@@ -477,6 +562,7 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number | null
           delivery_option?: string
+          discount_amount?: number | null
           id?: string
           items?: Json
           mp_payment_id?: string | null
@@ -635,6 +721,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_coupon_usage: {
+        Args: { coupon_code_param: string }
+        Returns: undefined
       }
     }
     Enums: {
