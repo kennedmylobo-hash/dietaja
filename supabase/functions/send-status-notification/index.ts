@@ -22,52 +22,72 @@ interface OrderData {
   items: any[];
 }
 
-const STATUS_MESSAGES: Record<string, { title: string; message: string; emoji: string; color: string }> = {
+interface MarketingMessage {
+  whatsapp_template: string;
+  email_subject: string;
+  email_body_html: string;
+  is_active: boolean;
+}
+
+// Fallback messages if not found in database
+const FALLBACK_MESSAGES: Record<string, { title: string; emoji: string; color: string; whatsapp: string; email_subject: string }> = {
   approved: {
-    title: "Pagamento Confirmado! ✅",
-    message: "Seu pagamento foi aprovado e seu pedido já está na fila de produção. Entrega prevista em até 3 dias úteis.",
+    title: "Pagamento Confirmado!",
     emoji: "✅",
-    color: "#22c55e"
+    color: "#22c55e",
+    whatsapp: "✅ *Pagamento Confirmado!*\n\nOlá {nome}! Seu pedido *#{pedido}* foi aprovado.\n\n💰 Total: R$ {total}\n📦 Entrega prevista: até 3 dias úteis\n\n🔗 Acompanhe: {link}",
+    email_subject: "✅ Pagamento Confirmado - Pedido #{pedido}"
   },
   preparing: {
-    title: "Em Produção! 👨‍🍳",
-    message: "Suas marmitas estão sendo preparadas com carinho pela nossa equipe.",
+    title: "Em Produção!",
     emoji: "👨‍🍳",
-    color: "#3b82f6"
+    color: "#3b82f6",
+    whatsapp: "👨‍🍳 *Em Produção!*\n\nOlá {nome}! Seu pedido *#{pedido}* está sendo preparado!\n\n🔗 Acompanhe: {link}",
+    email_subject: "👨‍🍳 Seu pedido #{pedido} está sendo preparado!"
   },
   ready: {
-    title: "Pedido Pronto! 📦",
-    message: "Seu pedido está pronto e separado para entrega/retirada.",
+    title: "Pedido Pronto!",
     emoji: "📦",
-    color: "#8b5cf6"
+    color: "#8b5cf6",
+    whatsapp: "📦 *Pedido Pronto!*\n\nOlá {nome}! Seu pedido *#{pedido}* está prontinho!\n\n🔗 Acompanhe: {link}",
+    email_subject: "📦 Seu pedido #{pedido} está pronto!"
   },
   delivering: {
-    title: "Saiu para Entrega! 🛵",
-    message: "Seu pedido está a caminho! Em breve chegará até você.",
+    title: "Saiu para Entrega!",
     emoji: "🛵",
-    color: "#f59e0b"
+    color: "#f59e0b",
+    whatsapp: "🛵 *Saiu para Entrega!*\n\nOlá {nome}! Seu pedido *#{pedido}* está a caminho!\n\n🔗 Acompanhe: {link}",
+    email_subject: "🛵 Seu pedido #{pedido} saiu para entrega!"
   },
   delivered: {
-    title: "Pedido Entregue! 🎉",
-    message: "Seu pedido foi entregue com sucesso. Bom apetite!",
+    title: "Pedido Entregue!",
     emoji: "🎉",
-    color: "#10b981"
+    color: "#10b981",
+    whatsapp: "✅ *Pedido Entregue!*\n\nOlá {nome}! Seu pedido *#{pedido}* foi entregue.\n\nBom apetite! 🍽️",
+    email_subject: "✅ Pedido #{pedido} entregue com sucesso!"
   },
   cancelled: {
-    title: "Pedido Cancelado 😢",
-    message: "Infelizmente seu pedido foi cancelado. Entre em contato se precisar de ajuda.",
+    title: "Pedido Cancelado",
     emoji: "❌",
-    color: "#ef4444"
+    color: "#ef4444",
+    whatsapp: "😢 *Pedido Cancelado*\n\nOlá {nome}, seu pedido *#{pedido}* foi cancelado.\n\nPrecisa de ajuda? Estamos aqui!",
+    email_subject: "😢 Pedido #{pedido} cancelado"
   }
 };
 
-const sendWhatsAppNotification = async (phone: string, orderNumber: string, status: string, customerName: string) => {
-  const statusInfo = STATUS_MESSAGES[status];
-  if (!statusInfo) {
-    console.log(`No WhatsApp message configured for status: ${status}`);
-    return;
-  }
+const replaceVariables = (template: string, order: OrderData): string => {
+  const firstName = order.customer_name.split(" ")[0];
+  const trackingUrl = `https://dietajavca.com.br/pedido/${order.order_number}`;
+  
+  return template
+    .replace(/{nome}/g, firstName)
+    .replace(/{nome_completo}/g, order.customer_name)
+    .replace(/{pedido}/g, order.order_number)
+    .replace(/{total}/g, order.total.toFixed(2).replace(".", ","))
+    .replace(/{link}/g, trackingUrl);
+};
 
+const sendWhatsAppNotification = async (phone: string, message: string, orderNumber: string) => {
   const apiToken = Deno.env.get("NOTIFICAME_API_TOKEN");
   const channelToken = Deno.env.get("NOTIFICAME_WHATSAPP_CHANNEL_TOKEN");
 
@@ -75,9 +95,6 @@ const sendWhatsAppNotification = async (phone: string, orderNumber: string, stat
     console.error("NotificaMe credentials not configured");
     return;
   }
-
-  const firstName = customerName.split(" ")[0];
-  const message = `${statusInfo.emoji} *${statusInfo.title}*\n\nOlá ${firstName}!\n\n${statusInfo.message}\n\n📋 Pedido: *#${orderNumber}*\n\n🔗 Acompanhe: https://dietajavca.com.br/pedido/${orderNumber}\n\n_Dieta Já - Alimentação Saudável_`;
 
   try {
     const response = await fetch("https://hub.notificame.com.br/v1/messages/send", {
@@ -98,19 +115,13 @@ const sendWhatsAppNotification = async (phone: string, orderNumber: string, stat
     });
 
     const result = await response.json();
-    console.log(`WhatsApp sent for order ${orderNumber}, status ${status}:`, result);
+    console.log(`WhatsApp sent for order ${orderNumber}:`, result);
   } catch (error) {
     console.error("Error sending WhatsApp:", error);
   }
 };
 
-const sendEmailNotification = async (email: string, order: OrderData, status: string) => {
-  const statusInfo = STATUS_MESSAGES[status];
-  if (!statusInfo) {
-    console.log(`No email configured for status: ${status}`);
-    return;
-  }
-
+const sendEmailNotification = async (email: string, order: OrderData, subject: string, bodyHtml: string, statusColor: string) => {
   const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
   const firstName = order.customer_name.split(" ")[0];
   const trackingUrl = `https://dietajavca.com.br/pedido/${order.order_number}`;
@@ -121,6 +132,9 @@ const sendEmailNotification = async (email: string, order: OrderData, status: st
       <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}x</td>
     </tr>
   `).join("");
+
+  // Replace variables in custom body
+  const processedBody = replaceVariables(bodyHtml, order);
 
   const html = `
     <!DOCTYPE html>
@@ -133,9 +147,8 @@ const sendEmailNotification = async (email: string, order: OrderData, status: st
       <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
         
         <!-- Header -->
-        <div style="background: ${statusInfo.color}; padding: 30px; text-align: center;">
-          <div style="font-size: 48px; margin-bottom: 10px;">${statusInfo.emoji}</div>
-          <h1 style="color: white; margin: 0; font-size: 24px;">${statusInfo.title}</h1>
+        <div style="background: ${statusColor}; padding: 30px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">${replaceVariables(subject, order)}</h1>
         </div>
         
         <!-- Content -->
@@ -144,14 +157,14 @@ const sendEmailNotification = async (email: string, order: OrderData, status: st
             Olá <strong>${firstName}</strong>!
           </p>
           
-          <p style="font-size: 16px; color: #666; margin-bottom: 25px;">
-            ${statusInfo.message}
-          </p>
+          <div style="font-size: 16px; color: #666; margin-bottom: 25px;">
+            ${processedBody}
+          </div>
           
           <!-- Order Info -->
           <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
             <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Número do Pedido</p>
-            <p style="margin: 0; font-size: 24px; font-weight: bold; color: ${statusInfo.color};">#${order.order_number}</p>
+            <p style="margin: 0; font-size: 24px; font-weight: bold; color: ${statusColor};">#${order.order_number}</p>
           </div>
           
           <!-- Items -->
@@ -161,7 +174,7 @@ const sendEmailNotification = async (email: string, order: OrderData, status: st
               ${itemsHtml}
             </table>
             <div style="text-align: right; margin-top: 15px; padding-top: 15px; border-top: 2px solid #eee;">
-              <span style="font-size: 18px; font-weight: bold; color: ${statusInfo.color};">
+              <span style="font-size: 18px; font-weight: bold; color: ${statusColor};">
                 Total: R$ ${order.total.toFixed(2).replace(".", ",")}
               </span>
             </div>
@@ -176,7 +189,7 @@ const sendEmailNotification = async (email: string, order: OrderData, status: st
           
           <!-- CTA -->
           <div style="text-align: center;">
-            <a href="${trackingUrl}" style="display: inline-block; background: ${statusInfo.color}; color: white; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+            <a href="${trackingUrl}" style="display: inline-block; background: ${statusColor}; color: white; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
               📦 Acompanhar Pedido
             </a>
           </div>
@@ -187,7 +200,7 @@ const sendEmailNotification = async (email: string, order: OrderData, status: st
           <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">
             Dúvidas? Fale conosco pelo WhatsApp
           </p>
-          <a href="https://wa.me/5577991001658" style="color: ${statusInfo.color}; text-decoration: none; font-weight: bold;">
+          <a href="https://wa.me/5577991001658" style="color: ${statusColor}; text-decoration: none; font-weight: bold;">
             📱 (77) 99100-1658
           </a>
           <p style="margin: 15px 0 0 0; color: #999; font-size: 12px;">
@@ -203,10 +216,10 @@ const sendEmailNotification = async (email: string, order: OrderData, status: st
     const response = await resend.emails.send({
       from: "Dieta Já <pedidos@dietajavca.com.br>",
       to: [email],
-      subject: `${statusInfo.emoji} Pedido #${order.order_number} - ${statusInfo.title}`,
+      subject: replaceVariables(subject, order),
       html,
     });
-    console.log(`Email sent for order ${order.order_number}, status ${status}:`, response);
+    console.log(`Email sent for order ${order.order_number}:`, response);
   } catch (error) {
     console.error("Error sending email:", error);
   }
@@ -259,13 +272,66 @@ serve(async (req: Request) => {
       );
     }
 
+    // Fetch marketing message template from database
+    const { data: template } = await supabase
+      .from("marketing_messages")
+      .select("whatsapp_template, email_subject, email_body_html, is_active")
+      .eq("message_type", `status_${new_status}`)
+      .single();
+
+    // Use template from DB or fallback
+    const fallback = FALLBACK_MESSAGES[new_status];
+    
+    if (!template?.is_active && !fallback) {
+      console.log(`No active template for status: ${new_status}`);
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: "no_template" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const whatsappMessage = template?.is_active 
+      ? replaceVariables(template.whatsapp_template, order as OrderData)
+      : fallback 
+        ? replaceVariables(fallback.whatsapp, order as OrderData)
+        : null;
+
+    const emailSubject = template?.is_active 
+      ? template.email_subject 
+      : fallback?.email_subject || "";
+
+    const emailBody = template?.is_active 
+      ? template.email_body_html 
+      : `<p>${fallback?.title}</p>`;
+
+    const statusColor = fallback?.color || "#22c55e";
+
     console.log(`Found order: ${order.order_number}, sending notifications...`);
 
+    // Update delivered_at if status is delivered
+    if (new_status === "delivered") {
+      await supabase
+        .from("orders")
+        .update({ delivered_at: new Date().toISOString() })
+        .eq("id", order_id);
+    }
+
     // Send notifications in parallel
-    await Promise.all([
-      sendWhatsAppNotification(order.customer_phone, order.order_number, new_status, order.customer_name),
-      sendEmailNotification(order.customer_email, order as OrderData, new_status),
-    ]);
+    const promises: Promise<void>[] = [];
+    
+    if (whatsappMessage) {
+      promises.push(sendWhatsAppNotification(order.customer_phone, whatsappMessage, order.order_number));
+    }
+    
+    promises.push(sendEmailNotification(
+      order.customer_email, 
+      order as OrderData, 
+      emailSubject, 
+      emailBody, 
+      statusColor
+    ));
+
+    await Promise.all(promises);
 
     return new Response(
       JSON.stringify({ success: true, order_number: order.order_number }),

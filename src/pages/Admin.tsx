@@ -25,7 +25,8 @@ import {
   UtensilsCrossed,
   History,
   Activity,
-  AlertCircle
+  AlertCircle,
+  Megaphone
 } from "lucide-react";
 import {
   Select,
@@ -52,6 +53,7 @@ import StockReport from "@/components/admin/StockReport";
 import StockHistory from "@/components/admin/StockHistory";
 import FunnelReport from "@/components/admin/FunnelReport";
 import PendingOrdersRecovery from "@/components/admin/PendingOrdersRecovery";
+import MarketingManager from "@/components/admin/MarketingManager";
 
 interface Lead {
   id: string;
@@ -617,7 +619,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full max-w-5xl grid-cols-7">
+          <TabsList className="grid w-full max-w-6xl grid-cols-8">
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Analytics</span>
@@ -633,6 +635,10 @@ const Admin = () => {
             <TabsTrigger value="recovery" className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Recuperar</span>
+            </TabsTrigger>
+            <TabsTrigger value="marketing" className="flex items-center gap-2">
+              <Megaphone className="w-4 h-4" />
+              <span className="hidden sm:inline">Marketing</span>
             </TabsTrigger>
             <TabsTrigger value="stock" className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
@@ -1099,6 +1105,10 @@ const Admin = () => {
 
           <TabsContent value="recovery">
             <PendingOrdersRecovery />
+          </TabsContent>
+
+          <TabsContent value="marketing">
+            <MarketingManager />
           </TabsContent>
 
           <TabsContent value="stock">
