@@ -342,6 +342,7 @@ export type Database = {
           order_number: string | null
           paid_at: string | null
           payment_method: string | null
+          reminder_sent_at: string | null
           status: string
           stock_decremented: boolean | null
           subtotal: number
@@ -363,6 +364,7 @@ export type Database = {
           order_number?: string | null
           paid_at?: string | null
           payment_method?: string | null
+          reminder_sent_at?: string | null
           status?: string
           stock_decremented?: boolean | null
           subtotal: number
@@ -384,6 +386,7 @@ export type Database = {
           order_number?: string | null
           paid_at?: string | null
           payment_method?: string | null
+          reminder_sent_at?: string | null
           status?: string
           stock_decremented?: boolean | null
           subtotal?: number
