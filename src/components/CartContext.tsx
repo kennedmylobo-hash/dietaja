@@ -1,5 +1,7 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
 import { useCartTracking } from "@/hooks/useSectionTracking";
+import { supabase } from "@/integrations/supabase/client";
+import { getUTMParams } from "@/lib/utm";
 
 export interface FlavorSelection {
   name: string;
@@ -19,6 +21,13 @@ export interface CartItem {
   fishAdditional?: number;
 }
 
+export interface CustomerInfo {
+  name: string;
+  phone: string;
+  email: string;
+  cartId: string | null;
+}
+
 interface CartContextType {
   items: CartItem[];
   addItem: (item: Omit<CartItem, "id">) => void;
@@ -30,15 +39,195 @@ interface CartContextType {
   trackCartOpen: () => void;
   trackCheckoutStart: () => void;
   trackCheckoutComplete: (total: number) => void;
+  // Soft identification
+  customerInfo: CustomerInfo;
+  setCustomerInfo: (info: CustomerInfo) => void;
+  showIdentificationModal: boolean;
+  setShowIdentificationModal: (show: boolean) => void;
+  pendingItem: Omit<CartItem, "id"> | null;
+  confirmAddItem: () => void;
+  isIdentified: boolean;
+  markCartAsConverted: () => Promise<void>;
 }
+
+const STORAGE_KEY = 'dietaja_customer';
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [customerInfo, setCustomerInfoState] = useState<CustomerInfo>({
+    name: '',
+    phone: '',
+    email: '',
+    cartId: null,
+  });
+  const [showIdentificationModal, setShowIdentificationModal] = useState(false);
+  const [pendingItem, setPendingItem] = useState<Omit<CartItem, "id"> | null>(null);
   const { trackCartEvent } = useCartTracking();
 
+  const isIdentified = !!(customerInfo.phone && customerInfo.name);
+
+  // Load customer info from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setCustomerInfoState(parsed);
+        
+        // Try to restore cart from database
+        if (parsed.phone) {
+          restoreCartFromDatabase(parsed.phone);
+        }
+      } catch (e) {
+        console.error('Error loading customer info:', e);
+      }
+    }
+  }, []);
+
+  // Restore cart from database for returning customers
+  const restoreCartFromDatabase = async (phone: string) => {
+    try {
+      const { data: cart, error } = await supabase
+        .from('carts')
+        .select('*')
+        .eq('phone', phone)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching cart:', error);
+        return;
+      }
+
+      if (cart && cart.items && Array.isArray(cart.items) && cart.items.length > 0) {
+        // Restore items with proper IDs
+        const restoredItems = (cart.items as any[]).map((item, index) => ({
+          ...item,
+          id: item.id || `${item.type}-${item.name}-${Date.now()}-${index}`,
+        }));
+        setItems(restoredItems);
+        
+        // Update customerInfo with cart data
+        setCustomerInfoState(prev => ({
+          ...prev,
+          cartId: cart.id,
+          email: cart.email || prev.email,
+        }));
+      }
+    } catch (e) {
+      console.error('Error restoring cart:', e);
+    }
+  };
+
+  // Save customer info to localStorage and state
+  const setCustomerInfo = useCallback((info: CustomerInfo) => {
+    setCustomerInfoState(info);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(info));
+  }, []);
+
+  // Sync cart to database
+  const syncCartToDatabase = useCallback(async (cartItems: CartItem[], info: CustomerInfo) => {
+    if (!info.phone) return;
+
+    const subtotal = cartItems.reduce((sum, item) => sum + item.totalPrice + (item.fishAdditional || 0), 0);
+    const utmParams = getUTMParams();
+
+    try {
+      // Prepare items as JSON-compatible format
+      const itemsJson = JSON.parse(JSON.stringify(cartItems.map(item => ({
+        id: item.id,
+        type: item.type,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        description: item.description || null,
+        flavors: item.flavors || [],
+        fishAdditional: item.fishAdditional || 0,
+      }))));
+
+      // Check if cart exists first
+      const { data: existingCart } = await supabase
+        .from('carts')
+        .select('id')
+        .eq('phone', info.phone)
+        .maybeSingle();
+
+      let cartId = existingCart?.id;
+
+      if (existingCart) {
+        // Update existing cart
+        const { error } = await supabase
+          .from('carts')
+          .update({
+            name: info.name || null,
+            email: info.email || null,
+            items: itemsJson,
+            subtotal,
+            status: 'active',
+            last_activity_at: new Date().toISOString(),
+            utm_source: utmParams?.utm_source || null,
+            utm_medium: utmParams?.utm_medium || null,
+            utm_campaign: utmParams?.utm_campaign || null,
+          })
+          .eq('phone', info.phone);
+
+        if (error) {
+          console.error('Error updating cart:', error);
+          return;
+        }
+      } else {
+        // Insert new cart
+        const { data, error } = await supabase
+          .from('carts')
+          .insert({
+            phone: info.phone,
+            name: info.name || null,
+            email: info.email || null,
+            items: itemsJson,
+            subtotal,
+            status: 'active',
+            last_activity_at: new Date().toISOString(),
+            utm_source: utmParams?.utm_source || null,
+            utm_medium: utmParams?.utm_medium || null,
+            utm_campaign: utmParams?.utm_campaign || null,
+          })
+          .select('id')
+          .single();
+
+        if (error) {
+          console.error('Error inserting cart:', error);
+          return;
+        }
+        cartId = data?.id;
+      }
+
+      if (cartId && !info.cartId) {
+        setCustomerInfo({ ...info, cartId });
+      }
+    } catch (e) {
+      console.error('Error syncing cart to database:', e);
+    }
+  }, [setCustomerInfo]);
+
+  // Sync cart whenever items or customerInfo change
+  useEffect(() => {
+    if (isIdentified && items.length > 0) {
+      syncCartToDatabase(items, customerInfo);
+    }
+  }, [items, customerInfo, isIdentified, syncCartToDatabase]);
+
   const addItem = useCallback((newItem: Omit<CartItem, "id">) => {
+    // If not identified, show modal and save pending item
+    if (!isIdentified) {
+      setPendingItem(newItem);
+      setShowIdentificationModal(true);
+      return;
+    }
+
+    // Proceed with adding item
     const id = `${newItem.type}-${newItem.name}-${Date.now()}`;
     
     // Track AddToCart event with Meta Pixel
@@ -63,7 +252,40 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const filtered = prev.filter((item) => item.type !== newItem.type);
       return [...filtered, { ...newItem, id }];
     });
-  }, [trackCartEvent]);
+  }, [trackCartEvent, isIdentified]);
+
+  // Confirm adding item after identification
+  const confirmAddItem = useCallback(() => {
+    if (!pendingItem) return;
+
+    const id = `${pendingItem.type}-${pendingItem.name}-${Date.now()}`;
+    
+    // Track AddToCart event with Meta Pixel
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'AddToCart', {
+        content_name: pendingItem.name,
+        content_type: 'product',
+        value: pendingItem.totalPrice,
+        currency: 'BRL'
+      });
+    }
+    
+    // Track cart_add event
+    trackCartEvent('cart_add', {
+      item_name: pendingItem.name,
+      item_type: pendingItem.type,
+      value: pendingItem.totalPrice,
+    });
+    
+    // Check if same type already exists, replace it
+    setItems((prev) => {
+      const filtered = prev.filter((item) => item.type !== pendingItem.type);
+      return [...filtered, { ...pendingItem, id }];
+    });
+
+    setPendingItem(null);
+    setShowIdentificationModal(false);
+  }, [pendingItem, trackCartEvent]);
 
   const removeItem = useCallback((id: string) => {
     trackCartEvent('cart_remove');
@@ -115,6 +337,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [trackCartEvent]);
 
+  // Mark cart as converted when order is completed
+  const markCartAsConverted = useCallback(async () => {
+    if (!customerInfo.phone) return;
+
+    try {
+      await supabase
+        .from('carts')
+        .update({ status: 'converted' })
+        .eq('phone', customerInfo.phone);
+    } catch (e) {
+      console.error('Error marking cart as converted:', e);
+    }
+  }, [customerInfo.phone]);
+
   const itemCount = items.length;
 
   return (
@@ -128,7 +364,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       itemCount,
       trackCartOpen,
       trackCheckoutStart,
-      trackCheckoutComplete
+      trackCheckoutComplete,
+      // Soft identification
+      customerInfo,
+      setCustomerInfo,
+      showIdentificationModal,
+      setShowIdentificationModal,
+      pendingItem,
+      confirmAddItem,
+      isIdentified,
+      markCartAsConverted,
     }}>
       {children}
     </CartContext.Provider>

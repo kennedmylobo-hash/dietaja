@@ -37,9 +37,20 @@ const FAQSection = lazy(() => import("@/components/FAQSection"));
 // ⚠️ IMPORTANTE: Substitua pelo número real do WhatsApp (formato: 55 + DDD + número)
 const WHATSAPP_NUMBER = "5577991001658";
 
+import { SoftIdentificationModal } from "@/components/SoftIdentificationModal";
+
 const IndexContent = () => {
   const [cartOpen, setCartOpen] = useState(false);
-  const { items, getTotal, clearCart } = useCart();
+  const { 
+    items, 
+    getTotal, 
+    clearCart,
+    showIdentificationModal,
+    setShowIdentificationModal,
+    customerInfo,
+    setCustomerInfo,
+    confirmAddItem,
+  } = useCart();
   const navigate = useNavigate();
   
   // Analytics tracking
@@ -227,6 +238,19 @@ const IndexContent = () => {
             </div>
           </Suspense>
         </main>
+
+        {/* Soft Identification Modal */}
+        <SoftIdentificationModal
+          open={showIdentificationModal}
+          onConfirm={(name, phone) => {
+            setCustomerInfo({
+              ...customerInfo,
+              name,
+              phone,
+            });
+            confirmAddItem();
+          }}
+        />
 
         {/* Cart Floating Button */}
         <CartFloatingButton onClick={() => setCartOpen(true)} />

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -57,7 +57,7 @@ interface CartDrawerProps {
 }
 
 const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
-  const { items, removeItem, updateItemFlavors, getTotal, clearCart, trackCartOpen, trackCheckoutStart, trackCheckoutComplete } = useCart();
+  const { items, removeItem, updateItemFlavors, getTotal, clearCart, trackCartOpen, trackCheckoutStart, trackCheckoutComplete, customerInfo, setCustomerInfo, markCartAsConverted } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'confirmation' | 'success'>('cart');
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState<string>("");
   const [isConfirming, setIsConfirming] = useState(false);
@@ -203,6 +203,15 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     }
   };
 
+  // Format phone for display
+  const formatPhoneForDisplay = (phone: string) => {
+    if (!phone) return "";
+    const digits = phone.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 2) return digits.length ? `(${digits}` : "";
+    if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  };
+
   const {
     register,
     handleSubmit,
@@ -210,12 +219,28 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     formState: { errors },
     reset,
     getValues,
+    setValue,
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       deliveryOption: "pickup",
+      name: customerInfo.name || "",
+      phone: formatPhoneForDisplay(customerInfo.phone) || "",
     },
   });
+
+  // Pre-fill form with customer info when step changes to checkout
+  useEffect(() => {
+    if (step === 'checkout' && customerInfo.name) {
+      setValue('name', customerInfo.name);
+    }
+    if (step === 'checkout' && customerInfo.phone) {
+      setValue('phone', formatPhoneForDisplay(customerInfo.phone));
+    }
+    if (step === 'checkout' && customerInfo.email) {
+      setValue('email', customerInfo.email);
+    }
+  }, [step, customerInfo, setValue]);
 
   const deliveryOption = watch("deliveryOption");
   const deliveryFee = deliveryOption === "delivery" ? 10 : 0;
@@ -418,6 +443,17 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         console.error('Error sending confirmation email:', emailError);
         // Don't block the flow if email fails
       }
+
+      // Update customer info with email for future use
+      if (formData.email && !customerInfo.email) {
+        setCustomerInfo({
+          ...customerInfo,
+          email: formData.email,
+        });
+      }
+
+      // Mark cart as converted
+      await markCartAsConverted();
 
       // Track checkout complete
       trackCheckoutComplete(total);
