@@ -519,7 +519,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       case 'cart': return 'Seu Carrinho';
       case 'checkout': return 'Dados do Pedido';
       case 'confirmation': return 'Confirmar Pedido';
-      case 'success': return 'Pedido Confirmado!';
+      case 'success': return 'Quase Lá!';
       default: return 'Seu Carrinho';
     }
   };
@@ -538,7 +538,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           )}
           <SheetTitle className="flex items-center gap-2 justify-center">
             {step === 'success' ? (
-              <CheckCircle2 className="w-5 h-5 text-primary" />
+              <ShoppingBag className="w-5 h-5 text-amber-500" />
             ) : (
               <ShoppingBag className="w-5 h-5 text-primary" />
             )}
@@ -914,7 +914,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             </motion.div>
           )}
 
-          {/* Step 4: Success */}
+          {/* Step 4: Success - Awaiting Payment */}
           {step === 'success' && (
             <motion.div
               key="success"
@@ -923,15 +923,15 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
-                {/* Success animation */}
+              <div className="flex-1 flex flex-col items-center justify-center px-4 py-6">
+                {/* Pending animation - amber/orange theme */}
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", duration: 0.6, delay: 0.1 }}
-                  className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6"
+                  className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mb-4"
                 >
-                  <CheckCircle2 className="w-12 h-12 text-primary" />
+                  <ShoppingBag className="w-12 h-12 text-amber-500" />
                 </motion.div>
 
                 <motion.div
@@ -940,16 +940,26 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                   transition={{ delay: 0.3 }}
                   className="text-center"
                 >
-                  <h2 className="text-2xl font-bold text-foreground mb-2">Pedido Confirmado!</h2>
+                  <h2 className="text-2xl font-bold text-foreground mb-1">Obaaa, estamos quase lá!</h2>
+                  <p className="text-base text-muted-foreground mb-4">
+                    Faça o pagamento para finalizar seu pedido
+                  </p>
                   
-                  <div className="inline-block px-4 py-2 bg-primary/10 rounded-lg mb-4">
-                    <p className="text-sm text-muted-foreground">Número do Pedido</p>
-                    <p className="text-2xl font-bold text-primary">#{confirmedOrderNumber}</p>
+                  <div className="inline-block px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg mb-3">
+                    <p className="text-xs text-amber-700">Pedido reservado para você</p>
+                    <p className="text-xl font-bold text-amber-600">#{confirmedOrderNumber}</p>
                   </div>
 
-                  <p className="text-sm text-muted-foreground mb-6">
-                    Enviamos os detalhes para seu email.
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Seu pedido está a um passo de ser confirmado!
                   </p>
+
+                  {/* Important warning */}
+                  <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-amber-800 font-medium">
+                      ⚠️ Importante: Seu pedido só será confirmado após o pagamento
+                    </p>
+                  </div>
                 </motion.div>
 
                 <motion.div
@@ -958,10 +968,6 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                   transition={{ delay: 0.5 }}
                   className="w-full space-y-3"
                 >
-                  <p className="text-center text-sm font-medium text-foreground mb-2">
-                    Como deseja prosseguir?
-                  </p>
-                  
                   <Button
                     variant="cta"
                     size="lg"
@@ -974,7 +980,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     ) : (
                       <>
                         <Smartphone className="w-5 h-5" />
-                        Pagar via PIX
+                        Pagar via PIX (Automático)
                       </>
                     )}
                   </Button>
@@ -994,7 +1000,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     ) : (
                       <>
                         <MessageCircle className="w-5 h-5" />
-                        Falar com Atendente
+                        Pagar via WhatsApp
                       </>
                     )}
                   </Button>
