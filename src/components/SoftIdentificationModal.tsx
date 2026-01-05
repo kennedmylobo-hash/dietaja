@@ -58,7 +58,7 @@ export const SoftIdentificationModal = ({
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
-        className="sm:max-w-md mx-4 rounded-2xl"
+        className="sm:max-w-md mx-4 rounded-2xl animate-enter"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
