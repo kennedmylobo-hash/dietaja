@@ -405,10 +405,63 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     }
   };
 
-  const handleWhatsAppContact = () => {
+  const handleWhatsAppContact = async () => {
     hapticFeedback('medium');
+    setIsLoading(true);
     
-    const message = `Olá! Meu pedido #${confirmedOrderNumber} foi confirmado. Gostaria de falar com um atendente.`;
+    try {
+      // Update order status to whatsapp_pending
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'whatsapp_pending',
+          payment_method: 'whatsapp'
+        })
+        .eq('order_number', confirmedOrderNumber);
+
+      if (updateError) {
+        console.error('Error updating order status:', updateError);
+      }
+
+      // Send pending order email
+      const deliveryFee = formData?.deliveryOption === 'delivery' ? 8 : 0;
+      const emailPayload = {
+        order_number: confirmedOrderNumber,
+        customer_email: formData?.email || '',
+        customer_name: formData?.name || '',
+        customer_phone: formData?.phone || '',
+        items: items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.unitPrice,
+          flavors: item.flavors?.map(f => ({
+            flavor: f.name,
+            quantity: f.quantity
+          }))
+        })),
+        subtotal: getTotal(),
+        delivery_fee: deliveryFee,
+        total: getTotal() + deliveryFee,
+        delivery_option: formData?.deliveryOption || 'pickup',
+        delivery_address: formData?.address || undefined
+      };
+
+      const { error: emailError } = await supabase.functions.invoke('send-order-pending-email', {
+        body: emailPayload
+      });
+
+      if (emailError) {
+        console.error('Error sending pending email:', emailError);
+      } else {
+        console.log('Pending order email sent successfully');
+      }
+    } catch (error) {
+      console.error('Error in handleWhatsAppContact:', error);
+    } finally {
+      setIsLoading(false);
+    }
+    
+    const message = `Olá! Meu pedido #${confirmedOrderNumber} foi separado. Gostaria de falar com um atendente.`;
     const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
   };
