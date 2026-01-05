@@ -22,6 +22,8 @@ import {
   MessageCircle,
   TrendingUp,
   Calendar,
+  ChefHat,
+  Truck,
 } from "lucide-react";
 import {
   Dialog,
@@ -160,13 +162,17 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
 
   const stats = useMemo(() => {
     const approved = orders.filter(o => o.status === 'approved');
+    const preparing = orders.filter(o => o.status === 'preparing');
+    const ready = orders.filter(o => o.status === 'ready');
     const pending = orders.filter(o => o.status === 'pending');
     const whatsappPending = orders.filter(o => o.status === 'whatsapp_pending');
     const rejected = orders.filter(o => o.status === 'rejected');
-    const totalRevenue = approved.reduce((sum, o) => sum + o.total, 0);
+    const totalRevenue = [...approved, ...preparing, ...ready].reduce((sum, o) => sum + o.total, 0);
     
     return { 
       approved: approved.length, 
+      preparing: preparing.length,
+      ready: ready.length,
       pending: pending.length + whatsappPending.length, 
       whatsappPending: whatsappPending.length,
       rejected: rejected.length, 
@@ -177,13 +183,19 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">Aprovado</Badge>;
+        return <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">✅ Aprovado</Badge>;
+      case 'preparing':
+        return <Badge className="bg-blue-500/10 text-blue-600 hover:bg-blue-500/20">👨‍🍳 Preparando</Badge>;
+      case 'ready':
+        return <Badge className="bg-purple-500/10 text-purple-600 hover:bg-purple-500/20">📦 Pronto</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20">Pendente</Badge>;
+        return <Badge className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20">⏳ Pendente</Badge>;
       case 'whatsapp_pending':
         return <Badge className="bg-orange-500/10 text-orange-600 hover:bg-orange-500/20">📲 WhatsApp</Badge>;
       case 'rejected':
-        return <Badge className="bg-red-500/10 text-red-600 hover:bg-red-500/20">Rejeitado</Badge>;
+        return <Badge className="bg-red-500/10 text-red-600 hover:bg-red-500/20">❌ Rejeitado</Badge>;
+      case 'delivered':
+        return <Badge className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">🚀 Entregue</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -238,6 +250,57 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       alert('Erro ao confirmar pedido');
     } finally {
       setIsConfirming(null);
+    }
+  };
+
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    setIsUpdatingStatus(orderId);
+    
+    try {
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error('Error updating order status:', updateError);
+        alert('Erro ao atualizar status');
+        return;
+      }
+
+      // Update local state
+      setOrders(prev => 
+        prev.map(o => o.id === orderId 
+          ? { ...o, status: newStatus } 
+          : o
+        )
+      );
+
+      // Update modal if open
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+
+    } catch (error) {
+      console.error('Error in updateOrderStatus:', error);
+      alert('Erro ao atualizar status');
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  };
+
+  const getNextStatusAction = (status: string): { label: string; nextStatus: string; icon: React.ReactNode; color: string } | null => {
+    switch (status) {
+      case 'approved':
+        return { label: 'Iniciar Preparo', nextStatus: 'preparing', icon: <ChefHat className="w-4 h-4" />, color: 'bg-blue-600 hover:bg-blue-700' };
+      case 'preparing':
+        return { label: 'Marcar Pronto', nextStatus: 'ready', icon: <Package className="w-4 h-4" />, color: 'bg-purple-600 hover:bg-purple-700' };
+      case 'ready':
+        return { label: 'Entregue', nextStatus: 'delivered', icon: <Truck className="w-4 h-4" />, color: 'bg-emerald-600 hover:bg-emerald-700' };
+      default:
+        return null;
     }
   };
 
@@ -361,9 +424,12 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="whatsapp_pending">📲 WhatsApp</SelectItem>
-                <SelectItem value="pending">Pendentes</SelectItem>
-                <SelectItem value="approved">Aprovados</SelectItem>
-                <SelectItem value="rejected">Rejeitados</SelectItem>
+                <SelectItem value="pending">⏳ Pendentes</SelectItem>
+                <SelectItem value="approved">✅ Aprovados</SelectItem>
+                <SelectItem value="preparing">👨‍🍳 Preparando</SelectItem>
+                <SelectItem value="ready">📦 Prontos</SelectItem>
+                <SelectItem value="delivered">🚀 Entregues</SelectItem>
+                <SelectItem value="rejected">❌ Rejeitados</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={fetchOrders}>
@@ -440,6 +506,22 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                                 <RefreshCw className="w-4 h-4 animate-spin" />
                               ) : (
                                 <CheckCircle className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
+                          {getNextStatusAction(order.status) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => updateOrderStatus(order.id, getNextStatusAction(order.status)!.nextStatus)}
+                              disabled={isUpdatingStatus === order.id}
+                              title={getNextStatusAction(order.status)!.label}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-500/10"
+                            >
+                              {isUpdatingStatus === order.id ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                getNextStatusAction(order.status)!.icon
                               )}
                             </Button>
                           )}
@@ -569,11 +651,12 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex flex-col gap-2 pt-2">
+                {/* Confirm pending orders */}
                 {(selectedOrder.status === 'whatsapp_pending' || selectedOrder.status === 'pending') && (
                   <Button
                     variant="default"
-                    className="flex-1 bg-green-600 hover:bg-green-700"
+                    className="w-full bg-green-600 hover:bg-green-700"
                     onClick={() => confirmOrder(selectedOrder.id)}
                     disabled={isConfirming === selectedOrder.id}
                   >
@@ -585,9 +668,28 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                     Confirmar Pedido
                   </Button>
                 )}
+
+                {/* Next status action */}
+                {getNextStatusAction(selectedOrder.status) && (
+                  <Button
+                    variant="default"
+                    className={`w-full ${getNextStatusAction(selectedOrder.status)!.color}`}
+                    onClick={() => updateOrderStatus(selectedOrder.id, getNextStatusAction(selectedOrder.status)!.nextStatus)}
+                    disabled={isUpdatingStatus === selectedOrder.id}
+                  >
+                    {isUpdatingStatus === selectedOrder.id ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      getNextStatusAction(selectedOrder.status)!.icon
+                    )}
+                    <span className="ml-2">{getNextStatusAction(selectedOrder.status)!.label}</span>
+                  </Button>
+                )}
+
+                {/* WhatsApp button */}
                 <Button
-                  variant={selectedOrder.status === 'approved' ? "default" : "outline"}
-                  className="flex-1"
+                  variant="outline"
+                  className="w-full"
                   onClick={() => openWhatsApp(selectedOrder.customer_phone, selectedOrder.customer_name, selectedOrder.id)}
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
