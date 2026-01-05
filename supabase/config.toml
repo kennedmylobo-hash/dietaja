@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.send-status-notification]
 verify_jwt = false
+
+[functions.send-review-request]
+verify_jwt = false
+
+[functions.send-recompra-campaigns]
+verify_jwt = false

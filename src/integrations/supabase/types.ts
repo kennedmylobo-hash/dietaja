@@ -251,6 +251,54 @@ export type Database = {
         }
         Relationships: []
       }
+      marketing_messages: {
+        Row: {
+          coupon_code: string | null
+          created_at: string | null
+          delay_days: number | null
+          discount_percent: number | null
+          email_body_html: string
+          email_subject: string
+          id: string
+          is_active: boolean | null
+          message_type: string
+          title: string
+          trigger_quantity: number | null
+          updated_at: string | null
+          whatsapp_template: string
+        }
+        Insert: {
+          coupon_code?: string | null
+          created_at?: string | null
+          delay_days?: number | null
+          discount_percent?: number | null
+          email_body_html: string
+          email_subject: string
+          id?: string
+          is_active?: boolean | null
+          message_type: string
+          title: string
+          trigger_quantity?: number | null
+          updated_at?: string | null
+          whatsapp_template: string
+        }
+        Update: {
+          coupon_code?: string | null
+          created_at?: string | null
+          delay_days?: number | null
+          discount_percent?: number | null
+          email_body_html?: string
+          email_subject?: string
+          id?: string
+          is_active?: boolean | null
+          message_type?: string
+          title?: string
+          trigger_quantity?: number | null
+          updated_at?: string | null
+          whatsapp_template?: string
+        }
+        Relationships: []
+      }
       marmita_flavors: {
         Row: {
           active: boolean
@@ -373,6 +421,7 @@ export type Database = {
           customer_email: string
           customer_name: string
           customer_phone: string
+          delivered_at: string | null
           delivery_address: string | null
           delivery_fee: number | null
           delivery_option: string
@@ -384,6 +433,7 @@ export type Database = {
           paid_at: string | null
           payment_method: string | null
           reminder_sent_at: string | null
+          review_requested_at: string | null
           status: string
           stock_decremented: boolean | null
           subtotal: number
@@ -397,6 +447,7 @@ export type Database = {
           customer_email: string
           customer_name: string
           customer_phone: string
+          delivered_at?: string | null
           delivery_address?: string | null
           delivery_fee?: number | null
           delivery_option: string
@@ -408,6 +459,7 @@ export type Database = {
           paid_at?: string | null
           payment_method?: string | null
           reminder_sent_at?: string | null
+          review_requested_at?: string | null
           status?: string
           stock_decremented?: boolean | null
           subtotal: number
@@ -421,6 +473,7 @@ export type Database = {
           customer_email?: string
           customer_name?: string
           customer_phone?: string
+          delivered_at?: string | null
           delivery_address?: string | null
           delivery_fee?: number | null
           delivery_option?: string
@@ -432,6 +485,7 @@ export type Database = {
           paid_at?: string | null
           payment_method?: string | null
           reminder_sent_at?: string | null
+          review_requested_at?: string | null
           status?: string
           stock_decremented?: boolean | null
           subtotal?: number
@@ -477,6 +531,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      recompra_campaigns: {
+        Row: {
+          coupon_used: boolean | null
+          id: string
+          message_type: string
+          order_id: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          coupon_used?: boolean | null
+          id?: string
+          message_type: string
+          order_id?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          coupon_used?: boolean | null
+          id?: string
+          message_type?: string
+          order_id?: string | null
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recompra_campaigns_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_movements: {
         Row: {
