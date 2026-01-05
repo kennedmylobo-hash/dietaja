@@ -26,7 +26,9 @@ import {
   Truck,
   Ban,
   AlertTriangle,
+  History,
 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,6 +82,15 @@ interface Order {
   stock_decremented?: boolean;
 }
 
+interface StatusHistoryEntry {
+  id: string;
+  previous_status: string | null;
+  new_status: string;
+  changed_by_name: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 interface OrdersManagerProps {
   dateFilter: 'today' | 'week' | 'month';
 }
@@ -89,6 +100,8 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const getDateRange = () => {
     const now = new Date();
@@ -240,6 +253,51 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     return !['delivered', 'cancelled', 'rejected'].includes(status);
   };
 
+  const getStatusLabel = (status: string | null) => {
+    if (!status) return 'Novo';
+    const found = ALL_STATUSES.find(s => s.value === status);
+    return found ? found.label : status;
+  };
+
+  const fetchStatusHistory = async (orderId: string) => {
+    setIsLoadingHistory(true);
+    const { data, error } = await supabase
+      .from('order_status_history')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching status history:', error);
+    } else {
+      setStatusHistory((data as StatusHistoryEntry[]) || []);
+    }
+    setIsLoadingHistory(false);
+  };
+
+  const recordStatusChange = async (orderId: string, previousStatus: string, newStatus: string) => {
+    try {
+      // Get current user for attribution
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase
+        .from('order_status_history')
+        .insert({
+          order_id: orderId,
+          previous_status: previousStatus,
+          new_status: newStatus,
+          changed_by: user?.id || null,
+          changed_by_name: user?.email?.split('@')[0] || 'Admin'
+        });
+
+      if (error) {
+        console.error('Error recording status change:', error);
+      }
+    } catch (error) {
+      console.error('Error in recordStatusChange:', error);
+    }
+  };
+
   const sendStatusNotification = async (orderId: string, newStatus: string) => {
     try {
       const { error } = await supabase.functions.invoke('send-status-notification', {
@@ -263,6 +321,10 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     setIsConfirming(orderId);
     
     try {
+      // Get current status before updating
+      const currentOrder = orders.find(o => o.id === orderId);
+      const previousStatus = currentOrder?.status || 'pending';
+
       // Update order status to approved
       const { error: updateError } = await supabase
         .from('orders')
@@ -277,6 +339,9 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         alert('Erro ao confirmar pedido');
         return;
       }
+
+      // Record the status change in history
+      await recordStatusChange(orderId, previousStatus, 'approved');
 
       // Call decrement-stock edge function
       const { error: decrementError } = await supabase.functions.invoke('decrement-stock', {
@@ -296,9 +361,10 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         )
       );
 
-      // Close modal if this order was selected
+      // Close modal if this order was selected and refresh history
       if (selectedOrder?.id === orderId) {
         setSelectedOrder(prev => prev ? { ...prev, status: 'approved', paid_at: new Date().toISOString() } : null);
+        fetchStatusHistory(orderId);
       }
 
     } catch (error) {
@@ -315,6 +381,10 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     setIsUpdatingStatus(orderId);
     
     try {
+      // Get current status before updating
+      const currentOrder = orders.find(o => o.id === orderId);
+      const previousStatus = currentOrder?.status || 'unknown';
+
       const { error: updateError } = await supabase
         .from('orders')
         .update({ status: newStatus })
@@ -326,6 +396,9 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         return;
       }
 
+      // Record the status change in history
+      await recordStatusChange(orderId, previousStatus, newStatus);
+
       // Update local state
       setOrders(prev => 
         prev.map(o => o.id === orderId 
@@ -334,9 +407,10 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         )
       );
 
-      // Update modal if open
+      // Update modal if open and refresh history
       if (selectedOrder?.id === orderId) {
         setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+        fetchStatusHistory(orderId);
       }
 
       // Send notification for status change (except pending statuses)
@@ -653,8 +727,16 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       </Card>
 
       {/* Order Details Modal */}
-      <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-        <DialogContent className="max-w-lg">
+      <Dialog 
+        open={!!selectedOrder} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedOrder(null);
+            setStatusHistory([]);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="w-5 h-5" />
@@ -663,9 +745,10 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           </DialogHeader>
           
           {selectedOrder && (
-            <div className="space-y-4">
-              {/* Status with manual dropdown */}
-              <div className="flex items-center justify-between gap-4">
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-4">
+                {/* Status with manual dropdown */}
+                <div className="flex items-center justify-between gap-4">
                 <span className="text-sm text-muted-foreground">Status</span>
                 <div className="flex items-center gap-2">
                   {getStatusBadge(selectedOrder.status)}
@@ -768,6 +851,65 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                 </div>
               )}
 
+              {/* Status History */}
+              <div className="p-3 rounded-lg bg-muted/50">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <History className="w-4 h-4" />
+                    Histórico de Status
+                  </h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => fetchStatusHistory(selectedOrder.id)}
+                    disabled={isLoadingHistory}
+                  >
+                    {isLoadingHistory ? (
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3" />
+                    )}
+                  </Button>
+                </div>
+                
+                {statusHistory.length === 0 && !isLoadingHistory && (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    Clique em atualizar para carregar o histórico
+                  </p>
+                )}
+                
+                {isLoadingHistory && (
+                  <div className="flex justify-center py-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                
+                {statusHistory.length > 0 && (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {statusHistory.map((entry) => (
+                      <div key={entry.id} className="text-xs border-l-2 border-primary/30 pl-2 py-1">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="text-muted-foreground">
+                            {entry.previous_status ? getStatusLabel(entry.previous_status) : 'Novo'}
+                          </span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="font-medium">{getStatusLabel(entry.new_status)}</span>
+                        </div>
+                        <div className="text-muted-foreground mt-0.5">
+                          {new Date(entry.created_at).toLocaleString('pt-BR')}
+                          {entry.changed_by_name && (
+                            <span className="ml-1">• {entry.changed_by_name}</span>
+                          )}
+                        </div>
+                        {entry.notes && (
+                          <p className="text-muted-foreground mt-1 italic">"{entry.notes}"</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Actions */}
               <div className="flex flex-col gap-2 pt-2">
                 {/* Confirm pending orders */}
@@ -850,7 +992,8 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                   </AlertDialog>
                 )}
               </div>
-            </div>
+              </div>
+            </ScrollArea>
           )}
         </DialogContent>
       </Dialog>
