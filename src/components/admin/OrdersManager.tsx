@@ -11,6 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   ShoppingCart,
   Package,
   Clock,
@@ -233,6 +239,19 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     return `${diffDays}d`;
   };
 
+  // Group orders by status category
+  const ordersByCategory = useMemo(() => {
+    const pendingStatuses = ['pending', 'whatsapp_pending'];
+    const inProgressStatuses = ['approved', 'preparing', 'ready', 'delivering'];
+    const finishedStatuses = ['delivered', 'cancelled', 'rejected'];
+
+    return {
+      pending: orders.filter(o => pendingStatuses.includes(o.status)),
+      inProgress: orders.filter(o => inProgressStatuses.includes(o.status)),
+      finished: orders.filter(o => finishedStatuses.includes(o.status)),
+    };
+  }, [orders]);
+
   const filteredOrders = useMemo(() => {
     if (statusFilter === 'all') return orders;
     return orders.filter(o => o.status === statusFilter);
@@ -271,7 +290,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       case 'preparing':
         return <Badge className="bg-blue-500/10 text-blue-600 hover:bg-blue-500/20">👨‍🍳 Produção</Badge>;
       case 'ready':
-        return <Badge className="bg-purple-500/10 text-purple-600 hover:bg-purple-500/20">📦 Separado</Badge>;
+        return <Badge className="bg-purple-500/10 text-purple-600 hover:bg-purple-500/20">📦 Pronto</Badge>;
       case 'delivering':
         return <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20">🛵 Em Entrega</Badge>;
       case 'pending':
@@ -294,7 +313,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     { value: 'whatsapp_pending', label: '📲 WhatsApp' },
     { value: 'approved', label: '✅ Pagamento Aprovado' },
     { value: 'preparing', label: '👨‍🍳 Em Produção' },
-    { value: 'ready', label: '📦 Separado p/ Entrega' },
+    { value: 'ready', label: '📦 Pronto p/ Retirada/Entrega' },
     { value: 'delivering', label: '🛵 Em Entrega' },
     { value: 'delivered', label: '🎉 Entregue' },
     { value: 'cancelled', label: '🚫 Cancelado' },
@@ -574,6 +593,140 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     link.click();
   };
 
+  const renderOrdersTable = (ordersList: Order[]) => {
+    if (ordersList.length === 0) {
+      return (
+        <p className="text-center text-muted-foreground py-8">
+          Nenhum pedido nesta categoria.
+        </p>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left">
+              <th className="pb-3 font-medium text-muted-foreground">Pedido</th>
+              <th className="pb-3 font-medium text-muted-foreground">Cliente</th>
+              <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Entrega</th>
+              <th className="pb-3 font-medium text-muted-foreground">Total</th>
+              <th className="pb-3 font-medium text-muted-foreground">Status</th>
+              <th className="pb-3 font-medium text-muted-foreground hidden sm:table-cell">Tempo</th>
+              <th className="pb-3 font-medium text-muted-foreground hidden lg:table-cell">Data</th>
+              <th className="pb-3 font-medium text-muted-foreground">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ordersList.map((order) => (
+              <tr key={order.id} className="border-b last:border-0">
+                <td className="py-3">
+                  <p className="font-mono text-xs">#{order.id.slice(0, 8)}</p>
+                </td>
+                <td className="py-3">
+                  <p className="font-medium">{order.customer_name}</p>
+                  <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
+                </td>
+                <td className="py-3 hidden md:table-cell">
+                  <p className="text-xs">
+                    {order.delivery_option === 'pickup' ? '📍 Retirada' : '🛵 Entrega'}
+                  </p>
+                </td>
+                <td className="py-3">
+                  <p className="font-semibold text-primary">
+                    R$ {order.total.toFixed(2).replace('.', ',')}
+                  </p>
+                </td>
+                <td className="py-3">
+                  {getStatusBadge(order.status)}
+                </td>
+                <td className="py-3 hidden sm:table-cell">
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    <span className="text-xs">
+                      {getTimeSinceChange(order.id, order.created_at)}
+                    </span>
+                  </div>
+                </td>
+                <td className="py-3 hidden lg:table-cell">
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(order.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </td>
+                <td className="py-3">
+                  <div className="flex gap-1">
+                    {(order.status === 'whatsapp_pending' || order.status === 'pending') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => confirmOrder(order.id)}
+                        disabled={isConfirming === order.id}
+                        title="Confirmar pedido"
+                        className="text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                      >
+                        {isConfirming === order.id ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4" />
+                        )}
+                      </Button>
+                    )}
+                    {getNextStatusAction(order.status) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => updateOrderStatus(order.id, getNextStatusAction(order.status)!.nextStatus)}
+                        disabled={isUpdatingStatus === order.id}
+                        title={getNextStatusAction(order.status)!.label}
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-500/10"
+                      >
+                        {isUpdatingStatus === order.id ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          getNextStatusAction(order.status)!.icon
+                        )}
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedOrder(order)}
+                      title="Ver detalhes"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openWhatsApp(order.customer_phone, order.customer_name, order.id)}
+                      title="Enviar WhatsApp"
+                    >
+                      <MessageCircle className="w-4 h-4 text-green-600" />
+                    </Button>
+                    {canCancel(order.status) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Cancelar pedido"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                        onClick={() => setOrderToCancel(order)}
+                      >
+                        <Ban className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -645,7 +798,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         </Card>
       </div>
 
-      {/* Orders Table */}
+      {/* Orders Tabs */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -653,23 +806,6 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
             Pedidos
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px] h-9">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="whatsapp_pending">📲 WhatsApp</SelectItem>
-                <SelectItem value="pending">⏳ Aguardando</SelectItem>
-                <SelectItem value="approved">✅ Pagos</SelectItem>
-                <SelectItem value="preparing">👨‍🍳 Produção</SelectItem>
-                <SelectItem value="ready">📦 Separados</SelectItem>
-                <SelectItem value="delivering">🛵 Em Entrega</SelectItem>
-                <SelectItem value="delivered">🎉 Entregues</SelectItem>
-                <SelectItem value="cancelled">🚫 Cancelados</SelectItem>
-                <SelectItem value="rejected">❌ Rejeitados</SelectItem>
-              </SelectContent>
-            </Select>
             <Button variant="outline" size="sm" onClick={fetchOrders}>
               <RefreshCw className="w-4 h-4" />
             </Button>
@@ -680,133 +816,43 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           </div>
         </CardHeader>
         <CardContent>
-          {filteredOrders.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              Nenhum pedido encontrado no período.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left">
-                    <th className="pb-3 font-medium text-muted-foreground">Pedido</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Cliente</th>
-                    <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Entrega</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Total</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Status</th>
-                    <th className="pb-3 font-medium text-muted-foreground hidden sm:table-cell">Tempo</th>
-                    <th className="pb-3 font-medium text-muted-foreground hidden lg:table-cell">Data</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((order) => (
-                    <tr key={order.id} className="border-b last:border-0">
-                      <td className="py-3">
-                        <p className="font-mono text-xs">#{order.id.slice(0, 8)}</p>
-                      </td>
-                      <td className="py-3">
-                        <p className="font-medium">{order.customer_name}</p>
-                        <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
-                      </td>
-                      <td className="py-3 hidden md:table-cell">
-                        <p className="text-xs">
-                          {order.delivery_option === 'pickup' ? '📍 Retirada' : '🛵 Entrega'}
-                        </p>
-                      </td>
-                      <td className="py-3">
-                        <p className="font-semibold text-primary">
-                          R$ {order.total.toFixed(2).replace('.', ',')}
-                        </p>
-                      </td>
-                      <td className="py-3">
-                        {getStatusBadge(order.status)}
-                      </td>
-                      <td className="py-3 hidden sm:table-cell">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          <span className="text-xs">
-                            {getTimeSinceChange(order.id, order.created_at)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 hidden lg:table-cell">
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(order.created_at).toLocaleDateString('pt-BR')}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(order.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </td>
-                      <td className="py-3">
-                        <div className="flex gap-1">
-                          {(order.status === 'whatsapp_pending' || order.status === 'pending') && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => confirmOrder(order.id)}
-                              disabled={isConfirming === order.id}
-                              title="Confirmar pedido"
-                              className="text-green-600 hover:text-green-700 hover:bg-green-500/10"
-                            >
-                              {isConfirming === order.id ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <CheckCircle className="w-4 h-4" />
-                              )}
-                            </Button>
-                          )}
-                          {getNextStatusAction(order.status) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => updateOrderStatus(order.id, getNextStatusAction(order.status)!.nextStatus)}
-                              disabled={isUpdatingStatus === order.id}
-                              title={getNextStatusAction(order.status)!.label}
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-500/10"
-                            >
-                              {isUpdatingStatus === order.id ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                              ) : (
-                                getNextStatusAction(order.status)!.icon
-                              )}
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedOrder(order)}
-                            title="Ver detalhes"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openWhatsApp(order.customer_phone, order.customer_name, order.id)}
-                            title="Enviar WhatsApp"
-                          >
-                            <MessageCircle className="w-4 h-4 text-green-600" />
-                          </Button>
-                          {canCancel(order.status) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="Cancelar pedido"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
-                              onClick={() => setOrderToCancel(order)}
-                            >
-                              <Ban className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <Tabs defaultValue="pending" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsTrigger value="pending" className="gap-2">
+                <Clock className="w-4 h-4" />
+                <span className="hidden sm:inline">Aguardando</span>
+                {ordersByCategory.pending.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">{ordersByCategory.pending.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="inProgress" className="gap-2">
+                <ChefHat className="w-4 h-4" />
+                <span className="hidden sm:inline">Em Andamento</span>
+                {ordersByCategory.inProgress.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">{ordersByCategory.inProgress.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="finished" className="gap-2">
+                <CheckCircle className="w-4 h-4" />
+                <span className="hidden sm:inline">Finalizados</span>
+                {ordersByCategory.finished.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">{ordersByCategory.finished.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="pending">
+              {renderOrdersTable(ordersByCategory.pending)}
+            </TabsContent>
+
+            <TabsContent value="inProgress">
+              {renderOrdersTable(ordersByCategory.inProgress)}
+            </TabsContent>
+
+            <TabsContent value="finished">
+              {renderOrdersTable(ordersByCategory.finished)}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
