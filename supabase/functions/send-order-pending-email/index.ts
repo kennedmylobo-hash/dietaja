@@ -189,7 +189,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sending pending order email to: ${data.customer_email}`);
 
     const emailResponse = await resend.emails.send({
-      from: "Dieta Já <pedidos@dietaja.com.br>",
+      from: "Dieta Já <pedidos@dietajavca.com.br>",
       to: [data.customer_email],
       subject: `Pedido #${data.order_number} Separado - Aguardando Pagamento`,
       html: html,
