@@ -51,9 +51,9 @@ const ProductCard = ({
   };
 
   return (
-    <div className="group bg-card rounded-2xl border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col">
+    <div className="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col">
       {/* Image */}
-      <div className="relative aspect-[4/3] bg-muted overflow-hidden">
+      <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -61,7 +61,7 @@ const ProductCard = ({
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-100 to-green-50">
             <span className="text-6xl">
               {type === "kit" ? "🥤" : "🍱"}
             </span>
@@ -69,7 +69,7 @@ const ProductCard = ({
         )}
         
         {/* Type Badge */}
-        <Badge className="absolute top-3 left-3 bg-primary/90 hover:bg-primary text-primary-foreground text-xs font-semibold">
+        <Badge className="absolute top-3 left-3 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold">
           {typeLabel}
         </Badge>
 
@@ -93,42 +93,42 @@ const ProductCard = ({
       {/* Content */}
       <div className="p-4 flex flex-col flex-1">
         {/* Title */}
-        <h3 className="font-bold text-foreground text-lg leading-tight mb-2">
+        <h3 className="font-bold text-gray-900 text-lg leading-tight mb-2">
           {name}
         </h3>
 
-        {/* Description - Estilo Slim Fit (texto em verde) */}
-        <p className="text-sm text-primary font-medium leading-relaxed mb-4 line-clamp-4 flex-1">
+        {/* Description - Estilo Slim Fit (texto cinza) */}
+        <p className="text-sm text-gray-600 leading-relaxed mb-4 line-clamp-4 flex-1">
           {getDescription()}
         </p>
 
         {/* Unit Price */}
         {quantity && quantity > 1 && (
-          <p className="text-sm text-muted-foreground mb-1">
-            <span className="font-semibold">Valor unitário:</span>{" "}
-            <span className="text-foreground font-bold">R$ {price.toFixed(2).replace(".", ",")}</span>
+          <p className="text-sm text-gray-600 mb-1">
+            <span className="font-bold text-gray-700">Valor unitário:</span>{" "}
+            <span className="text-gray-900 font-bold">R$ {price.toFixed(2).replace(".", ",")}</span>
           </p>
         )}
 
         {/* Quantity info */}
         {unitLabel && (
-          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-4">
             {unitLabel}
           </p>
         )}
 
         {/* Price and CTA */}
-        <div className="flex items-end justify-between gap-3 pt-3 border-t border-border/50 mt-auto">
+        <div className="flex items-end justify-between gap-3 pt-3 border-t border-gray-200 mt-auto">
           <div>
-            <p className="text-xs text-muted-foreground mb-0.5">A partir de</p>
-            <p className="text-2xl font-bold text-foreground">
+            <p className="text-xs text-gray-500 mb-0.5">A partir de</p>
+            <p className="text-2xl font-bold text-gray-900">
               R$ {totalPrice.toFixed(2).replace(".", ",")}
             </p>
           </div>
           
           <Button 
             onClick={onAdd}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-2"
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold gap-2"
           >
             <ShoppingCart className="h-4 w-4" />
             Adicionar
