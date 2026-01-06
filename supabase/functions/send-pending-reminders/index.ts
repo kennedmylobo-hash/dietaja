@@ -173,46 +173,74 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn("NotificaMe credentials not configured - WhatsApp messages will be skipped");
     }
 
-    // Time thresholds
-    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    // Fetch reminder settings from database
+    const { data: reminderSettings, error: settingsError } = await supabase
+      .from("reminder_settings")
+      .select("*");
+
+    if (settingsError) {
+      console.error("Error fetching reminder settings:", settingsError);
+    }
+
+    // Get configurable delays (with fallback defaults)
+    const firstReminderConfig = reminderSettings?.find(s => s.reminder_type === 'first_reminder');
+    const secondReminderConfig = reminderSettings?.find(s => s.reminder_type === 'second_reminder');
+
+    const firstReminderMinutes = firstReminderConfig?.delay_minutes || 15;
+    const secondReminderMinutes = secondReminderConfig?.delay_minutes || 360;
+    const firstReminderActive = firstReminderConfig?.is_active ?? true;
+    const secondReminderActive = secondReminderConfig?.is_active ?? true;
+
+    console.log(`Reminder settings - 1st: ${firstReminderMinutes}min (${firstReminderActive ? 'active' : 'inactive'}), 2nd: ${secondReminderMinutes}min (${secondReminderActive ? 'active' : 'inactive'})`);
+
+    // Time thresholds based on configurable settings
+    const firstReminderThreshold = new Date(Date.now() - firstReminderMinutes * 60 * 1000).toISOString();
+    const secondReminderThreshold = new Date(Date.now() - secondReminderMinutes * 60 * 1000).toISOString();
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    console.log(`Time thresholds - 15min: ${fifteenMinutesAgo}, 6h: ${sixHoursAgo}, 24h: ${twentyFourHoursAgo}`);
+    console.log(`Time thresholds - 1st: ${firstReminderThreshold}, 2nd: ${secondReminderThreshold}, 24h: ${twentyFourHoursAgo}`);
 
-    // Get orders that need FIRST reminder (15+ minutes, no reminder sent yet)
-    const { data: firstReminderOrders, error: firstFetchError } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("status", "confirmed")
-      .lt("created_at", fifteenMinutesAgo)
-      .gt("created_at", twentyFourHoursAgo)
-      .is("reminder_sent_at", null)
-      .order("created_at", { ascending: true });
+    // Get orders that need FIRST reminder (configured minutes ago, no reminder sent yet)
+    let firstReminderOrders: any[] = [];
+    if (firstReminderActive) {
+      const { data, error: firstFetchError } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("status", "confirmed")
+        .lt("created_at", firstReminderThreshold)
+        .gt("created_at", twentyFourHoursAgo)
+        .is("reminder_sent_at", null)
+        .order("created_at", { ascending: true });
 
-    if (firstFetchError) {
-      console.error("Error fetching first reminder orders:", firstFetchError);
-      throw firstFetchError;
+      if (firstFetchError) {
+        console.error("Error fetching first reminder orders:", firstFetchError);
+        throw firstFetchError;
+      }
+      firstReminderOrders = data || [];
     }
 
-    // Get orders that need SECOND reminder (6+ hours, first reminder sent, no second reminder)
-    const { data: secondReminderOrders, error: secondFetchError } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("status", "confirmed")
-      .lt("created_at", sixHoursAgo)
-      .gt("created_at", twentyFourHoursAgo)
-      .not("reminder_sent_at", "is", null)
-      .is("whatsapp_2_sent_at", null)
-      .order("created_at", { ascending: true });
+    // Get orders that need SECOND reminder (configured minutes ago, first reminder sent, no second reminder)
+    let secondReminderOrders: any[] = [];
+    if (secondReminderActive) {
+      const { data, error: secondFetchError } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("status", "confirmed")
+        .lt("created_at", secondReminderThreshold)
+        .gt("created_at", twentyFourHoursAgo)
+        .not("reminder_sent_at", "is", null)
+        .is("whatsapp_2_sent_at", null)
+        .order("created_at", { ascending: true });
 
-    if (secondFetchError) {
-      console.error("Error fetching second reminder orders:", secondFetchError);
-      throw secondFetchError;
+      if (secondFetchError) {
+        console.error("Error fetching second reminder orders:", secondFetchError);
+        throw secondFetchError;
+      }
+      secondReminderOrders = data || [];
     }
 
-    console.log(`Found ${firstReminderOrders?.length || 0} orders for 1st reminder (15min)`);
-    console.log(`Found ${secondReminderOrders?.length || 0} orders for 2nd reminder (6h)`);
+    console.log(`Found ${firstReminderOrders.length} orders for 1st reminder (${firstReminderMinutes}min)`);
+    console.log(`Found ${secondReminderOrders.length} orders for 2nd reminder (${secondReminderMinutes}min)`);
 
     const allOrders = [
       ...(firstReminderOrders || []).map(o => ({ ...o, isSecondReminder: false })),
