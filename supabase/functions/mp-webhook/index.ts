@@ -270,10 +270,31 @@ serve(async (req) => {
             console.log('[mp-webhook] Stock decrement result:', decrementResult);
           } catch (decrementError) {
             console.error('[mp-webhook] Error decrementing stock:', decrementError);
-            // Don't fail the webhook, stock can be adjusted manually
           }
         } else {
           console.log('[mp-webhook] Stock already decremented for this order');
+        }
+
+        // Send WhatsApp confirmation
+        console.log('[mp-webhook] Sending WhatsApp confirmation...');
+        try {
+          await fetch(
+            `${supabaseUrl}/functions/v1/send-order-whatsapp`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseKey}`,
+              },
+              body: JSON.stringify({
+                order_id: orderId,
+                status: 'approved',
+              }),
+            }
+          );
+          console.log('[mp-webhook] WhatsApp confirmation sent');
+        } catch (whatsappError) {
+          console.error('[mp-webhook] Error sending WhatsApp:', whatsappError);
         }
       }
     }

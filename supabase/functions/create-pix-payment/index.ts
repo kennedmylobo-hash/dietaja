@@ -172,6 +172,27 @@ serve(async (req) => {
     const expirationDate = mpData.date_of_expiration || 
       new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
+    // Send WhatsApp notification with order summary and PIX code
+    console.log('Sending WhatsApp notification with PIX code...');
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({
+          order_id: orderId,
+          status: 'pending',
+          pix_code: pixData.qr_code,
+        }),
+      });
+      console.log('WhatsApp notification sent for pending order');
+    } catch (whatsappError) {
+      console.error('Error sending WhatsApp:', whatsappError);
+      // Don't fail the request, WhatsApp is secondary
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
