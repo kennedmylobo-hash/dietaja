@@ -485,7 +485,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     }
   };
 
-  const handlePixPayment = async () => {
+  const handlePixPayment = async (retryCount = 0) => {
     if (!formData) return;
     
     setIsLoading(true);
@@ -550,9 +550,17 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       }
     } catch (error) {
       console.error('Error creating PIX payment:', error);
+      
+      // Auto-retry once on failure
+      if (retryCount < 1) {
+        console.log('Retrying PIX generation...');
+        await new Promise(r => setTimeout(r, 1500));
+        return handlePixPayment(retryCount + 1);
+      }
+      
       toast({
-        title: "Erro ao gerar PIX",
-        description: "Tente novamente ou fale com um atendente.",
+        title: "Não foi possível gerar o PIX",
+        description: "Por favor, tente novamente. Se o problema persistir, fale com um atendente via WhatsApp.",
         variant: "destructive",
       });
     } finally {
@@ -1265,7 +1273,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     variant="cta"
                     size="lg"
                     className="w-full"
-                    onClick={handlePixPayment}
+                    onClick={() => handlePixPayment()}
                     disabled={isLoading}
                   >
                     {isLoading ? (
