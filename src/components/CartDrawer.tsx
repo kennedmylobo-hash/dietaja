@@ -17,6 +17,7 @@ import { getUTMParams } from "@/lib/utm";
 import { useNavigate } from "react-router-dom";
 import FlavorSelectionModal from "./FlavorSelectionModal";
 import KitFlavorSelectionModal from "./KitFlavorSelectionModal";
+import PixPaymentModal from "./PixPaymentModal";
 import { toast } from "@/hooks/use-toast";
 import { useMarmitaFlavors, useKitJuices, useKitSoups } from "@/hooks/useMenuData";
 import { motion, AnimatePresence } from "framer-motion";
@@ -70,6 +71,17 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const [couponError, setCouponError] = useState("");
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState("");
+  
+  // PIX inline state
+  const [showPixModal, setShowPixModal] = useState(false);
+  const [pixData, setPixData] = useState<{
+    qrCode: string;
+    qrCodeBase64: string;
+    paymentId: string;
+    orderId: string;
+    expirationDate: string;
+    total: number;
+  } | null>(null);
   
   const handleGoToCheckout = () => {
     setStep('checkout');
@@ -480,7 +492,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     hapticFeedback('medium');
 
     try {
-      const { data: response, error } = await supabase.functions.invoke('create-mp-preference', {
+      const { data: response, error } = await supabase.functions.invoke('create-pix-payment', {
         body: {
           items: items.map(item => ({
             name: item.name,
@@ -505,7 +517,6 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             fee: deliveryFee,
           },
           utm_data: getUTMParams(),
-          order_number: confirmedOrderNumber,
           coupon_code: appliedCoupon || null,
           discount_amount: couponDiscount,
         },
@@ -513,21 +524,46 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
 
       if (error) throw error;
 
-      if (response?.init_point) {
-        window.location.href = response.init_point;
+      if (response?.qr_code && response?.qr_code_base64) {
+        // Set PIX data and show modal
+        setPixData({
+          qrCode: response.qr_code,
+          qrCodeBase64: response.qr_code_base64,
+          paymentId: response.payment_id,
+          orderId: response.order_id,
+          expirationDate: response.expiration_date,
+          total: response.total,
+        });
+        setShowPixModal(true);
       } else {
-        throw new Error('No init_point received');
+        throw new Error('No PIX data received');
       }
     } catch (error) {
-      console.error('Error creating payment:', error);
+      console.error('Error creating PIX payment:', error);
       toast({
-        title: "Erro ao criar pagamento",
+        title: "Erro ao gerar PIX",
         description: "Tente novamente ou fale com um atendente.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePixPaymentSuccess = (orderNumber: string) => {
+    setShowPixModal(false);
+    setConfirmedOrderNumber(orderNumber);
+    clearCart();
+    navigate(`/pagamento/sucesso?order_id=${pixData?.orderId}`);
+  };
+
+  const handlePixPaymentFailed = () => {
+    setShowPixModal(false);
+    toast({
+      title: "PIX expirado ou não aprovado",
+      description: "Gere um novo PIX ou fale com um atendente.",
+      variant: "destructive",
+    });
   };
 
   const handleWhatsAppContact = async () => {
@@ -1276,6 +1312,22 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             initialSoupFlavors={editingKit.flavors?.filter(f => f.category === "Sopa")}
             juiceFlavorsData={juiceFlavorsData}
             soupFlavorsData={soupFlavorsData}
+          />
+        )}
+
+        {/* PIX Payment Modal */}
+        {pixData && (
+          <PixPaymentModal
+            open={showPixModal}
+            onOpenChange={setShowPixModal}
+            qrCode={pixData.qrCode}
+            qrCodeBase64={pixData.qrCodeBase64}
+            total={pixData.total}
+            paymentId={pixData.paymentId}
+            orderId={pixData.orderId}
+            expirationDate={pixData.expirationDate}
+            onPaymentSuccess={handlePixPaymentSuccess}
+            onPaymentFailed={handlePixPaymentFailed}
           />
         )}
       </SheetContent>
