@@ -1,18 +1,16 @@
 import { cn } from "@/lib/utils";
-import { Leaf, Drumstick, Beef, Fish, UtensilsCrossed } from "lucide-react";
 
 interface Category {
   id: string;
   name: string;
-  icon: React.ElementType;
 }
 
 const categories: Category[] = [
-  { id: "kits", name: "Kits Detox", icon: Leaf },
-  { id: "carnes", name: "Carnes", icon: Beef },
-  { id: "frangos", name: "Frangos", icon: Drumstick },
-  { id: "massas", name: "Massas", icon: UtensilsCrossed },
-  { id: "especiais", name: "Especiais", icon: Fish },
+  { id: "kits", name: "Kits Detox" },
+  { id: "carnes", name: "Marmitas: Carnes" },
+  { id: "frangos", name: "Marmitas: Frangos" },
+  { id: "massas", name: "Marmitas: Massas" },
+  { id: "especiais", name: "Marmitas: Especiais" },
 ];
 
 interface CardapioSidebarProps {
@@ -23,11 +21,12 @@ interface CardapioSidebarProps {
 
 const CardapioSidebar = ({ activeCategory, onCategoryClick, className }: CardapioSidebarProps) => {
   return (
-    <aside className={cn("bg-card rounded-xl p-4 shadow-sm border", className)}>
-      <h2 className="font-semibold text-lg mb-4 text-foreground">Categorias</h2>
-      <nav className="space-y-1">
+    <aside className={cn("bg-card rounded-xl shadow-sm border", className)}>
+      <div className="p-4 border-b">
+        <h2 className="font-semibold text-base text-foreground">Menu</h2>
+      </div>
+      <nav className="p-2">
         {categories.map((category) => {
-          const Icon = category.icon;
           const isActive = activeCategory === category.id;
           
           return (
@@ -35,14 +34,14 @@ const CardapioSidebar = ({ activeCategory, onCategoryClick, className }: Cardapi
               key={category.id}
               onClick={() => onCategoryClick(category.id)}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all",
+                "w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all",
+                "border-l-4",
                 isActive
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                  ? "bg-primary/10 text-primary border-l-primary"
+                  : "border-l-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              <Icon className="h-5 w-5 flex-shrink-0" />
-              <span className="font-medium">{category.name}</span>
+              {category.name}
             </button>
           );
         })}

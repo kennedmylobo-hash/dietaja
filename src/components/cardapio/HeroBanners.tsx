@@ -1,51 +1,70 @@
-import { motion } from "framer-motion";
-import { ChevronRight, Clock, Truck, CreditCard } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
+import { cn } from "@/lib/utils";
+import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
-import { useRef } from "react";
 
-const banners = [
+interface Banner {
+  id: number;
+  title: string;
+  subtitle: string;
+  cta: string;
+  targetSection: string;
+  gradient: string;
+}
+
+const banners: Banner[] = [
   {
     id: 1,
-    title: "Sem tempo pra cozinhar saudável?",
-    subtitle: "Experimente nossas refeições congeladas, a solução prática e saudável para sua rotina agitada!",
-    cta: "Peça Já",
-    targetSection: "marmitas",
-    gradient: "from-primary/90 via-primary to-emerald-700",
-    badge: null,
-    icon: Clock,
+    title: "Sem tempo pra cozinhar?",
+    subtitle: "Marmitas saudáveis congeladas, prontas em 3 minutos. Escolha seus sabores favoritos!",
+    cta: "Ver Marmitas",
+    targetSection: "carnes",
+    gradient: "from-emerald-800/90 via-emerald-700/80 to-green-600/70",
   },
   {
     id: 2,
     title: "Alimentação Saudável",
-    subtitle: "Em poucos cliques! Kits detox com sucos e sopas prontos para consumo.",
-    cta: "Ver Kits",
+    subtitle: "Kits Detox completos com sucos naturais e sopas funcionais para emagrecer com saúde.",
+    cta: "Ver Kits Detox",
     targetSection: "kits",
-    gradient: "from-emerald-600 via-teal-600 to-cyan-700",
-    badge: "Kits Detox",
-    icon: null,
+    gradient: "from-green-900/90 via-green-800/80 to-emerald-700/70",
   },
   {
     id: 3,
-    title: "Pronto em 3 minutos",
-    subtitle: "Marmitas congeladas de 300g. Pague com PIX ou Cartão.",
-    cta: "Explorar",
-    targetSection: "marmitas",
-    gradient: "from-amber-600 via-orange-600 to-red-600",
-    badge: "300g",
-    icon: CreditCard,
+    title: "Pronto em 3 minutos!",
+    subtitle: "Do freezer para o prato. Refeições completas de 300g com todo sabor e nutrientes.",
+    cta: "Explorar Cardápio",
+    targetSection: "frangos",
+    gradient: "from-teal-800/90 via-teal-700/80 to-green-600/70",
   },
 ];
 
 const HeroBanners = () => {
-  const autoplayPlugin = useRef(
-    Autoplay({ delay: 5000, stopOnInteraction: true })
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    { loop: true, align: "center" },
+    [Autoplay({ delay: 5000, stopOnInteraction: false })]
   );
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+  const scrollTo = useCallback((index: number) => emblaApi?.scrollTo(index), [emblaApi]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on("select", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
+  }, [emblaApi, onSelect]);
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -55,119 +74,82 @@ const HeroBanners = () => {
   };
 
   return (
-    <section className="py-4 md:py-6">
-      {/* Desktop: Grid Layout */}
-      <div className="hidden md:grid md:grid-cols-3 gap-4">
-        {banners.map((banner, index) => (
-          <motion.div
-            key={banner.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1, duration: 0.5 }}
-            className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${banner.gradient} p-6 min-h-[200px] flex flex-col justify-between cursor-pointer group`}
-            onClick={() => scrollToSection(banner.targetSection)}
-          >
-            {/* Background decoration */}
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute -right-8 -top-8 w-32 h-32 bg-white rounded-full blur-2xl" />
-              <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white rounded-full blur-xl" />
-            </div>
-
-            {/* Badge */}
-            {banner.badge && (
-              <span className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full">
-                {banner.badge}
-              </span>
-            )}
-
-            {/* Content */}
-            <div className="relative z-10 flex-1 flex flex-col">
-              {banner.icon && (
-                <banner.icon className="h-8 w-8 text-white/80 mb-2" />
-              )}
-              <h3 className="text-xl font-bold text-white mb-2 leading-tight">
-                {banner.title}
-              </h3>
-              <p className="text-white/80 text-sm leading-relaxed flex-1">
-                {banner.subtitle}
-              </p>
-            </div>
-
-            {/* CTA */}
-            <Button
-              variant="secondary"
-              size="sm"
-              className="mt-4 w-fit bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm group-hover:translate-x-1 transition-transform"
-            >
-              {banner.cta}
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Mobile: Carousel */}
-      <div className="md:hidden">
-        <Carousel
-          opts={{ loop: true, align: "start" }}
-          plugins={[autoplayPlugin.current]}
-          className="w-full"
-        >
-          <CarouselContent className="-ml-2">
+    <section className="py-4">
+      <div className="relative">
+        {/* Carousel */}
+        <div className="overflow-hidden rounded-2xl" ref={emblaRef}>
+          <div className="flex">
             {banners.map((banner) => (
-              <CarouselItem key={banner.id} className="pl-2 basis-[92%]">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${banner.gradient} p-5 min-h-[160px] flex flex-col justify-between`}
-                  onClick={() => scrollToSection(banner.targetSection)}
-                >
-                  {/* Background decoration */}
-                  <div className="absolute inset-0 opacity-10">
-                    <div className="absolute -right-6 -top-6 w-24 h-24 bg-white rounded-full blur-2xl" />
-                  </div>
-
-                  {/* Badge */}
-                  {banner.badge && (
-                    <span className="absolute top-2 right-2 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-2 py-0.5 rounded-full">
-                      {banner.badge}
-                    </span>
+              <div key={banner.id} className="flex-[0_0_100%] min-w-0">
+                <div
+                  className={cn(
+                    "relative h-[180px] sm:h-[220px] md:h-[260px] rounded-2xl overflow-hidden",
+                    "bg-gradient-to-r",
+                    banner.gradient
                   )}
-
+                >
+                  {/* Background Pattern */}
+                  <div 
+                    className="absolute inset-0 opacity-20"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cpath d='M40 10c-8 12-24 18-36 14 8 14 22 20 36 16-14 8-18 22-14 36 14-8 20-22 16-36 8 14 22 18 36 14-14-8-20-22-16-36-8 14-22 18-36 14 14-8 18-22 14-36z' fill='%23ffffff' fill-opacity='0.15'/%3E%3C/svg%3E")`,
+                      backgroundSize: '80px 80px',
+                    }}
+                  />
+                  
                   {/* Content */}
-                  <div className="relative z-10">
-                    {banner.icon && (
-                      <banner.icon className="h-6 w-6 text-white/80 mb-1.5" />
-                    )}
-                    <h3 className="text-lg font-bold text-white mb-1 leading-tight">
+                  <div className="relative h-full flex flex-col justify-center px-6 sm:px-10 md:px-16 max-w-2xl">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-3 drop-shadow-lg">
                       {banner.title}
-                    </h3>
-                    <p className="text-white/80 text-xs leading-relaxed line-clamp-2">
+                    </h2>
+                    <p className="text-sm sm:text-base md:text-lg text-white/90 mb-4 sm:mb-6 line-clamp-2 sm:line-clamp-none">
                       {banner.subtitle}
                     </p>
+                    <Button
+                      onClick={() => scrollToSection(banner.targetSection)}
+                      className="w-fit bg-white text-green-800 hover:bg-green-50 font-semibold shadow-lg"
+                      size="lg"
+                    >
+                      {banner.cta}
+                    </Button>
                   </div>
-
-                  {/* CTA */}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="mt-3 w-fit bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm text-xs py-1 h-7"
-                  >
-                    {banner.cta}
-                    <ChevronRight className="h-3 w-3 ml-1" />
-                  </Button>
-                </motion.div>
-              </CarouselItem>
+                </div>
+              </div>
             ))}
-          </CarouselContent>
-        </Carousel>
+          </div>
+        </div>
 
-        {/* Carousel indicators */}
-        <div className="flex justify-center gap-1.5 mt-3">
+        {/* Navigation Arrows - Desktop */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={scrollPrev}
+          className="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/90 hover:bg-white shadow-lg text-green-800"
+        >
+          <ChevronLeft className="h-6 w-6" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={scrollNext}
+          className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/90 hover:bg-white shadow-lg text-green-800"
+        >
+          <ChevronRight className="h-6 w-6" />
+        </Button>
+
+        {/* Dots */}
+        <div className="flex justify-center gap-2 mt-4">
           {banners.map((_, index) => (
-            <div
+            <button
               key={index}
-              className="w-1.5 h-1.5 rounded-full bg-primary/30"
+              onClick={() => scrollTo(index)}
+              className={cn(
+                "w-2.5 h-2.5 rounded-full transition-all duration-300",
+                selectedIndex === index
+                  ? "bg-primary w-8"
+                  : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
+              )}
+              aria-label={`Ir para banner ${index + 1}`}
             />
           ))}
         </div>
