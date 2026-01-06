@@ -28,23 +28,81 @@ interface PendingOrder {
   reminder_sent_at: string | null;
   whatsapp_sent_at: string | null;
   whatsapp_2_sent_at: string | null;
+  mp_payment_id: string | null;
 }
 
-// Send WhatsApp message via NotificaMe API
-async function sendWhatsAppMessage(
+function formatPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  return digits.startsWith('55') ? digits : `55${digits}`;
+}
+
+function formatCurrency(value: number): string {
+  return `R$ ${value.toFixed(2).replace('.', ',')}`;
+}
+
+// Send WhatsApp template message (for messages outside 24h window)
+async function sendWhatsAppTemplate(
+  phone: string,
+  templateId: string,
+  fields: Record<string, string>,
+  apiToken: string,
+  channelToken: string,
+  orderNumber: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const formattedPhone = formatPhone(phone);
+    
+    console.log(`[TEMPLATE] Sending WhatsApp template "${templateId}" to ${formattedPhone} for order ${orderNumber}`);
+    console.log(`[TEMPLATE] Fields:`, JSON.stringify(fields));
+
+    const payload = {
+      from: channelToken,
+      to: formattedPhone,
+      contents: [{
+        type: 'template',
+        templateId: templateId,
+        fields: fields
+      }],
+    };
+
+    console.log(`[TEMPLATE] Full payload:`, JSON.stringify(payload));
+
+    const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
+      method: 'POST',
+      headers: {
+        'X-Api-Token': apiToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const responseText = await response.text();
+    console.log(`[TEMPLATE] NotificaMe response for ${orderNumber}: ${response.status} - ${responseText}`);
+
+    if (!response.ok) {
+      return { success: false, error: `NotificaMe API error: ${response.status} - ${responseText}` };
+    }
+
+    console.log(`[TEMPLATE] WhatsApp template sent successfully for order ${orderNumber}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('[TEMPLATE] Error sending WhatsApp template:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Send simple text message (fallback for within 24h window)
+async function sendWhatsAppText(
   phone: string, 
   message: string, 
   apiToken: string, 
-  channelToken: string
+  channelToken: string,
+  orderNumber: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Format phone number - remove non-digits and ensure it has country code
-    let formattedPhone = phone.replace(/\D/g, '');
-    if (!formattedPhone.startsWith('55')) {
-      formattedPhone = '55' + formattedPhone;
-    }
+    const formattedPhone = formatPhone(phone);
 
-    console.log(`Sending WhatsApp to ${formattedPhone} via NotificaMe API`);
+    console.log(`[TEXT] Sending WhatsApp to ${formattedPhone} for order ${orderNumber}`);
 
     const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
       method: 'POST',
@@ -55,17 +113,12 @@ async function sendWhatsAppMessage(
       body: JSON.stringify({
         from: channelToken,
         to: formattedPhone,
-        contents: [
-          {
-            type: 'text',
-            text: message,
-          }
-        ],
+        contents: [{ type: 'text', text: message }],
       }),
     });
 
     const responseText = await response.text();
-    console.log(`NotificaMe response status: ${response.status}, body: ${responseText}`);
+    console.log(`[TEXT] NotificaMe response for ${orderNumber}: ${response.status} - ${responseText}`);
 
     if (!response.ok) {
       return { success: false, error: `NotificaMe API error: ${response.status} - ${responseText}` };
@@ -73,7 +126,7 @@ async function sendWhatsAppMessage(
 
     return { success: true };
   } catch (error: any) {
-    console.error('Error sending WhatsApp via NotificaMe:', error);
+    console.error('[TEXT] Error sending WhatsApp:', error);
     return { success: false, error: error.message };
   }
 }
@@ -215,13 +268,61 @@ const handler = async (req: Request): Promise<Response> => {
         if (hasWhatsAppCredentials) {
           console.log(`Sending WhatsApp reminder for order ${orderNumber} to ${order.customer_phone}`);
 
-          const whatsappMessage = generateWhatsAppMessage(order, orderNumber, timeSinceOrder, isSecondReminder);
-          const whatsappResult = await sendWhatsAppMessage(
-            order.customer_phone,
-            whatsappMessage,
-            notificameApiToken!,
-            notificameChannelToken!
-          );
+          // Try to get PIX code from Mercado Pago if available
+          let pixCode: string | null = null;
+          if (order.mp_payment_id) {
+            try {
+              const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
+              if (mpAccessToken) {
+                console.log(`Fetching PIX code from MP for payment ${order.mp_payment_id}`);
+                const mpResponse = await fetch(
+                  `https://api.mercadopago.com/v1/payments/${order.mp_payment_id}`,
+                  {
+                    headers: { 'Authorization': `Bearer ${mpAccessToken}` }
+                  }
+                );
+                if (mpResponse.ok) {
+                  const mpData = await mpResponse.json();
+                  pixCode = mpData.point_of_interaction?.transaction_data?.qr_code || null;
+                  console.log(`PIX code retrieved: ${pixCode ? 'Yes' : 'No'}`);
+                }
+              }
+            } catch (mpError) {
+              console.error('Error fetching PIX from Mercado Pago:', mpError);
+            }
+          }
+
+          let whatsappResult: { success: boolean; error?: string };
+
+          // If we have PIX code, use the template (outside 24h window)
+          if (pixCode) {
+            console.log(`Using template pix_pendente_dietaja for order ${orderNumber}`);
+            const templateFields = {
+              "1": order.customer_name?.split(' ')[0] || 'cliente',
+              "2": orderNumber,
+              "3": formatCurrency(order.total),
+              "4": pixCode
+            };
+            whatsappResult = await sendWhatsAppTemplate(
+              order.customer_phone,
+              'pix_pendente_dietaja',
+              templateFields,
+              notificameApiToken!,
+              notificameChannelToken!,
+              orderNumber
+            );
+          } else {
+            // Fallback to text message (within 24h window or no PIX)
+            console.log(`Using text message for order ${orderNumber} (no PIX code)`);
+            const whatsappMessage = generateWhatsAppMessage(order, orderNumber, timeSinceOrder, isSecondReminder);
+            whatsappResult = await sendWhatsAppText(
+              order.customer_phone,
+              whatsappMessage,
+              notificameApiToken!,
+              notificameChannelToken!,
+              orderNumber
+            );
+          }
 
           if (whatsappResult.success) {
             console.log(`WhatsApp sent to ${order.customer_phone}`);
