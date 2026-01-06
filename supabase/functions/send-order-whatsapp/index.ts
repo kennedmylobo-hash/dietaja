@@ -16,7 +16,7 @@ interface OrderItem {
 
 interface RequestBody {
   order_id: string;
-  status: 'pending' | 'approved';
+  status: 'pending' | 'approved' | 'whatsapp_pending';
   pix_code?: string;
 }
 
@@ -160,6 +160,33 @@ Copie o código abaixo e cole no app do seu banco:
 
 Dúvidas? Responda esta mensagem! 💚`;
 
+    } else if (status === 'whatsapp_pending') {
+      // Message for WhatsApp checkout - order placed, awaiting payment
+      message = `🥗 *DIETA JÁ - PEDIDO #${order.order_number}*
+
+Olá ${order.customer_name?.split(' ')[0] || 'cliente'}! Seu pedido foi registrado.
+
+📋 *ITENS:*
+${formatItems(items)}
+
+💰 *Subtotal:* ${formatCurrency(order.subtotal)}
+${order.delivery_fee > 0 ? `🚚 *Taxa de entrega:* ${formatCurrency(order.delivery_fee)}` : ''}
+${order.discount_amount > 0 ? `🎁 *Desconto:* -${formatCurrency(order.discount_amount)}` : ''}
+💵 *TOTAL:* ${formatCurrency(order.total)}
+
+${deliveryInfo}
+
+⏳ *STATUS:* Reservado - Aguardando Pagamento
+
+────────────────
+📱 Para confirmar seu pedido, realize o pagamento via:
+• PIX
+• Transferência
+• Dinheiro na entrega (consulte)
+
+Responda esta mensagem para combinar! 💚
+────────────────`;
+
     } else if (status === 'approved') {
       // Message for approved payment
       message = `🥗 *DIETA JÁ - PEDIDO #${order.order_number}*
@@ -177,6 +204,7 @@ ${order.discount_amount > 0 ? `🎁 *Desconto:* -${formatCurrency(order.discount
 💵 *TOTAL PAGO:* ${formatCurrency(order.total)}
 
 ${deliveryInfo}
+📦 Entrega prevista em até 3 dias úteis
 
 Seu pedido já está sendo preparado! 👨‍🍳
 

@@ -571,6 +571,24 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     setIsLoading(true);
     
     try {
+      // Get order ID from order_number
+      const { data: orderData, error: orderFetchError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('order_number', confirmedOrderNumber)
+        .single();
+
+      if (orderFetchError || !orderData) {
+        console.error('Error fetching order:', orderFetchError);
+        toast({
+          title: "Erro",
+          description: "Não foi possível processar. Tente novamente.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // Update order status to whatsapp_pending
       const { error: updateError } = await supabase
         .from('orders')
@@ -582,6 +600,33 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
 
       if (updateError) {
         console.error('Error updating order status:', updateError);
+      }
+
+      // Send WhatsApp message automatically via NotificaMe
+      console.log('Sending WhatsApp order notification...');
+      try {
+        const { error: whatsappError } = await supabase.functions.invoke('send-order-whatsapp', {
+          body: {
+            order_id: orderData.id,
+            status: 'whatsapp_pending',
+          },
+        });
+
+        if (whatsappError) {
+          console.error('Error sending WhatsApp:', whatsappError);
+          toast({
+            title: "Aviso",
+            description: "Não foi possível enviar o WhatsApp automaticamente, mas seu pedido foi registrado.",
+          });
+        } else {
+          console.log('✅ WhatsApp order notification sent!');
+          toast({
+            title: "Pedido enviado!",
+            description: "Você receberá os detalhes do pedido no WhatsApp.",
+          });
+        }
+      } catch (invokeError) {
+        console.error('Error invoking WhatsApp function:', invokeError);
       }
 
       // Send pending order email
@@ -607,50 +652,28 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         delivery_address: formData?.address || undefined
       };
 
-      console.log('=== INICIANDO ENVIO DE EMAIL PENDENTE ===');
-      console.log('Timestamp:', new Date().toISOString());
-      console.log('URL da função:', `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-order-pending-email`);
-      console.log('Payload completo:', JSON.stringify(emailPayload, null, 2));
-      
+      console.log('Sending pending order email...');
       try {
-        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-order-pending-email', {
+        await supabase.functions.invoke('send-order-pending-email', {
           body: emailPayload
         });
-
-        console.log('=== RESPOSTA DO EMAIL ===');
-        console.log('Data:', JSON.stringify(emailData, null, 2));
-        console.log('Error:', emailError);
-
-        if (emailError) {
-          console.error('Erro detalhado ao enviar email:', {
-            message: emailError.message,
-            name: emailError.name,
-            context: emailError.context,
-            status: emailError.status
-          });
-          toast({
-            title: "Aviso",
-            description: "Não foi possível enviar o e-mail de confirmação, mas seu pedido foi registrado.",
-            variant: "destructive",
-          });
-        } else {
-          console.log('✅ Email de pedido pendente enviado com sucesso!');
-        }
-      } catch (invokeError: any) {
-        console.error('=== ERRO AO INVOCAR FUNÇÃO ===');
-        console.error('Erro:', invokeError);
-        console.error('Message:', invokeError?.message);
-        console.error('Stack:', invokeError?.stack);
+        console.log('✅ Pending order email sent!');
+      } catch (emailError) {
+        console.error('Error sending email:', emailError);
       }
+
+      // Close drawer and go to thank you page
+      handleCloseAfterSuccess();
     } catch (error) {
       console.error('Error in handleWhatsAppContact:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro. Tente novamente.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
-    
-    const message = `Olá! Meu pedido #${confirmedOrderNumber} foi separado. Gostaria de falar com um atendente.`;
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, "_blank");
   };
 
   const handleCloseAfterSuccess = () => {
