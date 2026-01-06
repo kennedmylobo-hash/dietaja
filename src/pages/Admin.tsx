@@ -26,7 +26,8 @@ import {
   History,
   Activity,
   AlertCircle,
-  Megaphone
+  Megaphone,
+  UserX
 } from "lucide-react";
 import {
   Select,
@@ -610,6 +611,21 @@ const Admin = () => {
                 </button>
               ))}
             </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                localStorage.removeItem('dietaja_customer');
+                toast({
+                  title: "Dados limpos!",
+                  description: "Agora você pode testar como um novo cliente.",
+                });
+              }}
+              title="Limpar dados salvos do cliente para testar o modal de identificação"
+            >
+              <UserX className="w-4 h-4 mr-2" />
+              <span className="hidden md:inline">Simular Novo Cliente</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />
               Sair
