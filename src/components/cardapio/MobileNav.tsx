@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, X, Leaf, Drumstick, Beef, Fish, UtensilsCrossed } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -7,15 +7,15 @@ import { cn } from "@/lib/utils";
 interface Category {
   id: string;
   name: string;
-  icon: React.ElementType;
+  shortName: string;
 }
 
 const categories: Category[] = [
-  { id: "kits", name: "Kits Detox", icon: Leaf },
-  { id: "carnes", name: "Carnes", icon: Beef },
-  { id: "frangos", name: "Frangos", icon: Drumstick },
-  { id: "massas", name: "Massas", icon: UtensilsCrossed },
-  { id: "especiais", name: "Especiais", icon: Fish },
+  { id: "kits", name: "Kits Detox", shortName: "Kits" },
+  { id: "carnes", name: "Marmitas: Carnes", shortName: "Carnes" },
+  { id: "frangos", name: "Marmitas: Frangos", shortName: "Frangos" },
+  { id: "massas", name: "Marmitas: Massas", shortName: "Massas" },
+  { id: "especiais", name: "Marmitas: Especiais", shortName: "Especiais" },
 ];
 
 interface MobileNavProps {
@@ -32,12 +32,12 @@ const MobileNav = ({ activeCategory, onCategoryClick }: MobileNavProps) => {
   };
 
   return (
-    <div className="md:hidden sticky top-[65px] z-30 bg-background/95 backdrop-blur-sm border-b px-4 py-2">
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+    <div className="md:hidden sticky top-[57px] z-30 bg-background border-b">
+      <div className="flex items-center gap-2 px-4 py-2 overflow-x-auto no-scrollbar">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="flex-shrink-0">
-              <Menu className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" className="flex-shrink-0 h-8 px-3">
+              <Menu className="h-4 w-4 mr-1.5" />
               Menu
             </Button>
           </SheetTrigger>
@@ -47,7 +47,6 @@ const MobileNav = ({ activeCategory, onCategoryClick }: MobileNavProps) => {
             </SheetHeader>
             <nav className="mt-6 space-y-1">
               {categories.map((category) => {
-                const Icon = category.icon;
                 const isActive = activeCategory === category.id;
                 
                 return (
@@ -55,14 +54,14 @@ const MobileNav = ({ activeCategory, onCategoryClick }: MobileNavProps) => {
                     key={category.id}
                     onClick={() => handleCategoryClick(category.id)}
                     className={cn(
-                      "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all",
+                      "w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all",
+                      "border-l-4",
                       isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                        ? "bg-primary/10 text-primary border-l-primary"
+                        : "border-l-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
-                    <Icon className="h-5 w-5" />
-                    <span className="font-medium">{category.name}</span>
+                    {category.name}
                   </button>
                 );
               })}
@@ -76,13 +75,13 @@ const MobileNav = ({ activeCategory, onCategoryClick }: MobileNavProps) => {
             key={category.id}
             onClick={() => onCategoryClick(category.id)}
             className={cn(
-              "flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+              "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap",
               activeCategory === category.id
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            {category.name}
+            {category.shortName}
           </button>
         ))}
       </div>

@@ -266,7 +266,16 @@ const CardapioContent = () => {
         <meta name="description" content="Explore nosso cardápio de marmitas saudáveis e kits detox. Refeições prontas e congeladas para sua dieta." />
       </Helmet>
 
-      <div className="min-h-screen bg-muted/30">
+      <div className="min-h-screen bg-muted/30 relative">
+        {/* Background Leaf Pattern */}
+        <div 
+          className="fixed inset-0 pointer-events-none opacity-[0.03]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath d='M50 15c-10 15-30 22-45 18 10 18 28 25 45 20-18 10-22 28-18 45 18-10 25-28 20-45 10 18 28 22 45 18-18-10-25-28-20-45-10 18-28 22-45 18 18-10 22-28 18-45z' fill='%232d5016' fill-opacity='0.5'/%3E%3C/svg%3E")`,
+            backgroundSize: '100px 100px',
+          }}
+        />
+        
         <CardapioBanner />
         <CardapioHeader searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         
