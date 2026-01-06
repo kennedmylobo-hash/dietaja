@@ -104,16 +104,93 @@ serve(async (req) => {
       status = 'pending';
     }
 
-    // Get order number if status is approved
+    // Get order number and handle approved payments
     let orderNumber = null;
+    
     if (status === 'approved' && mpData.external_reference) {
-      const { data: order } = await supabase
-        .from('orders')
-        .select('order_number')
-        .eq('id', mpData.external_reference)
-        .maybeSingle();
+      const orderId = mpData.external_reference;
       
-      orderNumber = order?.order_number;
+      // Fetch complete order
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .maybeSingle();
+
+      if (orderError) {
+        console.error('Error fetching order:', orderError);
+      }
+
+      if (order) {
+        orderNumber = order.order_number;
+
+        // Only process if order is not yet approved (avoid duplicates)
+        if (order.status !== 'approved') {
+          console.log('[check-payment-status] Updating order to approved:', orderId);
+          
+          // Update order status
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({ 
+              status: 'approved',
+              paid_at: new Date().toISOString(),
+              mp_payment_id: String(paymentIdToCheck),
+            })
+            .eq('id', orderId);
+
+          if (updateError) {
+            console.error('Error updating order:', updateError);
+          } else {
+            // Send confirmation email
+            console.log('[check-payment-status] Sending approved email...');
+            try {
+              const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-order-approved`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseKey}`,
+                },
+                body: JSON.stringify({
+                  order_number: order.order_number,
+                  customer_email: order.customer_email,
+                  customer_name: order.customer_name,
+                  customer_phone: order.customer_phone,
+                  items: order.items,
+                  subtotal: order.subtotal,
+                  delivery_fee: order.delivery_fee || 0,
+                  total: order.total,
+                  delivery_option: order.delivery_option,
+                  delivery_address: order.delivery_address,
+                  payment_method: 'pix'
+                }),
+              });
+              console.log('[check-payment-status] Email response:', emailResponse.status);
+            } catch (emailError) {
+              console.error('[check-payment-status] Error sending email:', emailError);
+            }
+
+            // Decrement stock if not already done
+            if (!order.stock_decremented) {
+              console.log('[check-payment-status] Decrementing stock...');
+              try {
+                await fetch(`${supabaseUrl}/functions/v1/decrement-stock`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseKey}`,
+                  },
+                  body: JSON.stringify({ order_id: orderId }),
+                });
+                console.log('[check-payment-status] Stock decremented');
+              } catch (stockError) {
+                console.error('[check-payment-status] Error decrementing stock:', stockError);
+              }
+            }
+          }
+        } else {
+          console.log('[check-payment-status] Order already approved, skipping email/stock');
+        }
+      }
     }
 
     return new Response(
