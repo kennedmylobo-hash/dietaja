@@ -551,17 +551,17 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     } catch (error) {
       console.error('Error creating PIX payment:', error);
       
-      // Auto-retry once on failure
-      if (retryCount < 1) {
-        console.log('Retrying PIX generation...');
-        await new Promise(r => setTimeout(r, 1500));
+      // Silent auto-retry up to 3 times - don't show errors to customer
+      if (retryCount < 3) {
+        console.log(`Retrying PIX generation (attempt ${retryCount + 2}/4)...`);
+        await new Promise(r => setTimeout(r, 1500 + (retryCount * 500)));
         return handlePixPayment(retryCount + 1);
       }
       
+      // After all retries failed, show friendly message without technical details
       toast({
-        title: "Não foi possível gerar o PIX",
-        description: "Por favor, tente novamente. Se o problema persistir, fale com um atendente via WhatsApp.",
-        variant: "destructive",
+        title: "Ops! Tente novamente",
+        description: "Clique no botão PIX para tentar novamente ou fale com um atendente.",
       });
     } finally {
       setIsLoading(false);

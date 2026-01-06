@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Copy, CheckCircle2, Loader2, Clock, QrCode, X, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { hapticFeedback } from "@/lib/haptics";
@@ -149,16 +150,21 @@ const PixPaymentModal = ({
         </DialogHeader>
 
         <div className="flex flex-col items-center space-y-4 py-4">
-          {/* QR Code */}
-          {qrCodeBase64 && (
-            <div className="bg-white p-4 rounded-lg shadow-inner">
+          {/* QR Code with loading skeleton */}
+          <div className="bg-white p-4 rounded-lg shadow-inner">
+            {qrCodeBase64 ? (
               <img 
                 src={`data:image/png;base64,${qrCodeBase64}`} 
                 alt="QR Code PIX" 
                 className="w-48 h-48"
               />
-            </div>
-          )}
+            ) : (
+              <div className="w-48 h-48 flex flex-col items-center justify-center gap-3">
+                <Skeleton className="w-full h-full rounded-lg" />
+              </div>
+            )}
+
+          </div>
 
           {/* Total */}
           <div className="text-center">
