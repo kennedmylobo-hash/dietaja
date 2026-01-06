@@ -164,7 +164,13 @@ function generateEmailHtml(data: OrderPendingRequest): string {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("send-order-pending-email function called");
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] send-order-pending-email function STARTED`);
+  console.log(`[${timestamp}] Request method: ${req.method}`);
+  
+  // Check if RESEND_API_KEY is configured
+  const apiKey = Deno.env.get("RESEND_API_KEY");
+  console.log(`[${timestamp}] RESEND_API_KEY configured: ${apiKey ? 'YES' : 'NO'}`);
 
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -172,8 +178,11 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const data: OrderPendingRequest = await req.json();
-    console.log("Received pending order data:", JSON.stringify(data, null, 2));
+    const rawBody = await req.text();
+    console.log(`[${timestamp}] Raw request body length: ${rawBody.length}`);
+    
+    const data: OrderPendingRequest = JSON.parse(rawBody);
+    console.log(`[${timestamp}] Parsed order data:`, JSON.stringify(data, null, 2));
 
     // Validate required fields
     if (!data.order_number || !data.customer_email || !data.customer_name) {
@@ -186,7 +195,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const html = generateEmailHtml(data);
 
-    console.log(`Sending pending order email to: ${data.customer_email}`);
+    console.log(`[${timestamp}] Attempting to send email to: ${data.customer_email}`);
+    console.log(`[${timestamp}] Email subject: Pedido #${data.order_number} Separado - Aguardando Pagamento`);
 
     const emailResponse = await resend.emails.send({
       from: "Dieta Já <pedidos@dietajavca.com.br>",
@@ -195,7 +205,8 @@ const handler = async (req: Request): Promise<Response> => {
       html: html,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log(`[${timestamp}] Resend API response:`, JSON.stringify(emailResponse, null, 2));
+    console.log(`[${timestamp}] Email sent successfully to ${data.customer_email}`);
 
     return new Response(
       JSON.stringify({ success: true, data: emailResponse }),
@@ -205,9 +216,13 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
   } catch (error: any) {
-    console.error("Error in send-order-pending-email function:", error);
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}] ERROR in send-order-pending-email:`, error);
+    console.error(`[${timestamp}] Error name: ${error.name}`);
+    console.error(`[${timestamp}] Error message: ${error.message}`);
+    console.error(`[${timestamp}] Error stack: ${error.stack}`);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message, details: error.stack }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

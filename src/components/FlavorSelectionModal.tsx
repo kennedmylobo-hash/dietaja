@@ -135,7 +135,8 @@ const FlavorSelectionModal = ({
   const fishAdditional = fishQuantity * FISH_SURCHARGE;
 
   const remaining = packageQuantity - totalSelected;
-  const isComplete = remaining === 0 || leaveToUs;
+  const isOverFlavorsLimit = uniqueFlavorsCount > maxFlavors;
+  const isComplete = (remaining === 0 && !isOverFlavorsLimit) || leaveToUs;
   const isOverLimit = remaining < 0;
   const isMaxFlavorsReached = uniqueFlavorsCount >= maxFlavors;
 
@@ -473,14 +474,22 @@ const FlavorSelectionModal = ({
               </span>
             </div>
           )}
+          {isOverFlavorsLimit && (
+            <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 rounded-lg">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>Máximo de {maxFlavors} sabores diferentes para este pacote. Remova {uniqueFlavorsCount - maxFlavors} sabor(es).</span>
+            </div>
+          )}
           <Button
             variant="cta"
             className="w-full"
             onClick={handleConfirm}
-            disabled={!isComplete || isLoading}
+            disabled={!isComplete || isLoading || isOverFlavorsLimit}
           >
             {isLoading ? (
               "Adicionando..."
+            ) : isOverFlavorsLimit ? (
+              `Limite de sabores excedido`
             ) : isComplete ? (
               <>
                 <ShoppingCart className="w-4 h-4 mr-2" />
