@@ -16,8 +16,10 @@ import {
   Plus,
   Trash2,
   GripVertical,
-  Star
+  Star,
+  LayoutGrid
 } from "lucide-react";
+import CategoryManager from "./CategoryManager";
 import {
   Table,
   TableBody,
@@ -405,7 +407,7 @@ const MenuManager = () => {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="marmitas" className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="marmitas" className="flex items-center gap-2">
             <UtensilsCrossed className="w-4 h-4" />
             Marmitas
@@ -413,6 +415,10 @@ const MenuManager = () => {
           <TabsTrigger value="kits" className="flex items-center gap-2">
             <Salad className="w-4 h-4" />
             Kits Detox
+          </TabsTrigger>
+          <TabsTrigger value="categorias" className="flex items-center gap-2">
+            <LayoutGrid className="w-4 h-4" />
+            Categorias
           </TabsTrigger>
         </TabsList>
 
@@ -827,6 +833,11 @@ const MenuManager = () => {
               ))}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* CATEGORIAS TAB */}
+        <TabsContent value="categorias" className="space-y-6">
+          <CategoryManager />
         </TabsContent>
       </Tabs>
     </div>
