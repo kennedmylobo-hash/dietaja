@@ -303,9 +303,10 @@ serve(async (req) => {
       link: `dietajavca.com.br/pedido/${order.order_number}`,
     };
 
-    // For approved orders, use the Meta-approved template
+    // Choose template based on status
     if (status === 'approved') {
       // Template: compra_confirmada_dietaja with fields {{1}}, {{2}}, {{3}}, {{4}}
+      console.log('Using template compra_confirmada_dietaja for approved order');
       const templateFields = {
         "1": order.customer_name?.split(' ')[0] || 'cliente',
         "2": order.order_number || '',
@@ -313,8 +314,19 @@ serve(async (req) => {
         "4": formatCurrency(order.total)
       };
       await sendWhatsAppTemplate(order.customer_phone, 'compra_confirmada_dietaja', templateFields, order.order_number);
+    } else if (status === 'pending' && pix_code) {
+      // Template: pix_pendente_dietaja with fields {{1}}, {{2}}, {{3}}, {{4}}
+      console.log('Using template pix_pendente_dietaja for pending PIX order');
+      const templateFields = {
+        "1": order.customer_name?.split(' ')[0] || 'cliente',
+        "2": order.order_number || '',
+        "3": formatCurrency(order.total),
+        "4": pix_code
+      };
+      await sendWhatsAppTemplate(order.customer_phone, 'pix_pendente_dietaja', templateFields, order.order_number);
     } else {
-      // For pending/whatsapp_pending, use text message (customer initiated contact)
+      // For whatsapp_pending or pending without pix, use text message
+      console.log('Using text message for order (customer-initiated contact expected)');
       const message = replaceVariables(template, variables);
       await sendWhatsAppText(order.customer_phone, message, order.order_number);
     }
