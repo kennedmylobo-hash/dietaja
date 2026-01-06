@@ -6,6 +6,7 @@ import CardapioHeader from "@/components/cardapio/CardapioHeader";
 import CardapioSidebar from "@/components/cardapio/CardapioSidebar";
 import CategorySection from "@/components/cardapio/CategorySection";
 import MobileNav from "@/components/cardapio/MobileNav";
+import CardapioBanner from "@/components/cardapio/CardapioBanner";
 import CartFloatingButton from "@/components/CartFloatingButton";
 import CartDrawer from "@/components/CartDrawer";
 import { SoftIdentificationModal } from "@/components/SoftIdentificationModal";
@@ -265,6 +266,7 @@ const CardapioContent = () => {
       </Helmet>
 
       <div className="min-h-screen bg-muted/30">
+        <CardapioBanner />
         <CardapioHeader searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         <MobileNav activeCategory={activeCategory} onCategoryClick={handleCategoryClick} />
 
