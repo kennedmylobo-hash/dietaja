@@ -15,6 +15,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import {
   MessageCircle,
@@ -30,7 +37,13 @@ import {
   Star,
   Gift,
   RefreshCw,
-  Clock
+  Clock,
+  Ticket,
+  Plus,
+  Percent,
+  DollarSign,
+  Infinity,
+  Calendar
 } from "lucide-react";
 
 interface MarketingMessage {
@@ -47,6 +60,21 @@ interface MarketingMessage {
   discount_percent: number | null;
 }
 
+interface Coupon {
+  id: string;
+  code: string;
+  description: string | null;
+  discount_type: string;
+  discount_value: number;
+  min_order_value: number;
+  max_uses: number | null;
+  current_uses: number;
+  max_uses_per_customer: number;
+  valid_from: string | null;
+  valid_until: string | null;
+  is_active: boolean;
+}
+
 const STATUS_ICONS: Record<string, { icon: React.ReactNode; color: string }> = {
   status_approved: { icon: <CheckCircle className="w-5 h-5" />, color: "text-green-500" },
   status_preparing: { icon: <ChefHat className="w-5 h-5" />, color: "text-blue-500" },
@@ -60,17 +88,37 @@ const STATUS_ICONS: Record<string, { icon: React.ReactNode; color: string }> = {
   recompra_28: { icon: <Gift className="w-5 h-5" />, color: "text-pink-500" },
 };
 
+const DEFAULT_COUPON: Omit<Coupon, 'id' | 'current_uses'> = {
+  code: '',
+  description: '',
+  discount_type: 'percent',
+  discount_value: 10,
+  min_order_value: 0,
+  max_uses: null,
+  max_uses_per_customer: 1,
+  valid_from: null,
+  valid_until: null,
+  is_active: true,
+};
+
 const MarketingManager = () => {
   const [messages, setMessages] = useState<MarketingMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingMessage, setEditingMessage] = useState<MarketingMessage | null>(null);
   const [saving, setSaving] = useState(false);
+  
+  // Coupon states
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [editingCoupon, setEditingCoupon] = useState<Partial<Coupon> | null>(null);
+  const [isCreatingCoupon, setIsCreatingCoupon] = useState(false);
+  const [savingCoupon, setSavingCoupon] = useState(false);
 
   useEffect(() => {
     fetchMessages();
+    fetchCoupons();
     
     // Subscribe to realtime updates
-    const channel = supabase
+    const messagesChannel = supabase
       .channel('marketing_messages_changes')
       .on(
         'postgres_changes',
@@ -79,8 +127,18 @@ const MarketingManager = () => {
       )
       .subscribe();
 
+    const couponsChannel = supabase
+      .channel('coupons_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'coupons' },
+        () => fetchCoupons()
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(couponsChannel);
     };
   }, []);
 
@@ -102,6 +160,20 @@ const MarketingManager = () => {
 
     setMessages(data || []);
     setLoading(false);
+  };
+
+  const fetchCoupons = async () => {
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching coupons:', error);
+      return;
+    }
+
+    setCoupons(data || []);
   };
 
   const handleToggleActive = async (message: MarketingMessage) => {
@@ -157,6 +229,109 @@ const MarketingManager = () => {
       description: "As alterações foram salvas com sucesso.",
     });
     setEditingMessage(null);
+  };
+
+  // Coupon CRUD functions
+  const handleToggleCouponActive = async (coupon: Coupon) => {
+    const { error } = await supabase
+      .from('coupons')
+      .update({ is_active: !coupon.is_active })
+      .eq('id', coupon.id);
+
+    if (error) {
+      toast({
+        title: "Erro ao atualizar cupom",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: coupon.is_active ? "Cupom desativado" : "Cupom ativado",
+    });
+  };
+
+  const handleSaveCoupon = async () => {
+    if (!editingCoupon) return;
+    setSavingCoupon(true);
+
+    const couponData = {
+      code: editingCoupon.code?.trim().toUpperCase() || '',
+      description: editingCoupon.description || null,
+      discount_type: editingCoupon.discount_type || 'percent',
+      discount_value: editingCoupon.discount_value || 0,
+      min_order_value: editingCoupon.min_order_value || 0,
+      max_uses: editingCoupon.max_uses || null,
+      max_uses_per_customer: editingCoupon.max_uses_per_customer || 1,
+      valid_from: editingCoupon.valid_from || null,
+      valid_until: editingCoupon.valid_until || null,
+      is_active: editingCoupon.is_active ?? true,
+    };
+
+    if (!couponData.code) {
+      toast({
+        title: "Código obrigatório",
+        description: "Digite um código para o cupom.",
+        variant: "destructive",
+      });
+      setSavingCoupon(false);
+      return;
+    }
+
+    let error;
+    if (isCreatingCoupon) {
+      const result = await supabase.from('coupons').insert(couponData);
+      error = result.error;
+    } else {
+      const result = await supabase
+        .from('coupons')
+        .update(couponData)
+        .eq('id', editingCoupon.id);
+      error = result.error;
+    }
+
+    setSavingCoupon(false);
+
+    if (error) {
+      toast({
+        title: "Erro ao salvar cupom",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: isCreatingCoupon ? "Cupom criado!" : "Cupom atualizado!",
+      description: `O cupom ${couponData.code} foi salvo com sucesso.`,
+    });
+    setEditingCoupon(null);
+    setIsCreatingCoupon(false);
+  };
+
+  const openCreateCoupon = () => {
+    setEditingCoupon({ ...DEFAULT_COUPON });
+    setIsCreatingCoupon(true);
+  };
+
+  const openEditCoupon = (coupon: Coupon) => {
+    setEditingCoupon({ ...coupon });
+    setIsCreatingCoupon(false);
+  };
+
+  const getCouponStatus = (coupon: Coupon): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
+    const now = new Date();
+    if (!coupon.is_active) {
+      return { label: 'Inativo', variant: 'secondary' };
+    }
+    if (coupon.valid_until && new Date(coupon.valid_until) < now) {
+      return { label: 'Expirado', variant: 'destructive' };
+    }
+    if (coupon.max_uses !== null && coupon.current_uses >= coupon.max_uses) {
+      return { label: 'Esgotado', variant: 'destructive' };
+    }
+    return { label: 'Ativo', variant: 'default' };
   };
 
   const statusMessages = messages.filter(m => m.message_type.startsWith('status_'));
@@ -335,6 +510,99 @@ const MarketingManager = () => {
         </div>
       </section>
 
+      <Separator />
+
+      {/* Coupons Section */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Ticket className="w-5 h-5 text-violet-500" />
+            <h2 className="text-lg font-semibold">Cupons de Desconto</h2>
+          </div>
+          <Button size="sm" onClick={openCreateCoupon}>
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Cupom
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Crie cupons de desconto para campanhas específicas. Os cupons são validados automaticamente no checkout.
+        </p>
+
+        {coupons.length === 0 ? (
+          <Card className="p-8 text-center">
+            <Ticket className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Nenhum cupom criado ainda.</p>
+            <Button className="mt-4" onClick={openCreateCoupon}>
+              <Plus className="w-4 h-4 mr-2" />
+              Criar Primeiro Cupom
+            </Button>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {coupons.map((coupon) => {
+              const status = getCouponStatus(coupon);
+              return (
+                <Card key={coupon.id} className={status.variant !== 'default' ? "opacity-70" : ""}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="font-mono text-base px-3 py-1">
+                        {coupon.code}
+                      </Badge>
+                      <Badge variant={status.variant}>{status.label}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Desconto:</span>
+                      <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">
+                        {coupon.discount_type === 'percent' ? (
+                          <><Percent className="w-3 h-3 mr-1" />{coupon.discount_value}%</>
+                        ) : (
+                          <>R$ {coupon.discount_value.toFixed(2).replace('.', ',')}</>
+                        )}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Usos:</span>
+                      <span className="text-sm font-medium">
+                        {coupon.current_uses}/{coupon.max_uses ?? <Infinity className="w-4 h-4 inline" />}
+                      </span>
+                    </div>
+                    {coupon.valid_until && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Válido até:</span>
+                        <span className="text-sm flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(coupon.valid_until).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                    )}
+                    {coupon.description && (
+                      <p className="text-xs text-muted-foreground italic">{coupon.description}</p>
+                    )}
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => openEditCoupon(coupon)}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Editar
+                      </Button>
+                      <Switch
+                        checked={coupon.is_active}
+                        onCheckedChange={() => handleToggleCouponActive(coupon)}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       {/* Variables Guide */}
       <section className="mt-8">
         <Card className="bg-muted/50">
@@ -499,6 +767,170 @@ const MarketingManager = () => {
                 <>
                   <Save className="w-4 h-4 mr-2" />
                   Salvar Alterações
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Coupon Edit Dialog */}
+      <Dialog open={!!editingCoupon} onOpenChange={() => { setEditingCoupon(null); setIsCreatingCoupon(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ticket className="w-5 h-5 text-violet-500" />
+              {isCreatingCoupon ? 'Novo Cupom' : 'Editar Cupom'}
+            </DialogTitle>
+          </DialogHeader>
+
+          {editingCoupon && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="coupon_code">Código do Cupom *</Label>
+                <Input
+                  id="coupon_code"
+                  value={editingCoupon.code || ''}
+                  onChange={(e) =>
+                    setEditingCoupon({ ...editingCoupon, code: e.target.value.toUpperCase() })
+                  }
+                  placeholder="PROMO10"
+                  className="font-mono uppercase"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="discount_type">Tipo de Desconto</Label>
+                  <Select
+                    value={editingCoupon.discount_type || 'percent'}
+                    onValueChange={(value) =>
+                      setEditingCoupon({ ...editingCoupon, discount_type: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="percent">
+                        <span className="flex items-center gap-2">
+                          <Percent className="w-4 h-4" /> Percentual
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="fixed">
+                        <span className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4" /> Valor Fixo
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="discount_value">
+                    Valor {editingCoupon.discount_type === 'percent' ? '(%)' : '(R$)'}
+                  </Label>
+                  <Input
+                    id="discount_value"
+                    type="number"
+                    value={editingCoupon.discount_value || ''}
+                    onChange={(e) =>
+                      setEditingCoupon({ ...editingCoupon, discount_value: parseFloat(e.target.value) || 0 })
+                    }
+                    placeholder={editingCoupon.discount_type === 'percent' ? '10' : '20.00'}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="max_uses">Limite de Usos (Total)</Label>
+                  <Input
+                    id="max_uses"
+                    type="number"
+                    value={editingCoupon.max_uses ?? ''}
+                    onChange={(e) =>
+                      setEditingCoupon({ 
+                        ...editingCoupon, 
+                        max_uses: e.target.value ? parseInt(e.target.value) : null 
+                      })
+                    }
+                    placeholder="Sem limite"
+                  />
+                  <p className="text-xs text-muted-foreground">Deixe vazio para ilimitado</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="max_uses_per_customer">Usos por Cliente</Label>
+                  <Input
+                    id="max_uses_per_customer"
+                    type="number"
+                    value={editingCoupon.max_uses_per_customer || 1}
+                    onChange={(e) =>
+                      setEditingCoupon({ ...editingCoupon, max_uses_per_customer: parseInt(e.target.value) || 1 })
+                    }
+                    min={1}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="min_order_value">Pedido Mínimo (R$)</Label>
+                <Input
+                  id="min_order_value"
+                  type="number"
+                  value={editingCoupon.min_order_value || ''}
+                  onChange={(e) =>
+                    setEditingCoupon({ ...editingCoupon, min_order_value: parseFloat(e.target.value) || 0 })
+                  }
+                  placeholder="0"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="valid_until">Válido Até</Label>
+                <Input
+                  id="valid_until"
+                  type="date"
+                  value={editingCoupon.valid_until?.split('T')[0] || ''}
+                  onChange={(e) =>
+                    setEditingCoupon({ 
+                      ...editingCoupon, 
+                      valid_until: e.target.value ? `${e.target.value}T23:59:59Z` : null 
+                    })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">Deixe vazio para sem data limite</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Descrição (Interno)</Label>
+                <Input
+                  id="description"
+                  value={editingCoupon.description || ''}
+                  onChange={(e) =>
+                    setEditingCoupon({ ...editingCoupon, description: e.target.value })
+                  }
+                  placeholder="Campanha de lançamento"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditingCoupon(null); setIsCreatingCoupon(false); }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveCoupon} disabled={savingCoupon}>
+              {savingCoupon ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  {isCreatingCoupon ? 'Criar Cupom' : 'Salvar'}
                 </>
               )}
             </Button>
