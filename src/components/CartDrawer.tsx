@@ -361,11 +361,11 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         });
       }
 
-      // Save order to database with 'confirmed' status
+      // Save order to database with 'awaiting_payment' status
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
-          status: 'confirmed',
+          status: 'awaiting_payment',
           payment_method: 'pending',
           items: items.map(item => ({
             name: item.name,

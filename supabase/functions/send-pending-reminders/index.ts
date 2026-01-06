@@ -206,7 +206,7 @@ const handler = async (req: Request): Promise<Response> => {
       const { data, error: firstFetchError } = await supabase
         .from("orders")
         .select("*")
-        .eq("status", "confirmed")
+        .eq("status", "awaiting_payment")
         .lt("created_at", firstReminderThreshold)
         .gt("created_at", twentyFourHoursAgo)
         .is("reminder_sent_at", null)
@@ -225,7 +225,7 @@ const handler = async (req: Request): Promise<Response> => {
       const { data, error: secondFetchError } = await supabase
         .from("orders")
         .select("*")
-        .eq("status", "confirmed")
+        .eq("status", "awaiting_payment")
         .lt("created_at", secondReminderThreshold)
         .gt("created_at", twentyFourHoursAgo)
         .not("reminder_sent_at", "is", null)

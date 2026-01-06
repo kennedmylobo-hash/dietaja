@@ -80,14 +80,14 @@ const PendingOrdersRecovery = () => {
   const fetchPendingOrders = async () => {
     setIsLoading(true);
     
-    // Fetch orders with status 'confirmed' (confirmed but not paid)
+    // Fetch orders with status 'awaiting_payment' (awaiting payment)
     // or 'pending' older than 30 minutes
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     
     const { data, error } = await supabase
       .from('orders')
       .select('*')
-      .or(`status.eq.confirmed,and(status.eq.pending,created_at.lt.${thirtyMinutesAgo})`)
+      .or(`status.eq.awaiting_payment,and(status.eq.pending,created_at.lt.${thirtyMinutesAgo})`)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -133,14 +133,14 @@ const PendingOrdersRecovery = () => {
 
   const stats = useMemo(() => {
     const totalValue = pendingOrders.reduce((sum, o) => sum + o.total, 0);
-    const confirmedOrders = pendingOrders.filter(o => o.status === 'confirmed');
+    const awaitingOrders = pendingOrders.filter(o => o.status === 'awaiting_payment');
     const oldPendingOrders = pendingOrders.filter(o => o.status === 'pending');
     const withEmailReminder = pendingOrders.filter(o => o.reminder_sent_at !== null);
     const withWhatsAppReminder = pendingOrders.filter(o => o.whatsapp_sent_at !== null);
     
     return {
       total: pendingOrders.length,
-      confirmed: confirmedOrders.length,
+      awaiting: awaitingOrders.length,
       oldPending: oldPendingOrders.length,
       withEmailReminder: withEmailReminder.length,
       withWhatsAppReminder: withWhatsAppReminder.length,
@@ -327,8 +327,8 @@ const PendingOrdersRecovery = () => {
                 <Clock className="w-5 h-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.confirmed}</p>
-                <p className="text-xs text-muted-foreground">Confirmados s/ pag.</p>
+                <p className="text-2xl font-bold">{stats.awaiting}</p>
+                <p className="text-xs text-muted-foreground">Aguardando pag.</p>
               </div>
             </div>
           </CardContent>

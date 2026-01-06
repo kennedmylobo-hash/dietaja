@@ -242,7 +242,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   // Group orders by status category (6 stages)
   const ordersByCategory = useMemo(() => {
     return {
-      pending: orders.filter(o => ['pending', 'whatsapp_pending'].includes(o.status)),
+      pending: orders.filter(o => ['pending', 'whatsapp_pending', 'awaiting_payment'].includes(o.status)),
       production: orders.filter(o => ['approved', 'preparing'].includes(o.status)),
       ready: orders.filter(o => o.status === 'ready'),
       delivering: orders.filter(o => o.status === 'delivering'),
@@ -264,6 +264,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     const delivered = orders.filter(o => o.status === 'delivered');
     const pending = orders.filter(o => o.status === 'pending');
     const whatsappPending = orders.filter(o => o.status === 'whatsapp_pending');
+    const awaitingPayment = orders.filter(o => o.status === 'awaiting_payment');
     const rejected = orders.filter(o => o.status === 'rejected');
     const cancelled = orders.filter(o => o.status === 'cancelled');
     const totalRevenue = [...approved, ...preparing, ...ready, ...delivering, ...delivered].reduce((sum, o) => sum + o.total, 0);
@@ -274,8 +275,9 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       ready: ready.length,
       delivering: delivering.length,
       delivered: delivered.length,
-      pending: pending.length + whatsappPending.length, 
+      pending: pending.length + whatsappPending.length + awaitingPayment.length, 
       whatsappPending: whatsappPending.length,
+      awaitingPayment: awaitingPayment.length,
       rejected: rejected.length,
       cancelled: cancelled.length,
       totalRevenue 
@@ -293,7 +295,9 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       case 'delivering':
         return <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20">🛵 Em Entrega</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20">⏳ Aguardando</Badge>;
+        return <Badge className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20">⏳ PIX Pendente</Badge>;
+      case 'awaiting_payment':
+        return <Badge className="bg-blue-500/10 text-blue-600 hover:bg-blue-500/20">💳 Aguardando Pagamento</Badge>;
       case 'whatsapp_pending':
         return <Badge className="bg-orange-500/10 text-orange-600 hover:bg-orange-500/20">📲 WhatsApp</Badge>;
       case 'rejected':
@@ -308,7 +312,8 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   };
 
   const ALL_STATUSES = [
-    { value: 'pending', label: '⏳ Aguardando Pagamento' },
+    { value: 'awaiting_payment', label: '💳 Aguardando Pagamento' },
+    { value: 'pending', label: '⏳ PIX Pendente' },
     { value: 'whatsapp_pending', label: '📲 WhatsApp' },
     { value: 'approved', label: '✅ Pagamento Aprovado' },
     { value: 'preparing', label: '👨‍🍳 Em Produção' },
@@ -657,7 +662,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                 </td>
                 <td className="py-3">
                   <div className="flex gap-1">
-                    {(order.status === 'whatsapp_pending' || order.status === 'pending') && (
+                    {['whatsapp_pending', 'pending', 'awaiting_payment'].includes(order.status) && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -1075,7 +1080,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
               {/* Actions */}
               <div className="flex flex-col gap-2 pt-2">
                 {/* Confirm pending orders */}
-                {(selectedOrder.status === 'whatsapp_pending' || selectedOrder.status === 'pending') && (
+                {['whatsapp_pending', 'pending', 'awaiting_payment'].includes(selectedOrder.status) && (
                   <Button
                     variant="default"
                     className="w-full bg-green-600 hover:bg-green-700"
