@@ -230,6 +230,16 @@ const PendingOrdersRecovery = () => {
         console.error('Error decrementing stock:', decrementError);
       }
 
+      // Send WhatsApp confirmation
+      try {
+        await supabase.functions.invoke('send-order-whatsapp', {
+          body: { order_id: orderId, status: 'approved' }
+        });
+        console.log('✅ WhatsApp confirmation sent');
+      } catch (whatsappError) {
+        console.error('WhatsApp confirmation error:', whatsappError);
+      }
+
       toast({
         title: "Pedido confirmado!",
         description: "O pedido foi marcado como pago e o estoque foi atualizado.",

@@ -535,6 +535,16 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           total: response.total,
         });
         setShowPixModal(true);
+        
+        // Send WhatsApp with PIX code (non-blocking)
+        supabase.functions.invoke('send-order-whatsapp', {
+          body: {
+            order_id: response.order_id,
+            status: 'pending',
+            pix_code: response.qr_code,
+          },
+        }).then(() => console.log('✅ WhatsApp PIX sent'))
+          .catch(err => console.error('WhatsApp PIX error:', err));
       } else {
         throw new Error('No PIX data received');
       }
