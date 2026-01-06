@@ -145,6 +145,13 @@ serve(async (req) => {
     if (!mpResponse.ok) {
       const errorText = await mpResponse.text();
       console.error('MP API error:', mpResponse.status, errorText);
+      
+      // Mark order as pix_failed so it doesn't appear as pending
+      await supabase
+        .from('orders')
+        .update({ status: 'pix_failed' })
+        .eq('id', orderId);
+      
       throw new Error(`Mercado Pago API error: ${mpResponse.status}`);
     }
 
