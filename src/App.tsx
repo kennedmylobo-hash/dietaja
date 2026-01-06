@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 import PagamentoSucesso from "./pages/PagamentoSucesso";
 import PagamentoErro from "./pages/PagamentoErro";
 import StatusPedido from "./pages/StatusPedido";
+import Cardapio from "./pages/Cardapio";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/cardapio" element={<Cardapio />} />
               <Route path="/obrigado" element={<Obrigado />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />
