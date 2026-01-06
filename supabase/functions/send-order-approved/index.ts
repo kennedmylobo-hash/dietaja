@@ -35,6 +35,70 @@ interface OrderApprovedRequest {
   payment_method?: string;
 }
 
+function formatPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  return digits.startsWith('55') ? digits : `55${digits}`;
+}
+
+function formatCurrency(value: number): string {
+  return `R$ ${value.toFixed(2).replace('.', ',')}`;
+}
+
+function formatItemsList(items: OrderItem[]): string {
+  return items.map(item => `${item.quantity}x ${item.name}`).join(', ');
+}
+
+// Send WhatsApp template message
+async function sendWhatsAppTemplate(
+  phone: string,
+  templateId: string,
+  fields: Record<string, string>,
+  apiToken: string,
+  channelToken: string,
+  orderNumber: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const formattedPhone = formatPhone(phone);
+    
+    console.log(`[WHATSAPP] Sending template "${templateId}" to ${formattedPhone} for order ${orderNumber}`);
+    console.log(`[WHATSAPP] Fields:`, JSON.stringify(fields));
+
+    const payload = {
+      from: channelToken,
+      to: formattedPhone,
+      contents: [{
+        type: 'template',
+        templateId: templateId,
+        fields: fields
+      }],
+    };
+
+    console.log(`[WHATSAPP] Full payload:`, JSON.stringify(payload));
+
+    const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
+      method: 'POST',
+      headers: {
+        'X-Api-Token': apiToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const responseText = await response.text();
+    console.log(`[WHATSAPP] NotificaMe response for ${orderNumber}: ${response.status} - ${responseText}`);
+
+    if (!response.ok) {
+      return { success: false, error: `NotificaMe API error: ${response.status} - ${responseText}` };
+    }
+
+    console.log(`[WHATSAPP] Template sent successfully for order ${orderNumber}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('[WHATSAPP] Error sending template:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 const generateEmailHtml = (data: OrderApprovedRequest): string => {
   const itemsHtml = data.items.map(item => {
     let flavorsHtml = '';
@@ -186,26 +250,81 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const html = generateEmailHtml(data);
+    const results = {
+      email: { success: false, error: null as string | null },
+      whatsapp: { success: false, error: null as string | null }
+    };
 
-    console.log(`Sending approved email to ${data.customer_email}`);
+    // Send Email
+    try {
+      const html = generateEmailHtml(data);
+      console.log(`[EMAIL] Sending approved email to ${data.customer_email}`);
 
-    const { data: emailResponse, error } = await resend.emails.send({
-      from: "Dieta Já <pedidos@dietajavca.com.br>",
-      to: [data.customer_email],
-      subject: `Pedido #${data.order_number} Confirmado! ✅ - Dieta Já`,
-      html,
-    });
+      const { data: emailResponse, error } = await resend.emails.send({
+        from: "Dieta Já <pedidos@dietajavca.com.br>",
+        to: [data.customer_email],
+        subject: `Pedido #${data.order_number} Confirmado! ✅ - Dieta Já`,
+        html,
+      });
 
-    if (error) {
-      console.error("Resend error:", error);
-      throw error;
+      if (error) {
+        console.error("[EMAIL] Resend error:", error);
+        results.email.error = error.message;
+      } else {
+        console.log("[EMAIL] Approved email sent successfully:", emailResponse);
+        results.email.success = true;
+      }
+    } catch (emailError: any) {
+      console.error("[EMAIL] Error sending email:", emailError);
+      results.email.error = emailError.message;
     }
 
-    console.log("Approved email sent successfully:", emailResponse);
+    // Send WhatsApp using template compra_confirmada_dietaja
+    const notificameApiToken = Deno.env.get("NOTIFICAME_API_TOKEN");
+    const notificameChannelToken = Deno.env.get("NOTIFICAME_WHATSAPP_CHANNEL_TOKEN");
+
+    if (notificameApiToken && notificameChannelToken && data.customer_phone) {
+      try {
+        // Template compra_confirmada_dietaja has 4 variables:
+        // {{1}} = nome, {{2}} = pedido, {{3}} = itens, {{4}} = total
+        const templateFields = {
+          "1": data.customer_name?.split(' ')[0] || 'cliente',
+          "2": data.order_number,
+          "3": formatItemsList(data.items),
+          "4": formatCurrency(data.total)
+        };
+
+        console.log(`[WHATSAPP] Sending compra_confirmada_dietaja to ${data.customer_phone}`);
+        
+        const whatsappResult = await sendWhatsAppTemplate(
+          data.customer_phone,
+          'compra_confirmada_dietaja',
+          templateFields,
+          notificameApiToken,
+          notificameChannelToken,
+          data.order_number
+        );
+
+        results.whatsapp.success = whatsappResult.success;
+        if (!whatsappResult.success) {
+          results.whatsapp.error = whatsappResult.error || 'Unknown error';
+        }
+      } catch (whatsappError: any) {
+        console.error("[WHATSAPP] Error sending WhatsApp:", whatsappError);
+        results.whatsapp.error = whatsappError.message;
+      }
+    } else {
+      console.warn("[WHATSAPP] NotificaMe credentials not configured or no phone - WhatsApp skipped");
+      results.whatsapp.error = "Credentials not configured or no phone";
+    }
+
+    console.log("send-order-approved completed:", results);
 
     return new Response(
-      JSON.stringify({ success: true, emailId: emailResponse?.id }),
+      JSON.stringify({ 
+        success: results.email.success || results.whatsapp.success,
+        results 
+      }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
