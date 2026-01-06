@@ -63,24 +63,31 @@ async function sendWhatsAppMessage(phone: string, message: string, orderNumber: 
   const formattedPhone = formatPhone(phone);
 
   try {
-    const response = await fetch('https://hub.notificame.com.br/v1/messages', {
+    console.log(`Sending WhatsApp to ${formattedPhone} for order ${orderNumber}`);
+
+    const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
       method: 'POST',
       headers: {
-        'Authorization': apiToken,
+        'X-Api-Token': apiToken,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        channel: 'whatsapp',
-        channelToken: channelToken,
+        from: channelToken,
         to: formattedPhone,
-        type: 'text',
-        text: message,
+        contents: [
+          {
+            type: 'text',
+            text: message,
+          }
+        ],
       }),
     });
 
+    const responseData = await response.text();
+    console.log(`NotificaMe response for ${orderNumber}: ${response.status} - ${responseData}`);
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('NotificaMe API error:', response.status, errorText);
+      console.error('NotificaMe API error:', response.status, responseData);
     } else {
       console.log(`WhatsApp sent successfully for order ${orderNumber} to ${formattedPhone}`);
     }

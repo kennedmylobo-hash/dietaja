@@ -36,23 +36,28 @@ async function sendWhatsAppMessage(phone: string, message: string, apiToken: str
       formattedPhone = '55' + formattedPhone;
     }
 
-    console.log(`Sending WhatsApp to ${formattedPhone}`);
+    console.log(`Sending WhatsApp cart reminder to ${formattedPhone}`);
 
-    const response = await fetch('https://hub.notificame.com.br/api/v1/text-message', {
+    const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
       method: 'POST',
       headers: {
+        'X-Api-Token': apiToken,
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiToken}`,
       },
       body: JSON.stringify({
-        channel_token: channelToken,
-        phone_number: formattedPhone,
-        message: message,
+        from: channelToken,
+        to: formattedPhone,
+        contents: [
+          {
+            type: 'text',
+            text: message,
+          }
+        ],
       }),
     });
 
     const responseData = await response.text();
-    console.log(`WhatsApp API response: ${response.status} - ${responseData}`);
+    console.log(`NotificaMe cart reminder response: ${response.status} - ${responseData}`);
 
     return response.ok;
   } catch (error) {
