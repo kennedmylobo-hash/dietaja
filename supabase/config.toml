@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.check-payment-status]
 verify_jwt = false
+
+[functions.send-order-whatsapp]
+verify_jwt = false

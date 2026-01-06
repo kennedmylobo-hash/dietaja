@@ -186,9 +186,28 @@ serve(async (req) => {
                 console.error('[check-payment-status] Error decrementing stock:', stockError);
               }
             }
+
+            // Send WhatsApp confirmation
+            console.log('[check-payment-status] Sending WhatsApp confirmation...');
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseKey}`,
+                },
+                body: JSON.stringify({
+                  order_id: orderId,
+                  status: 'approved',
+                }),
+              });
+              console.log('[check-payment-status] WhatsApp confirmation sent');
+            } catch (whatsappError) {
+              console.error('[check-payment-status] Error sending WhatsApp:', whatsappError);
+            }
           }
         } else {
-          console.log('[check-payment-status] Order already approved, skipping email/stock');
+          console.log('[check-payment-status] Order already approved, skipping notifications');
         }
       }
     }
