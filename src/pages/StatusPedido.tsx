@@ -84,7 +84,7 @@ const STATUS_STEPS: StatusStep[] = [
 const getStepIndex = (status: string): number => {
   switch (status) {
     case "pending":
-    case "confirmed":
+    case "awaiting_payment":
     case "whatsapp_pending":
       return 1; // Awaiting payment
     case "approved":
@@ -110,7 +110,7 @@ const getPaymentStepStatus = (status: string): "completed" | "current" | "pendin
   if (["approved", "preparing", "ready", "delivering", "delivered", "completed"].includes(status)) {
     return "completed";
   }
-  if (["pending", "confirmed", "whatsapp_pending"].includes(status)) {
+  if (["pending", "awaiting_payment", "whatsapp_pending"].includes(status)) {
     return "current";
   }
   return "pending";
@@ -223,7 +223,7 @@ const StatusPedido = () => {
   };
 
   const currentStepIndex = order ? getStepIndex(order.status) : 0;
-  const isPaymentPending = order && ["pending", "confirmed", "whatsapp_pending"].includes(order.status);
+  const isPaymentPending = order && ["pending", "awaiting_payment", "whatsapp_pending"].includes(order.status);
   const isRejected = order?.status === "rejected" || order?.status === "cancelled";
 
   return (
