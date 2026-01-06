@@ -37,7 +37,7 @@ const ProductGallerySection = () => {
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.1 }}
         >
-          <div className="relative rounded-2xl overflow-hidden shadow-card">
+          <div className="relative rounded-2xl overflow-hidden shadow-card aspect-video">
             <video
               src={produtosVideo}
               autoPlay
@@ -45,7 +45,9 @@ const ProductGallerySection = () => {
               muted
               playsInline
               preload="none"
-              className="w-full h-auto object-cover"
+              width={800}
+              height={450}
+              className="w-full h-full object-cover"
             />
           </div>
 
