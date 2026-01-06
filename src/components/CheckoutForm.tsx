@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { useCart } from "./CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
 import { toast } from "@/hooks/use-toast";
+import { EmailAutocomplete } from "@/components/EmailAutocomplete";
 
 const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
@@ -45,12 +46,14 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     register,
     handleSubmit,
     watch,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       deliveryOption: "pickup",
       saveData: false,
+      email: "",
     },
   });
 
@@ -186,12 +189,18 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           <Label htmlFor="email" className="text-sm font-medium">
             Email
           </Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="seu@email.com"
-            {...register("email")}
-            className="mt-1"
+          <Controller
+            name="email"
+            control={control}
+            render={({ field }) => (
+              <EmailAutocomplete
+                id="email"
+                value={field.value}
+                onChange={field.onChange}
+                className="mt-1"
+                error={!!errors.email}
+              />
+            )}
           />
           {errors.email && (
             <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
