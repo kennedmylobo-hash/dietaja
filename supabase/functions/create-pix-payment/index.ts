@@ -66,8 +66,8 @@ serve(async (req) => {
     const discountValue = discount_amount || 0;
     const total = subtotal + deliveryFee - discountValue;
 
-    // Ensure total is at least 1 (MP minimum)
-    const transactionAmount = Math.max(total, 1);
+    // Ensure total is at least 1 (MP minimum) and round to 2 decimal places
+    const transactionAmount = Math.max(Math.round(total * 100) / 100, 1);
 
     let orderId = order_id;
 
