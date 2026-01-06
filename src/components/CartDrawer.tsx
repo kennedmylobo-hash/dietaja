@@ -571,14 +571,21 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         delivery_address: formData?.address || undefined
       };
 
-      const { error: emailError } = await supabase.functions.invoke('send-order-pending-email', {
+      console.log('Sending pending email with payload:', JSON.stringify(emailPayload, null, 2));
+      
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-order-pending-email', {
         body: emailPayload
       });
 
       if (emailError) {
         console.error('Error sending pending email:', emailError);
+        toast({
+          title: "Aviso",
+          description: "Não foi possível enviar o e-mail de confirmação, mas seu pedido foi registrado.",
+          variant: "destructive",
+        });
       } else {
-        console.log('Pending order email sent successfully');
+        console.log('Pending order email sent successfully:', emailData);
       }
     } catch (error) {
       console.error('Error in handleWhatsAppContact:', error);
