@@ -11,6 +11,7 @@ import {
   User,
   Phone,
   DollarSign,
+  Gift,
 } from "lucide-react";
 import {
   Dialog,
@@ -158,6 +159,24 @@ const AbandonedCartsRecovery = () => {
     window.open(`https://wa.me/${formattedPhone}?text=${message}`, '_blank');
   };
 
+  const openWhatsAppOffer = (cart: AbandonedCart, discountPercent: number = 10) => {
+    const couponCode = `VOLTA${discountPercent}`;
+    const today = new Date().toLocaleDateString('pt-BR');
+    
+    const message = encodeURIComponent(
+      `Olá ${cart.name || 'cliente'}! 🎁\n\n` +
+      `Tenho uma oferta especial pra você!\n\n` +
+      `Use o cupom *${couponCode}* e ganhe *${discountPercent}% OFF* no seu pedido!\n\n` +
+      `⏰ Válido apenas para hoje (${today})\n\n` +
+      `Posso te ajudar a finalizar? 💚`
+    );
+    
+    const phoneDigits = cart.phone.replace(/\D/g, '');
+    const formattedPhone = phoneDigits.startsWith('55') ? phoneDigits : `55${phoneDigits}`;
+    
+    window.open(`https://wa.me/${formattedPhone}?text=${message}`, '_blank');
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -258,7 +277,7 @@ const AbandonedCartsRecovery = () => {
                         {cart.whatsapp_sent_at && (
                           <Badge variant="outline" className="bg-green-500/10 text-green-600 text-xs">
                             <MessageCircle className="w-3 h-3 mr-1" />
-                            WA enviado
+                            {getTimeSince(cart.whatsapp_sent_at)} atrás
                           </Badge>
                         )}
                       </div>
@@ -291,6 +310,18 @@ const AbandonedCartsRecovery = () => {
                     >
                       <MessageCircle className="w-4 h-4 mr-1" />
                       WhatsApp
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-amber-600 border-amber-600/30 hover:bg-amber-500/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openWhatsAppOffer(cart, 10);
+                      }}
+                    >
+                      <Gift className="w-4 h-4 mr-1" />
+                      Oferta 10%
                     </Button>
                   </div>
                 </div>
@@ -360,13 +391,22 @@ const AbandonedCartsRecovery = () => {
                 </div>
               )}
 
-              <Button
-                className="w-full bg-green-600 hover:bg-green-700"
-                onClick={() => openWhatsAppRecovery(selectedCart)}
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Recuperar via WhatsApp
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  onClick={() => openWhatsAppRecovery(selectedCart)}
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  WhatsApp
+                </Button>
+                <Button
+                  className="flex-1 bg-amber-500 hover:bg-amber-600"
+                  onClick={() => openWhatsAppOffer(selectedCart, 10)}
+                >
+                  <Gift className="w-4 h-4 mr-2" />
+                  Oferta 10%
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

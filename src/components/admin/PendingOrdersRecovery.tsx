@@ -15,6 +15,7 @@ import {
   DollarSign,
   User,
   Package,
+  Gift,
 } from "lucide-react";
 import {
   Dialog,
@@ -172,6 +173,21 @@ const PendingOrdersRecovery = () => {
       `Notamos que seu pedido *#${orderNumber}* está aguardando pagamento.\n\n` +
       `Valor: *R$ ${order.total.toFixed(2).replace('.', ',')}*\n\n` +
       `Gostaria de finalizar a compra? Posso te ajudar com o pagamento via PIX! 💚`
+    );
+    window.open(`https://wa.me/55${order.customer_phone.replace(/\D/g, '')}?text=${message}`, '_blank');
+  };
+
+  const openWhatsAppOffer = (order: PendingOrder, discountPercent: number = 10) => {
+    const orderNumber = order.order_number || order.id.slice(0, 8);
+    const couponCode = `VOLTA${discountPercent}`;
+    const today = new Date().toLocaleDateString('pt-BR');
+    
+    const message = encodeURIComponent(
+      `Olá ${order.customer_name}! 🎁\n\n` +
+      `Tenho uma oferta especial pro seu pedido *#${orderNumber}*!\n\n` +
+      `Use o cupom *${couponCode}* e ganhe *${discountPercent}% OFF*!\n\n` +
+      `⏰ Válido apenas para hoje (${today})\n\n` +
+      `Posso te ajudar a finalizar? 💚`
     );
     window.open(`https://wa.me/55${order.customer_phone.replace(/\D/g, '')}?text=${message}`, '_blank');
   };
@@ -380,7 +396,7 @@ const PendingOrdersRecovery = () => {
                         {order.whatsapp_sent_at && (
                           <Badge className="bg-green-500/10 text-green-600 text-xs">
                             <MessageCircle className="w-3 h-3 mr-1" />
-                            WhatsApp
+                            {getTimeSinceOrder(order.whatsapp_sent_at)} atrás
                           </Badge>
                         )}
                       </div>
@@ -420,6 +436,14 @@ const PendingOrdersRecovery = () => {
                       >
                         <MessageCircle className="w-4 h-4 mr-1" />
                         WhatsApp
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-amber-500 hover:bg-amber-600"
+                        onClick={() => openWhatsAppOffer(order, 10)}
+                      >
+                        <Gift className="w-4 h-4 mr-1" />
+                        Oferta
                       </Button>
                       <Button
                         size="sm"
@@ -543,21 +567,29 @@ const PendingOrdersRecovery = () => {
                   onClick={() => openWhatsAppRecovery(selectedOrder)}
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
-                  Recuperar via WhatsApp
+                  WhatsApp
                 </Button>
                 <Button
-                  variant="outline"
-                  onClick={() => confirmOrderManually(selectedOrder.id)}
-                  disabled={isConfirming === selectedOrder.id}
+                  className="flex-1 bg-amber-500 hover:bg-amber-600"
+                  onClick={() => openWhatsAppOffer(selectedOrder, 10)}
                 >
-                  {isConfirming === selectedOrder.id ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                  )}
-                  Confirmar Pago
+                  <Gift className="w-4 h-4 mr-2" />
+                  Oferta 10%
                 </Button>
               </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => confirmOrderManually(selectedOrder.id)}
+                disabled={isConfirming === selectedOrder.id}
+              >
+                {isConfirming === selectedOrder.id ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                )}
+                Confirmar Pagamento Manual
+              </Button>
             </div>
           )}
         </DialogContent>
