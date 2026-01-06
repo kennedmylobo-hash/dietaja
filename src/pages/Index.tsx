@@ -269,7 +269,7 @@ const IndexContent = () => {
         <SalesNotification />
 
         {/* Mobile Sticky CTA */}
-        <MobileStickyBar onCtaClick={scrollToKits} />
+        <MobileStickyBar onCtaClick={() => setCartOpen(true)} />
 
         {/* Footer */}
         <footer className="py-8 bg-card border-t border-border">
