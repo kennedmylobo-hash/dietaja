@@ -43,7 +43,9 @@ import {
   Percent,
   DollarSign,
   Infinity,
-  Calendar
+  Calendar,
+  Timer,
+  Bell
 } from "lucide-react";
 
 interface MarketingMessage {
@@ -72,6 +74,13 @@ interface Coupon {
   max_uses_per_customer: number;
   valid_from: string | null;
   valid_until: string | null;
+  is_active: boolean;
+}
+
+interface ReminderSetting {
+  id: string;
+  reminder_type: string;
+  delay_minutes: number;
   is_active: boolean;
 }
 
@@ -116,9 +125,14 @@ const MarketingManager = () => {
   const [isCreatingCoupon, setIsCreatingCoupon] = useState(false);
   const [savingCoupon, setSavingCoupon] = useState(false);
 
+  // Reminder settings states
+  const [reminderSettings, setReminderSettings] = useState<ReminderSetting[]>([]);
+  const [savingReminder, setSavingReminder] = useState(false);
+
   useEffect(() => {
     fetchMessages();
     fetchCoupons();
+    fetchReminderSettings();
     
     // Subscribe to realtime updates
     const messagesChannel = supabase
@@ -139,9 +153,19 @@ const MarketingManager = () => {
       )
       .subscribe();
 
+    const reminderChannel = supabase
+      .channel('reminder_settings_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reminder_settings' },
+        () => fetchReminderSettings()
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(couponsChannel);
+      supabase.removeChannel(reminderChannel);
     };
   }, []);
 
@@ -177,6 +201,51 @@ const MarketingManager = () => {
     }
 
     setCoupons(data || []);
+  };
+
+  const fetchReminderSettings = async () => {
+    const { data, error } = await supabase
+      .from('reminder_settings')
+      .select('*')
+      .order('reminder_type');
+
+    if (error) {
+      console.error('Error fetching reminder settings:', error);
+      return;
+    }
+
+    setReminderSettings(data || []);
+  };
+
+  const handleUpdateReminderSetting = async (setting: ReminderSetting, updates: Partial<ReminderSetting>) => {
+    setSavingReminder(true);
+    const { error } = await supabase
+      .from('reminder_settings')
+      .update(updates)
+      .eq('id', setting.id);
+
+    setSavingReminder(false);
+
+    if (error) {
+      toast({
+        title: "Erro ao atualizar",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Configuração atualizada!",
+    });
+    fetchReminderSettings();
+  };
+
+  const formatDelayDisplay = (minutes: number): string => {
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
   };
 
   const handleToggleActive = async (message: MarketingMessage) => {
@@ -663,6 +732,84 @@ const MarketingManager = () => {
             })}
           </div>
         )}
+      </section>
+
+      <Separator />
+
+      {/* Payment Reminder Settings Section */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Bell className="w-5 h-5 text-amber-500" />
+          <h2 className="text-lg font-semibold">Lembretes de Pagamento PIX</h2>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Configure os intervalos para envio de lembretes automáticos para pedidos aguardando pagamento.
+        </p>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {reminderSettings.map((setting) => {
+            const isFirst = setting.reminder_type === 'first_reminder';
+            return (
+              <Card key={setting.id} className={!setting.is_active ? "opacity-60" : ""}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-8 h-8 rounded-full ${isFirst ? 'bg-amber-500/10' : 'bg-orange-500/10'} flex items-center justify-center`}>
+                        <Timer className={`w-4 h-4 ${isFirst ? 'text-amber-500' : 'text-orange-500'}`} />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{isFirst ? '1º Lembrete' : '2º Lembrete'}</CardTitle>
+                        <CardDescription className="text-xs">
+                          {isFirst ? 'Primeiro aviso de pagamento pendente' : 'Última tentativa antes de expirar'}
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={setting.is_active}
+                      onCheckedChange={(checked) => handleUpdateReminderSetting(setting, { is_active: checked })}
+                      disabled={savingReminder}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor={`delay-${setting.id}`}>Intervalo após criação do pedido</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id={`delay-${setting.id}`}
+                        type="number"
+                        min={1}
+                        max={1440}
+                        value={setting.delay_minutes}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          setReminderSettings(prev => prev.map(s => 
+                            s.id === setting.id ? { ...s, delay_minutes: value } : s
+                          ));
+                        }}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-muted-foreground">minutos</span>
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        = {formatDelayDisplay(setting.delay_minutes)}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handleUpdateReminderSetting(setting, { delay_minutes: setting.delay_minutes })}
+                    disabled={savingReminder}
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Salvar Intervalo
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </section>
 
       {/* Variables Guide */}

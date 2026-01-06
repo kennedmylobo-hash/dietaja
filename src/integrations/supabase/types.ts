@@ -704,6 +704,33 @@ export type Database = {
           },
         ]
       }
+      reminder_settings: {
+        Row: {
+          created_at: string | null
+          delay_minutes: number
+          id: string
+          is_active: boolean | null
+          reminder_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          delay_minutes: number
+          id?: string
+          is_active?: boolean | null
+          reminder_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          delay_minutes?: number
+          id?: string
+          is_active?: boolean | null
+          reminder_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           created_at: string
