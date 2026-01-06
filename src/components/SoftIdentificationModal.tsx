@@ -3,11 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sparkles, MessageCircle, ArrowRight, Lock, CheckCircle2, Loader2 } from "lucide-react";
+import { Sparkles, MessageCircle, ArrowRight, Lock, CheckCircle2, Mail } from "lucide-react";
 
 interface SoftIdentificationModalProps {
   open: boolean;
-  onConfirm: (name: string, phone: string) => void;
+  onConfirm: (name: string, phone: string, email: string) => void;
   onSkip?: () => void;
 }
 
@@ -25,7 +25,8 @@ export const SoftIdentificationModal = ({
 }: SoftIdentificationModalProps) => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [errors, setErrors] = useState<{ name?: string; phone?: string }>({});
+  const [email, setEmail] = useState("");
+  const [errors, setErrors] = useState<{ name?: string; phone?: string; email?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Recuperar dados do localStorage quando o modal abre
@@ -37,6 +38,7 @@ export const SoftIdentificationModal = ({
           const parsed = JSON.parse(saved);
           if (parsed.name && !name) setName(parsed.name);
           if (parsed.phone && !phone) setPhone(formatPhone(parsed.phone));
+          if (parsed.email && !email) setEmail(parsed.email);
         } catch (e) {
           // Ignorar erro silenciosamente
         }
@@ -47,7 +49,7 @@ export const SoftIdentificationModal = ({
   }, [open]);
 
   const validateAndSubmit = () => {
-    const newErrors: { name?: string; phone?: string } = {};
+    const newErrors: { name?: string; phone?: string; email?: string } = {};
     
     if (!name.trim()) {
       newErrors.name = "Digite seu nome";
@@ -56,6 +58,11 @@ export const SoftIdentificationModal = ({
     const phoneDigits = phone.replace(/\D/g, "");
     if (phoneDigits.length < 10) {
       newErrors.phone = "WhatsApp inválido";
+    }
+
+    // Email é opcional, mas se preenchido, deve ser válido
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      newErrors.email = "E-mail inválido";
     }
     
     if (Object.keys(newErrors).length > 0) {
@@ -68,7 +75,7 @@ export const SoftIdentificationModal = ({
     
     // Após delay, confirmar
     setTimeout(() => {
-      onConfirm(name.trim(), phoneDigits);
+      onConfirm(name.trim(), phoneDigits, email.trim());
     }, 800);
   };
 
@@ -107,7 +114,7 @@ export const SoftIdentificationModal = ({
 
         {!isSubmitting && (
           <>
-            <div className="space-y-5 py-4">
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="soft-name" className="text-base font-medium">
                   Como podemos te chamar?
@@ -143,6 +150,27 @@ export const SoftIdentificationModal = ({
                 />
                 {errors.phone && (
                   <p className="text-sm text-destructive">{errors.phone}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="soft-email" className="text-base font-medium flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-primary" />
+                  E-mail para receber promoções
+                </Label>
+                <Input
+                  id="soft-email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errors.email) setErrors(prev => ({ ...prev, email: undefined }));
+                  }}
+                  className={`h-14 text-lg rounded-xl ${errors.email ? 'border-destructive' : ''}`}
+                />
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
                 )}
               </div>
             </div>

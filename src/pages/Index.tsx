@@ -242,11 +242,12 @@ const IndexContent = () => {
         {/* Soft Identification Modal */}
         <SoftIdentificationModal
           open={showIdentificationModal}
-          onConfirm={(name, phone) => {
+          onConfirm={(name, phone, email) => {
             setCustomerInfo({
               ...customerInfo,
               name,
               phone,
+              email,
             });
             confirmAddItem();
           }}
