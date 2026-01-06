@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { CartProvider, useCart } from "@/components/CartContext";
 import { useMarmitaPackages, useMarmitaFlavors, useKitPackages, useKitSoups, useKitJuices } from "@/hooks/useMenuData";
 import { useMenuCategories } from "@/hooks/useMenuCategories";
+import { useActiveSection } from "@/hooks/useActiveSection";
 import CardapioHeader from "@/components/cardapio/CardapioHeader";
 import CardapioSidebar from "@/components/cardapio/CardapioSidebar";
 import CategorySection from "@/components/cardapio/CategorySection";
@@ -266,6 +267,24 @@ const CardapioContent = () => {
     if (!menuCategories) return [];
     return menuCategories.filter(c => c.type === "marmita").map(c => c.slug);
   }, [menuCategories]);
+
+  // Build section IDs for scroll spy
+  const sectionIds = useMemo(() => {
+    return ["kits", ...marmitaCategorySlugs];
+  }, [marmitaCategorySlugs]);
+
+  // Scroll spy - detect active section
+  const scrollActiveSection = useActiveSection({ 
+    sectionIds, 
+    offset: 120 
+  });
+
+  // Sync scroll-detected section with activeCategory state
+  useEffect(() => {
+    if (scrollActiveSection) {
+      setActiveCategory(scrollActiveSection);
+    }
+  }, [scrollActiveSection]);
 
   return (
     <>
