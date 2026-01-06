@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sparkles, MessageCircle, ArrowRight, Lock, CheckCircle2, Mail } from "lucide-react";
+import { EmailAutocomplete } from "@/components/EmailAutocomplete";
 
 interface SoftIdentificationModalProps {
   open: boolean;
@@ -158,16 +159,15 @@ export const SoftIdentificationModal = ({
                   <Mail className="w-4 h-4 text-primary" />
                   E-mail para receber promoções
                 </Label>
-                <Input
+                <EmailAutocomplete
                   id="soft-email"
-                  type="email"
-                  placeholder="seu@email.com"
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
+                  onChange={(value) => {
+                    setEmail(value);
                     if (errors.email) setErrors(prev => ({ ...prev, email: undefined }));
                   }}
-                  className={`h-14 text-lg rounded-xl ${errors.email ? 'border-destructive' : ''}`}
+                  className="h-14 text-lg rounded-xl"
+                  error={!!errors.email}
                 />
                 {errors.email && (
                   <p className="text-sm text-destructive">{errors.email}</p>
