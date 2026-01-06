@@ -33,7 +33,7 @@ const PixPaymentModal = ({
   onPaymentFailed,
 }: PixPaymentModalProps) => {
   const [copied, setCopied] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null); // null = not calculated yet
   const [isChecking, setIsChecking] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
 
@@ -129,14 +129,14 @@ const PixPaymentModal = ({
     };
   }, [open, paymentStatus, checkPaymentStatus]);
 
-  // Handle expiration
+  // Handle expiration - only trigger if timeLeft was calculated and reached 0
   useEffect(() => {
-    if (timeLeft === 0 && paymentStatus === 'pending') {
+    if (timeLeft !== null && timeLeft === 0 && paymentStatus === 'pending') {
       onPaymentFailed();
     }
   }, [timeLeft, paymentStatus, onPaymentFailed]);
 
-  const isExpired = timeLeft === 0;
+  const isExpired = timeLeft !== null && timeLeft === 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,7 +174,7 @@ const PixPaymentModal = ({
           }`}>
             <Clock className="w-4 h-4" />
             <span className="font-mono font-medium">
-              {isExpired ? 'Expirado' : `Expira em ${formatTime(timeLeft)}`}
+              {timeLeft === null ? 'Calculando...' : isExpired ? 'Expirado' : `Expira em ${formatTime(timeLeft)}`}
             </span>
           </div>
 
