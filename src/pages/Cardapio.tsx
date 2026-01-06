@@ -268,37 +268,38 @@ const CardapioContent = () => {
         <meta name="description" content="Explore nosso cardápio de marmitas saudáveis e kits detox. Refeições prontas e congeladas para sua dieta." />
       </Helmet>
 
-      <div className="min-h-screen bg-muted/30 relative">
-        {/* Background Leaf Pattern */}
-        <div 
-          className="fixed inset-0 pointer-events-none opacity-[0.03]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath d='M50 15c-10 15-30 22-45 18 10 18 28 25 45 20-18 10-22 28-18 45 18-10 25-28 20-45 10 18 28 22 45 18-18-10-25-28-20-45-10 18-28 22-45 18 18-10 22-28 18-45z' fill='%232d5016' fill-opacity='0.5'/%3E%3C/svg%3E")`,
-            backgroundSize: '100px 100px',
-          }}
+      <div className="min-h-screen flex">
+        {/* Sidebar fixa - Desktop */}
+        <CardapioSidebar
+          activeCategory={activeCategory}
+          onCategoryClick={handleCategoryClick}
+          className="hidden md:flex w-60 flex-shrink-0 fixed left-0 top-0 h-screen z-40"
         />
-        
-        <CardapioBanner />
-        <CardapioHeader searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-        
-        {/* Hero Banners */}
-        <div className="container mx-auto px-4">
-          <HeroBanners />
-        </div>
 
-        <MobileNav activeCategory={activeCategory} onCategoryClick={handleCategoryClick} />
+        {/* Conteúdo principal */}
+        <div className="flex-1 md:ml-60 bg-muted/30 relative">
+          {/* Background Leaf Pattern */}
+          <div 
+            className="fixed inset-0 pointer-events-none opacity-[0.03]"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath d='M50 15c-10 15-30 22-45 18 10 18 28 25 45 20-18 10-22 28-18 45 18-10 25-28 20-45 10 18 28 22 45 18-18-10-25-28-20-45-10 18-28 22-45 18 18-10 22-28 18-45z' fill='%232d5016' fill-opacity='0.5'/%3E%3C/svg%3E")`,
+              backgroundSize: '100px 100px',
+            }}
+          />
+          
+          <CardapioBanner />
+          <CardapioHeader searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+          
+          {/* Hero Banners */}
+          <div className="container mx-auto px-4">
+            <HeroBanners />
+          </div>
 
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex gap-6">
-            {/* Sidebar - Desktop */}
-            <CardapioSidebar
-              activeCategory={activeCategory}
-              onCategoryClick={handleCategoryClick}
-              className="hidden md:block w-64 flex-shrink-0 sticky top-20 h-fit"
-            />
+          <MobileNav activeCategory={activeCategory} onCategoryClick={handleCategoryClick} />
 
+          <div className="container mx-auto px-4 py-6">
             {/* Main Content */}
-            <main className="flex-1 space-y-8">
+            <main className="space-y-8">
               {isLoading ? (
                 <div className="space-y-8">
                   {[1, 2, 3].map((i) => (
@@ -340,49 +341,49 @@ const CardapioContent = () => {
               )}
             </main>
           </div>
+
+          {/* Floating Cart */}
+          <CartFloatingButton onClick={() => setCartOpen(true)} />
         </div>
-
-        {/* Floating Cart */}
-        <CartFloatingButton onClick={() => setCartOpen(true)} />
-
-        {/* Cart Drawer */}
-        <CartDrawer 
-          open={cartOpen} 
-          onOpenChange={setCartOpen} 
-          onCheckout={() => {
-            // Will be handled inside CartDrawer
-          }}
-        />
-
-        {/* Flavor Selection Modal - Marmitas */}
-        <FlavorSelectionModal
-          isOpen={flavorModalOpen}
-          onClose={() => {
-            setFlavorModalOpen(false);
-            setPendingProduct(null);
-          }}
-          onConfirm={handleFlavorConfirm}
-          packageName={pendingProduct?.name || ""}
-          packageQuantity={pendingProduct?.quantity || 7}
-          flavorsByCategory={flavorsByCategory}
-          flavorStockData={flavorStockData}
-        />
-
-        {/* Flavor Selection Modal - Kits */}
-        <KitFlavorSelectionModal
-          isOpen={kitFlavorModalOpen}
-          onClose={() => {
-            setKitFlavorModalOpen(false);
-            setPendingProduct(null);
-          }}
-          onConfirm={handleKitFlavorConfirm}
-          kitName={pendingProduct?.name || ""}
-          juiceQuantity={(pendingProduct?.days || 3) * 4}
-          soupQuantity={(pendingProduct?.days || 3) * 2}
-          juiceFlavorsData={juiceData.map(j => ({ ...j, description: "" }))}
-          soupFlavorsData={soupData.map(s => ({ ...s, description: "" }))}
-        />
       </div>
+
+      {/* Cart Drawer */}
+      <CartDrawer 
+        open={cartOpen} 
+        onOpenChange={setCartOpen} 
+        onCheckout={() => {
+          // Will be handled inside CartDrawer
+        }}
+      />
+
+      {/* Flavor Selection Modal - Marmitas */}
+      <FlavorSelectionModal
+        isOpen={flavorModalOpen}
+        onClose={() => {
+          setFlavorModalOpen(false);
+          setPendingProduct(null);
+        }}
+        onConfirm={handleFlavorConfirm}
+        packageName={pendingProduct?.name || ""}
+        packageQuantity={pendingProduct?.quantity || 7}
+        flavorsByCategory={flavorsByCategory}
+        flavorStockData={flavorStockData}
+      />
+
+      {/* Flavor Selection Modal - Kits */}
+      <KitFlavorSelectionModal
+        isOpen={kitFlavorModalOpen}
+        onClose={() => {
+          setKitFlavorModalOpen(false);
+          setPendingProduct(null);
+        }}
+        onConfirm={handleKitFlavorConfirm}
+        kitName={pendingProduct?.name || ""}
+        juiceQuantity={(pendingProduct?.days || 3) * 4}
+        soupQuantity={(pendingProduct?.days || 3) * 2}
+        juiceFlavorsData={juiceData.map(j => ({ ...j, description: "" }))}
+        soupFlavorsData={soupData.map(s => ({ ...s, description: "" }))}
+      />
     </>
   );
 };
