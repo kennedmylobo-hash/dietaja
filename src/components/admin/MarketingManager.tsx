@@ -86,6 +86,9 @@ const STATUS_ICONS: Record<string, { icon: React.ReactNode; color: string }> = {
   recompra_5: { icon: <Gift className="w-5 h-5" />, color: "text-pink-500" },
   recompra_14: { icon: <Gift className="w-5 h-5" />, color: "text-pink-500" },
   recompra_28: { icon: <Gift className="w-5 h-5" />, color: "text-pink-500" },
+  order_pix_pending: { icon: <MessageCircle className="w-5 h-5" />, color: "text-amber-500" },
+  order_whatsapp_pending: { icon: <MessageCircle className="w-5 h-5" />, color: "text-green-500" },
+  order_confirmed: { icon: <CheckCircle className="w-5 h-5" />, color: "text-emerald-500" },
 };
 
 const DEFAULT_COUPON: Omit<Coupon, 'id' | 'current_uses'> = {
@@ -337,6 +340,7 @@ const MarketingManager = () => {
   const statusMessages = messages.filter(m => m.message_type.startsWith('status_'));
   const reviewMessage = messages.find(m => m.message_type === 'review_request');
   const recompraMessages = messages.filter(m => m.message_type.startsWith('recompra_'));
+  const orderMessages = messages.filter(m => m.message_type.startsWith('order_'));
 
   if (loading) {
     return (
@@ -348,6 +352,64 @@ const MarketingManager = () => {
 
   return (
     <div className="space-y-8">
+      {/* Order Checkout Messages Section */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <MessageCircle className="w-5 h-5 text-green-500" />
+          <h2 className="text-lg font-semibold">Templates de Checkout (WhatsApp)</h2>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Mensagens enviadas automaticamente ao cliente durante o processo de compra.
+        </p>
+        
+        <div className="grid gap-4 md:grid-cols-3">
+          {orderMessages.map((message) => {
+            const iconConfig = STATUS_ICONS[message.message_type];
+            const descriptions: Record<string, string> = {
+              order_pix_pending: "Enviado quando o cliente escolhe pagar via PIX (inclui código PIX)",
+              order_whatsapp_pending: "Enviado quando o cliente escolhe finalizar via WhatsApp",
+              order_confirmed: "Enviado quando o pagamento é confirmado",
+            };
+            return (
+              <Card key={message.id} className={!message.is_active ? "opacity-60" : ""}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={iconConfig?.color}>{iconConfig?.icon}</span>
+                      <CardTitle className="text-base">{message.title}</CardTitle>
+                    </div>
+                    <Switch
+                      checked={message.is_active}
+                      onCheckedChange={() => handleToggleActive(message)}
+                    />
+                  </div>
+                  <CardDescription className="text-xs mt-2">
+                    {descriptions[message.message_type]}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MessageCircle className="w-4 h-4 text-green-500" />
+                    <span className="truncate">{message.whatsapp_template.slice(0, 50)}...</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setEditingMessage(message)}
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Editar Template
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+
+      <Separator />
+
       {/* Status Messages Section */}
       <section>
         <div className="flex items-center gap-2 mb-4">
@@ -615,9 +677,14 @@ const MarketingManager = () => {
                 { var: "{nome}", desc: "Primeiro nome" },
                 { var: "{pedido}", desc: "Número do pedido" },
                 { var: "{total}", desc: "Valor total" },
+                { var: "{subtotal}", desc: "Subtotal" },
+                { var: "{itens}", desc: "Lista de itens" },
+                { var: "{entrega}", desc: "Info de entrega" },
+                { var: "{taxa_entrega}", desc: "Taxa de entrega" },
+                { var: "{desconto}", desc: "Valor do desconto" },
+                { var: "{pix_code}", desc: "Código PIX (copia e cola)" },
                 { var: "{link}", desc: "Link de rastreamento" },
                 { var: "{cupom}", desc: "Código do cupom" },
-                { var: "{desconto}", desc: "% de desconto" },
               ].map((v) => (
                 <Badge key={v.var} variant="outline" className="font-mono text-xs">
                   {v.var} <span className="ml-1 text-muted-foreground font-normal">= {v.desc}</span>

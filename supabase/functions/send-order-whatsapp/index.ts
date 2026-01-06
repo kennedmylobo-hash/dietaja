@@ -21,11 +21,10 @@ interface RequestBody {
 }
 
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  return `R$ ${value.toFixed(2).replace('.', ',')}`;
 }
 
 function formatPhone(phone: string): string {
-  // Remove non-digits and ensure it starts with country code
   const digits = phone.replace(/\D/g, '');
   if (digits.startsWith('55')) {
     return digits;
@@ -42,6 +41,14 @@ function formatItems(items: OrderItem[]): string {
     }
     return line;
   }).join('\n');
+}
+
+function replaceVariables(template: string, variables: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(variables)) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+  }
+  return result;
 }
 
 async function sendWhatsAppMessage(phone: string, message: string, orderNumber: string): Promise<void> {
@@ -82,6 +89,67 @@ async function sendWhatsAppMessage(phone: string, message: string, orderNumber: 
   }
 }
 
+// Fallback templates if not found in database
+const FALLBACK_TEMPLATES: Record<string, string> = {
+  order_pix_pending: `🥗 *DIETA JÁ - PEDIDO #{pedido}*
+
+Olá {nome}! Seu pedido foi registrado.
+
+📋 *ITENS:*
+{itens}
+
+💵 *TOTAL:* {total}
+
+{entrega}
+
+⏳ *STATUS:* Aguardando Pagamento
+
+────────────────
+💳 *PAGUE VIA PIX:*
+
+Copie o código abaixo:
+
+\`\`\`{pix_code}\`\`\`
+
+⚠️ Válido por 30 minutos
+────────────────
+
+Dúvidas? Responda esta mensagem! 💚`,
+
+  order_whatsapp_pending: `🥗 *DIETA JÁ - PEDIDO #{pedido}*
+
+Olá {nome}! Seu pedido foi registrado.
+
+📋 *ITENS:*
+{itens}
+
+💵 *TOTAL:* {total}
+
+{entrega}
+
+⏳ *STATUS:* Reservado - Aguardando Pagamento
+
+Responda esta mensagem para combinar o pagamento! 💚`,
+
+  order_confirmed: `🥗 *DIETA JÁ - PEDIDO #{pedido}*
+
+Olá {nome}! 🎉
+
+✅ *PAGAMENTO CONFIRMADO!*
+
+📋 *ITENS:*
+{itens}
+
+💵 *TOTAL PAGO:* {total}
+
+{entrega}
+📦 Entrega prevista em até 3 dias úteis
+
+Seu pedido já está sendo preparado! 👨‍🍳
+
+Obrigado pela preferência! 💚`,
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -119,105 +187,68 @@ serve(async (req) => {
       );
     }
 
+    // Determine message type based on status
+    let messageType = '';
+    if (status === 'pending') {
+      messageType = 'order_pix_pending';
+    } else if (status === 'whatsapp_pending') {
+      messageType = 'order_whatsapp_pending';
+    } else if (status === 'approved') {
+      messageType = 'order_confirmed';
+    } else {
+      console.log('Invalid status:', status);
+      return new Response(
+        JSON.stringify({ error: 'Invalid status' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // For pending PIX, we need the pix_code
+    if (status === 'pending' && !pix_code) {
+      return new Response(
+        JSON.stringify({ error: 'pix_code required for pending status' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Fetch template from database
+    const { data: templateData, error: templateError } = await supabase
+      .from('marketing_messages')
+      .select('whatsapp_template, is_active')
+      .eq('message_type', messageType)
+      .single();
+
+    if (templateError) {
+      console.warn('Template not found in DB, using fallback:', messageType);
+    }
+
+    // Use database template if active, otherwise use fallback
+    let template = FALLBACK_TEMPLATES[messageType];
+    if (templateData && templateData.is_active && templateData.whatsapp_template) {
+      template = templateData.whatsapp_template;
+    }
+
     const items = order.items as OrderItem[];
     const deliveryInfo = order.delivery_option === 'delivery' 
       ? `🚚 *Entrega:* ${order.delivery_address || 'Endereço informado'}`
       : '🏪 *Retirada:* No local';
 
-    let message = '';
+    // Build variables object
+    const variables: Record<string, string> = {
+      nome: order.customer_name?.split(' ')[0] || 'cliente',
+      pedido: order.order_number || '',
+      total: formatCurrency(order.total),
+      subtotal: formatCurrency(order.subtotal),
+      itens: formatItems(items),
+      entrega: deliveryInfo,
+      taxa_entrega: order.delivery_fee > 0 ? `🚚 *Taxa de entrega:* ${formatCurrency(order.delivery_fee)}` : '',
+      desconto: order.discount_amount > 0 ? `🎁 *Desconto:* -${formatCurrency(order.discount_amount)}` : '',
+      pix_code: pix_code || '',
+      link: `dietajavca.com.br/pedido/${order.order_number}`,
+    };
 
-    if (status === 'pending' && pix_code) {
-      // Message for pending payment with PIX code
-      const today = new Date();
-      const expirationTime = new Date(today.getTime() + 30 * 60 * 1000);
-      const timeStr = expirationTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-      message = `🥗 *DIETA JÁ - PEDIDO #${order.order_number}*
-
-Olá ${order.customer_name?.split(' ')[0] || 'cliente'}! Seu pedido foi registrado com sucesso.
-
-📋 *ITENS:*
-${formatItems(items)}
-
-💰 *Subtotal:* ${formatCurrency(order.subtotal)}
-${order.delivery_fee > 0 ? `🚚 *Taxa de entrega:* ${formatCurrency(order.delivery_fee)}` : ''}
-${order.discount_amount > 0 ? `🎁 *Desconto:* -${formatCurrency(order.discount_amount)}` : ''}
-💵 *TOTAL:* ${formatCurrency(order.total)}
-
-${deliveryInfo}
-
-⏳ *STATUS:* Aguardando Pagamento
-
-────────────────
-💳 *PAGUE VIA PIX:*
-
-Copie o código abaixo e cole no app do seu banco:
-
-\`\`\`${pix_code}\`\`\`
-
-⚠️ Válido até ${timeStr} (30 min)
-────────────────
-
-Dúvidas? Responda esta mensagem! 💚`;
-
-    } else if (status === 'whatsapp_pending') {
-      // Message for WhatsApp checkout - order placed, awaiting payment
-      message = `🥗 *DIETA JÁ - PEDIDO #${order.order_number}*
-
-Olá ${order.customer_name?.split(' ')[0] || 'cliente'}! Seu pedido foi registrado.
-
-📋 *ITENS:*
-${formatItems(items)}
-
-💰 *Subtotal:* ${formatCurrency(order.subtotal)}
-${order.delivery_fee > 0 ? `🚚 *Taxa de entrega:* ${formatCurrency(order.delivery_fee)}` : ''}
-${order.discount_amount > 0 ? `🎁 *Desconto:* -${formatCurrency(order.discount_amount)}` : ''}
-💵 *TOTAL:* ${formatCurrency(order.total)}
-
-${deliveryInfo}
-
-⏳ *STATUS:* Reservado - Aguardando Pagamento
-
-────────────────
-📱 Para confirmar seu pedido, realize o pagamento via:
-• PIX
-• Transferência
-• Dinheiro na entrega (consulte)
-
-Responda esta mensagem para combinar! 💚
-────────────────`;
-
-    } else if (status === 'approved') {
-      // Message for approved payment
-      message = `🥗 *DIETA JÁ - PEDIDO #${order.order_number}*
-
-Olá ${order.customer_name?.split(' ')[0] || 'cliente'}! 🎉
-
-✅ *PAGAMENTO CONFIRMADO!*
-
-📋 *ITENS:*
-${formatItems(items)}
-
-💰 *Subtotal:* ${formatCurrency(order.subtotal)}
-${order.delivery_fee > 0 ? `🚚 *Taxa de entrega:* ${formatCurrency(order.delivery_fee)}` : ''}
-${order.discount_amount > 0 ? `🎁 *Desconto:* -${formatCurrency(order.discount_amount)}` : ''}
-💵 *TOTAL PAGO:* ${formatCurrency(order.total)}
-
-${deliveryInfo}
-📦 Entrega prevista em até 3 dias úteis
-
-Seu pedido já está sendo preparado! 👨‍🍳
-
-Acompanhe o status: dietajavca.com.br/pedido/${order.order_number}
-
-Obrigado pela preferência! 💚`;
-    } else {
-      console.log('Invalid status or missing pix_code for pending');
-      return new Response(
-        JSON.stringify({ error: 'Invalid status or missing pix_code' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Replace variables in template
+    const message = replaceVariables(template, variables);
 
     // Send WhatsApp message
     await sendWhatsAppMessage(order.customer_phone, message, order.order_number);
