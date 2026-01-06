@@ -2,6 +2,7 @@ import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { CartProvider, useCart } from "@/components/CartContext";
 import { useMarmitaPackages, useMarmitaFlavors, useKitPackages, useKitSoups, useKitJuices } from "@/hooks/useMenuData";
+import { useMenuCategories } from "@/hooks/useMenuCategories";
 import CardapioHeader from "@/components/cardapio/CardapioHeader";
 import CardapioSidebar from "@/components/cardapio/CardapioSidebar";
 import CategorySection from "@/components/cardapio/CategorySection";
@@ -50,8 +51,9 @@ const CardapioContent = () => {
   const { data: kitPackages, isLoading: loadingKits } = useKitPackages();
   const { data: kitSoups } = useKitSoups();
   const { data: kitJuices } = useKitJuices();
+  const { data: menuCategories, isLoading: loadingCategories } = useMenuCategories();
 
-  const isLoading = loadingMarmitas || loadingKits;
+  const isLoading = loadingMarmitas || loadingKits || loadingCategories;
 
   // Track page view
   useEffect(() => {
@@ -90,16 +92,19 @@ const CardapioContent = () => {
     return { kits, marmitas };
   }, [kitPackages, marmitaPackages]);
 
-  // Group marmitas by categories (we show same packages for all flavor categories)
+  // Group marmitas by categories dynamically from database
   const marmitasByCategory = useMemo(() => {
-    const grouped: Record<string, typeof products.marmitas> = {
-      carnes: products.marmitas,
-      frangos: products.marmitas,
-      massas: products.marmitas,
-      especiais: products.marmitas,
-    };
+    if (!menuCategories) return {};
+    
+    const marmitaCategories = menuCategories.filter(c => c.type === "marmita");
+    const grouped: Record<string, typeof products.marmitas> = {};
+    
+    marmitaCategories.forEach(category => {
+      grouped[category.slug] = products.marmitas;
+    });
+    
     return grouped;
-  }, [products.marmitas]);
+  }, [products.marmitas, menuCategories]);
 
   // Filter products by search
   const filteredProducts = useMemo(() => {
@@ -245,21 +250,22 @@ const CardapioContent = () => {
     }));
   }, [kitSoups]);
 
-  const categoryIcons: Record<string, string> = {
-    kits: "🥤",
-    carnes: "🥩",
-    frangos: "🍗",
-    massas: "🍝",
-    especiais: "🐟",
-  };
+  // Dynamic category icons and names from database
+  const categoryIcons = useMemo(() => {
+    if (!menuCategories) return {};
+    return Object.fromEntries(menuCategories.map(c => [c.slug, c.icon || "📦"]));
+  }, [menuCategories]);
 
-  const categoryNames: Record<string, string> = {
-    kits: "Kits Detox",
-    carnes: "Marmitas de Carnes",
-    frangos: "Marmitas de Frangos",
-    massas: "Marmitas de Massas",
-    especiais: "Marmitas Especiais",
-  };
+  const categoryNames = useMemo(() => {
+    if (!menuCategories) return {};
+    return Object.fromEntries(menuCategories.map(c => [c.slug, c.name]));
+  }, [menuCategories]);
+
+  // Get marmita category slugs
+  const marmitaCategorySlugs = useMemo(() => {
+    if (!menuCategories) return [];
+    return menuCategories.filter(c => c.type === "marmita").map(c => c.slug);
+  }, [menuCategories]);
 
   return (
     <>
@@ -315,25 +321,26 @@ const CardapioContent = () => {
                 </div>
               ) : (
                 <>
-                  {/* Kits Section */}
+                  {/* Kits Section - with carousel on mobile */}
                   <CategorySection
                     ref={(el) => { sectionRefs.current.kits = el; }}
                     id="kits"
-                    title={categoryNames.kits}
-                    icon={categoryIcons.kits}
+                    title={categoryNames.kits || "Kits Detox"}
+                    icon={categoryIcons.kits || "🥤"}
                     products={filteredProducts.kits}
                     onAddProduct={(p) => handleAddProduct({ ...p, type: "kit", days: p.quantity })}
+                    useCarousel={true}
                   />
 
-                  {/* Marmitas Sections */}
-                  {(["carnes", "frangos", "massas", "especiais"] as const).map((category) => (
+                  {/* Marmitas Sections - dynamic from database */}
+                  {marmitaCategorySlugs.map((categorySlug) => (
                     <CategorySection
-                      key={category}
-                      ref={(el) => { sectionRefs.current[category] = el; }}
-                      id={category}
-                      title={categoryNames[category]}
-                      icon={categoryIcons[category]}
-                      products={filteredProducts.marmitas[category] || []}
+                      key={categorySlug}
+                      ref={(el) => { sectionRefs.current[categorySlug] = el; }}
+                      id={categorySlug}
+                      title={categoryNames[categorySlug] || categorySlug}
+                      icon={categoryIcons[categorySlug]}
+                      products={filteredProducts.marmitas[categorySlug] || []}
                       onAddProduct={(p) => handleAddProduct({ ...p, type: "marmita" })}
                     />
                   ))}

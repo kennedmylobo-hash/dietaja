@@ -1,17 +1,6 @@
 import { cn } from "@/lib/utils";
-
-interface Category {
-  id: string;
-  name: string;
-}
-
-const categories: Category[] = [
-  { id: "kits", name: "Kits Detox" },
-  { id: "carnes", name: "Marmitas: Carnes" },
-  { id: "frangos", name: "Marmitas: Frangos" },
-  { id: "massas", name: "Marmitas: Massas" },
-  { id: "especiais", name: "Marmitas: Especiais" },
-];
+import { useMenuCategories } from "@/hooks/useMenuCategories";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface CardapioSidebarProps {
   activeCategory: string;
@@ -20,6 +9,8 @@ interface CardapioSidebarProps {
 }
 
 const CardapioSidebar = ({ activeCategory, onCategoryClick, className }: CardapioSidebarProps) => {
+  const { data: categories, isLoading } = useMenuCategories();
+
   return (
     <aside className={cn(
       "bg-white border-r border-gray-200 flex flex-col",
@@ -32,25 +23,34 @@ const CardapioSidebar = ({ activeCategory, onCategoryClick, className }: Cardapi
       
       {/* Navegação */}
       <nav className="flex-1 py-4">
-        {categories.map((category) => {
-          const isActive = activeCategory === category.id;
-          
-          return (
-            <button
-              key={category.id}
-              onClick={() => onCategoryClick(category.id)}
-              className={cn(
-                "w-full text-left px-6 py-3.5 text-sm font-medium transition-all",
-                "border-l-4",
-                isActive
-                  ? "border-l-primary text-gray-900 bg-gray-50"
-                  : "border-l-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-              )}
-            >
-              {category.name}
-            </button>
-          );
-        })}
+        {isLoading ? (
+          <div className="space-y-2 px-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : (
+          categories?.map((category) => {
+            const isActive = activeCategory === category.slug;
+            
+            return (
+              <button
+                key={category.id}
+                onClick={() => onCategoryClick(category.slug)}
+                className={cn(
+                  "w-full text-left px-6 py-3.5 text-sm font-medium transition-all",
+                  "border-l-4 flex items-center gap-2",
+                  isActive
+                    ? "border-l-primary text-gray-900 bg-gray-50"
+                    : "border-l-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                )}
+              >
+                {category.icon && <span>{category.icon}</span>}
+                {category.name}
+              </button>
+            );
+          })
+        )}
       </nav>
     </aside>
   );
