@@ -1,29 +1,32 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Quote, Star } from "lucide-react";
-import testimonialMariana from "@/assets/testimonial-mariana.jpg";
-import testimonialCarla from "@/assets/testimonial-carla.jpg";
-import testimonialJuliana from "@/assets/testimonial-juliana.jpg";
+
+// Cores para avatares com iniciais
+const avatarColors = [
+  "bg-rose-500",
+  "bg-emerald-500",
+  "bg-blue-500",
+];
 
 const testimonials = [
   {
     name: "Mariana S.",
     role: "Advogada, mãe de 2 filhos",
     quote: "Entre trabalho, casa e rotina, eu sempre ficava por último. Ter a alimentação pronta foi um cuidado que eu estava devendo comigo mesma.",
-    photo: testimonialMariana,
+    initials: "MS",
   },
   {
     name: "Rafael T.",
     role: "Engenheiro, home office",
     quote: "Trabalho de casa e acabava comendo qualquer coisa. Agora tenho disciplina sem esforço. Perdi 5kg em 6 semanas!",
-    photo: null,
     initials: "RT",
   },
   {
     name: "Juliana M.",
     role: "Professora, mora sozinha",
     quote: "Antes eu pedia delivery todo dia. Agora como melhor, gasto menos e sobra energia pra academia. Recomendo demais!",
-    photo: testimonialJuliana,
+    initials: "JM",
   },
 ];
 
@@ -59,21 +62,9 @@ const TestimonialsSection = () => {
               
               {/* Avatar */}
               <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                {testimonial.photo ? (
-                  <img 
-                    src={testimonial.photo} 
-                    alt={testimonial.name}
-                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-primary/20"
-                    loading="lazy"
-                    decoding="async"
-                    width={48}
-                    height={48}
-                  />
-                ) : (
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 border-2 border-primary/20 flex items-center justify-center">
-                    <span className="text-sm font-semibold text-primary">{(testimonial as any).initials}</span>
-                  </div>
-                )}
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${avatarColors[index % avatarColors.length]} flex items-center justify-center text-white font-semibold text-sm border-2 border-white/20`}>
+                  {testimonial.initials}
+                </div>
                 <div>
                   <p className="font-semibold text-foreground text-sm">{testimonial.name}</p>
                   <p className="text-xs text-muted-foreground">{testimonial.role}</p>

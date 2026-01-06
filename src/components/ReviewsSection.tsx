@@ -10,9 +10,6 @@ import {
 } from "@/components/ui/carousel";
 import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
 import { CarouselDots } from "./CarouselDots";
-import testimonialMariana from "@/assets/testimonial-mariana.jpg";
-import testimonialCarla from "@/assets/testimonial-carla.jpg";
-import testimonialJuliana from "@/assets/testimonial-juliana.jpg";
 
 // Cores para avatares com iniciais
 const avatarColors = [
@@ -30,7 +27,6 @@ const avatarColors = [
 const reviews = [
   {
     name: "Mariana S.",
-    photo: testimonialMariana,
     rating: 5,
     comment: "Entre trabalho, casa e rotina, eu sempre ficava por último. Ter a alimentação pronta foi um cuidado que eu estava devendo comigo mesma.",
     date: "há 3 dias",
@@ -38,7 +34,6 @@ const reviews = [
   },
   {
     name: "Rafael T.",
-    photo: null,
     rating: 5,
     comment: "Trabalho home office e acabava comendo qualquer coisa. Agora tenho disciplina sem esforço. Perdi 5kg em 6 semanas!",
     date: "há 1 semana",
@@ -46,7 +41,6 @@ const reviews = [
   },
   {
     name: "Juliana M.",
-    photo: testimonialJuliana,
     rating: 5,
     comment: "Antes eu pedia delivery todo dia. Agora como melhor, gasto menos e sobra energia pra academia. Recomendo demais!",
     date: "há 2 semanas",
@@ -54,7 +48,6 @@ const reviews = [
   },
   {
     name: "Carlos A.",
-    photo: null,
     rating: 5,
     comment: "Viajo muito a trabalho. Ter as marmitas prontas quando chego em casa é um alívio. Qualidade top!",
     date: "há 4 dias",
@@ -62,7 +55,6 @@ const reviews = [
   },
   {
     name: "Patrícia O.",
-    photo: null,
     rating: 5,
     comment: "Comida caseira de verdade, com tempero gostoso. Minha família toda aprovou! Super recomendo.",
     date: "há 5 dias",
@@ -70,7 +62,6 @@ const reviews = [
   },
   {
     name: "Bruno M.",
-    photo: null,
     rating: 5,
     comment: "Sou personal trainer e indico pra todos os meus alunos. Macros equilibrados e sabor incrível!",
     date: "há 1 semana",
@@ -78,7 +69,6 @@ const reviews = [
   },
   {
     name: "Lucas S.",
-    photo: null,
     rating: 5,
     comment: "Melhor investimento que fiz na minha saúde. Prático, saboroso e sem desperdício.",
     date: "há 2 dias",
@@ -86,7 +76,6 @@ const reviews = [
   },
   {
     name: "Beatriz M.",
-    photo: null,
     rating: 5,
     comment: "Melhor custo-benefício da cidade. Comida saudável sem pesar no bolso.",
     date: "há 6 dias",
@@ -94,7 +83,6 @@ const reviews = [
   },
   {
     name: "André P.",
-    photo: null,
     rating: 5,
     comment: "Com gêmeos em casa, não sobra tempo pra nada. Isso salvou minha alimentação!",
     date: "há 3 dias",
@@ -102,7 +90,6 @@ const reviews = [
   },
   {
     name: "Camila F.",
-    photo: null,
     rating: 5,
     comment: "Nunca imaginei que comer bem seria tão fácil. Virou rotina.",
     date: "há 1 semana",
@@ -110,7 +97,6 @@ const reviews = [
   },
   {
     name: "Thiago R.",
-    photo: null,
     rating: 5,
     comment: "Programador aqui. Antes era só delivery de pizza. Agora como de verdade e rendo mais!",
     date: "há 5 dias",
@@ -118,7 +104,6 @@ const reviews = [
   },
   {
     name: "Priscila T.",
-    photo: null,
     rating: 5,
     comment: "O sabor é incrível! Parece comida de vó, mas saudável.",
     date: "há 4 dias",
@@ -126,7 +111,6 @@ const reviews = [
   },
   {
     name: "Marcos V.",
-    photo: null,
     rating: 5,
     comment: "Faço plantões de 24h. Ter comida saudável pronta é essencial. Recomendo demais!",
     date: "há 2 semanas",
@@ -134,7 +118,6 @@ const reviews = [
   },
   {
     name: "Tatiane M.",
-    photo: null,
     rating: 5,
     comment: "A variedade é ótima, não enjoa nunca. Super recomendo!",
     date: "há 1 semana",
@@ -142,7 +125,6 @@ const reviews = [
   },
   {
     name: "Gustavo L.",
-    photo: null,
     rating: 4,
     comment: "Melhor custo-benefício da cidade para quem quer emagrecer. Já perdi 8kg!",
     date: "há 6 dias",
@@ -150,23 +132,8 @@ const reviews = [
   },
 ];
 
-// Componente de avatar com foto ou iniciais coloridas
-const ReviewAvatar = ({ name, photo, index }: { name: string; photo: string | null; index: number }) => {
-  if (photo) {
-    return (
-      <img
-        src={photo}
-        alt={name}
-        className="w-10 h-10 rounded-full object-cover border-2 border-primary/20"
-        loading="lazy"
-        decoding="async"
-        width={40}
-        height={40}
-      />
-    );
-  }
-
-  // Avatar com iniciais
+// Componente de avatar com iniciais coloridas
+const ReviewAvatar = ({ name, index }: { name: string; index: number }) => {
   const initials = name
     .split(" ")
     .map((n) => n[0])
@@ -289,7 +256,7 @@ const ReviewsSection = () => {
                   <div className="bg-card rounded-2xl p-4 sm:p-5 shadow-soft border border-border h-full flex flex-col">
                     {/* Header do card */}
                     <div className="flex items-center gap-3 mb-3">
-                      <ReviewAvatar name={review.name} photo={review.photo} index={index} />
+                      <ReviewAvatar name={review.name} index={index} />
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-foreground text-sm truncate">{review.name}</p>
                         <p className="text-xs text-muted-foreground">{review.date}</p>
