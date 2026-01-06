@@ -16,7 +16,18 @@ import {
   User,
   Package,
   Gift,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -63,6 +74,8 @@ const PendingOrdersRecovery = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<PendingOrder | null>(null);
   const [isConfirming, setIsConfirming] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<PendingOrder | null>(null);
 
   const fetchPendingOrders = async () => {
     setIsLoading(true);
@@ -235,6 +248,39 @@ const PendingOrdersRecovery = () => {
       });
     } finally {
       setIsConfirming(null);
+    }
+  };
+
+  const deleteOrder = async (orderId: string) => {
+    setIsDeleting(orderId);
+    
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Pedido excluído",
+        description: "O pedido foi removido com sucesso.",
+      });
+
+      // Remove from list
+      setPendingOrders(prev => prev.filter(o => o.id !== orderId));
+      setOrderToDelete(null);
+      setSelectedOrder(null);
+
+    } catch (error: any) {
+      console.error('Error deleting order:', error);
+      toast({
+        title: "Erro ao excluir",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -452,6 +498,14 @@ const PendingOrdersRecovery = () => {
                       >
                         Detalhes
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                        onClick={() => setOrderToDelete(order)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -590,10 +644,45 @@ const PendingOrdersRecovery = () => {
                 )}
                 Confirmar Pagamento Manual
               </Button>
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={() => setOrderToDelete(selectedOrder)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Excluir Pedido
+              </Button>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!orderToDelete} onOpenChange={() => setOrderToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir pedido?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o pedido #{orderToDelete?.order_number || orderToDelete?.id.slice(0, 8)}?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => orderToDelete && deleteOrder(orderToDelete.id)}
+              disabled={isDeleting === orderToDelete?.id}
+            >
+              {isDeleting === orderToDelete?.id ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                "Excluir"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
