@@ -7,6 +7,7 @@ import CardapioSidebar from "@/components/cardapio/CardapioSidebar";
 import CategorySection from "@/components/cardapio/CategorySection";
 import MobileNav from "@/components/cardapio/MobileNav";
 import CardapioBanner from "@/components/cardapio/CardapioBanner";
+import HeroBanners from "@/components/cardapio/HeroBanners";
 import CartFloatingButton from "@/components/CartFloatingButton";
 import CartDrawer from "@/components/CartDrawer";
 import { SoftIdentificationModal } from "@/components/SoftIdentificationModal";
@@ -268,6 +269,12 @@ const CardapioContent = () => {
       <div className="min-h-screen bg-muted/30">
         <CardapioBanner />
         <CardapioHeader searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        
+        {/* Hero Banners */}
+        <div className="container mx-auto px-4">
+          <HeroBanners />
+        </div>
+
         <MobileNav activeCategory={activeCategory} onCategoryClick={handleCategoryClick} />
 
         <div className="container mx-auto px-4 py-6">

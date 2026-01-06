@@ -1,7 +1,6 @@
-import { Plus, Star } from "lucide-react";
+import { ShoppingCart, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 interface ProductCardProps {
   id: string;
@@ -26,29 +25,35 @@ const ProductCard = ({
   type,
 }: ProductCardProps) => {
   const totalPrice = quantity ? price * quantity : price;
-  const unitLabel = type === "marmita" ? `${quantity}un` : "";
+  const unitLabel = type === "marmita" ? `${quantity} unidades` : "";
+  const typeLabel = type === "kit" ? "Kit Detox" : "Combo";
 
   return (
-    <div className="group bg-card rounded-xl border shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+    <div className="group bg-card rounded-2xl border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
       {/* Image */}
       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-            <span className="text-4xl">
+            <span className="text-5xl">
               {type === "kit" ? "🥤" : "🍱"}
             </span>
           </div>
         )}
         
-        {/* Badges */}
+        {/* Type Badge */}
+        <Badge className="absolute top-3 left-3 bg-primary/90 hover:bg-primary text-primary-foreground text-xs font-semibold">
+          {typeLabel}
+        </Badge>
+
+        {/* Popular Badge */}
         {popular && (
-          <Badge className="absolute top-2 right-2 bg-amber-500 hover:bg-amber-600 text-white gap-1">
+          <Badge className="absolute top-3 right-3 bg-amber-500 hover:bg-amber-600 text-white gap-1 text-xs">
             <Star className="h-3 w-3 fill-current" />
             Mais vendido
           </Badge>
@@ -56,43 +61,56 @@ const ProductCard = ({
       </div>
 
       {/* Content */}
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-semibold text-foreground line-clamp-2">
-            {name}
-          </h3>
-          {unitLabel && (
-            <Badge variant="secondary" className="flex-shrink-0 text-xs">
-              {unitLabel}
-            </Badge>
-          )}
-        </div>
+      <div className="p-4 space-y-3">
+        {/* Title */}
+        <h3 className="font-bold text-foreground text-lg leading-tight line-clamp-2">
+          {name}
+        </h3>
 
-        {description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+        {/* Description - Slim Fit style */}
+        {description ? (
+          <p className="text-sm text-primary font-medium leading-relaxed line-clamp-3">
             {description}
+          </p>
+        ) : (
+          <p className="text-sm text-primary font-medium leading-relaxed line-clamp-3">
+            {type === "kit" 
+              ? "Kit completo com sucos detox e sopas funcionais para emagrecer com saúde."
+              : `Pacote com ${quantity} marmitas congeladas de 300g. Escolha seus sabores favoritos!`
+            }
           </p>
         )}
 
-        <div className="flex items-center justify-between gap-2">
-          <div className="space-y-0.5">
-            <p className="text-lg font-bold text-primary">
+        {/* Unit Price */}
+        {quantity && quantity > 1 && (
+          <p className="text-sm text-muted-foreground">
+            Valor unitário: <span className="font-semibold text-foreground">R$ {price.toFixed(2).replace(".", ",")}</span>
+          </p>
+        )}
+
+        {/* Quantity info */}
+        {unitLabel && (
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            {unitLabel}
+          </p>
+        )}
+
+        {/* Price and CTA */}
+        <div className="flex items-end justify-between gap-3 pt-2 border-t border-border/50">
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">A partir de</p>
+            <p className="text-2xl font-bold text-foreground">
               R$ {totalPrice.toFixed(2).replace(".", ",")}
             </p>
-            {quantity && quantity > 1 && (
-              <p className="text-xs text-muted-foreground">
-                R$ {price.toFixed(2).replace(".", ",")}/un
-              </p>
-            )}
           </div>
           
           <Button 
-            size="sm" 
+            size="icon"
+            variant="outline"
             onClick={onAdd}
-            className="gap-1.5 shadow-md"
+            className="h-11 w-11 rounded-full border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
           >
-            <Plus className="h-4 w-4" />
-            Adicionar
+            <ShoppingCart className="h-5 w-5" />
           </Button>
         </div>
       </div>
