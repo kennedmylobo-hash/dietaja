@@ -60,18 +60,20 @@ const CardapioContent = () => {
 
   // Transform data to products
   const products = useMemo(() => {
-    const kits = (kitPackages || []).map((kit) => ({
-      id: kit.id,
-      name: kit.name,
-      description: kit.description || `${kit.days} dias de detox`,
-      price: kit.price,
-      quantity: kit.days,
-      imageUrl: null,
-      popular: kit.popular,
-      type: "kit" as const,
-      category: "kits",
-      days: kit.days,
-    }));
+    const kits = (kitPackages || [])
+      .slice(0, 3) // Limita para 3 kits
+      .map((kit) => ({
+        id: kit.id,
+        name: kit.name,
+        description: kit.description || `${kit.days} dias de detox`,
+        price: kit.price,
+        quantity: kit.days,
+        imageUrl: null,
+        popular: kit.popular,
+        type: "kit" as const,
+        category: "kits",
+        days: kit.days,
+      }));
 
     const marmitas = (marmitaPackages || []).map((pkg) => ({
       id: pkg.id,

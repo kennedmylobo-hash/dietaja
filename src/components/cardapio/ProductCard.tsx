@@ -29,25 +29,20 @@ const ProductCard = ({
   const typeLabel = type === "kit" ? "Kit Detox" : "Combo";
   const hasFreeShipping = type === "marmita" && quantity && quantity >= 14;
 
-  // Descriptions persuasivas no estilo Slim Fit
+  // Descriptions curtas estilo Slim Fit
   const getDescription = () => {
-    if (description) return description;
-    
     if (type === "kit") {
-      return "Kit completo com sucos detox naturais e sopas funcionais. Programa alimentar para emagrecer com saúde e disposição!";
+      if (quantity === 3) return "Ideal para iniciantes";
+      if (quantity === 5) return "Mais vendido! Resultados visíveis";
+      if (quantity === 7) return "Transformação completa";
+      return "Programa de detox completo";
     }
     
-    if (quantity === 7) {
-      return "Pacote ideal para começar! 7 marmitas saudáveis de 300g. Escolha seus sabores favoritos entre carnes, frangos, massas e especiais.";
-    }
-    if (quantity === 14) {
-      return "Pacote mais popular! 14 marmitas congeladas de 300g com frete grátis. Variedade de sabores para 2 semanas de alimentação saudável.";
-    }
-    if (quantity === 28) {
-      return "Melhor custo-benefício! 28 marmitas de 300g para o mês todo. Maior variedade de sabores + frete grátis + economia máxima!";
-    }
+    if (quantity === 7) return "Perfeito para começar sua dieta";
+    if (quantity === 14) return "Duas semanas de alimentação saudável";
+    if (quantity === 28) return "Melhor custo-benefício do mês";
     
-    return `Pacote com ${quantity} marmitas congeladas de 300g. Escolha seus sabores favoritos!`;
+    return description || `Pacote com ${quantity} marmitas`;
   };
 
   return (
@@ -91,14 +86,14 @@ const ProductCard = ({
       </div>
 
       {/* Content */}
-      <div className="p-4 flex flex-col flex-1">
+      <div className="p-5 flex flex-col flex-1">
         {/* Title */}
         <h3 className="font-bold text-gray-900 text-lg leading-tight mb-2">
           {name}
         </h3>
 
-        {/* Description - Estilo Slim Fit (texto cinza) */}
-        <p className="text-sm text-gray-600 leading-relaxed mb-4 line-clamp-4 flex-1">
+        {/* Description - Estilo Slim Fit (texto cinza, curto) */}
+        <p className="text-sm text-gray-600 leading-relaxed mb-3 line-clamp-2">
           {getDescription()}
         </p>
 
