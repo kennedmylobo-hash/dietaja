@@ -30,7 +30,7 @@ interface PendingOrder {
   whatsapp_2_sent_at: string | null;
 }
 
-// Send WhatsApp message via NotificaMe Hub
+// Send WhatsApp message via NotificaMe API
 async function sendWhatsAppMessage(
   phone: string, 
   message: string, 
@@ -40,28 +40,27 @@ async function sendWhatsAppMessage(
   try {
     // Format phone number - remove non-digits and ensure it has country code
     let formattedPhone = phone.replace(/\D/g, '');
-    if (formattedPhone.startsWith('55')) {
-      // Already has country code
-    } else if (formattedPhone.length === 10 || formattedPhone.length === 11) {
+    if (!formattedPhone.startsWith('55')) {
       formattedPhone = '55' + formattedPhone;
     }
 
-    console.log(`Sending WhatsApp to ${formattedPhone} via NotificaMe Hub`);
+    console.log(`Sending WhatsApp to ${formattedPhone} via NotificaMe API`);
 
-    const response = await fetch('https://hub.notificame.com.br/v1/messages/send', {
+    const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiToken}`,
+        'X-Api-Token': apiToken,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        channel: 'whatsapp',
-        channelToken: channelToken,
+        from: channelToken,
         to: formattedPhone,
-        message: {
-          type: 'text',
-          text: message,
-        },
+        contents: [
+          {
+            type: 'text',
+            text: message,
+          }
+        ],
       }),
     });
 
