@@ -571,21 +571,40 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         delivery_address: formData?.address || undefined
       };
 
-      console.log('Sending pending email with payload:', JSON.stringify(emailPayload, null, 2));
+      console.log('=== INICIANDO ENVIO DE EMAIL PENDENTE ===');
+      console.log('Timestamp:', new Date().toISOString());
+      console.log('URL da função:', `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-order-pending-email`);
+      console.log('Payload completo:', JSON.stringify(emailPayload, null, 2));
       
-      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-order-pending-email', {
-        body: emailPayload
-      });
-
-      if (emailError) {
-        console.error('Error sending pending email:', emailError);
-        toast({
-          title: "Aviso",
-          description: "Não foi possível enviar o e-mail de confirmação, mas seu pedido foi registrado.",
-          variant: "destructive",
+      try {
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-order-pending-email', {
+          body: emailPayload
         });
-      } else {
-        console.log('Pending order email sent successfully:', emailData);
+
+        console.log('=== RESPOSTA DO EMAIL ===');
+        console.log('Data:', JSON.stringify(emailData, null, 2));
+        console.log('Error:', emailError);
+
+        if (emailError) {
+          console.error('Erro detalhado ao enviar email:', {
+            message: emailError.message,
+            name: emailError.name,
+            context: emailError.context,
+            status: emailError.status
+          });
+          toast({
+            title: "Aviso",
+            description: "Não foi possível enviar o e-mail de confirmação, mas seu pedido foi registrado.",
+            variant: "destructive",
+          });
+        } else {
+          console.log('✅ Email de pedido pendente enviado com sucesso!');
+        }
+      } catch (invokeError: any) {
+        console.error('=== ERRO AO INVOCAR FUNÇÃO ===');
+        console.error('Erro:', invokeError);
+        console.error('Message:', invokeError?.message);
+        console.error('Stack:', invokeError?.stack);
       }
     } catch (error) {
       console.error('Error in handleWhatsAppContact:', error);
