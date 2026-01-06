@@ -87,23 +87,23 @@ const replaceVariables = (template: string, order: OrderData): string => {
     .replace(/{link}/g, trackingUrl);
 };
 
-const sendWhatsAppNotification = async (phone: string, message: string, orderNumber: string) => {
+// Send simple text message (for messages within 24h window)
+const sendWhatsAppText = async (phone: string, message: string, orderNumber: string) => {
   const apiToken = Deno.env.get("NOTIFICAME_API_TOKEN");
   const channelToken = Deno.env.get("NOTIFICAME_WHATSAPP_CHANNEL_TOKEN");
 
   if (!apiToken || !channelToken) {
-    console.error("NotificaMe credentials not configured");
+    console.error("[TEXT] NotificaMe credentials not configured");
     return;
   }
 
   try {
-    // Format phone number
     let formattedPhone = phone.replace(/\D/g, "");
     if (!formattedPhone.startsWith("55")) {
       formattedPhone = "55" + formattedPhone;
     }
 
-    console.log(`Sending WhatsApp to ${formattedPhone} for order ${orderNumber}`);
+    console.log(`[TEXT] Sending WhatsApp to ${formattedPhone} for order ${orderNumber}`);
 
     const response = await fetch("https://api.notificame.com.br/v1/channels/whatsapp/messages", {
       method: "POST",
@@ -114,19 +114,72 @@ const sendWhatsAppNotification = async (phone: string, message: string, orderNum
       body: JSON.stringify({
         from: channelToken,
         to: formattedPhone,
-        contents: [
-          {
-            type: "text",
-            text: message,
-          }
-        ],
+        contents: [{ type: "text", text: message }],
       }),
     });
 
     const result = await response.text();
-    console.log(`NotificaMe response for order ${orderNumber}: ${response.status} - ${result}`);
+    console.log(`[TEXT] NotificaMe response for order ${orderNumber}: ${response.status} - ${result}`);
   } catch (error) {
-    console.error("Error sending WhatsApp:", error);
+    console.error("[TEXT] Error sending WhatsApp:", error);
+  }
+};
+
+// Send template message (for messages outside 24h window - Meta approved templates)
+const sendWhatsAppTemplate = async (
+  phone: string, 
+  templateId: string, 
+  fields: Record<string, string>, 
+  orderNumber: string
+) => {
+  const apiToken = Deno.env.get("NOTIFICAME_API_TOKEN");
+  const channelToken = Deno.env.get("NOTIFICAME_WHATSAPP_CHANNEL_TOKEN");
+
+  if (!apiToken || !channelToken) {
+    console.error("[TEMPLATE] NotificaMe credentials not configured");
+    return;
+  }
+
+  try {
+    let formattedPhone = phone.replace(/\D/g, "");
+    if (!formattedPhone.startsWith("55")) {
+      formattedPhone = "55" + formattedPhone;
+    }
+
+    console.log(`[TEMPLATE] Sending WhatsApp template "${templateId}" to ${formattedPhone} for order ${orderNumber}`);
+    console.log(`[TEMPLATE] Fields:`, JSON.stringify(fields));
+
+    const payload = {
+      from: channelToken,
+      to: formattedPhone,
+      contents: [{
+        type: "template",
+        templateId: templateId,
+        fields: fields
+      }],
+    };
+
+    console.log(`[TEMPLATE] Full payload:`, JSON.stringify(payload));
+
+    const response = await fetch("https://api.notificame.com.br/v1/channels/whatsapp/messages", {
+      method: "POST",
+      headers: {
+        "X-Api-Token": apiToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.text();
+    console.log(`[TEMPLATE] NotificaMe response for order ${orderNumber}: ${response.status} - ${result}`);
+
+    if (!response.ok) {
+      console.error("[TEMPLATE] NotificaMe API error:", response.status, result);
+    } else {
+      console.log(`[TEMPLATE] WhatsApp template sent successfully for order ${orderNumber}`);
+    }
+  } catch (error) {
+    console.error("[TEMPLATE] Error sending WhatsApp template:", error);
   }
 };
 
@@ -328,8 +381,18 @@ serve(async (req: Request) => {
     // Send notifications in parallel
     const promises: Promise<void>[] = [];
     
-    if (whatsappMessage) {
-      promises.push(sendWhatsAppNotification(order.customer_phone, whatsappMessage, order.order_number));
+    // For approved status, use the Meta-approved template
+    if (new_status === "approved") {
+      const templateFields = {
+        "1": order.customer_name.split(" ")[0] || "cliente",
+        "2": order.order_number || "",
+        "3": order.items.map((i: any) => `${i.quantity}x ${i.name}`).join(", ").substring(0, 500),
+        "4": `R$ ${order.total.toFixed(2).replace(".", ",")}`
+      };
+      promises.push(sendWhatsAppTemplate(order.customer_phone, "compra_confirmada_dietaja", templateFields, order.order_number));
+    } else if (whatsappMessage) {
+      // For other statuses, use text message
+      promises.push(sendWhatsAppText(order.customer_phone, whatsappMessage, order.order_number));
     }
     
     promises.push(sendEmailNotification(
