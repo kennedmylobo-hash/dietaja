@@ -305,15 +305,15 @@ serve(async (req) => {
 
     // Choose template based on status
     if (status === 'approved') {
-      // Template: compra_confirmada_dietaja with fields {{1}}, {{2}}, {{3}}, {{4}}
-      console.log('Using template compra_confirmada_dietaja for approved order');
+      // Template: compra_confirmada_dieta with fields {{1}}, {{2}}, {{3}}, {{4}}
+      console.log('Using template compra_confirmada_dieta for approved order');
       const templateFields = {
         "1": order.customer_name?.split(' ')[0] || 'cliente',
         "2": order.order_number || '',
         "3": formatItems(items).substring(0, 500), // Limit to avoid message too long
         "4": formatCurrency(order.total)
       };
-      await sendWhatsAppTemplate(order.customer_phone, 'compra_confirmada_dietaja', templateFields, order.order_number);
+      await sendWhatsAppTemplate(order.customer_phone, 'compra_confirmada_dieta', templateFields, order.order_number);
     } else if (status === 'pending' && pix_code) {
       // TEMPORARIAMENTE DESABILITADO - Template pix_pendente_dietaja em análise pela Meta
       // TODO: Reativar quando o template for aprovado mudando para true
