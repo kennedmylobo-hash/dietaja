@@ -1,7 +1,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Clock, Loader2, Beef, Drumstick, Utensils, Sparkles, Scale, ChevronDown } from "lucide-react";
+import { ShoppingCart, Clock, Loader2, Beef, Drumstick, Utensils, Sparkles, Scale, ChevronDown, Dumbbell } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useCart, FlavorSelection } from "./CartContext";
 import { toast } from "@/hooks/use-toast";
@@ -9,7 +9,7 @@ import { hapticFeedback } from "@/lib/haptics";
 import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
 import { CarouselDots } from "./CarouselDots";
 import FlavorSelectionModal from "./FlavorSelectionModal";
-import { useMarmitaPackages, useMarmitaFlavors } from "@/hooks/useMenuData";
+import { useMarmitaEmagrecimento, useMarmitaHipertrofia, useMarmitaFlavors, MarmitaPackage } from "@/hooks/useMenuData";
 import {
   Carousel,
   CarouselContent,
@@ -30,6 +30,8 @@ interface Marmita {
   totalPrice: number;
   image: string;
   popular?: boolean;
+  weight: number;
+  lineType: string;
 }
 
 // Map for package images
@@ -39,34 +41,158 @@ const packageImages: Record<number, string> = {
   28: marmita3,
 };
 
-// Default fallback data
-const defaultMarmitas: Marmita[] = [
-  {
-    id: "7-marmitas",
-    name: "Pacote Semanal",
-    quantity: 7,
-    unitPrice: 25.9,
-    totalPrice: 181.3,
-    image: marmita1,
-  },
-  {
-    id: "14-marmitas",
-    name: "Pacote Quinzenal",
-    quantity: 14,
-    unitPrice: 23.9,
-    totalPrice: 334.6,
-    image: marmita2,
-    popular: true,
-  },
-  {
-    id: "28-marmitas",
-    name: "Pacote Mensal",
-    quantity: 28,
-    unitPrice: 19.9,
-    totalPrice: 557.2,
-    image: marmita3,
-  },
-];
+// Transform DB package to component format
+const transformPackage = (pkg: MarmitaPackage): Marmita => ({
+  id: `${pkg.line_type}-${pkg.quantity}-marmitas`,
+  name: pkg.name,
+  quantity: pkg.quantity,
+  unitPrice: Number(pkg.unit_price),
+  totalPrice: Number(pkg.unit_price) * pkg.quantity,
+  image: pkg.image_url || packageImages[pkg.quantity] || marmita1,
+  popular: pkg.popular,
+  weight: pkg.weight,
+  lineType: pkg.line_type,
+});
+
+// Carousel component for a line of marmitas
+interface MarmitaCarouselProps {
+  marmitas: Marmita[];
+  lineType: 'emagrecimento' | 'hipertrofia';
+  onOpenFlavorModal: (marmita: Marmita) => void;
+  loadingMarmita: string | null;
+  isInView: boolean;
+}
+
+const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita, isInView }: MarmitaCarouselProps) => {
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const {
+    api,
+    setApi,
+    current,
+    count,
+    progress,
+    autoplayPlugin,
+    setIsHoveringDots,
+  } = useCarouselWithProgress(carouselRef as any, { autoplayDelay: 4000 });
+
+  const isHipertrofia = lineType === 'hipertrofia';
+  const badgeColor = isHipertrofia ? 'bg-blue-600' : 'bg-sage';
+  const accentColor = isHipertrofia ? 'text-blue-600' : 'text-terracotta';
+  const bgGradient = isHipertrofia 
+    ? 'from-blue-100 to-card border-blue-500' 
+    : 'from-terracotta-light to-card border-terracotta';
+
+  return (
+    <div ref={carouselRef}>
+      <Carousel
+        opts={{
+          align: "start",
+          loop: true,
+        }}
+        plugins={[autoplayPlugin]}
+        setApi={setApi}
+        className="w-full"
+      >
+        <CarouselContent className="-ml-4">
+          {marmitas.map((marmita, index) => (
+            <CarouselItem key={marmita.id} className="pl-4 basis-[85%] sm:basis-1/2 lg:basis-1/3">
+              <motion.div
+                className={`relative rounded-2xl overflow-hidden transition-all duration-300 h-full ${
+                  marmita.popular
+                    ? `bg-gradient-to-br ${bgGradient} border-2 shadow-card`
+                    : "bg-card border border-border hover:border-terracotta/30 hover:shadow-soft"
+                }`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+                {/* Badges container */}
+                <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
+                  {/* Weight badge */}
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 ${badgeColor} text-white text-xs font-bold rounded-full backdrop-blur-sm`}>
+                    <Scale className="w-3 h-3" />
+                    {marmita.weight}g
+                  </span>
+                  
+                  {/* Popular badge */}
+                  {marmita.popular && (
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 ${isHipertrofia ? 'bg-blue-600' : 'bg-terracotta'} text-white text-xs font-bold rounded-full`}>
+                      {isHipertrofia ? '💪' : '💚'} Melhor Custo-Benefício
+                    </span>
+                  )}
+                </div>
+
+                <div className="aspect-[4/3] overflow-hidden">
+                  <img
+                    src={marmita.image}
+                    alt={`${marmita.name} - ${marmita.quantity} marmitas`}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                    decoding="async"
+                    width={400}
+                    height={300}
+                  />
+                </div>
+
+                <div className="p-4 sm:p-5">
+                  <h3 className="text-base sm:text-lg font-bold text-foreground mb-1">
+                    {marmita.name}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-3">
+                    {marmita.quantity} marmitas de {marmita.weight}g
+                  </p>
+
+                  <div className="flex items-baseline gap-2 mb-4">
+                    <span className={`text-xl sm:text-2xl font-bold ${accentColor}`}>
+                      R$ {marmita.unitPrice.toFixed(2).replace(".", ",")}
+                    </span>
+                    <span className="text-xs sm:text-sm text-muted-foreground">cada</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                    <Clock className="w-4 h-4" />
+                    <span>Total: R$ {marmita.totalPrice.toFixed(2).replace(".", ",")}</span>
+                  </div>
+
+                  <Button
+                    variant={marmita.popular ? "cta" : "cta-outline"}
+                    className={`w-full ${isHipertrofia && marmita.popular ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                    onClick={() => onOpenFlavorModal(marmita)}
+                    disabled={loadingMarmita === marmita.id}
+                  >
+                    {loadingMarmita === marmita.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Adicionando...
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        Escolher sabores
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </motion.div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        <CarouselPrevious className="hidden sm:flex -left-2 md:-left-4" />
+        <CarouselNext className="hidden sm:flex -right-2 md:-right-4" />
+      </Carousel>
+      
+      <CarouselDots
+        count={count}
+        current={current}
+        progress={progress}
+        api={api}
+        onMouseEnter={() => setIsHoveringDots(true)}
+        onMouseLeave={() => setIsHoveringDots(false)}
+        activeColor={isHipertrofia ? "bg-blue-600" : "bg-terracotta"}
+      />
+    </div>
+  );
+};
 
 const MarmitasSection = () => {
   const ref = useRef<HTMLElement>(null);
@@ -77,24 +203,21 @@ const MarmitasSection = () => {
   const [selectedMarmita, setSelectedMarmita] = useState<Marmita | null>(null);
   const [isFlavorModalOpen, setIsFlavorModalOpen] = useState(false);
 
-  // Fetch data from database
-  const { data: packagesData } = useMarmitaPackages();
+  // Fetch data from database - separate hooks for each line
+  const { data: emagrecimentoData } = useMarmitaEmagrecimento();
+  const { data: hipertrofiaData } = useMarmitaHipertrofia();
   const { data: flavorsData } = useMarmitaFlavors();
 
   // Transform database data to component format
-  const marmitas = useMemo<Marmita[]>(() => {
-    if (!packagesData || packagesData.length === 0) return defaultMarmitas;
-    
-    return packagesData.map(pkg => ({
-      id: `${pkg.quantity}-marmitas`,
-      name: pkg.name,
-      quantity: pkg.quantity,
-      unitPrice: Number(pkg.unit_price),
-      totalPrice: Number(pkg.unit_price) * pkg.quantity,
-      image: pkg.image_url || packageImages[pkg.quantity] || marmita1,
-      popular: pkg.popular,
-    }));
-  }, [packagesData]);
+  const marmitasEmagrecimento = useMemo<Marmita[]>(() => {
+    if (!emagrecimentoData || emagrecimentoData.length === 0) return [];
+    return emagrecimentoData.map(transformPackage);
+  }, [emagrecimentoData]);
+
+  const marmitasHipertrofia = useMemo<Marmita[]>(() => {
+    if (!hipertrofiaData || hipertrofiaData.length === 0) return [];
+    return hipertrofiaData.map(transformPackage);
+  }, [hipertrofiaData]);
 
   // Group flavors by category for modal
   const flavorsByCategory = useMemo(() => {
@@ -141,16 +264,6 @@ const MarmitasSection = () => {
     }
   }, [isInView]);
 
-  const {
-    api,
-    setApi,
-    current,
-    count,
-    progress,
-    autoplayPlugin,
-    setIsHoveringDots,
-  } = useCarouselWithProgress(ref, { autoplayDelay: 3000 });
-
   const handleOpenFlavorModal = (marmita: Marmita) => {
     setSelectedMarmita(marmita);
     setIsFlavorModalOpen(true);
@@ -170,7 +283,7 @@ const MarmitasSection = () => {
       quantity: selectedMarmita.quantity,
       unitPrice: selectedMarmita.unitPrice,
       totalPrice: selectedMarmita.totalPrice,
-      description: `${selectedMarmita.quantity} marmitas saudáveis`,
+      description: `${selectedMarmita.quantity} marmitas de ${selectedMarmita.weight}g`,
       flavors: flavors,
       fishAdditional: fishAdditional,
     });
@@ -180,7 +293,7 @@ const MarmitasSection = () => {
 
     toast({
       title: "Adicionado ao carrinho! 🛒",
-      description: `${selectedMarmita.name} (${selectedMarmita.quantity} marmitas)`,
+      description: `${selectedMarmita.name} (${selectedMarmita.quantity} marmitas de ${selectedMarmita.weight}g)`,
     });
     
     setLoadingMarmita(null);
@@ -191,143 +304,86 @@ const MarmitasSection = () => {
   return (
     <section ref={ref} id="marmitas" className="py-12 md:py-20 lg:py-28 bg-background">
       <div className="container px-4 md:px-6">
-        <motion.div
-          className="text-center mb-8 md:mb-12"
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5 }}
-        >
-          <span className="inline-block px-3 sm:px-4 py-1.5 bg-terracotta-light text-terracotta text-xs sm:text-sm font-medium rounded-full mb-4">
-            🍱 Marmitas Saudáveis Congeladas
-          </span>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">
-            Praticidade no dia a dia
-          </h2>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Pronto em 3 minutos no micro-ondas. <strong>{totalFlavors || 36} sabores</strong> para você escolher!
-          </p>
-        </motion.div>
+        {/* SEÇÃO 1: Emagrecimento 300g */}
+        {marmitasEmagrecimento.length > 0 && (
+          <div className="mb-16 md:mb-24">
+            <motion.div
+              className="text-center mb-8 md:mb-12"
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5 }}
+            >
+              <span className="inline-block px-3 sm:px-4 py-1.5 bg-terracotta-light text-terracotta text-xs sm:text-sm font-medium rounded-full mb-4">
+                🥗 Emagrecimento & Definição
+              </span>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">
+                Marmitas Dia a Dia <span className="text-sage">300g</span>
+              </h2>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Saudável, leve e com variedade no prato! <strong>{totalFlavors || 36} sabores</strong> para você escolher.
+              </p>
+            </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="max-w-4xl mx-auto"
-        >
-          <Carousel
-            opts={{
-              align: "start",
-              loop: true,
-            }}
-            plugins={[autoplayPlugin]}
-            setApi={setApi}
-            className="w-full"
-          >
-            <CarouselContent className="-ml-4">
-              {marmitas.map((marmita, index) => (
-                <CarouselItem key={marmita.id} className="pl-4 basis-[85%] sm:basis-1/2 lg:basis-1/3">
-                  <motion.div
-                    className={`relative rounded-2xl overflow-hidden transition-all duration-300 h-full ${
-                      marmita.popular
-                        ? "bg-gradient-to-br from-terracotta-light to-card border-2 border-terracotta shadow-card"
-                        : "bg-card border border-border hover:border-terracotta/30 hover:shadow-soft"
-                    }`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                  >
-                    {/* Badges container - empilhados no canto superior direito */}
-                    <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
-                      {/* Badge 300g - sempre visível, em cima */}
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-sage/90 text-white text-xs font-bold rounded-full backdrop-blur-sm">
-                        <Scale className="w-3 h-3" />
-                        300g
-                      </span>
-                      
-                      {/* Badge Melhor Custo-Benefício - só nos populares, abaixo */}
-                      {marmita.popular && (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-terracotta text-white text-xs font-bold rounded-full">
-                          💚 Melhor Custo-Benefício
-                        </span>
-                      )}
-                    </div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="max-w-4xl mx-auto"
+            >
+              <MarmitaCarousel
+                marmitas={marmitasEmagrecimento}
+                lineType="emagrecimento"
+                onOpenFlavorModal={handleOpenFlavorModal}
+                loadingMarmita={loadingMarmita}
+                isInView={isInView}
+              />
+            </motion.div>
+          </div>
+        )}
 
-                    <div className="aspect-[4/3] overflow-hidden">
-                      <img
-                        src={marmita.image}
-                        alt={`${marmita.name} - ${marmita.quantity} marmitas`}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                        loading="lazy"
-                        decoding="async"
-                        width={400}
-                        height={300}
-                      />
-                    </div>
+        {/* SEÇÃO 2: Hipertrofia 450g */}
+        {marmitasHipertrofia.length > 0 && (
+          <div className="mb-12 md:mb-16">
+            <motion.div
+              className="text-center mb-8 md:mb-12"
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <span className="inline-block px-3 sm:px-4 py-1.5 bg-blue-100 text-blue-700 text-xs sm:text-sm font-medium rounded-full mb-4">
+                💪 FITNESS - Hipertrofia
+              </span>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">
+                Marmitas FITNESS <span className="text-blue-600">450g</span>
+              </h2>
+              <p className="text-muted-foreground max-w-lg mx-auto">
+                <strong>150g de proteína + 200g de carbo + 100g de mix vegetal.</strong> Nutrição pra quem treina pesado!
+              </p>
+            </motion.div>
 
-                    <div className="p-4 sm:p-5">
-                      <h3 className="text-base sm:text-lg font-bold text-foreground mb-1">
-                        {marmita.name}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground mb-3">
-                        {marmita.quantity} marmitas saudáveis
-                      </p>
-
-                      <div className="flex items-baseline gap-2 mb-4">
-                        <span className="text-xl sm:text-2xl font-bold text-terracotta">
-                          R$ {marmita.unitPrice.toFixed(2).replace(".", ",")}
-                        </span>
-                        <span className="text-xs sm:text-sm text-muted-foreground">cada</span>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                        <Clock className="w-4 h-4" />
-                        <span>Total: R$ {marmita.totalPrice.toFixed(2).replace(".", ",")}</span>
-                      </div>
-
-                      <Button
-                        variant={marmita.popular ? "cta" : "cta-outline"}
-                        className="w-full"
-                        onClick={() => handleOpenFlavorModal(marmita)}
-                        disabled={loadingMarmita === marmita.id}
-                      >
-                        {loadingMarmita === marmita.id ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Adicionando...
-                          </>
-                        ) : (
-                          <>
-                            <ShoppingCart className="w-4 h-4 mr-2" />
-                            Escolher sabores
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </motion.div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="hidden sm:flex -left-2 md:-left-4" />
-            <CarouselNext className="hidden sm:flex -right-2 md:-right-4" />
-          </Carousel>
-          
-          <CarouselDots
-            count={count}
-            current={current}
-            progress={progress}
-            api={api}
-            onMouseEnter={() => setIsHoveringDots(true)}
-            onMouseLeave={() => setIsHoveringDots(false)}
-            activeColor="bg-terracotta"
-          />
-        </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="max-w-4xl mx-auto"
+            >
+              <MarmitaCarousel
+                marmitas={marmitasHipertrofia}
+                lineType="hipertrofia"
+                onOpenFlavorModal={handleOpenFlavorModal}
+                loadingMarmita={loadingMarmita}
+                isInView={isInView}
+              />
+            </motion.div>
+          </div>
+        )}
 
         {/* Seção de Sabores - Collapsible */}
         <motion.div
           className="mt-12 md:mt-16 max-w-4xl mx-auto"
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.4 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
         >
           {/* Preview de sabores populares */}
           <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -353,7 +409,7 @@ const MarmitasSection = () => {
                       Ver cardápio completo
                     </span>
                     <span className="block text-xs text-muted-foreground">
-                      36 sabores • 300g cada
+                      {totalFlavors || 36} sabores disponíveis
                     </span>
                   </div>
                 </div>
@@ -444,22 +500,23 @@ const MarmitasSection = () => {
             </CollapsibleContent>
           </Collapsible>
         </motion.div>
-
-        {/* Modal de seleção de sabores */}
-        <FlavorSelectionModal
-          isOpen={isFlavorModalOpen}
-          onClose={() => {
-            setIsFlavorModalOpen(false);
-            setSelectedMarmita(null);
-          }}
-          onConfirm={handleConfirmFlavors}
-          packageName={selectedMarmita?.name || ""}
-          packageQuantity={selectedMarmita?.quantity || 0}
-          isLoading={loadingMarmita !== null}
-          flavorsByCategory={flavorsByCategory}
-          flavorStockData={flavorStockData}
-        />
       </div>
+
+      {/* Flavor Selection Modal */}
+      <FlavorSelectionModal
+        isOpen={isFlavorModalOpen}
+        onClose={() => {
+          setIsFlavorModalOpen(false);
+          setSelectedMarmita(null);
+        }}
+        onConfirm={handleConfirmFlavors}
+        packageName={selectedMarmita?.name || ""}
+        packageQuantity={selectedMarmita?.quantity || 7}
+        packageWeight={selectedMarmita?.weight || 300}
+        isLoading={loadingMarmita !== null}
+        flavorsByCategory={flavorsByCategory}
+        flavorStockData={flavorStockData}
+      />
     </section>
   );
 };

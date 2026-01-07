@@ -10,6 +10,9 @@ export interface MarmitaPackage {
   active: boolean;
   popular: boolean;
   sort_order: number;
+  line_type: string;
+  weight: number;
+  description: string | null;
 }
 
 export interface MarmitaFlavor {
@@ -72,9 +75,62 @@ export const useMarmitaPackages = () => {
         .order('sort_order');
       
       if (error) throw error;
-      return data as MarmitaPackage[];
+      return (data || []).map(pkg => ({
+        ...pkg,
+        line_type: pkg.line_type || 'emagrecimento',
+        weight: pkg.weight || 300,
+        description: pkg.description || null,
+      })) as MarmitaPackage[];
     },
     staleTime: 1000 * 60 * 5, // 5 minutes cache
+  });
+};
+
+// Hook for Emagrecimento packages only
+export const useMarmitaEmagrecimento = () => {
+  return useQuery({
+    queryKey: ['marmita-emagrecimento'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('marmita_packages')
+        .select('*')
+        .eq('active', true)
+        .eq('line_type', 'emagrecimento')
+        .order('sort_order');
+      
+      if (error) throw error;
+      return (data || []).map(pkg => ({
+        ...pkg,
+        line_type: pkg.line_type || 'emagrecimento',
+        weight: pkg.weight || 300,
+        description: pkg.description || null,
+      })) as MarmitaPackage[];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+// Hook for Hipertrofia packages only
+export const useMarmitaHipertrofia = () => {
+  return useQuery({
+    queryKey: ['marmita-hipertrofia'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('marmita_packages')
+        .select('*')
+        .eq('active', true)
+        .eq('line_type', 'hipertrofia')
+        .order('sort_order');
+      
+      if (error) throw error;
+      return (data || []).map(pkg => ({
+        ...pkg,
+        line_type: pkg.line_type || 'hipertrofia',
+        weight: pkg.weight || 450,
+        description: pkg.description || null,
+      })) as MarmitaPackage[];
+    },
+    staleTime: 1000 * 60 * 5,
   });
 };
 

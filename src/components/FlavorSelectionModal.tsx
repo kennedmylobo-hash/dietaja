@@ -31,6 +31,7 @@ interface FlavorSelectionModalProps {
   onConfirm: (flavors: FlavorSelection[], fishAdditional: number) => void;
   packageName: string;
   packageQuantity: number;
+  packageWeight?: number;
   isLoading?: boolean;
   flavorsByCategory?: FlavorCategory[];
   flavorStockData?: FlavorData[];
@@ -100,6 +101,7 @@ const FlavorSelectionModal = ({
   onConfirm,
   packageName,
   packageQuantity,
+  packageWeight = 300,
   isLoading = false,
   flavorsByCategory,
   flavorStockData = [],
@@ -234,7 +236,7 @@ const FlavorSelectionModal = ({
             Escolha seus sabores
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            {packageName} • {packageQuantity} marmitas
+            {packageName} • {packageQuantity} marmitas de {packageWeight}g
           </p>
         </DialogHeader>
 
