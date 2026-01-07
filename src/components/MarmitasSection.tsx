@@ -101,6 +101,10 @@ const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita
                   marmita.popular
                     ? `bg-gradient-to-br ${bgGradient} border-2 shadow-card`
                     : "bg-card border border-border hover:border-terracotta/30 hover:shadow-soft"
+                } ${
+                  isHipertrofia 
+                    ? 'ring-2 ring-blue-400/60 shadow-[0_0_20px_rgba(59,130,246,0.35)] hover:shadow-[0_0_28px_rgba(59,130,246,0.5)]' 
+                    : ''
                 }`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
