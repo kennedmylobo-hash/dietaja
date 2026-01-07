@@ -45,6 +45,9 @@ interface MarmitaPackage {
   active: boolean;
   popular: boolean;
   sort_order: number;
+  line_type: string;
+  weight: number;
+  description: string | null;
 }
 
 interface MarmitaFlavor {
@@ -126,7 +129,12 @@ const MenuManager = () => {
         supabase.from('kit_juices').select('*').order('sort_order'),
       ]);
 
-      if (packagesRes.data) setMarmitaPackages(packagesRes.data);
+      if (packagesRes.data) setMarmitaPackages(packagesRes.data.map(p => ({
+        ...p,
+        line_type: p.line_type || 'emagrecimento',
+        weight: p.weight || 300,
+        description: p.description || null,
+      })));
       if (flavorsRes.data) setMarmitaFlavors(flavorsRes.data);
       if (kitsRes.data) setKitPackages(kitsRes.data.map(k => ({
         ...k,
@@ -166,6 +174,9 @@ const MenuManager = () => {
             unit_price: pkg.unit_price,
             active: pkg.active,
             popular: pkg.popular,
+            line_type: pkg.line_type,
+            weight: pkg.weight,
+            description: pkg.description,
           })
           .eq('id', pkg.id);
         
@@ -434,62 +445,149 @@ const MenuManager = () => {
               </Button>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead className="w-24">Qtd</TableHead>
-                    <TableHead className="w-32">Preço/un</TableHead>
-                    <TableHead className="w-24">Popular</TableHead>
-                    <TableHead className="w-24">Ativo</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {marmitaPackages.map((pkg) => (
-                    <TableRow key={pkg.id}>
-                      <TableCell>
-                        <Input
-                          value={pkg.name}
-                          onChange={(e) => updateMarmitaPackage(pkg.id, 'name', e.target.value)}
-                          className="h-9"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={pkg.quantity}
-                          onChange={(e) => updateMarmitaPackage(pkg.id, 'quantity', parseInt(e.target.value) || 0)}
-                          className="h-9"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={pkg.unit_price}
-                          onChange={(e) => updateMarmitaPackage(pkg.id, 'unit_price', parseFloat(e.target.value) || 0)}
-                          className="h-9"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={pkg.popular}
-                            onCheckedChange={(checked) => updateMarmitaPackage(pkg.id, 'popular', checked)}
-                          />
-                          {pkg.popular && <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={pkg.active}
-                          onCheckedChange={(checked) => updateMarmitaPackage(pkg.id, 'active', checked)}
-                        />
-                      </TableCell>
+              {/* Emagrecimento Section */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-sage mb-3 flex items-center gap-2">
+                  🥗 Emagrecimento/Definição (300g)
+                </h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead className="w-20">Qtd</TableHead>
+                      <TableHead className="w-24">Peso</TableHead>
+                      <TableHead className="w-28">Preço/un</TableHead>
+                      <TableHead className="w-20">Popular</TableHead>
+                      <TableHead className="w-20">Ativo</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {marmitaPackages.filter(p => p.line_type === 'emagrecimento').map((pkg) => (
+                      <TableRow key={pkg.id}>
+                        <TableCell>
+                          <Input
+                            value={pkg.name}
+                            onChange={(e) => updateMarmitaPackage(pkg.id, 'name', e.target.value)}
+                            className="h-9"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={pkg.quantity}
+                            onChange={(e) => updateMarmitaPackage(pkg.id, 'quantity', parseInt(e.target.value) || 0)}
+                            className="h-9"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={pkg.weight}
+                            onChange={(e) => updateMarmitaPackage(pkg.id, 'weight', parseInt(e.target.value) || 300)}
+                            className="h-9"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={pkg.unit_price}
+                            onChange={(e) => updateMarmitaPackage(pkg.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                            className="h-9"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={pkg.popular}
+                              onCheckedChange={(checked) => updateMarmitaPackage(pkg.id, 'popular', checked)}
+                            />
+                            {pkg.popular && <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Switch
+                            checked={pkg.active}
+                            onCheckedChange={(checked) => updateMarmitaPackage(pkg.id, 'active', checked)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Hipertrofia Section */}
+              <div>
+                <h3 className="text-sm font-semibold text-blue-600 mb-3 flex items-center gap-2">
+                  💪 FITNESS - Hipertrofia (450g)
+                </h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead className="w-20">Qtd</TableHead>
+                      <TableHead className="w-24">Peso</TableHead>
+                      <TableHead className="w-28">Preço/un</TableHead>
+                      <TableHead className="w-20">Popular</TableHead>
+                      <TableHead className="w-20">Ativo</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {marmitaPackages.filter(p => p.line_type === 'hipertrofia').map((pkg) => (
+                      <TableRow key={pkg.id}>
+                        <TableCell>
+                          <Input
+                            value={pkg.name}
+                            onChange={(e) => updateMarmitaPackage(pkg.id, 'name', e.target.value)}
+                            className="h-9"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={pkg.quantity}
+                            onChange={(e) => updateMarmitaPackage(pkg.id, 'quantity', parseInt(e.target.value) || 0)}
+                            className="h-9"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={pkg.weight}
+                            onChange={(e) => updateMarmitaPackage(pkg.id, 'weight', parseInt(e.target.value) || 450)}
+                            className="h-9"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={pkg.unit_price}
+                            onChange={(e) => updateMarmitaPackage(pkg.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                            className="h-9"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={pkg.popular}
+                              onCheckedChange={(checked) => updateMarmitaPackage(pkg.id, 'popular', checked)}
+                            />
+                            {pkg.popular && <Star className="w-4 h-4 text-blue-500 fill-blue-500" />}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Switch
+                            checked={pkg.active}
+                            onCheckedChange={(checked) => updateMarmitaPackage(pkg.id, 'active', checked)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
 

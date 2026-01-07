@@ -473,38 +473,47 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          description: string | null
           id: string
           image_url: string | null
+          line_type: string | null
           name: string
           popular: boolean
           quantity: number
           sort_order: number
           unit_price: number
           updated_at: string
+          weight: number | null
         }
         Insert: {
           active?: boolean
           created_at?: string
+          description?: string | null
           id?: string
           image_url?: string | null
+          line_type?: string | null
           name: string
           popular?: boolean
           quantity: number
           sort_order?: number
           unit_price: number
           updated_at?: string
+          weight?: number | null
         }
         Update: {
           active?: boolean
           created_at?: string
+          description?: string | null
           id?: string
           image_url?: string | null
+          line_type?: string | null
           name?: string
           popular?: boolean
           quantity?: number
           sort_order?: number
           unit_price?: number
           updated_at?: string
+          weight?: number | null
         }
         Relationships: []
       }
