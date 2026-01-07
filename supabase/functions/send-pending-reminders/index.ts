@@ -322,8 +322,12 @@ const handler = async (req: Request): Promise<Response> => {
 
           let whatsappResult: { success: boolean; error?: string };
 
-          // If we have PIX code, use the template (outside 24h window)
-          if (pixCode) {
+          // TEMPORARIAMENTE DESABILITADO - Template pix_pendente_dietaja em análise pela Meta
+          // TODO: Reativar quando o template for aprovado mudando para true
+          const PIX_PENDING_TEMPLATE_ENABLED = false;
+
+          // If we have PIX code AND template is enabled, use the template (outside 24h window)
+          if (pixCode && PIX_PENDING_TEMPLATE_ENABLED) {
             console.log(`Using template pix_pendente_dietaja for order ${orderNumber}`);
             const templateFields = {
               "1": order.customer_name?.split(' ')[0] || 'cliente',
@@ -339,6 +343,10 @@ const handler = async (req: Request): Promise<Response> => {
               notificameChannelToken!,
               orderNumber
             );
+          } else if (pixCode) {
+            // Template disabled - skip WhatsApp for PIX pending orders
+            console.log(`[SKIP] pix_pendente_dietaja template disabled for order ${orderNumber} - awaiting Meta approval`);
+            whatsappResult = { success: true }; // Mark as success to avoid error logs
           } else {
             // Fallback to text message (within 24h window or no PIX)
             console.log(`Using text message for order ${orderNumber} (no PIX code)`);
