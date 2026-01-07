@@ -315,15 +315,24 @@ serve(async (req) => {
       };
       await sendWhatsAppTemplate(order.customer_phone, 'compra_confirmada_dietaja', templateFields, order.order_number);
     } else if (status === 'pending' && pix_code) {
-      // Template: pix_pendente_dietaja with fields {{1}}, {{2}}, {{3}}, {{4}}
-      console.log('Using template pix_pendente_dietaja for pending PIX order');
-      const templateFields = {
-        "1": order.customer_name?.split(' ')[0] || 'cliente',
-        "2": order.order_number || '',
-        "3": formatCurrency(order.total),
-        "4": pix_code
-      };
-      await sendWhatsAppTemplate(order.customer_phone, 'pix_pendente_dietaja', templateFields, order.order_number);
+      // TEMPORARIAMENTE DESABILITADO - Template pix_pendente_dietaja em análise pela Meta
+      // TODO: Reativar quando o template for aprovado mudando para true
+      const PIX_PENDING_TEMPLATE_ENABLED = false;
+      
+      if (PIX_PENDING_TEMPLATE_ENABLED) {
+        // Template: pix_pendente_dietaja with fields {{1}}, {{2}}, {{3}}, {{4}}
+        console.log('Using template pix_pendente_dietaja for pending PIX order');
+        const templateFields = {
+          "1": order.customer_name?.split(' ')[0] || 'cliente',
+          "2": order.order_number || '',
+          "3": formatCurrency(order.total),
+          "4": pix_code
+        };
+        await sendWhatsAppTemplate(order.customer_phone, 'pix_pendente_dietaja', templateFields, order.order_number);
+      } else {
+        console.log('[SKIP] pix_pendente_dietaja template disabled - awaiting Meta approval');
+        // Não envia WhatsApp para PIX pendente enquanto template não for aprovado
+      }
     } else {
       // For whatsapp_pending or pending without pix, use text message
       console.log('Using text message for order (customer-initiated contact expected)');
