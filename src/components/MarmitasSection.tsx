@@ -21,7 +21,6 @@ import {
 import marmita1 from "@/assets/marmita-1.png";
 import marmita2 from "@/assets/marmita-2.png";
 import marmita3 from "@/assets/marmita-3.png";
-import marmitaHipertrofia from "@/assets/marmita-hipertrofia.jpg";
 
 interface Marmita {
   id: string;
@@ -30,39 +29,30 @@ interface Marmita {
   unitPrice: number;
   totalPrice: number;
   image: string;
-  popular?: boolean;
+  popular: boolean;
   weight: number;
   lineType: string;
 }
 
-// Map for package images by line type
-const emagrecimentoImages: Record<number, string> = {
+// Map for package images (same for both lines until specific photos are added)
+const packageImages: Record<number, string> = {
   7: marmita1,
   14: marmita2,
   28: marmita3,
 };
 
-const hipertrofiaImages: Record<number, string> = {
-  7: marmitaHipertrofia,
-  14: marmitaHipertrofia,
-  28: marmitaHipertrofia,
-};
-
 // Transform DB package to component format
-const transformPackage = (pkg: MarmitaPackage): Marmita => {
-  const imageMap = pkg.line_type === 'hipertrofia' ? hipertrofiaImages : emagrecimentoImages;
-  return {
-    id: `${pkg.line_type}-${pkg.quantity}-marmitas`,
-    name: pkg.name,
-    quantity: pkg.quantity,
-    unitPrice: Number(pkg.unit_price),
-    totalPrice: Number(pkg.unit_price) * pkg.quantity,
-    image: pkg.image_url || imageMap[pkg.quantity] || marmita1,
-    popular: pkg.popular,
-    weight: pkg.weight,
-    lineType: pkg.line_type,
-  };
-};
+const transformPackage = (pkg: MarmitaPackage): Marmita => ({
+  id: `${pkg.line_type}-${pkg.quantity}-marmitas`,
+  name: pkg.name,
+  quantity: pkg.quantity,
+  unitPrice: Number(pkg.unit_price),
+  totalPrice: Number(pkg.unit_price) * pkg.quantity,
+  image: pkg.image_url || packageImages[pkg.quantity] || marmita1,
+  popular: pkg.popular,
+  weight: pkg.weight,
+  lineType: pkg.line_type,
+});
 
 // Carousel component for a line of marmitas
 interface MarmitaCarouselProps {
