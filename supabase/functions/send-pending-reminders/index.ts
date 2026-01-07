@@ -322,9 +322,8 @@ const handler = async (req: Request): Promise<Response> => {
 
           let whatsappResult: { success: boolean; error?: string };
 
-          // TEMPORARIAMENTE DESABILITADO - Template pix_pendente_dietaja em análise pela Meta
-          // TODO: Reativar quando o template for aprovado mudando para true
-          const PIX_PENDING_TEMPLATE_ENABLED = false;
+          // Template pix_pendente_dietaja aprovado pela Meta - ATIVADO
+          const PIX_PENDING_TEMPLATE_ENABLED = true;
 
           // If we have PIX code AND template is enabled, use the template (outside 24h window)
           if (pixCode && PIX_PENDING_TEMPLATE_ENABLED) {

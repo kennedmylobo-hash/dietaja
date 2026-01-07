@@ -315,9 +315,8 @@ serve(async (req) => {
       };
       await sendWhatsAppTemplate(order.customer_phone, 'compra_confirmada_dieta', templateFields, order.order_number);
     } else if (status === 'pending' && pix_code) {
-      // TEMPORARIAMENTE DESABILITADO - Template pix_pendente_dietaja em análise pela Meta
-      // TODO: Reativar quando o template for aprovado mudando para true
-      const PIX_PENDING_TEMPLATE_ENABLED = false;
+      // Template pix_pendente_dietaja aprovado pela Meta - ATIVADO
+      const PIX_PENDING_TEMPLATE_ENABLED = true;
       
       if (PIX_PENDING_TEMPLATE_ENABLED) {
         // Template: pix_pendente_dietaja with fields {{1}}, {{2}}, {{3}}, {{4}}
