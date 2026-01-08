@@ -556,6 +556,56 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_events: {
+        Row: {
+          channel: string
+          created_at: string
+          event_type: string
+          id: string
+          message_id: string | null
+          metadata: Json | null
+          order_id: string | null
+          order_number: string | null
+          recipient_email: string | null
+          recipient_phone: string | null
+          template_name: string | null
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          event_type: string
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          order_number?: string | null
+          recipient_email?: string | null
+          recipient_phone?: string | null
+          template_name?: string | null
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          order_number?: string | null
+          recipient_email?: string | null
+          recipient_phone?: string | null
+          template_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_status_history: {
         Row: {
           changed_by: string | null
