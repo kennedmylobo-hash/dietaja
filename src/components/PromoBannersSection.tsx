@@ -1,6 +1,6 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Droplets, UtensilsCrossed, Salad, ChevronRight } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 
 const banners = [
   {
@@ -56,7 +56,7 @@ interface BannerCardProps {
   onClick: () => void;
 }
 
-const BannerCard = ({ banner, onClick }: BannerCardProps) => {
+const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps & { shouldPulse: boolean }) => {
   const ref = useRef<HTMLButtonElement>(null);
   const Icon = banner.icon;
 
@@ -100,6 +100,20 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
       }}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.97 }}
+      animate={shouldPulse ? { 
+        scale: [1, 1.03, 1],
+        boxShadow: [
+          "0 10px 15px -3px rgba(0,0,0,0.1)",
+          "0 20px 25px -5px rgba(0,0,0,0.2)",
+          "0 10px 15px -3px rgba(0,0,0,0.1)"
+        ]
+      } : {}}
+      transition={shouldPulse ? { 
+        duration: 0.8, 
+        ease: "easeInOut",
+        repeat: 2,
+        repeatDelay: 0.3
+      } : {}}
       className={`group relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 lg:p-8 text-left transition-all duration-300 shadow-lg hover:shadow-2xl ring-2 ring-white/20 hover:ring-white/40 bg-gradient-to-br ${banner.gradient} cursor-pointer`}
     >
       {/* Background glow effect */}
@@ -144,6 +158,17 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
 };
 
 const PromoBannersSection = () => {
+  const [shouldPulse, setShouldPulse] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShouldPulse(true);
+      // Stop pulsing after animation completes
+      setTimeout(() => setShouldPulse(false), 3500);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -180,6 +205,7 @@ const PromoBannersSection = () => {
             <BannerCard
               key={banner.id}
               banner={banner}
+              shouldPulse={shouldPulse}
               onClick={() => scrollToSection(banner.targetSection)}
             />
           ))}
