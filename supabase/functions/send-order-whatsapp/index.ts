@@ -133,7 +133,16 @@ async function sendWhatsAppTemplate(
     });
 
     const responseData = await response.text();
-    console.log(`[TEMPLATE] NotificaMe response for ${orderNumber}: ${response.status} - ${responseData}`);
+    let responseJson = null;
+    try {
+      responseJson = JSON.parse(responseData);
+    } catch (e) {}
+    console.log(`[TEMPLATE] NotificaMe FULL response for ${orderNumber}:`, JSON.stringify({
+      status: response.status,
+      statusText: response.statusText,
+      body: responseJson || responseData,
+      headers: Object.fromEntries(response.headers.entries())
+    }));
 
     if (!response.ok) {
       console.error('[TEMPLATE] NotificaMe API error:', response.status, responseData);
@@ -307,10 +316,12 @@ serve(async (req) => {
     if (status === 'approved') {
       // Template: compra_confirmada_dieta with fields {{1}}, {{2}}, {{3}}, {{4}}
       console.log('Using template compra_confirmada_dieta for approved order');
+      // Simplified format for {{3}} - plain text without markdown/newlines
+      const itemsList = items.map(i => `${i.quantity}x ${i.name}`).join(', ').substring(0, 200);
       const templateFields = {
         "1": order.customer_name?.split(' ')[0] || 'cliente',
         "2": order.order_number || '',
-        "3": formatItems(items).substring(0, 500), // Limit to avoid message too long
+        "3": itemsList,
         "4": formatCurrency(order.total)
       };
       await sendWhatsAppTemplate(order.customer_phone, 'compra_confirmada_dieta', templateFields, order.order_number);
