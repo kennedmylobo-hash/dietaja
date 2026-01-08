@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { Droplets, UtensilsCrossed, Salad } from "lucide-react";
+import { Droplets, UtensilsCrossed, Salad, ChevronRight } from "lucide-react";
 import { useRef } from "react";
 
 const banners = [
@@ -98,7 +98,9 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
         rotateY,
         transformStyle: "preserve-3d",
       }}
-      className={`group relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 lg:p-8 text-left transition-shadow duration-300 shadow-lg hover:shadow-2xl ring-1 ring-white/10 bg-gradient-to-br ${banner.gradient}`}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.97 }}
+      className={`group relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 lg:p-8 text-left transition-all duration-300 shadow-lg hover:shadow-2xl ring-2 ring-white/20 hover:ring-white/40 bg-gradient-to-br ${banner.gradient} cursor-pointer`}
     >
       {/* Background glow effect */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -123,6 +125,12 @@ const BannerCard = ({ banner, onClick }: BannerCardProps) => {
         </p>
       </motion.div>
 
+      {/* Click indicator */}
+      <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 flex items-center gap-1 text-white/60 group-hover:text-white transition-all duration-300">
+        <span className="text-[10px] sm:text-xs hidden sm:inline font-medium">Ver mais</span>
+        <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" />
+      </div>
+
       {/* Decorative circle with parallax */}
       <motion.div
         style={{ 
@@ -146,6 +154,21 @@ const PromoBannersSection = () => {
   return (
     <section className="py-4 sm:py-6 md:py-12 bg-background">
       <div className="container px-3 md:px-6">
+        {/* Section header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="text-center mb-4 sm:mb-6 md:mb-8"
+        >
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-1 sm:mb-2">
+            O que você deseja?
+          </h2>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Clique e veja mais 👇
+          </p>
+        </motion.div>
+
         <motion.div
           variants={containerVariants}
           initial="hidden"
