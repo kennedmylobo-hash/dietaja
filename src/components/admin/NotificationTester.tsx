@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, MessageCircle, TestTube, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Mail, MessageCircle, TestTube, Loader2, CheckCircle, XCircle, AlertTriangle, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const NotificationTester = () => {
@@ -12,8 +13,10 @@ const NotificationTester = () => {
   const [phone, setPhone] = useState("");
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [isTestingWhatsApp, setIsTestingWhatsApp] = useState(false);
+  const [isTestingTextFallback, setIsTestingTextFallback] = useState(false);
   const [emailResult, setEmailResult] = useState<'success' | 'error' | null>(null);
-  const [whatsappResult, setWhatsappResult] = useState<'success' | 'error' | null>(null);
+  const [whatsappResult, setWhatsappResult] = useState<'success' | 'error' | 'warning' | null>(null);
+  const [lastApiResponse, setLastApiResponse] = useState<any>(null);
 
   // Mock order data for testing
   const mockOrderData = {
@@ -95,9 +98,10 @@ const NotificationTester = () => {
 
     setIsTestingWhatsApp(true);
     setWhatsappResult(null);
+    setLastApiResponse(null);
 
     try {
-      // First, create a temporary test order to get a valid order_id
+      // Create a temporary test order
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -117,7 +121,7 @@ const NotificationTester = () => {
 
       if (orderError) throw orderError;
 
-      // Send WhatsApp notification
+      // Send WhatsApp notification using template
       const { data, error } = await supabase.functions.invoke('send-order-whatsapp', {
         body: { 
           order_id: orderData.id, 
@@ -128,21 +132,28 @@ const NotificationTester = () => {
       if (error) throw error;
 
       console.log('📱 WhatsApp test result:', data);
+      setLastApiResponse(data);
 
       // Delete the test order
-      await supabase
-        .from('orders')
-        .delete()
-        .eq('id', orderData.id);
+      await supabase.from('orders').delete().eq('id', orderData.id);
 
-      setWhatsappResult('success');
+      // API returned 200 but message may not have arrived
+      setWhatsappResult('warning');
       toast({
-        title: "✅ WhatsApp enviado!",
-        description: `Mensagem de teste enviada para ${phone}`,
+        title: "⚠️ API aceitou a requisição",
+        description: (
+          <div className="text-xs space-y-1">
+            <p>A API NotificaMe retornou sucesso (200).</p>
+            <p className="text-muted-foreground">
+              Verifique se a mensagem chegou. Se não chegou, o template pode não estar aprovado pela Meta.
+            </p>
+          </div>
+        ),
       });
     } catch (error: any) {
       console.error('WhatsApp test error:', error);
       setWhatsappResult('error');
+      setLastApiResponse({ error: error.message });
       toast({
         title: "❌ Erro no WhatsApp",
         description: error.message || "Falha ao enviar WhatsApp de teste",
@@ -153,9 +164,89 @@ const NotificationTester = () => {
     }
   };
 
-  const testBoth = async () => {
-    await testEmail();
-    await testWhatsApp();
+  const testWhatsAppTextFallback = async () => {
+    if (!phone) {
+      toast({
+        title: "Telefone obrigatório",
+        description: "Digite um número de WhatsApp para testar",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsTestingTextFallback(true);
+    setWhatsappResult(null);
+    setLastApiResponse(null);
+
+    try {
+      // Create a temporary test order
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          customer_name: "TESTE - Ignorar",
+          customer_email: email || "teste@teste.com",
+          customer_phone: phone,
+          items: mockOrderData.items,
+          subtotal: mockOrderData.subtotal,
+          delivery_fee: 0,
+          total: mockOrderData.total,
+          delivery_option: "retirada",
+          status: "pending",
+          payment_method: "test"
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Send WhatsApp using whatsapp_pending status (uses text message fallback)
+      const { data, error } = await supabase.functions.invoke('send-order-whatsapp', {
+        body: { 
+          order_id: orderData.id, 
+          status: 'whatsapp_pending' 
+        }
+      });
+
+      if (error) throw error;
+
+      console.log('📱 WhatsApp text fallback test result:', data);
+      setLastApiResponse(data);
+
+      // Delete the test order
+      await supabase.from('orders').delete().eq('id', orderData.id);
+
+      setWhatsappResult('warning');
+      toast({
+        title: "⚠️ Mensagem de texto enviada",
+        description: (
+          <div className="text-xs space-y-1">
+            <p>Foi enviada uma mensagem de texto simples.</p>
+            <p className="text-muted-foreground">
+              Só funciona se você iniciou conversa com o número nos últimos 24h.
+            </p>
+          </div>
+        ),
+      });
+    } catch (error: any) {
+      console.error('WhatsApp text fallback error:', error);
+      setWhatsappResult('error');
+      setLastApiResponse({ error: error.message });
+      toast({
+        title: "❌ Erro no WhatsApp",
+        description: error.message || "Falha ao enviar mensagem de texto",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingTextFallback(false);
+    }
+  };
+
+  const getResultIcon = (result: 'success' | 'error' | 'warning' | null, isLoading: boolean) => {
+    if (isLoading) return <Loader2 className="h-4 w-4 animate-spin" />;
+    if (result === 'success') return <CheckCircle className="h-4 w-4 text-green-500" />;
+    if (result === 'error') return <XCircle className="h-4 w-4 text-red-500" />;
+    if (result === 'warning') return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+    return null;
   };
 
   return (
@@ -167,9 +258,17 @@ const NotificationTester = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Teste o envio de email e WhatsApp sem criar pedidos reais.
-        </p>
+        <Alert className="bg-blue-50 border-blue-200">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-xs text-blue-800">
+            <strong>Sobre templates WhatsApp:</strong>
+            <ul className="mt-1 list-disc list-inside space-y-0.5">
+              <li>Templates precisam ser aprovados pela Meta (24-48h)</li>
+              <li>Mensagens de texto só funcionam na janela de 24h após contato</li>
+              <li>Verifique o status do template no painel NotificaMe</li>
+            </ul>
+          </AlertDescription>
+        </Alert>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -222,31 +321,38 @@ const NotificationTester = () => {
             disabled={isTestingWhatsApp || !phone}
             className="gap-2"
           >
-            {isTestingWhatsApp ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : whatsappResult === 'success' ? (
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            ) : whatsappResult === 'error' ? (
-              <XCircle className="h-4 w-4 text-red-500" />
-            ) : (
-              <MessageCircle className="h-4 w-4" />
-            )}
-            Testar WhatsApp
+            {getResultIcon(whatsappResult, isTestingWhatsApp) || <MessageCircle className="h-4 w-4" />}
+            Template WhatsApp
           </Button>
 
           <Button
+            variant="outline"
             size="sm"
-            onClick={testBoth}
-            disabled={isTestingEmail || isTestingWhatsApp || (!email && !phone)}
-            className="gap-2 bg-amber-600 hover:bg-amber-700"
+            onClick={testWhatsAppTextFallback}
+            disabled={isTestingTextFallback || !phone}
+            className="gap-2 border-dashed"
           >
-            <TestTube className="h-4 w-4" />
-            Testar Ambos
+            {isTestingTextFallback ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MessageCircle className="h-4 w-4" />
+            )}
+            Texto Simples (24h)
           </Button>
         </div>
 
+        {lastApiResponse && (
+          <div className="mt-3 p-3 bg-muted/50 rounded-md">
+            <p className="text-xs font-medium mb-1">Última resposta da API:</p>
+            <pre className="text-xs text-muted-foreground overflow-x-auto max-h-32">
+              {JSON.stringify(lastApiResponse, null, 2)}
+            </pre>
+          </div>
+        )}
+
         <p className="text-xs text-muted-foreground">
-          💡 O teste de WhatsApp cria um pedido temporário (deletado após o envio) para usar o template aprovado.
+          💡 Se o template não funcionar, verifique se está <strong>APROVADO</strong> no NotificaMe Hub.
+          O texto simples só funciona se o cliente iniciou conversa nas últimas 24h.
         </p>
       </CardContent>
     </Card>
