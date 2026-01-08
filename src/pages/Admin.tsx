@@ -56,6 +56,7 @@ import FunnelReport from "@/components/admin/FunnelReport";
 import PendingOrdersRecovery from "@/components/admin/PendingOrdersRecovery";
 import AbandonedCartsRecovery from "@/components/admin/AbandonedCartsRecovery";
 import MarketingManager from "@/components/admin/MarketingManager";
+import NotificationTester from "@/components/admin/NotificationTester";
 
 interface Lead {
   id: string;
@@ -1139,7 +1140,8 @@ const Admin = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="marketing">
+          <TabsContent value="marketing" className="space-y-6">
+            <NotificationTester />
             <MarketingManager />
           </TabsContent>
 
