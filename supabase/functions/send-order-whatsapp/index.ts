@@ -96,20 +96,32 @@ async function sendWhatsAppTemplate(
   templateId: string, 
   fields: Record<string, string>, 
   orderNumber: string
-): Promise<void> {
+): Promise<{ success: boolean; error?: string; response?: any }> {
   const apiToken = Deno.env.get('NOTIFICAME_API_TOKEN');
   const channelToken = Deno.env.get('NOTIFICAME_WHATSAPP_CHANNEL_TOKEN');
 
+  // Validação detalhada dos tokens
+  console.log(`[TEMPLATE] Token validation:`, {
+    hasApiToken: !!apiToken,
+    apiTokenLength: apiToken?.length || 0,
+    hasChannelToken: !!channelToken,
+    channelTokenLength: channelToken?.length || 0,
+  });
+
   if (!apiToken || !channelToken) {
-    console.warn('NotificaMe tokens not configured, skipping WhatsApp');
-    return;
+    const error = 'NotificaMe tokens not configured';
+    console.error(`[TEMPLATE] ${error}`, { apiToken: !!apiToken, channelToken: !!channelToken });
+    return { success: false, error };
   }
 
   const formattedPhone = formatPhone(phone);
 
   try {
-    console.log(`[TEMPLATE] Sending WhatsApp template "${templateId}" to ${formattedPhone} for order ${orderNumber}`);
-    console.log(`[TEMPLATE] Fields:`, JSON.stringify(fields));
+    console.log(`[TEMPLATE] ========== SENDING WHATSAPP ==========`);
+    console.log(`[TEMPLATE] Template: "${templateId}"`);
+    console.log(`[TEMPLATE] Phone: ${formattedPhone}`);
+    console.log(`[TEMPLATE] Order: ${orderNumber}`);
+    console.log(`[TEMPLATE] Fields:`, JSON.stringify(fields, null, 2));
 
     const payload = {
       from: channelToken,
@@ -121,7 +133,8 @@ async function sendWhatsAppTemplate(
       }],
     };
 
-    console.log(`[TEMPLATE] Full payload:`, JSON.stringify(payload));
+    console.log(`[TEMPLATE] Full payload:`, JSON.stringify(payload, null, 2));
+    console.log(`[TEMPLATE] API URL: https://api.notificame.com.br/v1/channels/whatsapp/messages`);
 
     const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
       method: 'POST',
@@ -136,21 +149,34 @@ async function sendWhatsAppTemplate(
     let responseJson = null;
     try {
       responseJson = JSON.parse(responseData);
-    } catch (e) {}
-    console.log(`[TEMPLATE] NotificaMe FULL response for ${orderNumber}:`, JSON.stringify({
+    } catch (e) {
+      console.log(`[TEMPLATE] Response is not JSON`);
+    }
+
+    const fullResponse = {
       status: response.status,
       statusText: response.statusText,
+      ok: response.ok,
       body: responseJson || responseData,
       headers: Object.fromEntries(response.headers.entries())
-    }));
+    };
+
+    console.log(`[TEMPLATE] ========== NOTIFICAME RESPONSE ==========`);
+    console.log(`[TEMPLATE] Status: ${response.status} ${response.statusText}`);
+    console.log(`[TEMPLATE] OK: ${response.ok}`);
+    console.log(`[TEMPLATE] Body:`, JSON.stringify(fullResponse.body, null, 2));
+    console.log(`[TEMPLATE] Headers:`, JSON.stringify(fullResponse.headers, null, 2));
 
     if (!response.ok) {
-      console.error('[TEMPLATE] NotificaMe API error:', response.status, responseData);
+      console.error(`[TEMPLATE] ❌ API ERROR for order ${orderNumber}`);
+      return { success: false, error: responseData, response: fullResponse };
     } else {
-      console.log(`[TEMPLATE] WhatsApp template sent successfully for order ${orderNumber}`);
+      console.log(`[TEMPLATE] ✅ WhatsApp sent successfully for order ${orderNumber}`);
+      return { success: true, response: fullResponse };
     }
   } catch (error) {
-    console.error('[TEMPLATE] Error sending WhatsApp template:', error);
+    console.error('[TEMPLATE] ❌ Exception sending WhatsApp template:', error);
+    return { success: false, error: String(error) };
   }
 }
 
@@ -221,6 +247,10 @@ serve(async (req) => {
   }
 
   try {
+    console.log(`\n========================================`);
+    console.log(`[START] send-order-whatsapp invoked at ${new Date().toISOString()}`);
+    console.log(`========================================\n`);
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -228,7 +258,7 @@ serve(async (req) => {
     const body: RequestBody = await req.json();
     const { order_id, status, pix_code } = body;
 
-    console.log('send-order-whatsapp called:', { order_id, status, has_pix_code: !!pix_code });
+    console.log('[INPUT] Request body:', JSON.stringify({ order_id, status, has_pix_code: !!pix_code, pix_code_length: pix_code?.length || 0 }));
 
     if (!order_id) {
       return new Response(
