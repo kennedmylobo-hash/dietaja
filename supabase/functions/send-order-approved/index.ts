@@ -85,7 +85,16 @@ async function sendWhatsAppTemplate(
     });
 
     const responseText = await response.text();
-    console.log(`[WHATSAPP] NotificaMe response for ${orderNumber}: ${response.status} - ${responseText}`);
+    let responseJson = null;
+    try {
+      responseJson = JSON.parse(responseText);
+    } catch (e) {}
+    console.log(`[WHATSAPP] NotificaMe FULL response for ${orderNumber}:`, JSON.stringify({
+      status: response.status,
+      statusText: response.statusText,
+      body: responseJson || responseText,
+      headers: Object.fromEntries(response.headers.entries())
+    }));
 
     if (!response.ok) {
       return { success: false, error: `NotificaMe API error: ${response.status} - ${responseText}` };
