@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.test-whatsapp-connection]
 verify_jwt = false
+
+[functions.notificame-webhook]
+verify_jwt = false
