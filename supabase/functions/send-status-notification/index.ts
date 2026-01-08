@@ -126,9 +126,10 @@ const sendWhatsAppText = async (phone: string, message: string, orderNumber: str
 };
 
 // Send template message (for messages outside 24h window - Meta approved templates)
+// Using correct NotificaMe API format per documentation
 const sendWhatsAppTemplate = async (
   phone: string, 
-  templateId: string, 
+  templateName: string, 
   fields: Record<string, string>, 
   orderNumber: string
 ) => {
@@ -146,20 +147,38 @@ const sendWhatsAppTemplate = async (
       formattedPhone = "55" + formattedPhone;
     }
 
-    console.log(`[TEMPLATE] Sending WhatsApp template "${templateId}" to ${formattedPhone} for order ${orderNumber}`);
+    console.log(`[TEMPLATE] Sending WhatsApp template "${templateName}" to ${formattedPhone} for order ${orderNumber}`);
     console.log(`[TEMPLATE] Fields:`, JSON.stringify(fields));
 
+    // Convert fields object to ordered parameters array per NotificaMe docs
+    const fieldKeys = Object.keys(fields).sort((a, b) => Number(a) - Number(b));
+    const parameters = fieldKeys.map(key => ({
+      type: "text",
+      text: fields[key]
+    }));
+
+    // Correct payload format per NotificaMe API documentation
     const payload = {
       from: channelToken,
       to: formattedPhone,
       contents: [{
         type: "template",
-        templateId: templateId,
-        fields: fields
+        template: {
+          name: templateName,
+          language: {
+            code: "pt_BR"
+          },
+          components: [
+            {
+              type: "body",
+              parameters: parameters
+            }
+          ]
+        }
       }],
     };
 
-    console.log(`[TEMPLATE] Full payload:`, JSON.stringify(payload));
+    console.log(`[TEMPLATE] Full payload:`, JSON.stringify(payload, null, 2));
 
     const response = await fetch("https://api.notificame.com.br/v1/channels/whatsapp/messages", {
       method: "POST",

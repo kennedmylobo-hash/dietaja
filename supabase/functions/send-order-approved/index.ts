@@ -48,10 +48,10 @@ function formatItemsList(items: OrderItem[]): string {
   return items.map(item => `${item.quantity}x ${item.name}`).join(', ');
 }
 
-// Send WhatsApp template message
+// Send WhatsApp template message using correct NotificaMe API format
 async function sendWhatsAppTemplate(
   phone: string,
-  templateId: string,
+  templateName: string,
   fields: Record<string, string>,
   apiToken: string,
   channelToken: string,
@@ -60,20 +60,38 @@ async function sendWhatsAppTemplate(
   try {
     const formattedPhone = formatPhone(phone);
     
-    console.log(`[WHATSAPP] Sending template "${templateId}" to ${formattedPhone} for order ${orderNumber}`);
+    console.log(`[WHATSAPP] Sending template "${templateName}" to ${formattedPhone} for order ${orderNumber}`);
     console.log(`[WHATSAPP] Fields:`, JSON.stringify(fields));
 
+    // Convert fields object to ordered parameters array per NotificaMe docs
+    const fieldKeys = Object.keys(fields).sort((a, b) => Number(a) - Number(b));
+    const parameters = fieldKeys.map(key => ({
+      type: "text",
+      text: fields[key]
+    }));
+
+    // Correct payload format per NotificaMe API documentation
     const payload = {
       from: channelToken,
       to: formattedPhone,
       contents: [{
         type: 'template',
-        templateId: templateId,
-        fields: fields
+        template: {
+          name: templateName,
+          language: {
+            code: 'pt_BR'
+          },
+          components: [
+            {
+              type: 'body',
+              parameters: parameters
+            }
+          ]
+        }
       }],
     };
 
-    console.log(`[WHATSAPP] Full payload:`, JSON.stringify(payload));
+    console.log(`[WHATSAPP] Full payload:`, JSON.stringify(payload, null, 2));
 
     const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
       method: 'POST',

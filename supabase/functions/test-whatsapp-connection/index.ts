@@ -8,6 +8,8 @@ const corsHeaders = {
 interface RequestBody {
   phone: string;
   message?: string;
+  testTemplate?: boolean;
+  templateName?: string;
 }
 
 function formatPhone(phone: string): string {
@@ -46,9 +48,9 @@ serve(async (req) => {
     }
 
     const body: RequestBody = await req.json();
-    const { phone, message } = body;
+    const { phone, message, testTemplate, templateName } = body;
 
-    console.log(`[INPUT] Phone: ${phone}, Custom message: ${!!message}`);
+    console.log(`[INPUT] Phone: ${phone}, Custom message: ${!!message}, Test template: ${testTemplate}, Template name: ${templateName}`);
 
     if (!phone) {
       return new Response(
@@ -58,20 +60,75 @@ serve(async (req) => {
     }
 
     const formattedPhone = formatPhone(phone);
-    const testMessage = message || `✅ Teste de conexão Dieta Já\n\n📱 WhatsApp funcionando!\n🕐 ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+    let payload: any;
 
-    const payload = {
-      from: channelToken,
-      to: formattedPhone,
-      contents: [{
-        type: "text",
-        text: testMessage,
-      }],
-    };
+    if (testTemplate && templateName) {
+      // Test template message with correct NotificaMe API format
+      console.log(`[SEND] Testing template: ${templateName}`);
+      
+      // Build parameters based on template
+      let parameters: { type: string; text: string }[] = [];
+      
+      if (templateName === 'compraa_confrimadaa') {
+        parameters = [
+          { type: "text", text: "Teste" },           // {{1}} nome
+          { type: "text", text: "DJA-0000" },        // {{2}} pedido
+          { type: "text", text: "1x Produto Teste" }, // {{3}} itens
+          { type: "text", text: "R$ 99,90" }         // {{4}} total
+        ];
+      } else if (templateName === 'pix_pendente_dietaja') {
+        parameters = [
+          { type: "text", text: "Teste" },           // {{1}} nome
+          { type: "text", text: "DJA-0000" },        // {{2}} pedido
+          { type: "text", text: "R$ 99,90" },        // {{3}} total
+          { type: "text", text: "00020126580014br.gov.bcb.pix0136teste-pix-code-example" } // {{4}} pix
+        ];
+      } else {
+        // Generic test parameters
+        parameters = [
+          { type: "text", text: "Valor 1" },
+          { type: "text", text: "Valor 2" },
+          { type: "text", text: "Valor 3" },
+          { type: "text", text: "Valor 4" }
+        ];
+      }
+
+      // Correct payload format per NotificaMe API documentation
+      payload = {
+        from: channelToken,
+        to: formattedPhone,
+        contents: [{
+          type: 'template',
+          template: {
+            name: templateName,
+            language: {
+              code: 'pt_BR'
+            },
+            components: [
+              {
+                type: 'body',
+                parameters: parameters
+              }
+            ]
+          }
+        }],
+      };
+    } else {
+      // Simple text message
+      const testMessage = message || `✅ Teste de conexão Dieta Já\n\n📱 WhatsApp funcionando!\n🕐 ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+      
+      payload = {
+        from: channelToken,
+        to: formattedPhone,
+        contents: [{
+          type: "text",
+          text: testMessage,
+        }],
+      };
+    }
 
     console.log(`[SEND] ========== SENDING TEST MESSAGE ==========`);
     console.log(`[SEND] Phone: ${formattedPhone}`);
-    console.log(`[SEND] Message:`, testMessage);
     console.log(`[SEND] Full payload:`, JSON.stringify(payload, null, 2));
     console.log(`[SEND] API URL: https://api.notificame.com.br/v1/channels/whatsapp/messages`);
 
@@ -123,7 +180,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Test message sent successfully',
+        message: testTemplate ? `Template ${templateName} sent successfully` : 'Test message sent successfully',
         phone: formattedPhone,
         response: fullResponse 
       }),
