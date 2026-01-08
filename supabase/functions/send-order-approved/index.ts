@@ -288,13 +288,13 @@ const handler = async (req: Request): Promise<Response> => {
       results.email.error = emailError.message;
     }
 
-    // Send WhatsApp using template compra_confirmada_dieta
+    // Send WhatsApp using template compraa_confrimadaa
     const notificameApiToken = Deno.env.get("NOTIFICAME_API_TOKEN");
     const notificameChannelToken = Deno.env.get("NOTIFICAME_WHATSAPP_CHANNEL_TOKEN");
 
     if (notificameApiToken && notificameChannelToken && data.customer_phone) {
       try {
-        // Template compra_confirmada_dieta has 4 variables:
+        // Template compraa_confrimadaa has 4 variables:
         // {{1}} = nome, {{2}} = pedido, {{3}} = itens, {{4}} = total
         const templateFields = {
           "1": data.customer_name?.split(' ')[0] || 'cliente',
@@ -303,11 +303,11 @@ const handler = async (req: Request): Promise<Response> => {
           "4": formatCurrency(data.total)
         };
 
-        console.log(`[WHATSAPP] Sending compra_confirmada_dieta to ${data.customer_phone}`);
+        console.log(`[WHATSAPP] Sending compraa_confrimadaa to ${data.customer_phone}`);
         
         const whatsappResult = await sendWhatsAppTemplate(
           data.customer_phone,
-          'compra_confirmada_dieta',
+          'compraa_confrimadaa',
           templateFields,
           notificameApiToken,
           notificameChannelToken,
