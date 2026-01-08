@@ -71,6 +71,7 @@ interface OrderItem {
 
 interface Order {
   id: string;
+  order_number: string | null;
   mp_preference_id: string | null;
   mp_payment_id: string | null;
   status: string;
@@ -473,6 +474,38 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       if (decrementError) {
         console.error('Error decrementing stock:', decrementError);
         // Don't fail - order is confirmed, stock can be adjusted manually
+      }
+
+      // Send order confirmation email
+      try {
+        await supabase.functions.invoke('send-order-approved', {
+          body: {
+            order_number: currentOrder?.order_number || orderId.slice(0, 8),
+            customer_email: currentOrder?.customer_email,
+            customer_name: currentOrder?.customer_name,
+            customer_phone: currentOrder?.customer_phone,
+            items: currentOrder?.items,
+            subtotal: currentOrder?.subtotal,
+            delivery_fee: currentOrder?.delivery_fee || 0,
+            total: currentOrder?.total,
+            delivery_option: currentOrder?.delivery_option,
+            delivery_address: currentOrder?.delivery_address,
+            payment_method: currentOrder?.payment_method || 'manual'
+          }
+        });
+        console.log('✅ Email confirmation sent');
+      } catch (emailError) {
+        console.error('Error sending email:', emailError);
+      }
+
+      // Send WhatsApp confirmation
+      try {
+        await supabase.functions.invoke('send-order-whatsapp', {
+          body: { order_id: orderId, status: 'approved' }
+        });
+        console.log('✅ WhatsApp confirmation sent');
+      } catch (whatsappError) {
+        console.error('Error sending WhatsApp:', whatsappError);
       }
 
       // Update local state
