@@ -47,21 +47,40 @@ async function sendWhatsAppTemplate(
   fields: Record<string, string>,
   apiToken: string,
   channelToken: string,
-  orderNumber: string
-): Promise<{ success: boolean; error?: string }> {
+  orderNumber: string,
+  supabaseClient: any,
+  orderId?: string
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
   try {
     const formattedPhone = formatPhone(phone);
     
     console.log(`[TEMPLATE] Sending WhatsApp template "${templateId}" to ${formattedPhone} for order ${orderNumber}`);
     console.log(`[TEMPLATE] Fields:`, JSON.stringify(fields));
 
+    // Convert fields object to ordered parameters array per NotificaMe docs
+    const fieldKeys = Object.keys(fields).sort((a, b) => Number(a) - Number(b));
+    const parameters = fieldKeys.map(key => ({
+      type: "text",
+      text: fields[key]
+    }));
+
     const payload = {
       from: channelToken,
       to: formattedPhone,
       contents: [{
         type: 'template',
-        templateId: templateId,
-        fields: fields
+        template: {
+          name: templateId,
+          language: {
+            code: 'pt_BR'
+          },
+          components: [
+            {
+              type: 'body',
+              parameters: parameters
+            }
+          ]
+        }
       }],
     };
 
@@ -77,14 +96,43 @@ async function sendWhatsAppTemplate(
     });
 
     const responseText = await response.text();
+    let responseJson = null;
+    try {
+      responseJson = JSON.parse(responseText);
+    } catch (e) {}
     console.log(`[TEMPLATE] NotificaMe response for ${orderNumber}: ${response.status} - ${responseText}`);
 
+    const messageId = responseJson?.id || responseJson?.messageId;
+
     if (!response.ok) {
+      // Log failed event
+      await supabaseClient.from('notification_events').insert({
+        channel: 'whatsapp',
+        event_type: 'failed',
+        order_id: orderId,
+        order_number: orderNumber,
+        recipient_phone: formattedPhone,
+        template_name: templateId,
+        message_id: messageId,
+        metadata: { error: responseText }
+      });
       return { success: false, error: `NotificaMe API error: ${response.status} - ${responseText}` };
     }
 
+    // Log sent event
+    await supabaseClient.from('notification_events').insert({
+      channel: 'whatsapp',
+      event_type: 'sent',
+      order_id: orderId,
+      order_number: orderNumber,
+      recipient_phone: formattedPhone,
+      template_name: templateId,
+      message_id: messageId,
+      metadata: { response: responseJson }
+    });
+
     console.log(`[TEMPLATE] WhatsApp template sent successfully for order ${orderNumber}`);
-    return { success: true };
+    return { success: true, messageId };
   } catch (error: any) {
     console.error('[TEMPLATE] Error sending WhatsApp template:', error);
     return { success: false, error: error.message };
@@ -97,8 +145,10 @@ async function sendWhatsAppText(
   message: string, 
   apiToken: string, 
   channelToken: string,
-  orderNumber: string
-): Promise<{ success: boolean; error?: string }> {
+  orderNumber: string,
+  supabaseClient: any,
+  orderId?: string
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
   try {
     const formattedPhone = formatPhone(phone);
 
@@ -118,13 +168,42 @@ async function sendWhatsAppText(
     });
 
     const responseText = await response.text();
+    let responseJson = null;
+    try {
+      responseJson = JSON.parse(responseText);
+    } catch (e) {}
     console.log(`[TEXT] NotificaMe response for ${orderNumber}: ${response.status} - ${responseText}`);
 
+    const messageId = responseJson?.id || responseJson?.messageId;
+
     if (!response.ok) {
+      // Log failed event
+      await supabaseClient.from('notification_events').insert({
+        channel: 'whatsapp',
+        event_type: 'failed',
+        order_id: orderId,
+        order_number: orderNumber,
+        recipient_phone: formattedPhone,
+        template_name: 'text_reminder',
+        message_id: messageId,
+        metadata: { error: responseText }
+      });
       return { success: false, error: `NotificaMe API error: ${response.status} - ${responseText}` };
     }
 
-    return { success: true };
+    // Log sent event
+    await supabaseClient.from('notification_events').insert({
+      channel: 'whatsapp',
+      event_type: 'sent',
+      order_id: orderId,
+      order_number: orderNumber,
+      recipient_phone: formattedPhone,
+      template_name: 'text_reminder',
+      message_id: messageId,
+      metadata: { response: responseJson }
+    });
+
+    return { success: true, messageId };
   } catch (error: any) {
     console.error('[TEXT] Error sending WhatsApp:', error);
     return { success: false, error: error.message };
@@ -285,11 +364,34 @@ const handler = async (req: Request): Promise<Response> => {
           console.log(`Email sent to ${order.customer_email}:`, emailResponse);
           emailSentCount++;
           
+          // Log sent email event
+          await supabase.from('notification_events').insert({
+            channel: 'email',
+            event_type: 'sent',
+            order_id: order.id,
+            order_number: orderNumber,
+            recipient_email: order.customer_email,
+            template_name: isSecondReminder ? 'reminder_2' : 'reminder_1',
+            message_id: (emailResponse as any)?.id,
+            metadata: { response: emailResponse }
+          });
+          
           if (!isSecondReminder) {
             updateFields.reminder_sent_at = new Date().toISOString();
           }
-        } catch (emailError) {
+        } catch (emailError: any) {
           console.error(`Error sending email to ${order.customer_email}:`, emailError);
+          
+          // Log failed email event
+          await supabase.from('notification_events').insert({
+            channel: 'email',
+            event_type: 'failed',
+            order_id: order.id,
+            order_number: orderNumber,
+            recipient_email: order.customer_email,
+            template_name: isSecondReminder ? 'reminder_2' : 'reminder_1',
+            metadata: { error: emailError.message }
+          });
         }
 
         // Send WhatsApp if credentials are configured
@@ -320,7 +422,7 @@ const handler = async (req: Request): Promise<Response> => {
             }
           }
 
-          let whatsappResult: { success: boolean; error?: string };
+          let whatsappResult: { success: boolean; error?: string; messageId?: string };
 
           // Template pix_pendente_dietaja aprovado pela Meta - ATIVADO
           const PIX_PENDING_TEMPLATE_ENABLED = true;
@@ -340,7 +442,9 @@ const handler = async (req: Request): Promise<Response> => {
               templateFields,
               notificameApiToken!,
               notificameChannelToken!,
-              orderNumber
+              orderNumber,
+              supabase,
+              order.id
             );
           } else if (pixCode) {
             // Template disabled - skip WhatsApp for PIX pending orders
@@ -355,7 +459,9 @@ const handler = async (req: Request): Promise<Response> => {
               whatsappMessage,
               notificameApiToken!,
               notificameChannelToken!,
-              orderNumber
+              orderNumber,
+              supabase,
+              order.id
             );
           }
 
