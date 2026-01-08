@@ -24,28 +24,55 @@ const NotificationTester = () => {
     pix_pendente: 'success' | 'error' | 'pending' | null;
   }>({ compra_confirmada: null, pix_pendente: null });
 
-  // Mock order data for testing
-  const mockOrderData = {
-    order_number: "DJA-TEST",
-    customer_name: "Cliente Teste",
-    items: [
-      {
-        name: "Kit 7 Dias Detox",
-        quantity: 1,
-        totalPrice: 189.90,
-        type: "kit",
-        flavors: [
-          { name: "Suco Verde Detox", quantity: 7 },
-          { name: "Sopa Emagrecedora", quantity: 7 }
-        ]
-      }
-    ],
-    subtotal: 189.90,
-    delivery_fee: 0,
-    total: 189.90,
-    delivery_option: "retirada",
-    delivery_address: null,
-    payment_method: "pix"
+  // Generate random test data for each test
+  const generateRandomTestData = () => {
+    const nomes = ["Ana", "Pedro", "Maria", "João", "Carla", "Lucas", "Julia", "Bruno", "Fernanda", "Ricardo"];
+    const sobrenomes = ["Silva", "Santos", "Oliveira", "Costa", "Ferreira", "Lima", "Almeida", "Souza"];
+    
+    const produtos = [
+      { name: "Kit 7 Dias Detox", price: 189.90, type: "kit" },
+      { name: "Kit 14 Dias Detox", price: 349.90, type: "kit" },
+      { name: "Marmita Low Carb", price: 29.90, type: "marmita" },
+      { name: "Marmita Fitness", price: 32.90, type: "marmita" },
+      { name: "Suco Verde 500ml", price: 15.90, type: "juice" },
+      { name: "Sopa Emagrecedora", price: 24.90, type: "soup" }
+    ];
+    
+    // Unique order number using timestamp
+    const orderNumber = `DJA-T${Date.now().toString(36).toUpperCase().slice(-5)}`;
+    
+    // Random customer name
+    const nome = nomes[Math.floor(Math.random() * nomes.length)];
+    const sobrenome = sobrenomes[Math.floor(Math.random() * sobrenomes.length)];
+    const customerName = `${nome} ${sobrenome}`;
+    
+    // Select 1-3 random items
+    const numItems = Math.floor(Math.random() * 3) + 1;
+    const selectedItems = [];
+    for (let i = 0; i < numItems; i++) {
+      const produto = produtos[Math.floor(Math.random() * produtos.length)];
+      const qty = Math.floor(Math.random() * 3) + 1;
+      selectedItems.push({
+        name: produto.name,
+        quantity: qty,
+        totalPrice: produto.price * qty,
+        type: produto.type
+      });
+    }
+    
+    const subtotal = selectedItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    const total = Math.round(subtotal * 100) / 100;
+    
+    return {
+      order_number: orderNumber,
+      customer_name: customerName,
+      items: selectedItems,
+      subtotal: total,
+      delivery_fee: 0,
+      total: total,
+      delivery_option: "retirada",
+      payment_method: "pix"
+    };
   };
 
   const testEmail = async () => {
@@ -62,11 +89,11 @@ const NotificationTester = () => {
     setEmailResult(null);
 
     try {
+      const testData = generateRandomTestData();
       const { data, error } = await supabase.functions.invoke('send-order-approved', {
         body: {
-          ...mockOrderData,
+          ...testData,
           customer_email: email,
-          customer_name: "Cliente Teste",
           customer_phone: phone || "11999999999"
         }
       });
@@ -156,14 +183,15 @@ const NotificationTester = () => {
     setTemplateResults(prev => ({ ...prev, [templateType]: 'pending' }));
 
     try {
+      const testData = generateRandomTestData();
       const orderData = {
-        customer_name: `TESTE ${isCompraConfirmada ? 'Compra Confirmada' : 'PIX Pendente'}`,
+        customer_name: testData.customer_name,
         customer_email: email || "teste@teste.com",
         customer_phone: phone,
-        items: mockOrderData.items,
-        subtotal: mockOrderData.subtotal,
+        items: testData.items,
+        subtotal: testData.subtotal,
         delivery_fee: 0,
-        total: mockOrderData.total,
+        total: testData.total,
         delivery_option: "retirada",
         status: isCompraConfirmada ? "approved" : "pending",
         payment_method: isCompraConfirmada ? "test" : "pix"
@@ -195,7 +223,7 @@ const NotificationTester = () => {
       }));
 
       setLastApiResponse({ 
-        template: isCompraConfirmada ? 'compra_confirmada_dieta' : 'pix_pendente_dietaja', 
+        template: isCompraConfirmada ? 'compraa_confrimadaa' : 'pix_pendente_dietaja', 
         success: !error,
         response: result || error 
       });
@@ -238,17 +266,18 @@ const NotificationTester = () => {
     const results: any[] = [];
 
     try {
-      // TESTE 1: Template compra_confirmada_dieta (status: approved)
+      // TESTE 1: Template compraa_confrimadaa (status: approved)
+      const testData1 = generateRandomTestData();
       const { data: order1, error: orderError1 } = await supabase
         .from('orders')
         .insert({
-          customer_name: "TESTE Template 1",
+          customer_name: testData1.customer_name,
           customer_email: email || "teste@teste.com",
           customer_phone: phone,
-          items: mockOrderData.items,
-          subtotal: mockOrderData.subtotal,
+          items: testData1.items,
+          subtotal: testData1.subtotal,
           delivery_fee: 0,
-          total: mockOrderData.total,
+          total: testData1.total,
           delivery_option: "retirada",
           status: "approved",
           payment_method: "test"
@@ -263,7 +292,7 @@ const NotificationTester = () => {
       });
 
       results.push({ 
-        template: 'compra_confirmada_dieta', 
+        template: 'compraa_confrimadaa', 
         success: !error1,
         response: result1 || error1 
       });
@@ -278,16 +307,17 @@ const NotificationTester = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // TESTE 2: Template pix_pendente_dietaja (status: pending com pix_code)
+      const testData2 = generateRandomTestData();
       const { data: order2, error: orderError2 } = await supabase
         .from('orders')
         .insert({
-          customer_name: "TESTE Template 2",
+          customer_name: testData2.customer_name,
           customer_email: email || "teste@teste.com",
           customer_phone: phone,
-          items: mockOrderData.items,
-          subtotal: mockOrderData.subtotal,
+          items: testData2.items,
+          subtotal: testData2.subtotal,
           delivery_fee: 0,
-          total: mockOrderData.total,
+          total: testData2.total,
           delivery_option: "retirada",
           status: "pending",
           payment_method: "pix"
@@ -359,7 +389,7 @@ const NotificationTester = () => {
           <AlertDescription className="text-xs text-blue-800">
             <strong>Templates aprovados pela Meta:</strong>
             <ul className="mt-1 list-disc list-inside space-y-0.5">
-              <li><code className="bg-blue-100 px-1 rounded">compra_confirmada_dieta</code> - Pedido aprovado</li>
+              <li><code className="bg-blue-100 px-1 rounded">compraa_confrimadaa</code> - Pedido aprovado</li>
               <li><code className="bg-blue-100 px-1 rounded">pix_pendente_dietaja</code> - PIX pendente</li>
             </ul>
           </AlertDescription>
@@ -487,7 +517,7 @@ const NotificationTester = () => {
           <div className="flex gap-4 text-xs">
             <div className="flex items-center gap-1.5">
               {getTemplateIcon(templateResults.compra_confirmada)}
-              <span>compra_confirmada_dieta</span>
+              <span>compraa_confrimadaa</span>
             </div>
             <div className="flex items-center gap-1.5">
               {getTemplateIcon(templateResults.pix_pendente)}
