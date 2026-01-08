@@ -389,7 +389,7 @@ serve(async (req: Request) => {
         "3": order.items.map((i: any) => `${i.quantity}x ${i.name}`).join(", ").substring(0, 500),
         "4": `R$ ${order.total.toFixed(2).replace(".", ",")}`
       };
-      promises.push(sendWhatsAppTemplate(order.customer_phone, "compra_confirmada_dieta", templateFields, order.order_number));
+      promises.push(sendWhatsAppTemplate(order.customer_phone, "compraa_confrimadaa", templateFields, order.order_number));
     } else if (whatsappMessage) {
       // For other statuses, use text message
       promises.push(sendWhatsAppText(order.customer_phone, whatsappMessage, order.order_number));
