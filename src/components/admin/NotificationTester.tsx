@@ -13,6 +13,8 @@ const NotificationTester = () => {
   const [phone, setPhone] = useState("");
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [isTestingWhatsApp, setIsTestingWhatsApp] = useState(false);
+  const [isTestingTemplate1, setIsTestingTemplate1] = useState(false);
+  const [isTestingTemplate2, setIsTestingTemplate2] = useState(false);
   const [emailResult, setEmailResult] = useState<'success' | 'error' | null>(null);
   const [lastApiResponse, setLastApiResponse] = useState<any>(null);
   const [templateResults, setTemplateResults] = useState<{
@@ -88,6 +90,89 @@ const NotificationTester = () => {
     }
   };
 
+  const testSingleTemplate = async (templateType: 'compra_confirmada' | 'pix_pendente') => {
+    if (!phone) {
+      toast({
+        title: "Telefone obrigatório",
+        description: "Digite um número de WhatsApp para testar",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const isCompraConfirmada = templateType === 'compra_confirmada';
+    const setLoading = isCompraConfirmada ? setIsTestingTemplate1 : setIsTestingTemplate2;
+    
+    setLoading(true);
+    setLastApiResponse(null);
+    setTemplateResults(prev => ({ ...prev, [templateType]: 'pending' }));
+
+    try {
+      const orderData = {
+        customer_name: `TESTE ${isCompraConfirmada ? 'Compra Confirmada' : 'PIX Pendente'}`,
+        customer_email: email || "teste@teste.com",
+        customer_phone: phone,
+        items: mockOrderData.items,
+        subtotal: mockOrderData.subtotal,
+        delivery_fee: 0,
+        total: mockOrderData.total,
+        delivery_option: "retirada",
+        status: isCompraConfirmada ? "approved" : "pending",
+        payment_method: isCompraConfirmada ? "test" : "pix"
+      };
+
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderData)
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      const invokeBody = isCompraConfirmada 
+        ? { order_id: order.id, status: 'approved' }
+        : { 
+            order_id: order.id, 
+            status: 'pending',
+            pix_code: '00020126580014br.gov.bcb.pix0136teste-pix-exemplo-dietaja520400005303986540510.005802BR5925DIETA JA6009SAO PAULO62070503***6304TEST'
+          };
+
+      const { data: result, error } = await supabase.functions.invoke('send-order-whatsapp', {
+        body: invokeBody
+      });
+
+      setTemplateResults(prev => ({ 
+        ...prev, 
+        [templateType]: error ? 'error' : 'success' 
+      }));
+
+      setLastApiResponse({ 
+        template: isCompraConfirmada ? 'compra_confirmada_dieta' : 'pix_pendente_dietaja', 
+        success: !error,
+        response: result || error 
+      });
+
+      await supabase.from('orders').delete().eq('id', order.id);
+
+      toast({
+        title: `📱 ${isCompraConfirmada ? 'Compra Confirmada' : 'PIX Pendente'} enviado!`,
+        description: "Verifique se a mensagem chegou no WhatsApp",
+      });
+
+    } catch (error: any) {
+      console.error('WhatsApp test error:', error);
+      setTemplateResults(prev => ({ ...prev, [templateType]: 'error' }));
+      setLastApiResponse({ error: error.message });
+      toast({
+        title: "❌ Erro no teste",
+        description: error.message || "Falha ao testar template",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const testBothTemplates = async () => {
     if (!phone) {
       toast({
@@ -140,10 +225,8 @@ const NotificationTester = () => {
         compra_confirmada: error1 ? 'error' : 'success' 
       }));
 
-      // Delete test order
       await supabase.from('orders').delete().eq('id', order1.id);
 
-      // Pequeno delay entre os 2 templates
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // TESTE 2: Template pix_pendente_dietaja (status: pending com pix_code)
@@ -185,7 +268,6 @@ const NotificationTester = () => {
         pix_pendente: error2 ? 'error' : 'success' 
       }));
 
-      // Delete test order
       await supabase.from('orders').delete().eq('id', order2.id);
 
       setLastApiResponse(results);
@@ -282,8 +364,46 @@ const NotificationTester = () => {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => testSingleTemplate('compra_confirmada')}
+            disabled={isTestingTemplate1 || isTestingWhatsApp || !phone}
+            className="gap-2"
+          >
+            {isTestingTemplate1 ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : templateResults.compra_confirmada === 'success' ? (
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            ) : templateResults.compra_confirmada === 'error' ? (
+              <XCircle className="h-4 w-4 text-red-500" />
+            ) : (
+              <MessageCircle className="h-4 w-4" />
+            )}
+            Compra Confirmada
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => testSingleTemplate('pix_pendente')}
+            disabled={isTestingTemplate2 || isTestingWhatsApp || !phone}
+            className="gap-2"
+          >
+            {isTestingTemplate2 ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : templateResults.pix_pendente === 'success' ? (
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            ) : templateResults.pix_pendente === 'error' ? (
+              <XCircle className="h-4 w-4 text-red-500" />
+            ) : (
+              <MessageCircle className="h-4 w-4" />
+            )}
+            PIX Pendente
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={testBothTemplates}
-            disabled={isTestingWhatsApp || !phone}
+            disabled={isTestingWhatsApp || isTestingTemplate1 || isTestingTemplate2 || !phone}
             className="gap-2"
           >
             {isTestingWhatsApp ? (
