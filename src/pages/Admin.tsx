@@ -27,7 +27,8 @@ import {
   Activity,
   AlertCircle,
   Megaphone,
-  UserX
+  UserX,
+  Bell,
 } from "lucide-react";
 import {
   Select,
@@ -57,6 +58,7 @@ import PendingOrdersRecovery from "@/components/admin/PendingOrdersRecovery";
 import AbandonedCartsRecovery from "@/components/admin/AbandonedCartsRecovery";
 import MarketingManager from "@/components/admin/MarketingManager";
 import NotificationTester from "@/components/admin/NotificationTester";
+import NotificationStats from "@/components/admin/NotificationStats";
 
 interface Lead {
   id: string;
@@ -637,7 +639,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full max-w-6xl grid-cols-8">
+          <TabsList className="grid w-full max-w-7xl grid-cols-9">
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Analytics</span>
@@ -657,6 +659,10 @@ const Admin = () => {
             <TabsTrigger value="marketing" className="flex items-center gap-2">
               <Megaphone className="w-4 h-4" />
               <span className="hidden sm:inline">Marketing</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="w-4 h-4" />
+              <span className="hidden sm:inline">Notificações</span>
             </TabsTrigger>
             <TabsTrigger value="stock" className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
@@ -1147,6 +1153,10 @@ const Admin = () => {
 
           <TabsContent value="stock">
             <StockReport />
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <NotificationStats />
           </TabsContent>
 
           <TabsContent value="history">

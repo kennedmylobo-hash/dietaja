@@ -96,8 +96,10 @@ async function sendWhatsAppTemplate(
   phone: string, 
   templateName: string, 
   fields: Record<string, string>, 
-  orderNumber: string
-): Promise<{ success: boolean; error?: string; response?: any }> {
+  orderNumber: string,
+  supabaseClient: any,
+  orderId?: string
+): Promise<{ success: boolean; error?: string; response?: any; messageId?: string }> {
   const apiToken = Deno.env.get('NOTIFICAME_API_TOKEN');
   const channelToken = Deno.env.get('NOTIFICAME_WHATSAPP_CHANNEL_TOKEN');
 
@@ -185,12 +187,41 @@ async function sendWhatsAppTemplate(
     console.log(`[TEMPLATE] Body:`, JSON.stringify(fullResponse.body, null, 2));
     console.log(`[TEMPLATE] Headers:`, JSON.stringify(fullResponse.headers, null, 2));
 
+    // Extract message ID from response
+    const messageId = responseJson?.id || responseJson?.messageId;
+
     if (!response.ok) {
       console.error(`[TEMPLATE] ❌ API ERROR for order ${orderNumber}`);
+      
+      // Log failed event
+      await supabaseClient.from('notification_events').insert({
+        channel: 'whatsapp',
+        event_type: 'failed',
+        order_id: orderId,
+        order_number: orderNumber,
+        recipient_phone: formattedPhone,
+        template_name: templateName,
+        message_id: messageId,
+        metadata: { error: responseData, response: fullResponse }
+      });
+      
       return { success: false, error: responseData, response: fullResponse };
     } else {
       console.log(`[TEMPLATE] ✅ WhatsApp sent successfully for order ${orderNumber}`);
-      return { success: true, response: fullResponse };
+      
+      // Log sent event
+      await supabaseClient.from('notification_events').insert({
+        channel: 'whatsapp',
+        event_type: 'sent',
+        order_id: orderId,
+        order_number: orderNumber,
+        recipient_phone: formattedPhone,
+        template_name: templateName,
+        message_id: messageId,
+        metadata: { response: fullResponse }
+      });
+      
+      return { success: true, response: fullResponse, messageId };
     }
   } catch (error) {
     console.error('[TEMPLATE] ❌ Exception sending WhatsApp template:', error);
@@ -372,7 +403,7 @@ serve(async (req) => {
         "3": itemsList,
         "4": formatCurrency(order.total)
       };
-      await sendWhatsAppTemplate(order.customer_phone, 'compraa_confrimadaa', templateFields, order.order_number);
+      await sendWhatsAppTemplate(order.customer_phone, 'compraa_confrimadaa', templateFields, order.order_number, supabase, order_id);
     } else if (status === 'pending' && pix_code) {
       // Template pix_pendente_dietaja aprovado pela Meta - ATIVADO
       const PIX_PENDING_TEMPLATE_ENABLED = true;
@@ -386,7 +417,7 @@ serve(async (req) => {
           "3": formatCurrency(order.total),
           "4": pix_code
         };
-        await sendWhatsAppTemplate(order.customer_phone, 'pix_pendente_dietaja', templateFields, order.order_number);
+        await sendWhatsAppTemplate(order.customer_phone, 'pix_pendente_dietaja', templateFields, order.order_number, supabase, order_id);
       } else {
         console.log('[SKIP] pix_pendente_dietaja template disabled - awaiting Meta approval');
         // Não envia WhatsApp para PIX pendente enquanto template não for aprovado
