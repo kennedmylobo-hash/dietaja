@@ -230,6 +230,29 @@ const PendingOrdersRecovery = () => {
         console.error('Error decrementing stock:', decrementError);
       }
 
+      // Send order confirmation email
+      const orderData = pendingOrders.find(o => o.id === orderId);
+      try {
+        await supabase.functions.invoke('send-order-approved', {
+          body: {
+            order_number: orderData?.order_number || orderId.slice(0, 8),
+            customer_email: orderData?.customer_email,
+            customer_name: orderData?.customer_name,
+            customer_phone: orderData?.customer_phone,
+            items: orderData?.items,
+            subtotal: orderData?.subtotal,
+            delivery_fee: orderData?.delivery_fee || 0,
+            total: orderData?.total,
+            delivery_option: orderData?.delivery_option,
+            delivery_address: orderData?.delivery_address,
+            payment_method: 'manual'
+          }
+        });
+        console.log('✅ Email confirmation sent');
+      } catch (emailError) {
+        console.error('Email confirmation error:', emailError);
+      }
+
       // Send WhatsApp confirmation
       try {
         await supabase.functions.invoke('send-order-whatsapp', {
