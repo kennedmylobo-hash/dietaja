@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
@@ -173,6 +174,11 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     const data: OrderConfirmationRequest = await req.json();
     console.log("Order confirmation request:", JSON.stringify(data, null, 2));
 
@@ -198,10 +204,32 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (error) {
       console.error("Resend error:", error);
+      
+      // Log failed email event
+      await supabase.from('notification_events').insert({
+        channel: 'email',
+        event_type: 'failed',
+        order_number: data.order_number,
+        recipient_email: data.customer_email,
+        template_name: 'order_confirmation',
+        metadata: { error: error.message }
+      });
+      
       throw error;
     }
 
     console.log("Email sent successfully:", emailResponse);
+
+    // Log sent email event
+    await supabase.from('notification_events').insert({
+      channel: 'email',
+      event_type: 'sent',
+      order_number: data.order_number,
+      recipient_email: data.customer_email,
+      template_name: 'order_confirmation',
+      message_id: emailResponse?.id,
+      metadata: { response: emailResponse }
+    });
 
     return new Response(
       JSON.stringify({ success: true, emailId: emailResponse?.id }),

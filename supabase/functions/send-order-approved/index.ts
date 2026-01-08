@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
@@ -55,8 +56,10 @@ async function sendWhatsAppTemplate(
   fields: Record<string, string>,
   apiToken: string,
   channelToken: string,
-  orderNumber: string
-): Promise<{ success: boolean; error?: string }> {
+  orderNumber: string,
+  supabaseClient: any,
+  orderId?: string
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
   try {
     const formattedPhone = formatPhone(phone);
     
@@ -114,12 +117,37 @@ async function sendWhatsAppTemplate(
       headers: Object.fromEntries(response.headers.entries())
     }));
 
+    const messageId = responseJson?.id || responseJson?.messageId;
+
     if (!response.ok) {
+      // Log failed event
+      await supabaseClient.from('notification_events').insert({
+        channel: 'whatsapp',
+        event_type: 'failed',
+        order_id: orderId,
+        order_number: orderNumber,
+        recipient_phone: formattedPhone,
+        template_name: templateName,
+        message_id: messageId,
+        metadata: { error: responseText }
+      });
       return { success: false, error: `NotificaMe API error: ${response.status} - ${responseText}` };
     }
 
+    // Log sent event
+    await supabaseClient.from('notification_events').insert({
+      channel: 'whatsapp',
+      event_type: 'sent',
+      order_id: orderId,
+      order_number: orderNumber,
+      recipient_phone: formattedPhone,
+      template_name: templateName,
+      message_id: messageId,
+      metadata: { response: responseJson }
+    });
+
     console.log(`[WHATSAPP] Template sent successfully for order ${orderNumber}`);
-    return { success: true };
+    return { success: true, messageId };
   } catch (error: any) {
     console.error('[WHATSAPP] Error sending template:', error);
     return { success: false, error: error.message };
@@ -265,6 +293,11 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     const data: OrderApprovedRequest = await req.json();
     console.log("Order approved request:", JSON.stringify(data, null, 2));
 
@@ -297,9 +330,30 @@ const handler = async (req: Request): Promise<Response> => {
       if (error) {
         console.error("[EMAIL] Resend error:", error);
         results.email.error = error.message;
+        
+        // Log failed email event
+        await supabase.from('notification_events').insert({
+          channel: 'email',
+          event_type: 'failed',
+          order_number: data.order_number,
+          recipient_email: data.customer_email,
+          template_name: 'order_approved',
+          metadata: { error: error.message }
+        });
       } else {
         console.log("[EMAIL] Approved email sent successfully:", emailResponse);
         results.email.success = true;
+        
+        // Log sent email event
+        await supabase.from('notification_events').insert({
+          channel: 'email',
+          event_type: 'sent',
+          order_number: data.order_number,
+          recipient_email: data.customer_email,
+          template_name: 'order_approved',
+          message_id: emailResponse?.id,
+          metadata: { response: emailResponse }
+        });
       }
     } catch (emailError: any) {
       console.error("[EMAIL] Error sending email:", emailError);
@@ -329,7 +383,8 @@ const handler = async (req: Request): Promise<Response> => {
           templateFields,
           notificameApiToken,
           notificameChannelToken,
-          data.order_number
+          data.order_number,
+          supabase
         );
 
         results.whatsapp.success = whatsappResult.success;
