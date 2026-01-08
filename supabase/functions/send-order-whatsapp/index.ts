@@ -91,16 +91,16 @@ async function sendWhatsAppText(phone: string, message: string, orderNumber: str
 }
 
 // Send template message (for messages outside 24h window - Meta approved templates)
+// Using correct NotificaMe API format per documentation
 async function sendWhatsAppTemplate(
   phone: string, 
-  templateId: string, 
+  templateName: string, 
   fields: Record<string, string>, 
   orderNumber: string
 ): Promise<{ success: boolean; error?: string; response?: any }> {
   const apiToken = Deno.env.get('NOTIFICAME_API_TOKEN');
   const channelToken = Deno.env.get('NOTIFICAME_WHATSAPP_CHANNEL_TOKEN');
 
-  // Validação detalhada dos tokens
   console.log(`[TEMPLATE] Token validation:`, {
     hasApiToken: !!apiToken,
     apiTokenLength: apiToken?.length || 0,
@@ -118,18 +118,36 @@ async function sendWhatsAppTemplate(
 
   try {
     console.log(`[TEMPLATE] ========== SENDING WHATSAPP ==========`);
-    console.log(`[TEMPLATE] Template: "${templateId}"`);
+    console.log(`[TEMPLATE] Template: "${templateName}"`);
     console.log(`[TEMPLATE] Phone: ${formattedPhone}`);
     console.log(`[TEMPLATE] Order: ${orderNumber}`);
     console.log(`[TEMPLATE] Fields:`, JSON.stringify(fields, null, 2));
 
+    // Convert fields object to ordered parameters array per NotificaMe docs
+    const fieldKeys = Object.keys(fields).sort((a, b) => Number(a) - Number(b));
+    const parameters = fieldKeys.map(key => ({
+      type: "text",
+      text: fields[key]
+    }));
+
+    // Correct payload format per NotificaMe API documentation
     const payload = {
       from: channelToken,
       to: formattedPhone,
       contents: [{
         type: 'template',
-        templateId: templateId,
-        fields: fields
+        template: {
+          name: templateName,
+          language: {
+            code: 'pt_BR'
+          },
+          components: [
+            {
+              type: 'body',
+              parameters: parameters
+            }
+          ]
+        }
       }],
     };
 
