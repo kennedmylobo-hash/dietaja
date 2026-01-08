@@ -114,7 +114,7 @@ const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps & { should
         repeat: 2,
         repeatDelay: 0.3
       } : {}}
-      className={`group relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 lg:p-8 text-left transition-all duration-300 shadow-lg hover:shadow-2xl ring-2 ring-white/20 hover:ring-white/40 bg-gradient-to-br ${banner.gradient} cursor-pointer`}
+      className={`group relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 lg:p-8 text-left transition-all duration-300 shadow-xl hover:shadow-2xl ring-2 ring-white/30 hover:ring-white/50 bg-gradient-to-br ${banner.gradient} cursor-pointer border-2 border-white/10`}
     >
       {/* Background glow effect */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -139,10 +139,10 @@ const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps & { should
         </p>
       </motion.div>
 
-      {/* Click indicator */}
-      <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 flex items-center gap-1 text-white/60 group-hover:text-white transition-all duration-300">
-        <span className="text-[10px] sm:text-xs hidden sm:inline font-medium">Ver mais</span>
-        <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" />
+      {/* Click indicator - More visible */}
+      <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-2 py-1 sm:px-3 sm:py-1.5 text-white group-hover:bg-white/30 transition-all duration-300">
+        <span className="text-[9px] sm:text-xs font-semibold">Clique</span>
+        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" />
       </div>
 
       {/* Decorative circle with parallax */}
@@ -177,20 +177,27 @@ const PromoBannersSection = () => {
   };
 
   return (
-    <section className="py-4 sm:py-6 md:py-12 bg-background">
+    <section className="py-6 sm:py-8 md:py-12 bg-gradient-to-b from-muted/30 to-background">
       <div className="container px-3 md:px-6">
-        {/* Section header */}
+        {/* Section header - More prominent */}
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="text-center mb-4 sm:mb-6 md:mb-8"
+          className="text-center mb-6 sm:mb-8 md:mb-10"
         >
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-1 sm:mb-2">
-            O que você deseja?
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-foreground mb-2 sm:mb-3">
+            O que você deseja? 🤔
           </h2>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Clique e veja mais 👇
+          <p className="text-base sm:text-lg text-muted-foreground flex items-center justify-center gap-2">
+            <span>Escolha uma opção abaixo</span>
+            <motion.span 
+              animate={{ y: [0, 6, 0] }}
+              transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+              className="text-xl"
+            >
+              👇
+            </motion.span>
           </p>
         </motion.div>
 
