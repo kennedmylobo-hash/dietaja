@@ -15,7 +15,9 @@ const NotificationTester = () => {
   const [isTestingWhatsApp, setIsTestingWhatsApp] = useState(false);
   const [isTestingTemplate1, setIsTestingTemplate1] = useState(false);
   const [isTestingTemplate2, setIsTestingTemplate2] = useState(false);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [emailResult, setEmailResult] = useState<'success' | 'error' | null>(null);
+  const [connectionResult, setConnectionResult] = useState<'success' | 'error' | null>(null);
   const [lastApiResponse, setLastApiResponse] = useState<any>(null);
   const [templateResults, setTemplateResults] = useState<{
     compra_confirmada: 'success' | 'error' | 'pending' | null;
@@ -87,6 +89,52 @@ const NotificationTester = () => {
       });
     } finally {
       setIsTestingEmail(false);
+    }
+  };
+
+  const testConnection = async () => {
+    if (!phone) {
+      toast({
+        title: "Telefone obrigatório",
+        description: "Digite um número de WhatsApp para testar",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsTestingConnection(true);
+    setConnectionResult(null);
+    setLastApiResponse(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('test-whatsapp-connection', {
+        body: { phone }
+      });
+
+      if (error) throw error;
+
+      console.log('📱 Connection test result:', data);
+      setConnectionResult(data?.success ? 'success' : 'error');
+      setLastApiResponse(data);
+      
+      toast({
+        title: data?.success ? "✅ Conexão OK!" : "❌ Falha na conexão",
+        description: data?.success 
+          ? `Mensagem de teste enviada para ${phone}` 
+          : data?.error || "Erro ao enviar mensagem",
+        variant: data?.success ? "default" : "destructive"
+      });
+    } catch (error: any) {
+      console.error('Connection test error:', error);
+      setConnectionResult('error');
+      setLastApiResponse({ error: error.message });
+      toast({
+        title: "❌ Erro no teste",
+        description: error.message || "Falha ao testar conexão",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingConnection(false);
     }
   };
 
@@ -359,6 +407,25 @@ const NotificationTester = () => {
               <Mail className="h-4 w-4" />
             )}
             Testar Email
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={testConnection}
+            disabled={isTestingConnection || !phone}
+            className="gap-2 border-green-300 hover:bg-green-50"
+          >
+            {isTestingConnection ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : connectionResult === 'success' ? (
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            ) : connectionResult === 'error' ? (
+              <XCircle className="h-4 w-4 text-red-500" />
+            ) : (
+              <MessageCircle className="h-4 w-4 text-green-600" />
+            )}
+            Testar Conexão WhatsApp
           </Button>
 
           <Button
