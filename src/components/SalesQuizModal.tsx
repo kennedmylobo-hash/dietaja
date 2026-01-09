@@ -40,8 +40,7 @@ import {
   type Recommendation,
   type CrossSellItem
 } from "@/lib/quiz-logic";
-
-const WHATSAPP_NUMBER = "5577991001658";
+import { siteConfig } from "@/config/site";
 
 interface SalesQuizModalProps {
   open: boolean;
@@ -323,7 +322,7 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
     const message = formatQuizDataForWhatsApp(answers as QuizAnswers, recommendation, utmSummary);
     
     const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`, "_blank");
+    window.open(`https://wa.me/${siteConfig.contact.whatsapp}?text=${encodedMessage}`, "_blank");
     onOpenChange(false);
   };
 
@@ -693,7 +692,7 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
                           message += `\n\n${utmSummary}`;
                         }
                         
-                        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank");
+                        window.open(`https://wa.me/${siteConfig.contact.whatsapp}?text=${encodeURIComponent(message)}`, "_blank");
                         onOpenChange(false);
                       }}
                     >

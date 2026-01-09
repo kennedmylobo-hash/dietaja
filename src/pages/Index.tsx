@@ -27,15 +27,13 @@ import {
   GuaranteeSkeleton,
   FAQSkeleton,
 } from "@/components/skeletons/SectionSkeletons";
+import { siteConfig, getWhatsAppLink, formatCurrency } from "@/config/site";
 
 // Lazy load below-the-fold sections
 const CustomDietSection = lazy(() => import("@/components/CustomDietSection"));
 const ReviewsSection = lazy(() => import("@/components/ReviewsSection"));
 const GuaranteeSection = lazy(() => import("@/components/GuaranteeSection"));
 const FAQSection = lazy(() => import("@/components/FAQSection"));
-
-// ⚠️ IMPORTANTE: Substitua pelo número real do WhatsApp (formato: 55 + DDD + número)
-const WHATSAPP_NUMBER = "5577991001658";
 
 import { SoftIdentificationModal } from "@/components/SoftIdentificationModal";
 
@@ -113,14 +111,14 @@ const IndexContent = () => {
       });
     }
 
-    let message = `Oi 😊\nVi o site da *Dieta Já* e quero cuidar melhor da minha alimentação.\n\n`;
+    let message = `Oi 😊\nVi o site da *${siteConfig.brand.name}* e quero cuidar melhor da minha alimentação.\n\n`;
     
     // Add customer data if provided
     if (customerData) {
       message += `👤 *DADOS:*\n`;
       message += `Nome: ${customerData.name}\n`;
       message += `WhatsApp: ${customerData.phone}\n`;
-      message += `Opção: ${customerData.deliveryOption === 'pickup' ? 'Retirada no Recreio' : 'Entrega em domicílio'}\n`;
+      message += `Opção: ${customerData.deliveryOption === 'pickup' ? `Retirada no ${siteConfig.location.pickupNeighborhood}` : 'Entrega em domicílio'}\n`;
       if (customerData.address) {
         message += `Endereço: ${customerData.address}\n`;
       }
@@ -137,20 +135,20 @@ const IndexContent = () => {
       }
     });
 
-    const deliveryFee = customerData?.deliveryOption === 'delivery' ? 10 : 0;
+    const deliveryFee = customerData?.deliveryOption === 'delivery' ? siteConfig.location.deliveryFee : 0;
     const finalTotal = total + deliveryFee;
 
-    message += `\n💰 *SUBTOTAL:* R$ ${total.toFixed(2).replace(".", ",")}\n`;
+    message += `\n💰 *SUBTOTAL:* ${formatCurrency(total)}\n`;
     if (deliveryFee > 0) {
-      message += `🛵 *ENTREGA:* R$ ${deliveryFee.toFixed(2).replace(".", ",")}\n`;
+      message += `🛵 *ENTREGA:* ${formatCurrency(deliveryFee)}\n`;
     }
-    message += `✅ *TOTAL:* R$ ${finalTotal.toFixed(2).replace(".", ",")}\n`;
-    message += `\n📍 Estou em *Vitória da Conquista*${getUTMSummary()}\n\nPode me confirmar o pedido?`;
+    message += `✅ *TOTAL:* ${formatCurrency(finalTotal)}\n`;
+    message += `\n📍 Estou em *${siteConfig.location.city}*${getUTMSummary()}\n\nPode me confirmar o pedido?`;
 
     const encodedMessage = encodeURIComponent(message);
     
     // Abrir WhatsApp
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`, "_blank");
+    window.open(`https://wa.me/${siteConfig.contact.whatsapp}?text=${encodedMessage}`, "_blank");
     
     // Limpar carrinho
     clearCart();
@@ -162,21 +160,21 @@ const IndexContent = () => {
   };
 
   const handleContactClick = () => {
-    const message = `Oi 😊\nVi o site da *Dieta Já* e quero cuidar melhor da minha alimentação.\n\n📍 Estou em *Vitória da Conquista*${getUTMSummary()}\n\nPode me passar as informações dos kits e entrega?`;
+    const message = `Oi 😊\nVi o site da *${siteConfig.brand.name}* e quero cuidar melhor da minha alimentação.\n\n📍 Estou em *${siteConfig.location.city}*${getUTMSummary()}\n\nPode me passar as informações dos kits e entrega?`;
     const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`, "_blank");
+    window.open(`https://wa.me/${siteConfig.contact.whatsapp}?text=${encodedMessage}`, "_blank");
   };
 
   return (
     <>
       <Helmet>
-        <title>Dieta Já | Alimentação Saudável Pronta em Vitória da Conquista</title>
+        <title>{siteConfig.seo.title}</title>
         <meta
           name="description"
-          content="Kits detox e marmitas saudáveis prontas para mulheres com rotina corrida em Vitória da Conquista. Coma melhor sem precisar cozinhar."
+          content={siteConfig.seo.description}
         />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://dietaja.com.br" />
+        <link rel="canonical" href={siteConfig.urls.canonical} />
       </Helmet>
 
       <div className="min-h-screen bg-background">
@@ -221,7 +219,7 @@ const IndexContent = () => {
           </div>
           <Suspense fallback={<CustomDietSkeleton />}>
             <div id="dieta-personalizada" ref={customDietRef}>
-              <CustomDietSection whatsappNumber={WHATSAPP_NUMBER} />
+              <CustomDietSection whatsappNumber={siteConfig.contact.whatsapp} />
             </div>
           </Suspense>
           <div ref={valueRef}>
@@ -264,7 +262,7 @@ const IndexContent = () => {
         />
 
         {/* Floating WhatsApp Button */}
-        <WhatsAppFloatingButton phoneNumber={WHATSAPP_NUMBER} />
+        <WhatsAppFloatingButton />
 
         {/* Sales Notifications */}
         <SalesNotification />
@@ -277,7 +275,7 @@ const IndexContent = () => {
           <div className="container px-6 flex flex-col items-center text-center">
             <Logo />
             <p className="text-sm text-muted-foreground mt-4">
-              © {new Date().getFullYear()} Dieta Já. Vitória da Conquista, BA.
+              © {new Date().getFullYear()} {siteConfig.brand.name}. {siteConfig.location.city}, {siteConfig.location.state}.
             </p>
             <p className="text-xs text-muted-foreground mt-2">
               A solução que cuida de você enquanto você cuida da sua vida.

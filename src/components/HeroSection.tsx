@@ -1,5 +1,6 @@
 import { Star, CheckCircle2 } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
+import { siteConfig } from "@/config/site";
 
 const HeroSection = () => {
 
@@ -26,7 +27,7 @@ const HeroSection = () => {
           {/* Badge de localização - PRIMEIRO */}
           <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 mb-3 animate-fade-in">
             <span className="text-xs sm:text-sm font-medium text-white">
-              📍 Entregamos apenas em Vitória da Conquista - BA
+              📍 Entregamos apenas em {siteConfig.location.city} - {siteConfig.location.state}
             </span>
           </div>
 
@@ -38,7 +39,7 @@ const HeroSection = () => {
 
           <p className="text-base sm:text-lg md:text-xl text-white/90 mb-8 leading-relaxed animate-fade-in">
             Alimentação saudável pronta para quem tem rotina corrida em{" "}
-            <strong className="text-white">Vitória da Conquista</strong>.
+            <strong className="text-white">{siteConfig.location.city}</strong>.
           </p>
 
           {/* Benefícios em ícones */}

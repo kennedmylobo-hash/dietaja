@@ -2,6 +2,7 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { MapPin } from "lucide-react";
 import CountdownTimer from "@/components/CountdownTimer";
+import { siteConfig, formatCurrency } from "@/config/site";
 
 const UrgencySection = () => {
   const ref = useRef(null);
@@ -23,10 +24,10 @@ const UrgencySection = () => {
             </div>
             <div>
               <p className="font-semibold text-foreground text-sm sm:text-base">
-                Vitória da Conquista
+                {siteConfig.location.city}
               </p>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                📍 Retirada grátis • 🛵 Entrega R$ 10
+                📍 Retirada grátis • 🛵 Entrega {formatCurrency(siteConfig.location.deliveryFee)}
               </p>
             </div>
           </div>

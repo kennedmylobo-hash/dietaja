@@ -1,13 +1,14 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useState } from "react";
 import { ChevronDown, MessageCircle } from "lucide-react";
+import { siteConfig, formatCurrency } from "@/config/site";
 
 interface FAQItem {
   question: string;
   answer: string;
 }
 
-const faqItems: FAQItem[] = [
+const getFaqItems = (): FAQItem[] => [
   {
     question: "Preciso seguir alguma dieta específica?",
     answer: "Não. Os kits e marmitas foram pensados para simplificar, não para complicar. É só seguir e cuidar de você.",
@@ -26,15 +27,15 @@ const faqItems: FAQItem[] = [
   },
   {
     question: "Como recebo meu pedido?",
-    answer: "Tudo é entregue congelado e pronto para consumo. Você pode retirar grátis no bairro Recreio ou receber em casa por R$ 10,00 de taxa de entrega. Os kits detox vêm com sucos e sopas, e as marmitas são só aquecer no micro-ondas (3 minutinhos!).",
+    answer: `Tudo é entregue congelado e pronto para consumo. Você pode retirar grátis no bairro ${siteConfig.location.pickupNeighborhood} ou receber em casa por ${formatCurrency(siteConfig.location.deliveryFee)} de taxa de entrega. Os kits detox vêm com sucos e sopas, e as marmitas são só aquecer no micro-ondas (3 minutinhos!).`,
   },
   {
     question: "Posso pedir só as marmitas, sem o kit detox?",
     answer: "Claro! Você pode montar seu pedido como preferir: só kits, só marmitas, ou os dois juntos para uma semana completa de praticidade.",
   },
   {
-    question: "Vocês atendem Vitória da Conquista?",
-    answer: "Sim 😊 Retirada grátis no bairro Recreio ou entrega em toda a cidade por R$ 10,00.",
+    question: `Vocês atendem ${siteConfig.location.city}?`,
+    answer: `Sim 😊 Retirada grátis no bairro ${siteConfig.location.pickupNeighborhood} ou entrega em toda a cidade por ${formatCurrency(siteConfig.location.deliveryFee)}.`,
   },
 ];
 
@@ -46,6 +47,7 @@ const FAQSection = ({ onContactClick }: FAQSectionProps) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const faqItems = getFaqItems();
 
   return (
     <section ref={ref} className="py-20 md:py-28 bg-background">

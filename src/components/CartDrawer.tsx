@@ -21,8 +21,7 @@ import PixPaymentModal from "./PixPaymentModal";
 import { toast } from "@/hooks/use-toast";
 import { useMarmitaFlavors, useKitJuices, useKitSoups } from "@/hooks/useMenuData";
 import { motion, AnimatePresence } from "framer-motion";
-
-const WHATSAPP_NUMBER = "5577991001658";
+import { siteConfig, getWhatsAppLink } from "@/config/site";
 
 // Phone mask function: (XX) XXXXX-XXXX
 const formatPhone = (value: string): string => {
