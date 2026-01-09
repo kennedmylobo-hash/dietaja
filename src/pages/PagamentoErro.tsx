@@ -4,12 +4,13 @@ import { XCircle, Home, MessageCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import { Helmet } from "react-helmet-async";
+import { siteConfig, getWhatsAppLink } from "@/config/site";
 
 const PagamentoErro = () => {
   return (
     <>
       <Helmet>
-        <title>Erro no Pagamento | Dieta Já</title>
+        <title>Erro no Pagamento | {siteConfig.brand.name}</title>
         <meta name="robots" content="noindex" />
       </Helmet>
 
@@ -66,7 +67,7 @@ const PagamentoErro = () => {
 
               <Button asChild variant="outline" size="lg" className="w-full">
                 <a
-                  href="https://wa.me/5577991001658?text=Olá! Tive um problema com meu pagamento e preciso de ajuda."
+                  href={getWhatsAppLink("Olá! Tive um problema com meu pagamento e preciso de ajuda.")}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

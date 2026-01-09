@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
 import { Helmet } from "react-helmet-async";
+import { siteConfig, getWhatsAppLink } from "@/config/site";
 
 interface OrderData {
   id: string;
@@ -58,7 +59,7 @@ const PagamentoSucesso = () => {
   return (
     <>
       <Helmet>
-        <title>Pagamento Confirmado | Dieta Já</title>
+        <title>Pagamento Confirmado | {siteConfig.brand.name}</title>
         <meta name="robots" content="noindex" />
       </Helmet>
 
@@ -119,7 +120,7 @@ const PagamentoSucesso = () => {
             <div className="flex flex-col gap-3">
               <Button asChild variant="cta" size="lg" className="w-full">
                 <a
-                  href="https://wa.me/5577991001658?text=Olá! Acabei de fazer um pedido online e gostaria de confirmar."
+                  href={getWhatsAppLink("Olá! Acabei de fazer um pedido online e gostaria de confirmar.")}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

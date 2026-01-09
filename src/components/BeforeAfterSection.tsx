@@ -14,6 +14,7 @@ import {
   PiggyBank,
   ArrowRight
 } from "lucide-react";
+import { siteConfig } from "@/config/site";
 
 const beforeItems = [
   { icon: Clock, text: "Sem tempo pra cozinhar" },
@@ -122,8 +123,8 @@ const BeforeAfterSection = () => {
             <div className="bg-card border-2 border-primary/30 rounded-2xl p-4 sm:p-6 md:p-8 h-full shadow-lg shadow-primary/5">
               {/* Destaque badge */}
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="px-3 sm:px-4 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
-                  ✨ Com a Dieta Já
+                <span className="px-3 sm:px-4 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full whitespace-nowrap">
+                  ✨ Com a {siteConfig.brand.name}
                 </span>
               </div>
 

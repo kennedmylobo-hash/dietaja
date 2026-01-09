@@ -1,8 +1,9 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Shield, Lock, MapPin, Heart } from "lucide-react";
+import { siteConfig } from "@/config/site";
 
-const guarantees = [
+const getGuarantees = () => [
   {
     icon: Shield,
     title: "Garantia de satisfação",
@@ -16,13 +17,14 @@ const guarantees = [
   {
     icon: MapPin,
     title: "Produção local",
-    description: "Feito em Vitória da Conquista com ingredientes frescos.",
+    description: `Feito em ${siteConfig.location.city} com ingredientes frescos.`,
   },
 ];
 
 const GuaranteeSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const guarantees = getGuarantees();
 
   return (
     <section ref={ref} className="py-12 md:py-16 lg:py-20 bg-sage-light/20">

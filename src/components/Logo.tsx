@@ -1,7 +1,14 @@
 import { forwardRef } from "react";
 import { Leaf } from "lucide-react";
+import { siteConfig } from "@/config/site";
 
 const Logo = forwardRef<HTMLDivElement>((_, ref) => {
+  // Divide o nome da marca para colorir a segunda parte
+  const brandName = siteConfig.brand.name;
+  const words = brandName.split(' ');
+  const firstPart = words.length > 1 ? words.slice(0, -1).join(' ') : brandName.slice(0, -2);
+  const secondPart = words.length > 1 ? words[words.length - 1] : brandName.slice(-2);
+
   return (
     <div ref={ref} className="flex items-center gap-2">
       <div className="relative">
@@ -10,7 +17,7 @@ const Logo = forwardRef<HTMLDivElement>((_, ref) => {
         </div>
       </div>
       <span className="text-xl font-bold text-foreground">
-        Dieta<span className="text-primary">Já</span>
+        {firstPart}<span className="text-primary">{secondPart}</span>
       </span>
     </div>
   );

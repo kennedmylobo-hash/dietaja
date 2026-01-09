@@ -1,12 +1,15 @@
 import { MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { getUTMSummary } from "@/lib/utm";
+import { siteConfig, getDefaultWhatsAppMessage } from "@/config/site";
 
 interface WhatsAppFloatingButtonProps {
-  phoneNumber: string;
+  phoneNumber?: string;
 }
 
 const WhatsAppFloatingButton = ({ phoneNumber }: WhatsAppFloatingButtonProps) => {
+  const whatsappNumber = phoneNumber || siteConfig.contact.whatsapp;
+
   const handleClick = () => {
     // Track Contact event with Meta Pixel
     if (typeof window !== 'undefined' && window.fbq) {
@@ -15,9 +18,9 @@ const WhatsAppFloatingButton = ({ phoneNumber }: WhatsAppFloatingButtonProps) =>
       });
     }
 
-    const message = `Oi 😊\nVi o site da *Dieta Já* e quero saber mais sobre os kits!\n\n📍 Estou em *Vitória da Conquista*${getUTMSummary()}`;
+    const message = getDefaultWhatsAppMessage(getUTMSummary());
     const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, "_blank");
+    window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, "_blank");
   };
 
   return (
