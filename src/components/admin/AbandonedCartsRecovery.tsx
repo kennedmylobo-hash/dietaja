@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getPhoneSuffix } from "@/lib/phone";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,24 +52,42 @@ const AbandonedCartsRecovery = () => {
     setIsLoading(true);
     
     // Fetch carts with status 'active' or 'abandoned' that have items
-    const { data, error } = await supabase
+    const { data: cartsData, error: cartsError } = await supabase
       .from('carts')
       .select('*')
       .in('status', ['active', 'abandoned'])
       .not('items', 'eq', '[]')
       .order('last_activity_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching abandoned carts:', error);
+    if (cartsError) {
+      console.error('Error fetching abandoned carts:', cartsError);
       toast({
         title: "Erro ao carregar carrinhos",
-        description: error.message,
+        description: cartsError.message,
         variant: "destructive",
       });
-    } else {
-      setCarts((data as unknown as AbandonedCart[]) || []);
+      setIsLoading(false);
+      return;
     }
-    
+
+    // Fetch phones of customers with approved/completed orders
+    const { data: ordersData } = await supabase
+      .from('orders')
+      .select('customer_phone')
+      .in('status', ['approved', 'preparing', 'ready', 'delivering', 'delivered']);
+
+    // Create a set of normalized phone suffixes from completed orders
+    const convertedPhones = new Set(
+      ordersData?.map(o => getPhoneSuffix(o.customer_phone, 10)) || []
+    );
+
+    // Filter out carts whose phone matches a completed order
+    const filteredCarts = (cartsData || []).filter(cart => {
+      const cartPhoneSuffix = getPhoneSuffix(cart.phone, 10);
+      return !convertedPhones.has(cartPhoneSuffix);
+    });
+
+    setCarts(filteredCarts as unknown as AbandonedCart[]);
     setIsLoading(false);
   };
 
