@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getPhoneVariations } from "@/lib/phone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -508,6 +509,11 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         console.error('Error sending WhatsApp:', whatsappError);
       }
 
+      // Mark associated cart as converted
+      if (currentOrder?.customer_phone) {
+        await markCartAsConverted(currentOrder.customer_phone);
+      }
+
       // Update local state
       setOrders(prev => 
         prev.map(o => o.id === orderId 
@@ -527,6 +533,29 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       alert('Erro ao confirmar pedido');
     } finally {
       setIsConfirming(null);
+    }
+  };
+
+  // Mark cart as converted when order is confirmed
+  const markCartAsConverted = async (customerPhone: string) => {
+    try {
+      const phoneVariations = getPhoneVariations(customerPhone);
+      
+      // Build OR filter for phone variations
+      const orFilter = phoneVariations.map(p => `phone.eq.${p}`).join(',');
+      
+      const { error } = await supabase
+        .from('carts')
+        .update({ status: 'converted' })
+        .or(orFilter);
+
+      if (error) {
+        console.error('Error marking cart as converted:', error);
+      } else {
+        console.log('✅ Cart marked as converted for phone:', customerPhone);
+      }
+    } catch (error) {
+      console.error('Error in markCartAsConverted:', error);
     }
   };
 
