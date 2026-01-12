@@ -42,10 +42,11 @@ const FISH_FLAVOR_NAME = "Filé de peixe com alecrim e arroz";
 const FISH_SURCHARGE = 4.99;
 
 // Calculate max flavors based on package quantity
-// Rules: 7 marmitas = max 3 flavors, 14 = max 7, 28 = max 14
+// Rules: 7 marmitas = max 3 flavors, 14 = max 7, 21 = max 10, 28 = max 14
 const getMaxFlavors = (quantity: number): number => {
   if (quantity <= 7) return 3;
   if (quantity <= 14) return 7;
+  if (quantity <= 21) return 10;
   return 14; // 28 marmitas
 };
 

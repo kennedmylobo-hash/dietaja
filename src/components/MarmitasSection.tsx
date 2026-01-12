@@ -38,6 +38,7 @@ interface Marmita {
 const packageImages: Record<number, string> = {
   7: marmita1,
   14: marmita2,
+  21: marmita2,
   28: marmita3,
 };
 
