@@ -97,7 +97,7 @@ const generateEmailHtml = (data: OrderConfirmationRequest): string => {
         <div style="margin: 24px; padding: 20px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; text-align: center; border: 2px dashed #f59e0b;">
           <p style="margin: 0 0 12px; font-size: 16px; color: #92400e; font-weight: bold;">⚡ Faça o pagamento para confirmar seu pedido!</p>
           <p style="margin: 0 0 16px; font-size: 14px; color: #78350f;">Pague via cartão de crédito ou PIX para iniciarmos a preparação.</p>
-          <a href="https://dietaja.com.br/pedido/${data.order_number}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          <a href="https://dietajavca.com.br/pedido/${data.order_number}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">
             📦 Acompanhar Pedido
           </a>
         </div>

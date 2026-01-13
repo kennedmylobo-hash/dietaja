@@ -90,7 +90,7 @@ ${itemsList}
 
 🎁 Não perca essa oportunidade! Finalize agora e garanta sua alimentação saudável da semana.
 
-👉 Acesse: https://dietaja.com.br
+👉 Acesse: https://dietajavca.com.br
 
 _Dieta Já - Alimentação saudável em Vitória da Conquista_ 🥗`;
   }
@@ -105,7 +105,7 @@ ${itemsList}
 
 Falta pouco para finalizar! 🛒
 
-👉 Acesse: https://dietaja.com.br
+👉 Acesse: https://dietajavca.com.br
 
 Qualquer dúvida, é só responder essa mensagem! 😊
 

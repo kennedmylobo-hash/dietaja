@@ -123,7 +123,7 @@ serve(async (req) => {
       console.log(`Applying discount of R$ ${discountValue} via coupon ${coupon_code}`);
     }
 
-    const baseUrl = req.headers.get('origin') || 'https://dietaja.com.br';
+    const baseUrl = req.headers.get('origin') || 'https://dietajavca.com.br';
     const webhookUrl = `${supabaseUrl}/functions/v1/mp-webhook`;
 
     const preference = {

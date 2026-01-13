@@ -255,7 +255,7 @@ const generateEmailHtml = (data: OrderApprovedRequest): string => {
 
         <!-- Track Order Button -->
         <div style="padding: 0 24px 16px; text-align: center;">
-          <a href="https://dietaja.com.br/pedido/${data.order_number}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          <a href="https://dietajavca.com.br/pedido/${data.order_number}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">
             📦 Acompanhar Pedido
           </a>
         </div>
