@@ -21,6 +21,7 @@ import CartDrawer from "@/components/CartDrawer";
 import { getUTMSummary } from "@/lib/utm";
 import { useAnalytics, useScrollTracking } from "@/hooks/useAnalytics";
 import { useSectionTracking } from "@/hooks/useSectionTracking";
+import { useVisitorPresence } from "@/hooks/useRealtimePresence";
 import {
   CustomDietSkeleton,
   TestimonialsSkeleton,
@@ -54,6 +55,7 @@ const IndexContent = () => {
   // Analytics tracking
   useAnalytics();
   useScrollTracking();
+  useVisitorPresence(); // Realtime presence tracking
   const { observeSection } = useSectionTracking();
   
   // Section refs for tracking

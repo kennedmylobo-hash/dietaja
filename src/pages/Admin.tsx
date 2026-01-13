@@ -29,6 +29,7 @@ import {
   Megaphone,
   UserX,
   Bell,
+  Radio,
 } from "lucide-react";
 import {
   Select,
@@ -59,6 +60,7 @@ import AbandonedCartsRecovery from "@/components/admin/AbandonedCartsRecovery";
 import MarketingManager from "@/components/admin/MarketingManager";
 import NotificationTester from "@/components/admin/NotificationTester";
 import NotificationStats from "@/components/admin/NotificationStats";
+import LiveVisitors from "@/components/admin/LiveVisitors";
 
 interface Lead {
   id: string;
@@ -638,8 +640,16 @@ const Admin = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full max-w-7xl grid-cols-9">
+        <Tabs defaultValue="live" className="space-y-6">
+          <TabsList className="grid w-full max-w-7xl grid-cols-10">
+            <TabsTrigger value="live" className="flex items-center gap-2 relative">
+              <Radio className="w-4 h-4" />
+              <span className="hidden sm:inline">Ao Vivo</span>
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+            </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Analytics</span>
@@ -677,6 +687,11 @@ const Admin = () => {
               <span className="hidden sm:inline">Cardápio</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Ao Vivo Tab */}
+          <TabsContent value="live" className="space-y-6">
+            <LiveVisitors />
+          </TabsContent>
 
           <TabsContent value="analytics" className="space-y-8">
             {/* Metrics Cards */}
