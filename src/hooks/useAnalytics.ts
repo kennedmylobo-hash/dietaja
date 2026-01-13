@@ -1,6 +1,6 @@
 /**
  * Analytics Hook
- * Rastreia eventos de usuário e envia para o Lovable Cloud
+ * Rastreia eventos de usuário e envia para Lovable Cloud, Meta Pixel e Google Analytics 4
  */
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -18,6 +18,13 @@ const getSessionId = (): string => {
   }
   
   return sessionId;
+};
+
+// Helper para enviar eventos ao GA4
+const trackGA4 = (eventName: string, params?: Record<string, unknown>) => {
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('event', eventName, params);
+  }
 };
 
 interface AnalyticsEvent {
@@ -57,19 +64,37 @@ export const useAnalytics = () => {
   // Track page view
   const trackPageView = useCallback((page?: string) => {
     trackEvent({ event_type: 'page_view', page });
+    
+    // GA4 page_view é automático, mas podemos enviar eventos customizados
+    trackGA4('page_view', {
+      page_location: window.location.href,
+      page_title: document.title,
+    });
   }, [trackEvent]);
 
   // Track scroll depth
   const trackScrollDepth = useCallback((depth: number, section?: string) => {
     trackEvent({ event_type: 'scroll', scroll_depth: depth, section });
+    
+    // GA4 scroll tracking
+    trackGA4('scroll', {
+      percent_scrolled: depth,
+      page_location: window.location.pathname,
+    });
   }, [trackEvent]);
 
   // Track section view
   const trackSectionView = useCallback((section: string) => {
     trackEvent({ event_type: 'section_view', section });
+    
+    // GA4 view_item_list
+    trackGA4('view_item_list', {
+      item_list_name: section,
+      item_list_id: section.toLowerCase().replace(/\s+/g, '_'),
+    });
   }, [trackEvent]);
 
-  // Track CTA click - now also sends to analytics_events table
+  // Track CTA click - sends to internal, Meta Pixel and GA4
   const trackCTAClick = useCallback((ctaName: string) => {
     trackEvent({ event_type: 'cta_click', section: ctaName });
     
@@ -80,20 +105,33 @@ export const useAnalytics = () => {
         page: window.location.pathname,
       });
     }
+    
+    // GA4 select_content
+    trackGA4('select_content', {
+      content_type: 'cta',
+      content_id: ctaName,
+    });
   }, [trackEvent]);
 
-// Track time on page (chamado ao sair)
+  // Track time on page (chamado ao sair)
   const trackTimeOnPage = useCallback(() => {
     const timeSpent = Math.round((Date.now() - pageStartTime.current) / 1000);
     trackEvent({ event_type: 'time_on_page', time_on_page: timeSpent });
     
-    // Enviar evento customizado para o Meta Pixel
+    // Meta Pixel
     if (typeof window.fbq === 'function') {
       window.fbq('trackCustom', 'TimeOnPage', {
         time_seconds: timeSpent,
         page: window.location.pathname,
       });
     }
+    
+    // GA4 timing
+    trackGA4('timing_complete', {
+      name: 'time_on_page',
+      value: timeSpent * 1000, // GA4 expects milliseconds
+      event_category: 'engagement',
+    });
   }, [trackEvent]);
 
   // Auto-track page view e time on page
@@ -147,7 +185,7 @@ export const useScrollTracking = () => {
     return () => observer.disconnect();
   }, [trackSectionView]);
 
-// Track scroll depth milestones
+  // Track scroll depth milestones
   useEffect(() => {
     const milestones = [25, 50, 75, 100];
     const trackedMilestones = new Set<number>();
@@ -162,7 +200,7 @@ export const useScrollTracking = () => {
           trackedMilestones.add(milestone);
           trackScrollDepth(milestone);
           
-          // Enviar evento customizado para o Meta Pixel
+          // Meta Pixel
           if (typeof window.fbq === 'function') {
             window.fbq('trackCustom', 'ScrollDepth', {
               depth_percent: milestone,
@@ -179,3 +217,6 @@ export const useScrollTracking = () => {
 
   return { observeSection };
 };
+
+// Export helper para uso em outros componentes
+export { trackGA4 };

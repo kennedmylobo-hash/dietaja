@@ -24,7 +24,7 @@ const PagamentoSucesso = () => {
   const [order, setOrder] = useState<OrderData | null>(null);
 
   useEffect(() => {
-    // Track Purchase event
+    // Track Purchase event - Meta Pixel
     if (typeof window !== 'undefined' && window.fbq && orderId) {
       window.fbq('track', 'Purchase', {
         value: order?.total || 0,
@@ -33,7 +33,22 @@ const PagamentoSucesso = () => {
         order_id: orderId,
       });
     }
-  }, [orderId, order?.total]);
+    
+    // Track Purchase event - GA4
+    if (typeof window !== 'undefined' && window.gtag && orderId) {
+      window.gtag('event', 'purchase', {
+        transaction_id: orderId,
+        currency: 'BRL',
+        value: order?.total || 0,
+        items: order?.items?.map((item, index) => ({
+          item_name: item.name,
+          price: item.totalPrice / item.quantity,
+          quantity: item.quantity,
+          index: index,
+        })) || []
+      });
+    }
+  }, [orderId, order?.total, order?.items]);
 
   useEffect(() => {
     const fetchOrder = async () => {

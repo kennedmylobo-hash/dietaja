@@ -240,6 +240,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       });
     }
     
+    // Track AddToCart with GA4
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'add_to_cart', {
+        currency: 'BRL',
+        value: newItem.totalPrice,
+        items: [{
+          item_id: id,
+          item_name: newItem.name,
+          item_category: newItem.type,
+          price: newItem.unitPrice,
+          quantity: newItem.quantity,
+        }]
+      });
+    }
+    
     // Track cart_add event
     trackCartEvent('cart_add', {
       item_name: newItem.name,
@@ -267,6 +282,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         content_type: 'product',
         value: pendingItem.totalPrice,
         currency: 'BRL'
+      });
+    }
+    
+    // Track AddToCart with GA4
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'add_to_cart', {
+        currency: 'BRL',
+        value: pendingItem.totalPrice,
+        items: [{
+          item_id: id,
+          item_name: pendingItem.name,
+          item_category: pendingItem.type,
+          price: pendingItem.unitPrice,
+          quantity: pendingItem.quantity,
+        }]
       });
     }
     
@@ -321,6 +351,22 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         value: getTotal(),
         currency: 'BRL',
         num_items: items.length
+      });
+    }
+    
+    // GA4 begin_checkout
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'begin_checkout', {
+        currency: 'BRL',
+        value: getTotal(),
+        items: items.map((item, index) => ({
+          item_id: item.id,
+          item_name: item.name,
+          item_category: item.type,
+          price: item.unitPrice,
+          quantity: item.quantity,
+          index: index,
+        }))
       });
     }
   }, [trackCartEvent, items, getTotal]);
