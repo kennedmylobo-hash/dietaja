@@ -17,6 +17,15 @@ const WhatsAppFloatingButton = ({ phoneNumber }: WhatsAppFloatingButtonProps) =>
         content_name: 'WhatsApp Flutuante'
       });
     }
+    
+    // Track contact - GA4
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'contact', {
+        method: 'whatsapp',
+        event_category: 'engagement',
+        event_label: 'floating_button',
+      });
+    }
 
     const message = getDefaultWhatsAppMessage(getUTMSummary());
     const encodedMessage = encodeURIComponent(message);

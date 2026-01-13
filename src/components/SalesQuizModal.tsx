@@ -110,6 +110,13 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
       const startTime = new Date().toISOString();
       setQuizStartTime(startTime);
       
+      // Track quiz_start with GA4
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'quiz_start', {
+          quiz_type: 'sales_consultant',
+        });
+      }
+      
       const params = new URLSearchParams(window.location.search);
       const leadId = saveIncompleteLead({
         step: 'objective',
@@ -232,11 +239,20 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
   const proceedToResult = async () => {
     setStep('analyzing');
     
-    // Track Lead event - agora sempre teremos contato
+    // Track Lead event - Meta Pixel
     if (typeof window !== 'undefined' && window.fbq) {
       window.fbq('track', 'Lead', {
         content_name: 'Quiz Consultor',
         lead_type: 'quiz'
+      });
+    }
+    
+    // Track generate_lead - GA4
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'generate_lead', {
+        currency: 'BRL',
+        value: 0,
+        lead_source: 'quiz_consultant',
       });
     }
 
@@ -266,13 +282,32 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
         removeIncompleteLead(currentLeadId);
       }
       
-      // Track ViewContent
+      // Track ViewContent - Meta Pixel
       if (typeof window !== 'undefined' && window.fbq) {
         window.fbq('track', 'ViewContent', {
           content_name: rec.primary.name,
           content_type: 'product',
           value: rec.primary.price,
           currency: 'BRL'
+        });
+      }
+      
+      // Track quiz_complete and view_item - GA4
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'quiz_complete', {
+          quiz_type: 'sales_consultant',
+          recommended_product: rec.primary.name,
+          recommended_price: rec.primary.price,
+        });
+        
+        window.gtag('event', 'view_item', {
+          currency: 'BRL',
+          value: rec.primary.price,
+          items: [{
+            item_name: rec.primary.name,
+            item_category: rec.primary.type,
+            price: rec.primary.price,
+          }]
         });
       }
       
@@ -317,6 +352,15 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
     
     // Mark as converted
     markQuizAsConverted();
+    
+    // Track contact - GA4
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'contact', {
+        method: 'whatsapp',
+        event_category: 'engagement',
+        event_label: 'quiz_consultation',
+      });
+    }
     
     const utmSummary = getUTMSummary();
     const message = formatQuizDataForWhatsApp(answers as QuizAnswers, recommendation, utmSummary);
