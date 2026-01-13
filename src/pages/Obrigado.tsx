@@ -79,7 +79,7 @@ const Obrigado = () => {
       <Helmet>
         <title>Pedido Enviado - Dieta Já</title>
         <meta name="robots" content="noindex, nofollow" />
-        <link rel="canonical" href="https://dietaja.com.br" />
+        <link rel="canonical" href="https://dietajavca.com.br" />
       </Helmet>
 
       <div className="min-h-screen bg-background">

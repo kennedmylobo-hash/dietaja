@@ -53,11 +53,11 @@ export const siteConfig = {
   // =====================================
   urls: {
     /** Domínio principal */
-    domain: "dietaja.com.br",
+    domain: "dietajavca.com.br",
     /** URL canônica completa */
-    canonical: "https://dietaja.com.br",
+    canonical: "https://dietajavca.com.br",
     /** URL da imagem Open Graph */
-    ogImage: "https://dietaja.com.br/og-image.jpg",
+    ogImage: "https://dietajavca.com.br/og-image.jpg",
   },
 
   // =====================================
