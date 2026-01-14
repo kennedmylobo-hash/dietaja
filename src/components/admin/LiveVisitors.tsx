@@ -62,11 +62,50 @@ const getPageName = (path: string): string => {
   return pageNames[path] || path;
 };
 
+// Label amigável do evento com emojis
+const getEventLabel = (eventType: string, section?: string): string => {
+  const labels: Record<string, string> = {
+    'cart_add': '🛒 Adicionou ao carrinho',
+    'cart_remove': '🗑️ Removeu do carrinho',
+    'cart_open': '👀 Abriu carrinho',
+    'cart_opened': '👀 Abriu carrinho',
+    'checkout_start': '💳 Iniciou checkout',
+    'checkout_started': '💳 Iniciou checkout',
+    'page_view': '📄 Visualização',
+    'scroll': '📜 Scroll',
+    'section_enter': '👁️ Seção',
+    'section_view': '👁️ Viu seção',
+    'section_exit': '👋 Saiu da seção',
+    'cta_click': '👆 Clique CTA',
+    'time_on_page': '⏱️ Tempo na página',
+  };
+  const label = labels[eventType] || eventType.replace(/_/g, ' ');
+  return section ? `${label}: ${section}` : label;
+};
+
+// Cor do evento
+const getEventColor = (eventType: string): string => {
+  const colors: Record<string, string> = {
+    'cart_add': 'bg-green-500',
+    'cart_remove': 'bg-red-500',
+    'cart_open': 'bg-yellow-500',
+    'cart_opened': 'bg-yellow-500',
+    'checkout_start': 'bg-orange-500',
+    'checkout_started': 'bg-orange-500',
+    'cta_click': 'bg-blue-500',
+    'section_enter': 'bg-purple-400',
+    'section_view': 'bg-purple-400',
+    'page_view': 'bg-sky-400',
+  };
+  return colors[eventType] || 'bg-gray-400';
+};
+
 interface LiveStats {
   todayPageViews: number;
   todaySessions: number;
   lastHourViews: number;
   todayCheckouts: number;
+  todayCartAdds: number;
 }
 
 const LiveVisitors = () => {
@@ -77,6 +116,7 @@ const LiveVisitors = () => {
     todaySessions: 0,
     lastHourViews: 0,
     todayCheckouts: 0,
+    todayCartAdds: 0,
   });
 
   // Buscar estatísticas do dia
@@ -88,7 +128,7 @@ const LiveVisitors = () => {
       const oneHourAgo = new Date();
       oneHourAgo.setHours(oneHourAgo.getHours() - 1);
 
-      const [pageViewsResult, sessionsResult, hourViewsResult, checkoutsResult] = await Promise.all([
+      const [pageViewsResult, sessionsResult, hourViewsResult, checkoutsResult, cartAddsResult] = await Promise.all([
         supabase
           .from('analytics_events')
           .select('id', { count: 'exact', head: true })
@@ -109,6 +149,11 @@ const LiveVisitors = () => {
           .select('id', { count: 'exact', head: true })
           .eq('event_type', 'checkout_started')
           .gte('created_at', today.toISOString()),
+        supabase
+          .from('analytics_events')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_type', 'cart_add')
+          .gte('created_at', today.toISOString()),
       ]);
 
       const uniqueSessions = new Set(sessionsResult.data?.map(e => e.session_id) || []);
@@ -118,6 +163,7 @@ const LiveVisitors = () => {
         todaySessions: uniqueSessions.size,
         lastHourViews: hourViewsResult.count || 0,
         todayCheckouts: checkoutsResult.count || 0,
+        todayCartAdds: cartAddsResult.count || 0,
       });
     };
 
@@ -143,6 +189,12 @@ const LiveVisitors = () => {
         setStats(prev => ({
           ...prev,
           todayCheckouts: prev.todayCheckouts + 1,
+        }));
+      }
+      if (latestEvent?.event_type === 'cart_add') {
+        setStats(prev => ({
+          ...prev,
+          todayCartAdds: prev.todayCartAdds + 1,
         }));
       }
     }
@@ -228,12 +280,27 @@ const LiveVisitors = () => {
           </CardContent>
         </Card>
 
-        {/* Checkouts Hoje */}
-        <Card className={checkoutAlerts.length > 0 ? 'ring-2 ring-orange-500 ring-offset-2' : ''}>
+        {/* Carrinhos Hoje */}
+        <Card className={stats.todayCartAdds > 0 ? 'border-green-200' : ''}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Checkouts</p>
+                <p className="text-sm text-muted-foreground">Add Carrinho</p>
+                <p className="text-2xl font-bold">{stats.todayCartAdds}</p>
+              </div>
+              <ShoppingCart className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Segunda linha de cards - Checkouts com destaque */}
+      <div className="grid grid-cols-1 gap-4">
+        <Card className={checkoutAlerts.length > 0 ? 'ring-2 ring-orange-500 ring-offset-2 bg-orange-50/50' : ''}>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Checkouts Hoje</p>
                 <p className="text-2xl font-bold">{stats.todayCheckouts}</p>
               </div>
               <ShoppingCart className="h-8 w-8 text-orange-500" />
@@ -353,15 +420,9 @@ const LiveVisitors = () => {
                         exit={{ opacity: 0, x: 20 }}
                         className="flex items-center gap-2 text-sm p-2 rounded bg-muted/30"
                       >
-                        <span className={`w-2 h-2 rounded-full ${
-                          event.event_type === 'checkout_started' ? 'bg-orange-500' :
-                          event.event_type === 'cart_opened' ? 'bg-yellow-500' :
-                          event.event_type === 'cta_click' ? 'bg-blue-500' :
-                          'bg-gray-400'
-                        }`} />
+                        <span className={`w-2 h-2 rounded-full ${getEventColor(event.event_type)}`} />
                         <span className="flex-1 truncate">
-                          {event.event_type.replace(/_/g, ' ')}
-                          {event.section && ` - ${event.section}`}
+                          {getEventLabel(event.event_type, event.section)}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {new Date(event.created_at).toLocaleTimeString('pt-BR')}
