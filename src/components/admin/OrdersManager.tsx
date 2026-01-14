@@ -286,6 +286,31 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     };
   }, [orders]);
 
+  // Detect customers with multiple pending orders (potential orphans)
+  const duplicateCustomers = useMemo(() => {
+    const pendingOrders = orders.filter(o => 
+      ['pending', 'awaiting_payment', 'whatsapp_pending'].includes(o.status)
+    );
+    
+    // Group by email
+    const byEmail = pendingOrders.reduce((acc, order) => {
+      const email = order.customer_email;
+      if (!acc[email]) acc[email] = [];
+      acc[email].push(order);
+      return acc;
+    }, {} as Record<string, Order[]>);
+    
+    // Filter only emails with more than 1 order
+    return Object.entries(byEmail)
+      .filter(([_, orders]) => orders.length > 1)
+      .map(([email, orders]) => ({
+        email,
+        orders,
+        customerName: orders[0].customer_name,
+        count: orders.length
+      }));
+  }, [orders]);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
@@ -879,6 +904,38 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Alert for potential orphan orders */}
+      {duplicateCustomers.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="font-medium text-amber-800 mb-1">
+              ⚠️ Potenciais Pedidos Órfãos Detectados
+            </h4>
+            <p className="text-sm text-amber-700 mb-2">
+              {duplicateCustomers.length === 1 
+                ? `1 cliente tem múltiplos pedidos pendentes.`
+                : `${duplicateCustomers.length} clientes têm múltiplos pedidos pendentes.`
+              } Considere verificar e cancelar manualmente os duplicados.
+            </p>
+            <div className="space-y-1">
+              {duplicateCustomers.map(({ email, customerName, count, orders }) => (
+                <div key={email} className="flex items-center gap-2 text-sm flex-wrap">
+                  <Badge variant="outline" className="bg-amber-100 border-amber-300">
+                    {count} pedidos
+                  </Badge>
+                  <span className="font-medium text-amber-800">{customerName}</span>
+                  <span className="text-amber-600">({email})</span>
+                  <span className="text-xs text-amber-500">
+                    {orders.map(o => `#${o.order_number || o.id.slice(0,6)}`).join(', ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Orders Tabs */}
       <Card>
