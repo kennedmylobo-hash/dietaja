@@ -649,6 +649,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          cancellation_type: string | null
           coupon_code: string | null
           created_at: string
           customer_email: string
@@ -677,6 +678,7 @@ export type Database = {
           whatsapp_sent_at: string | null
         }
         Insert: {
+          cancellation_type?: string | null
           coupon_code?: string | null
           created_at?: string
           customer_email: string
@@ -705,6 +707,7 @@ export type Database = {
           whatsapp_sent_at?: string | null
         }
         Update: {
+          cancellation_type?: string | null
           coupon_code?: string | null
           created_at?: string
           customer_email?: string
