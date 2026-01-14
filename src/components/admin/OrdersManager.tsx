@@ -273,7 +273,10 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     const cancelled = orders.filter(o => o.status === 'cancelled');
     const totalRevenue = [...approved, ...preparing, ...ready, ...delivering, ...delivered].reduce((sum, o) => sum + o.total, 0);
     
+    const activeOrders = orders.filter(o => o.status !== 'cancelled' && o.status !== 'rejected').length;
+    
     return { 
+      activeOrders,
       approved: approved.length, 
       preparing: preparing.length,
       ready: ready.length,
@@ -874,8 +877,8 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                 <ShoppingCart className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{orders.length}</p>
-                <p className="text-xs text-muted-foreground">Total de pedidos</p>
+                <p className="text-2xl font-bold">{stats.activeOrders}</p>
+                <p className="text-xs text-muted-foreground">Pedidos ativos</p>
               </div>
             </div>
           </CardContent>
