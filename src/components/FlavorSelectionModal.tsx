@@ -148,9 +148,9 @@ const FlavorSelectionModal = ({
   const prevMaxReachedRef = useRef(false);
 
   useEffect(() => {
-    // Vibrate only when transitioning to max flavors reached and still have items to select
+    // Vibrate with warning pattern when transitioning to max flavors reached and still have items to select
     if (isMaxFlavorsReached && !prevMaxReachedRef.current && remaining > 0) {
-      hapticFeedback('medium');
+      hapticFeedback('warning');
     }
     prevMaxReachedRef.current = isMaxFlavorsReached;
   }, [isMaxFlavorsReached, remaining]);
