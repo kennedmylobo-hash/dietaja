@@ -467,6 +467,22 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       // Record the status change in history
       await recordStatusChange(orderId, previousStatus, 'approved');
 
+      // Cancel orphan orders from same customer
+      if (currentOrder?.customer_email) {
+        const { error: cancelError } = await supabase
+          .from('orders')
+          .update({ status: 'cancelled' })
+          .eq('customer_email', currentOrder.customer_email)
+          .in('status', ['pending', 'awaiting_payment'])
+          .neq('id', orderId);
+        
+        if (cancelError) {
+          console.error('Error cancelling orphan orders:', cancelError);
+        } else {
+          console.log('✅ Orphan orders cancelled for:', currentOrder.customer_email);
+        }
+      }
+
       // Call decrement-stock edge function
       const { error: decrementError } = await supabase.functions.invoke('decrement-stock', {
         body: { order_id: orderId }
