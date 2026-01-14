@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle, Fish } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { celebrateCheckout } from "@/lib/confetti";
+import { hapticFeedback } from "@/lib/haptics";
 
 interface FlavorSelection {
   name: string;
@@ -142,6 +143,17 @@ const FlavorSelectionModal = ({
   const isComplete = (remaining === 0 && !isOverFlavorsLimit) || leaveToUs;
   const isOverLimit = remaining < 0;
   const isMaxFlavorsReached = uniqueFlavorsCount >= maxFlavors;
+
+  // Track previous state to detect transition to max flavors reached
+  const prevMaxReachedRef = useRef(false);
+
+  useEffect(() => {
+    // Vibrate only when transitioning to max flavors reached and still have items to select
+    if (isMaxFlavorsReached && !prevMaxReachedRef.current && remaining > 0) {
+      hapticFeedback('medium');
+    }
+    prevMaxReachedRef.current = isMaxFlavorsReached;
+  }, [isMaxFlavorsReached, remaining]);
 
   const updateQuantity = (flavor: string, delta: number) => {
     // Disable manual selection if "leave to us" is checked
