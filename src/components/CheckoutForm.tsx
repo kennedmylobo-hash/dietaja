@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -41,6 +41,16 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   const { items, getTotal } = useCart();
   const [isLoading, setIsLoading] = useState(false);
   const [saveData, setSaveData] = useState(false);
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+
+  // Restore pending order from sessionStorage on mount
+  useEffect(() => {
+    const storedOrderId = sessionStorage.getItem('pending_order_id');
+    const storedInitPoint = sessionStorage.getItem('mp_init_point');
+    if (storedOrderId && storedInitPoint) {
+      setPendingOrderId(storedOrderId);
+    }
+  }, []);
 
   const {
     register,
@@ -93,6 +103,16 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   };
 
   const handlePixPayment = async (data: FormData) => {
+    // If already has a pending order, redirect to stored init_point
+    if (pendingOrderId) {
+      const storedInitPoint = sessionStorage.getItem('mp_init_point');
+      if (storedInitPoint) {
+        setIsLoading(true);
+        window.location.href = storedInitPoint;
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     // Track InitiateCheckout
@@ -131,6 +151,11 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
       if (error) throw error;
 
       if (response?.init_point) {
+        // Store order info to prevent duplicates
+        sessionStorage.setItem('pending_order_id', response.order_id);
+        sessionStorage.setItem('mp_init_point', response.init_point);
+        setPendingOrderId(response.order_id);
+        
         // Redirect to Mercado Pago checkout
         window.location.href = response.init_point;
       } else {
