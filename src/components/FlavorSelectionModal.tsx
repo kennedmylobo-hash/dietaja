@@ -248,11 +248,13 @@ const FlavorSelectionModal = ({
               <span className="text-sm font-medium">
                 {leaveToUs ? "Escolha da casa" : `${totalSelected} de ${packageQuantity} selecionadas`}
               </span>
-              {!leaveToUs && (
-                <span className={`text-xs ${isMaxFlavorsReached ? "text-primary font-medium" : "text-muted-foreground"}`}>
-                  {uniqueFlavorsCount} de {maxFlavors} sabores diferentes
-                </span>
-              )}
+            {!leaveToUs && (
+              <span className={`text-xs flex items-center gap-1 ${isMaxFlavorsReached ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>
+                {isMaxFlavorsReached && <AlertCircle className="w-3 h-3" />}
+                {uniqueFlavorsCount} de {maxFlavors} sabores diferentes
+                {isMaxFlavorsReached && " (máximo)"}
+              </span>
+            )}
             </div>
             <AnimatePresence mode="wait">
               {isComplete ? (
@@ -298,6 +300,31 @@ const FlavorSelectionModal = ({
             />
           </div>
         </div>
+
+        {/* Alert when max flavors reached but still need to complete */}
+        <AnimatePresence>
+          {isMaxFlavorsReached && !leaveToUs && remaining > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="px-4 pt-3 shrink-0"
+            >
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-200">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">
+                    Limite de variedades atingido!
+                  </p>
+                  <p className="text-xs mt-0.5 opacity-90">
+                    Para {packageQuantity} marmitas, você pode escolher no máximo {maxFlavors} sabores diferentes. 
+                    Aumente a quantidade dos sabores já selecionados para completar seu pedido.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-4 space-y-6">
