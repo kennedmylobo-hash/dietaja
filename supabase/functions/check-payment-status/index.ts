@@ -141,6 +141,21 @@ serve(async (req) => {
           if (updateError) {
             console.error('Error updating order:', updateError);
           } else {
+            // Cancel orphan orders from same customer
+            console.log('[check-payment-status] Cancelling orphan orders for customer:', order.customer_email);
+            const { error: cancelError } = await supabase
+              .from('orders')
+              .update({ status: 'cancelled' })
+              .eq('customer_email', order.customer_email)
+              .in('status', ['pending', 'awaiting_payment'])
+              .neq('id', orderId);
+            
+            if (cancelError) {
+              console.error('[check-payment-status] Error cancelling orphan orders:', cancelError);
+            } else {
+              console.log('[check-payment-status] Orphan orders cancelled for:', order.customer_email);
+            }
+
             // Send confirmation email
             console.log('[check-payment-status] Sending approved email...');
             try {

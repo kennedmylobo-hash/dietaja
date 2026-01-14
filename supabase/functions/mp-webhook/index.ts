@@ -217,6 +217,21 @@ serve(async (req) => {
       if (orderError) {
         console.error('Error fetching order for email:', orderError);
       } else if (order) {
+        // Cancel orphan orders from same customer
+        console.log('[mp-webhook] Cancelling orphan orders for customer:', order.customer_email);
+        const { error: cancelError } = await supabase
+          .from('orders')
+          .update({ status: 'cancelled' })
+          .eq('customer_email', order.customer_email)
+          .in('status', ['pending', 'awaiting_payment'])
+          .neq('id', orderId);
+        
+        if (cancelError) {
+          console.error('[mp-webhook] Error cancelling orphan orders:', cancelError);
+        } else {
+          console.log('[mp-webhook] Orphan orders cancelled for:', order.customer_email);
+        }
+
         // Send order approved email
         console.log('[mp-webhook] Sending order approved email...');
         try {
