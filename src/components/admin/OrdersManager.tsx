@@ -90,6 +90,7 @@ interface Order {
   created_at: string;
   paid_at: string | null;
   stock_decremented?: boolean;
+  cancellation_type?: string | null;
 }
 
 interface StatusHistoryEntry {
@@ -115,6 +116,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [lastStatusChanges, setLastStatusChanges] = useState<Record<string, string>>({});
+  const [cancellationTypeFilter, setCancellationTypeFilter] = useState<string>('all');
 
   const getDateRange = () => {
     const now = new Date();
@@ -423,7 +425,10 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
 
       const { error: updateError } = await supabase
         .from('orders')
-        .update({ status: 'cancelled' })
+        .update({ 
+          status: 'cancelled',
+          cancellation_type: 'manual'
+        })
         .eq('id', orderId);
 
       if (updateError) {
@@ -745,7 +750,23 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                   </p>
                 </td>
                 <td className="py-3">
-                  {getStatusBadge(order.status)}
+                  <div className="flex flex-col gap-1">
+                    {getStatusBadge(order.status)}
+                    {order.status === 'cancelled' && order.cancellation_type && (
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          order.cancellation_type === 'manual' 
+                            ? 'bg-red-50 text-red-700 border-red-200 text-[10px]' 
+                            : 'bg-muted text-muted-foreground border-border text-[10px]'
+                        }
+                      >
+                        {order.cancellation_type === 'manual' ? '🙋 Manual' : 
+                         order.cancellation_type === 'auto_orphan' ? '🤖 Órfão' : 
+                         order.cancellation_type === 'auto_expired' ? '⏰ Expirado' : ''}
+                      </Badge>
+                    )}
+                  </div>
                 </td>
                 <td className="py-3 hidden sm:table-cell">
                   <div className="flex items-center gap-1 text-muted-foreground">
@@ -1022,7 +1043,26 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
             </TabsContent>
 
             <TabsContent value="cancelled">
-              {renderOrdersTable(ordersByCategory.cancelled)}
+              {/* Cancellation type filter */}
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-sm text-muted-foreground">Filtrar por tipo:</span>
+                <Select value={cancellationTypeFilter} onValueChange={setCancellationTypeFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Tipo de cancelamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="manual">🙋 Manual</SelectItem>
+                    <SelectItem value="auto_orphan">🤖 Órfão (Auto)</SelectItem>
+                    <SelectItem value="auto_expired">⏰ Expirado (Auto)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {renderOrdersTable(
+                cancellationTypeFilter === 'all'
+                  ? ordersByCategory.cancelled
+                  : ordersByCategory.cancelled.filter(o => o.cancellation_type === cancellationTypeFilter)
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>

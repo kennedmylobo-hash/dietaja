@@ -141,19 +141,55 @@ serve(async (req) => {
           if (updateError) {
             console.error('Error updating order:', updateError);
           } else {
-            // Cancel orphan orders from same customer
+            // Cancel orphan orders from same customer with cancellation_type
             console.log('[check-payment-status] Cancelling orphan orders for customer:', order.customer_email);
-            const { error: cancelError } = await supabase
+            const { data: cancelledOrders, error: cancelError } = await supabase
               .from('orders')
-              .update({ status: 'cancelled' })
+              .update({ 
+                status: 'cancelled',
+                cancellation_type: 'auto_orphan'
+              })
               .eq('customer_email', order.customer_email)
               .in('status', ['pending', 'awaiting_payment'])
-              .neq('id', orderId);
+              .neq('id', orderId)
+              .select('id, order_number, status');
             
             if (cancelError) {
               console.error('[check-payment-status] Error cancelling orphan orders:', cancelError);
             } else {
-              console.log('[check-payment-status] Orphan orders cancelled for:', order.customer_email);
+              console.log('[check-payment-status] Orphan orders cancelled:', cancelledOrders?.length || 0);
+              
+              // Record cancellation in history for each orphan order
+              if (cancelledOrders && cancelledOrders.length > 0) {
+                for (const cancelled of cancelledOrders) {
+                  await supabase.from('order_status_history').insert({
+                    order_id: cancelled.id,
+                    previous_status: 'awaiting_payment',
+                    new_status: 'cancelled',
+                    changed_by_name: 'Sistema',
+                    notes: `Cancelado automaticamente - Pedido #${order.order_number} foi pago`
+                  });
+                }
+              }
+            }
+
+            // Mark associated cart as converted
+            if (order.customer_phone) {
+              console.log('[check-payment-status] Marking cart as converted for phone:', order.customer_phone);
+              const normalizedPhone = order.customer_phone.replace(/\D/g, '');
+              const phoneSuffix = normalizedPhone.slice(-10);
+              
+              const { error: cartError } = await supabase
+                .from('carts')
+                .update({ status: 'converted' })
+                .ilike('phone', `%${phoneSuffix}`)
+                .in('status', ['active', 'abandoned']);
+                
+              if (cartError) {
+                console.error('[check-payment-status] Error marking cart as converted:', cartError);
+              } else {
+                console.log('[check-payment-status] Cart marked as converted');
+              }
             }
 
             // Send confirmation email
