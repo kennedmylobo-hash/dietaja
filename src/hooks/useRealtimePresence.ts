@@ -1,11 +1,13 @@
 /**
  * Realtime Presence Hook
  * Rastreia visitantes online em tempo real usando Supabase Presence
+ * Usa device fingerprinting para identificação robusta mesmo em anônimo
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { getVisitorIdWithFingerprint } from '@/lib/fingerprint';
 
 interface VisitorPresence {
   visitorId: string;
@@ -20,19 +22,6 @@ interface PresenceState {
   [key: string]: VisitorPresence[];
 }
 
-// Gera ID único do visitante
-const getVisitorId = (): string => {
-  const key = 'visitor_presence_id';
-  let visitorId = localStorage.getItem(key);
-  
-  if (!visitorId) {
-    visitorId = `v_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem(key, visitorId);
-  }
-  
-  return visitorId;
-};
-
 // Detecta tipo de dispositivo
 const getDeviceType = (): 'mobile' | 'desktop' | 'tablet' => {
   const ua = navigator.userAgent;
@@ -44,76 +33,75 @@ const getDeviceType = (): 'mobile' | 'desktop' | 'tablet' => {
 // Hook para rastrear presença do visitante (usado no site)
 export const useVisitorPresence = () => {
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const visitorId = useRef(getVisitorId());
+  const visitorIdRef = useRef<string | null>(null);
   const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
-
-  const trackPresence = useCallback(async () => {
-    if (channelRef.current) return;
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const utmSource = urlParams.get('utm_source') || sessionStorage.getItem('utm_source');
-
-    const presenceData: VisitorPresence = {
-      visitorId: visitorId.current,
-      page: window.location.pathname,
-      deviceType: getDeviceType(),
-      utmSource,
-      enteredAt: new Date().toISOString(),
-      lastSeen: new Date().toISOString(),
-    };
-
-    channelRef.current = supabase.channel('online-visitors', {
-      config: {
-        presence: {
-          key: visitorId.current,
-        },
-      },
-    });
-
-    channelRef.current
-      .on('presence', { event: 'sync' }, () => {
-        // Sync event - presença atualizada
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channelRef.current?.track(presenceData);
-        }
-      });
-
-    // Atualizar página atual quando mudar
-    const updatePage = async () => {
-      if (channelRef.current) {
-        await channelRef.current.track({
-          ...presenceData,
-          page: window.location.pathname,
-          lastSeen: new Date().toISOString(),
-        });
-      }
-    };
-
-    // Heartbeat para manter presença ativa
-    heartbeatInterval.current = setInterval(async () => {
-      if (channelRef.current) {
-        await channelRef.current.track({
-          ...presenceData,
-          page: window.location.pathname,
-          lastSeen: new Date().toISOString(),
-        });
-      }
-    }, 30000); // A cada 30 segundos
-
-    // Escutar mudanças de rota
-    window.addEventListener('popstate', updatePage);
-
-    return () => {
-      window.removeEventListener('popstate', updatePage);
-    };
-  }, []);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    trackPresence();
+    let isMounted = true;
+    let removePopstateListener: (() => void) | null = null;
+
+    const initPresence = async () => {
+      // Gerar ID com fingerprinting
+      const visitorId = await getVisitorIdWithFingerprint();
+      visitorIdRef.current = visitorId;
+
+      if (!isMounted || channelRef.current) return;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const utmSource = urlParams.get('utm_source') || sessionStorage.getItem('utm_source');
+
+      const getPresenceData = (): VisitorPresence => ({
+        visitorId,
+        page: window.location.pathname,
+        deviceType: getDeviceType(),
+        utmSource,
+        enteredAt: new Date().toISOString(),
+        lastSeen: new Date().toISOString(),
+      });
+
+      channelRef.current = supabase.channel('online-visitors', {
+        config: {
+          presence: {
+            key: visitorId,
+          },
+        },
+      });
+
+      channelRef.current
+        .on('presence', { event: 'sync' }, () => {
+          // Sync event - presença atualizada
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            await channelRef.current?.track(getPresenceData());
+            setIsReady(true);
+          }
+        });
+
+      // Atualizar página atual quando mudar
+      const updatePage = async () => {
+        if (channelRef.current && visitorIdRef.current) {
+          await channelRef.current.track(getPresenceData());
+        }
+      };
+
+      // Heartbeat para manter presença ativa
+      heartbeatInterval.current = setInterval(async () => {
+        if (channelRef.current && visitorIdRef.current) {
+          await channelRef.current.track(getPresenceData());
+        }
+      }, 30000); // A cada 30 segundos
+
+      // Escutar mudanças de rota
+      window.addEventListener('popstate', updatePage);
+      removePopstateListener = () => window.removeEventListener('popstate', updatePage);
+    };
+
+    initPresence();
 
     return () => {
+      isMounted = false;
       if (heartbeatInterval.current) {
         clearInterval(heartbeatInterval.current);
       }
@@ -121,8 +109,13 @@ export const useVisitorPresence = () => {
         channelRef.current.untrack();
         supabase.removeChannel(channelRef.current);
       }
+      if (removePopstateListener) {
+        removePopstateListener();
+      }
     };
-  }, [trackPresence]);
+  }, []);
+
+  return { isReady, visitorId: visitorIdRef.current };
 };
 
 // Hook para monitorar visitantes online (usado no Admin)
