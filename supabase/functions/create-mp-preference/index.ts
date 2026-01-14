@@ -66,34 +66,79 @@ serve(async (req) => {
     const discountValue = discount_amount || 0;
     const total = subtotal + deliveryFee - discountValue;
 
-    // Create order in database
-    const { data: order, error: orderError } = await supabase
+    // Check for existing pending order from same customer (within 30 minutes)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: existingOrder } = await supabase
       .from('orders')
-      .insert({
-        status: 'pending',
-        payment_method: 'pix',
-        items: items,
-        subtotal,
-        delivery_fee: deliveryFee,
-        total,
-        customer_name: customer.name,
-        customer_email: customer.email,
-        customer_phone: customer.phone,
-        delivery_option: delivery.option,
-        delivery_address: delivery.address || null,
-        utm_data: utm_data || null,
-        coupon_code: coupon_code || null,
-        discount_amount: discountValue,
-      })
-      .select('id')
-      .single();
+      .select('id, mp_preference_id')
+      .eq('customer_email', customer.email)
+      .eq('status', 'pending')
+      .gte('created_at', thirtyMinutesAgo)
+      .is('mp_payment_id', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (orderError) {
-      console.error('Error creating order:', orderError);
-      throw new Error('Failed to create order');
+    let order;
+
+    if (existingOrder) {
+      console.log('Reusing existing order:', existingOrder.id);
+      
+      // Update existing order with latest data
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({
+          items: items,
+          subtotal,
+          delivery_fee: deliveryFee,
+          total,
+          customer_name: customer.name,
+          customer_phone: customer.phone,
+          delivery_option: delivery.option,
+          delivery_address: delivery.address || null,
+          utm_data: utm_data || null,
+          coupon_code: coupon_code || null,
+          discount_amount: discountValue,
+        })
+        .eq('id', existingOrder.id);
+
+      if (updateError) {
+        console.error('Error updating existing order:', updateError);
+        throw new Error('Failed to update order');
+      }
+
+      order = { id: existingOrder.id };
+    } else {
+      // Create new order in database
+      const { data: newOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          status: 'pending',
+          payment_method: 'pix',
+          items: items,
+          subtotal,
+          delivery_fee: deliveryFee,
+          total,
+          customer_name: customer.name,
+          customer_email: customer.email,
+          customer_phone: customer.phone,
+          delivery_option: delivery.option,
+          delivery_address: delivery.address || null,
+          utm_data: utm_data || null,
+          coupon_code: coupon_code || null,
+          discount_amount: discountValue,
+        })
+        .select('id')
+        .single();
+
+      if (orderError) {
+        console.error('Error creating order:', orderError);
+        throw new Error('Failed to create order');
+      }
+
+      order = newOrder;
+      console.log('Order created:', order.id);
     }
-
-    console.log('Order created:', order.id);
 
     // Build Mercado Pago preference
     const mpItems = items.map(item => ({
