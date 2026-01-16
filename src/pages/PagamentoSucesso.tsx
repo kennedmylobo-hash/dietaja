@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CheckCircle, Home, MessageCircle } from "lucide-react";
+import { CheckCircle, Home, MessageCircle, Loader2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,12 +20,87 @@ interface OrderData {
 const PagamentoSucesso = () => {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get("order_id");
-  const status = searchParams.get("status");
+  const urlStatus = searchParams.get("status");
   const [order, setOrder] = useState<OrderData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [realStatus, setRealStatus] = useState<string | null>(null);
 
+  // Verificar status real do pagamento via Edge Function
   useEffect(() => {
+    const checkRealStatus = async () => {
+      if (!orderId) {
+        setLoading(false);
+        setRealStatus(urlStatus || 'approved');
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('check-payment-status', {
+          body: { order_id: orderId }
+        });
+        
+        if (!error && data) {
+          setRealStatus(data.status);
+          setOrder({
+            id: orderId,
+            customer_name: '',
+            items: [],
+            total: data.total || 0,
+            delivery_option: '',
+            status: data.status,
+          });
+        } else {
+          // Fallback para parâmetro da URL
+          setRealStatus(urlStatus || 'approved');
+          setOrder({
+            id: orderId,
+            customer_name: '',
+            items: [],
+            total: 0,
+            delivery_option: '',
+            status: urlStatus || 'approved',
+          });
+        }
+      } catch (err) {
+        console.error('Error checking payment status:', err);
+        setRealStatus(urlStatus || 'approved');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkRealStatus();
+  }, [orderId, urlStatus]);
+
+  // Polling automático enquanto status for pending
+  useEffect(() => {
+    if (realStatus !== 'pending' || !orderId) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('check-payment-status', {
+          body: { order_id: orderId }
+        });
+        
+        if (!error && data?.status === 'approved') {
+          setRealStatus('approved');
+          setOrder(prev => prev ? { ...prev, status: 'approved', total: data.total || prev.total } : null);
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error('Error polling status:', err);
+      }
+    }, 5000); // Poll a cada 5 segundos
+    
+    return () => clearInterval(interval);
+  }, [realStatus, orderId]);
+
+  // Track Purchase event - Meta Pixel & GA4
+  useEffect(() => {
+    if (realStatus !== 'approved' || !orderId) return;
+    
     // Track Purchase event - Meta Pixel
-    if (typeof window !== 'undefined' && window.fbq && orderId) {
+    if (typeof window !== 'undefined' && window.fbq) {
       window.fbq('track', 'Purchase', {
         value: order?.total || 0,
         currency: 'BRL',
@@ -35,7 +110,7 @@ const PagamentoSucesso = () => {
     }
     
     // Track Purchase event - GA4
-    if (typeof window !== 'undefined' && window.gtag && orderId) {
+    if (typeof window !== 'undefined' && window.gtag) {
       window.gtag('event', 'purchase', {
         transaction_id: orderId,
         currency: 'BRL',
@@ -48,28 +123,25 @@ const PagamentoSucesso = () => {
         })) || []
       });
     }
-  }, [orderId, order?.total, order?.items]);
+  }, [realStatus, orderId, order?.total, order?.items]);
 
-  useEffect(() => {
-    const fetchOrder = async () => {
-      if (!orderId) return;
+  const isPending = realStatus === 'pending';
 
-      // We can't fetch with RLS since user isn't logged in
-      // Just show confirmation with order ID
-      setOrder({
-        id: orderId,
-        customer_name: '',
-        items: [],
-        total: 0,
-        delivery_option: '',
-        status: status || 'approved',
-      });
-    };
-
-    fetchOrder();
-  }, [orderId, status]);
-
-  const isPending = status === 'pending';
+  // Loading state
+  if (loading) {
+    return (
+      <>
+        <Helmet>
+          <title>Verificando Pagamento | {siteConfig.brand.name}</title>
+          <meta name="robots" content="noindex" />
+        </Helmet>
+        <div className="min-h-screen bg-gradient-to-b from-sage-light/30 to-background flex flex-col items-center justify-center gap-3">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+          <p className="text-muted-foreground">Verificando pagamento...</p>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -101,7 +173,11 @@ const PagamentoSucesso = () => {
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             >
-              <CheckCircle className="w-20 h-20 text-primary mx-auto mb-6" />
+              {isPending ? (
+                <Clock className="w-20 h-20 text-amber-500 mx-auto mb-6" />
+              ) : (
+                <CheckCircle className="w-20 h-20 text-primary mx-auto mb-6" />
+              )}
             </motion.div>
 
             <h1 className="text-2xl font-bold text-foreground mb-2">
