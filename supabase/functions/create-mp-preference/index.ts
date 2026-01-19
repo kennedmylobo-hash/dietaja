@@ -190,12 +190,10 @@ serve(async (req) => {
       external_reference: order.id,
       payment_methods: {
         excluded_payment_types: [
-          { id: 'credit_card' },
-          { id: 'debit_card' },
           { id: 'ticket' },
           { id: 'atm' },
         ],
-        installments: 1,
+        installments: 12, // Permite parcelamento em até 12x
       },
       statement_descriptor: 'DIETA JA',
       expires: true,

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Smartphone, MessageCircle } from "lucide-react";
+import { Loader2, Smartphone, MessageCircle, CreditCard } from "lucide-react";
 import { useCart } from "./CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
@@ -349,6 +349,24 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             <>
               <Smartphone className="w-5 h-5" />
               Pagar via PIX
+            </>
+          )}
+        </Button>
+
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
+          className="w-full"
+          onClick={handleSubmit(handlePixPaymentWithAccount)}
+          disabled={!hasItems || isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <>
+              <CreditCard className="w-5 h-5" />
+              Pagar com Cartão (até 12x)
             </>
           )}
         </Button>
