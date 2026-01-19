@@ -199,6 +199,7 @@ serve(async (req) => {
     const updateData: Record<string, unknown> = {
       status: orderStatus,
       mp_payment_id: String(payment.id),
+      payment_method: payment.payment_method_id || payment.payment_type_id || 'unknown',
     };
 
     if (orderStatus === 'approved') {

@@ -343,6 +343,27 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     }
   };
 
+  const getPaymentMethodBadge = (method: string | null) => {
+    switch (method) {
+      case 'pix':
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">💚 PIX</Badge>;
+      case 'credit_card':
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">💳 Cartão Crédito</Badge>;
+      case 'debit_card':
+        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">💳 Cartão Débito</Badge>;
+      case 'account_money':
+        return <Badge variant="outline" className="bg-cyan-50 text-cyan-700 border-cyan-200">💰 Saldo MP</Badge>;
+      case 'manual':
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">✋ Manual</Badge>;
+      case 'na_entrega':
+        return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">🚚 Na Entrega</Badge>;
+      case 'whatsapp':
+        return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">📱 WhatsApp</Badge>;
+      default:
+        return <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">⏳ Aguardando</Badge>;
+    }
+  };
+
   const ALL_STATUSES = [
     { value: 'awaiting_payment', label: '💳 Aguardando Pagamento' },
     { value: 'pending', label: '⏳ PIX Pendente' },
@@ -1152,7 +1173,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           {selectedOrder && (
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-4">
-                {/* Status with manual dropdown */}
+              {/* Status with manual dropdown */}
                 <div className="flex items-center justify-between gap-4">
                 <span className="text-sm text-muted-foreground">Status</span>
                 <div className="flex items-center gap-2">
@@ -1174,6 +1195,12 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* Payment Method */}
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground">Pagamento</span>
+                {getPaymentMethodBadge(selectedOrder.payment_method)}
               </div>
 
               {/* Customer */}
