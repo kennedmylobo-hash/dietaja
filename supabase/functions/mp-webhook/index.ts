@@ -175,6 +175,26 @@ serve(async (req) => {
       orderStatus = 'pending';
     }
 
+    // Check if order already approved to avoid duplicate processing
+    const { data: existingOrder, error: checkError } = await supabase
+      .from('orders')
+      .select('status, stock_decremented')
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Error checking existing order:', checkError);
+    }
+
+    // If order is already approved, skip all processing
+    if (existingOrder?.status === 'approved') {
+      console.log('[mp-webhook] Order already approved, skipping duplicate processing:', orderId);
+      return new Response(
+        JSON.stringify({ received: true, message: 'Order already processed' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Update order in database
     const updateData: Record<string, unknown> = {
       status: orderStatus,
