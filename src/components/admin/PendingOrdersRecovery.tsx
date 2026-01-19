@@ -18,6 +18,8 @@ import {
   Package,
   Gift,
   Trash2,
+  CreditCard,
+  Truck,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -206,7 +208,7 @@ const PendingOrdersRecovery = () => {
     window.open(`https://wa.me/55${order.customer_phone.replace(/\D/g, '')}?text=${message}`, '_blank');
   };
 
-  const confirmOrderManually = async (orderId: string) => {
+  const confirmOrderManually = async (orderId: string, paymentNote?: string) => {
     setIsConfirming(orderId);
     
     try {
@@ -214,12 +216,33 @@ const PendingOrdersRecovery = () => {
         .from('orders')
         .update({ 
           status: 'approved',
-          paid_at: new Date().toISOString()
+          paid_at: new Date().toISOString(),
+          payment_method: paymentNote === 'delivery' ? 'na_entrega' : 'manual'
         })
         .eq('id', orderId);
 
       if (updateError) {
         throw updateError;
+      }
+
+      // Record status change in history
+      const orderData = pendingOrders.find(o => o.id === orderId);
+      const notes = paymentNote === 'delivery' 
+        ? 'Pagamento será realizado na entrega' 
+        : 'Pagamento confirmado manualmente';
+        
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from('order_status_history').insert({
+          order_id: orderId,
+          previous_status: orderData?.status || 'pending',
+          new_status: 'approved',
+          changed_by: user?.id || null,
+          changed_by_name: user?.email?.split('@')[0] || 'Admin',
+          notes
+        });
+      } catch (historyError) {
+        console.error('Error recording status history:', historyError);
       }
 
       // Call decrement-stock edge function
@@ -232,7 +255,6 @@ const PendingOrdersRecovery = () => {
       }
 
       // Send order confirmation email
-      const orderData = pendingOrders.find(o => o.id === orderId);
       try {
         await supabase.functions.invoke('send-order-approved', {
           body: {
@@ -246,7 +268,7 @@ const PendingOrdersRecovery = () => {
             total: orderData?.total,
             delivery_option: orderData?.delivery_option,
             delivery_address: orderData?.delivery_address,
-            payment_method: 'manual'
+            payment_method: paymentNote === 'delivery' ? 'na_entrega' : 'manual'
           }
         });
         console.log('✅ Email confirmation sent');
@@ -270,8 +292,10 @@ const PendingOrdersRecovery = () => {
       }
 
       toast({
-        title: "Pedido confirmado!",
-        description: "O pedido foi marcado como pago e o estoque foi atualizado.",
+        title: paymentNote === 'delivery' ? "Pagamento na entrega!" : "Pedido confirmado!",
+        description: paymentNote === 'delivery' 
+          ? "O pedido foi confirmado e o pagamento será na entrega." 
+          : "O pedido foi marcado como pago e o estoque foi atualizado.",
       });
 
       // Remove from list
@@ -693,19 +717,34 @@ const PendingOrdersRecovery = () => {
                   Oferta 10%
                 </Button>
               </div>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => confirmOrderManually(selectedOrder.id)}
-                disabled={isConfirming === selectedOrder.id}
-              >
-                {isConfirming === selectedOrder.id ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                )}
-                Confirmar Pagamento Manual
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => confirmOrderManually(selectedOrder.id, 'manual')}
+                  disabled={isConfirming === selectedOrder.id}
+                >
+                  {isConfirming === selectedOrder.id ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="w-4 h-4 mr-2" />
+                  )}
+                  Pago Manualmente
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-500/10"
+                  onClick={() => confirmOrderManually(selectedOrder.id, 'delivery')}
+                  disabled={isConfirming === selectedOrder.id}
+                >
+                  {isConfirming === selectedOrder.id ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Truck className="w-4 h-4 mr-2" />
+                  )}
+                  Pagar na Entrega
+                </Button>
+              </div>
               <Button
                 variant="destructive"
                 className="w-full"
