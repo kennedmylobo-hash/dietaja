@@ -473,6 +473,50 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   };
 
   const [isConfirming, setIsConfirming] = useState<string | null>(null);
+  const [isRecovering, setIsRecovering] = useState<string | null>(null);
+
+  const recoverOrder = async (orderId: string) => {
+    setIsRecovering(orderId);
+    
+    try {
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'pending', 
+          cancellation_type: null 
+        })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error('Error recovering order:', updateError);
+        alert('Erro ao recuperar pedido');
+        return;
+      }
+
+      // Record the status change in history
+      await recordStatusChange(orderId, 'cancelled', 'pending', 'Pedido recuperado manualmente');
+
+      // Update local state
+      setOrders(prev => 
+        prev.map(o => o.id === orderId 
+          ? { ...o, status: 'pending', cancellation_type: null } 
+          : o
+        )
+      );
+
+      // Update modal if open and refresh history
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, status: 'pending', cancellation_type: null } : null);
+        fetchStatusHistory(orderId);
+      }
+
+    } catch (error) {
+      console.error('Error in recoverOrder:', error);
+      alert('Erro ao recuperar pedido');
+    } finally {
+      setIsRecovering(null);
+    }
+  };
 
   const confirmOrder = async (orderId: string) => {
     setIsConfirming(orderId);
@@ -837,6 +881,22 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                     >
                       <MessageCircle className="w-4 h-4 text-green-600" />
                     </Button>
+                    {order.status === 'cancelled' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => recoverOrder(order.id)}
+                        disabled={isRecovering === order.id}
+                        title="Recuperar pedido"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-500/10"
+                      >
+                        {isRecovering === order.id ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-4 h-4" />
+                        )}
+                      </Button>
+                    )}
                     {canCancel(order.status) && (
                       <Button
                         variant="ghost"
