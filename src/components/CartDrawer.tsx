@@ -32,18 +32,10 @@ const formatPhone = (value: string): string => {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 };
 
-import { validateCPF, formatCPF } from "@/lib/cpf";
-
 const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
-  cpf: z.string()
-    .max(18)
-    .optional()
-    .refine((val) => !val || val.replace(/\D/g, '').length === 0 || validateCPF(val), {
-      message: "CPF inválido - verifique os dígitos",
-    }),
   deliveryOption: z.enum(["pickup", "delivery"]),
   address: z.string().optional(),
   saveData: z.boolean().optional(),
@@ -518,7 +510,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             name: formData.name,
             email: formData.email,
             phone: formData.phone,
-            cpf: formData.cpf ? formData.cpf.replace(/\D/g, '') : '',
+            cpf: '',
           },
           delivery: {
             option: formData.deliveryOption,
@@ -973,24 +965,6 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                       )}
                     </div>
 
-                    <div>
-                      <Label htmlFor="drawer-cpf" className="text-sm font-medium">
-                        CPF <span className="text-muted-foreground text-xs font-normal">(opcional)</span>
-                      </Label>
-                      <Input
-                        id="drawer-cpf"
-                        placeholder="000.000.000-00"
-                        {...register("cpf", {
-                          onChange: (e) => {
-                            e.target.value = formatCPF(e.target.value);
-                          }
-                        })}
-                        className="mt-1"
-                      />
-                      {errors.cpf && (
-                        <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>
-                      )}
-                    </div>
                   </div>
 
                   {/* Delivery option */}
