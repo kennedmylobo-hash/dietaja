@@ -39,9 +39,9 @@ const formSchema = z.object({
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
   cpf: z.string()
-    .min(11, "CPF deve ter 11 dígitos")
     .max(18)
-    .refine((val) => validateCPF(val), {
+    .optional()
+    .refine((val) => !val || val.replace(/\D/g, '').length === 0 || validateCPF(val), {
       message: "CPF inválido - verifique os dígitos",
     }),
   deliveryOption: z.enum(["pickup", "delivery"]),
@@ -518,7 +518,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             name: formData.name,
             email: formData.email,
             phone: formData.phone,
-            cpf: formData.cpf.replace(/\D/g, ''),
+            cpf: formData.cpf ? formData.cpf.replace(/\D/g, '') : '',
           },
           delivery: {
             option: formData.deliveryOption,
@@ -975,7 +975,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
 
                     <div>
                       <Label htmlFor="drawer-cpf" className="text-sm font-medium">
-                        CPF
+                        CPF <span className="text-muted-foreground text-xs font-normal">(opcional)</span>
                       </Label>
                       <Input
                         id="drawer-cpf"
