@@ -27,6 +27,7 @@ interface RequestBody {
     name: string;
     email: string;
     phone: string;
+    cpf?: string;
   };
   delivery: {
     option: 'pickup' | 'delivery';
@@ -146,16 +147,15 @@ serve(async (req) => {
     // Create new customer if not found
     if (!asaasCustomerId) {
       console.log('Creating new Asaas customer...');
-      // Generate a placeholder CPF for Asaas (required for PIX)
-      // This is a workaround since we don't collect CPF from customers
-      const placeholderCpf = '00000000000';
+      // Use CPF from customer data, fallback to placeholder if not provided
+      const customerCpf = customer.cpf?.replace(/\D/g, '') || '00000000000';
       
       const customerPayload = {
         name: customer.name,
         email: customer.email,
         phone: formattedPhone,
         mobilePhone: formattedPhone,
-        cpfCnpj: placeholderCpf,
+        cpfCnpj: customerCpf,
         notificationDisabled: false,
       };
 
@@ -191,7 +191,8 @@ serve(async (req) => {
       asaasCustomerId = customerData.id;
       console.log('Asaas customer created:', asaasCustomerId);
     } else {
-      // Update existing customer with CPF if missing
+      // Update existing customer with CPF from request
+      const customerCpf = customer.cpf?.replace(/\D/g, '') || '00000000000';
       console.log('Updating existing customer with CPF...');
       await fetch(`${ASAAS_API_URL}/customers/${asaasCustomerId}`, {
         method: 'PUT',
@@ -200,7 +201,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          cpfCnpj: '00000000000',
+          cpfCnpj: customerCpf,
         }),
       });
     }
