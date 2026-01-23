@@ -16,10 +16,20 @@ import { EmailAutocomplete } from "@/components/EmailAutocomplete";
 import PixPaymentModal from "@/components/PixPaymentModal";
 import { useNavigate } from "react-router-dom";
 
+// CPF mask function: XXX.XXX.XXX-XX
+const formatCPF = (value: string): string => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+};
+
 const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
+  cpf: z.string().min(11, "CPF inválido").max(18),
   deliveryOption: z.enum(["pickup", "delivery"]),
   address: z.string().optional(),
   saveData: z.boolean().optional(),
@@ -67,6 +77,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
       deliveryOption: "pickup",
       saveData: false,
       email: "",
+      cpf: "",
     },
   });
 
@@ -139,6 +150,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             name: data.name,
             email: data.email,
             phone: data.phone,
+            cpf: data.cpf.replace(/\D/g, ''),
           },
           delivery: {
             option: data.deliveryOption,
@@ -260,6 +272,25 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           />
           {errors.phone && (
             <p className="text-xs text-destructive mt-1">{errors.phone.message}</p>
+          )}
+        </div>
+
+        <div>
+          <Label htmlFor="cpf" className="text-sm font-medium">
+            CPF
+          </Label>
+          <Input
+            id="cpf"
+            placeholder="000.000.000-00"
+            {...register("cpf", {
+              onChange: (e) => {
+                e.target.value = formatCPF(e.target.value);
+              }
+            })}
+            className="mt-1"
+          />
+          {errors.cpf && (
+            <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>
           )}
         </div>
       </div>
