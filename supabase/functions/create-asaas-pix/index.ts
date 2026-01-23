@@ -212,6 +212,9 @@ serve(async (req) => {
     const dueDateStr = dueDate.toISOString().split('T')[0];
 
     const webhookUrl = `${supabaseUrl}/functions/v1/asaas-webhook`;
+    
+    // Usar o domínio público correto (cadastrado no Asaas)
+    const siteUrl = 'https://dietajavca.com.br';
 
     const paymentPayload = {
       customer: asaasCustomerId,
@@ -221,7 +224,7 @@ serve(async (req) => {
       description: `Pedido Dieta Já - ${items.length} item(s)`,
       externalReference: orderId,
       callback: {
-        successUrl: `${supabaseUrl.replace('supabase.co', 'lovable.app').replace('/rest/v1', '')}/pagamento/sucesso?order_id=${orderId}`,
+        successUrl: `${siteUrl}/pagamento/sucesso?order_id=${orderId}`,
       },
     };
 
