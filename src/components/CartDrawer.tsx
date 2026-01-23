@@ -12,6 +12,7 @@ import { Trash2, MessageCircle, ShoppingBag, Loader2, ArrowLeft, Smartphone, Pen
 import { useCart, CartItem, FlavorSelection } from "./CartContext";
 import { hapticFeedback } from "@/lib/haptics";
 import { celebrateCheckout } from "@/lib/confetti";
+// Force rebuild v2: Asaas PIX integration - 2026-01-23
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
 import { useNavigate } from "react-router-dom";
