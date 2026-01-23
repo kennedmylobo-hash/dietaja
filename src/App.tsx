@@ -13,6 +13,7 @@ import PagamentoSucesso from "./pages/PagamentoSucesso";
 import PagamentoErro from "./pages/PagamentoErro";
 import StatusPedido from "./pages/StatusPedido";
 import Cardapio from "./pages/Cardapio";
+import PixPayment from "./pages/PixPayment";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
               <Route path="/admin" element={<Admin />} />
               <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />
               <Route path="/pagamento/erro" element={<PagamentoErro />} />
+              <Route path="/pix/:paymentId" element={<PixPayment />} />
               <Route path="/pedido/:orderNumber" element={<StatusPedido />} />
               <Route path="/pedido" element={<StatusPedido />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

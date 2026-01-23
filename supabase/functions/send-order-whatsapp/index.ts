@@ -406,16 +406,22 @@ serve(async (req) => {
       await sendWhatsAppTemplate(order.customer_phone, 'compraa_confrimadaa', templateFields, order.order_number, supabase, order_id);
     } else if (status === 'pending' && pix_code) {
       // Template pix_pendente_dietaja aprovado pela Meta - ATIVADO
+      // Agora enviamos o LINK da página de pagamento em vez do código PIX completo
+      // Isso facilita a cópia do código pelo cliente
       const PIX_PENDING_TEMPLATE_ENABLED = true;
       
       if (PIX_PENDING_TEMPLATE_ENABLED) {
         // Template: pix_pendente_dietaja with fields {{1}}, {{2}}, {{3}}, {{4}}
         console.log('Using template pix_pendente_dietaja for pending PIX order');
+        
+        // Gerar link da página de pagamento PIX
+        const pixPageLink = `dietajavca.com.br/pix/${order_id}`;
+        
         const templateFields = {
           "1": order.customer_name?.split(' ')[0] || 'cliente',
           "2": order.order_number || '',
           "3": formatCurrency(order.total),
-          "4": pix_code
+          "4": `Acesse para pagar: ${pixPageLink}`
         };
         await sendWhatsAppTemplate(order.customer_phone, 'pix_pendente_dietaja', templateFields, order.order_number, supabase, order_id);
       } else {

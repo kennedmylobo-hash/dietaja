@@ -291,18 +291,21 @@ serve(async (req) => {
     const pixData = await pixResponse.json();
     console.log('PIX QR Code generated successfully');
 
-    // Update order with Asaas payment ID
+    // Calculate expiration (PIX expires at due date midnight)
+    const expirationDate = new Date(paymentData.dueDate);
+    expirationDate.setHours(23, 59, 59);
+
+    // Update order with Asaas payment ID and PIX data
     await supabase
       .from('orders')
       .update({ 
         mp_payment_id: paymentData.id,
         mp_preference_id: paymentData.id,
+        pix_qr_code: pixData.payload,
+        pix_qr_code_base64: pixData.encodedImage,
+        pix_expiration: expirationDate.toISOString(),
       })
       .eq('id', orderId);
-
-    // Calculate expiration (PIX expires at due date midnight)
-    const expirationDate = new Date(paymentData.dueDate);
-    expirationDate.setHours(23, 59, 59);
 
     // Send WhatsApp notification with PIX code
     console.log('Sending WhatsApp notification with PIX code...');

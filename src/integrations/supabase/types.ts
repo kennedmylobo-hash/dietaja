@@ -667,6 +667,9 @@ export type Database = {
           order_number: string | null
           paid_at: string | null
           payment_method: string | null
+          pix_expiration: string | null
+          pix_qr_code: string | null
+          pix_qr_code_base64: string | null
           reminder_sent_at: string | null
           review_requested_at: string | null
           status: string
@@ -696,6 +699,9 @@ export type Database = {
           order_number?: string | null
           paid_at?: string | null
           payment_method?: string | null
+          pix_expiration?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
           reminder_sent_at?: string | null
           review_requested_at?: string | null
           status?: string
@@ -725,6 +731,9 @@ export type Database = {
           order_number?: string | null
           paid_at?: string | null
           payment_method?: string | null
+          pix_expiration?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
           reminder_sent_at?: string | null
           review_requested_at?: string | null
           status?: string
