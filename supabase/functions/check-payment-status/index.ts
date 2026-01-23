@@ -1,4 +1,3 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -7,15 +6,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const ASAAS_API_URL = 'https://api.asaas.com/v3';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
-    if (!mpAccessToken) {
-      throw new Error('MERCADOPAGO_ACCESS_TOKEN not configured');
+    const asaasApiKey = Deno.env.get('ASAAS_API_KEY');
+    if (!asaasApiKey) {
+      throw new Error('ASAAS_API_KEY not configured');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -74,42 +75,45 @@ serve(async (req) => {
       );
     }
 
-    // Check payment status with Mercado Pago
-    const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentIdToCheck}`, {
+    // Check payment status with Asaas
+    console.log('[check-payment-status] Checking Asaas payment:', paymentIdToCheck);
+    
+    const asaasResponse = await fetch(`${ASAAS_API_URL}/payments/${paymentIdToCheck}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${mpAccessToken}`,
+        'access_token': asaasApiKey,
+        'Content-Type': 'application/json',
       },
     });
 
-    if (!mpResponse.ok) {
-      const errorText = await mpResponse.text();
-      console.error('MP API error:', mpResponse.status, errorText);
+    if (!asaasResponse.ok) {
+      const errorText = await asaasResponse.text();
+      console.error('Asaas API error:', asaasResponse.status, errorText);
       return new Response(
         JSON.stringify({ status: 'error', message: 'Failed to check payment status' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const mpData = await mpResponse.json();
-    console.log('Payment status check:', paymentIdToCheck, 'Status:', mpData.status);
+    const asaasData = await asaasResponse.json();
+    console.log('[check-payment-status] Asaas payment status:', asaasData.status);
 
-    // Map MP status to our status
+    // Map Asaas status to our status
+    // Asaas statuses: PENDING, RECEIVED, CONFIRMED, OVERDUE, REFUNDED, RECEIVED_IN_CASH, REFUND_REQUESTED, REFUND_IN_PROGRESS, CHARGEBACK_REQUESTED, CHARGEBACK_DISPUTE, AWAITING_CHARGEBACK_REVERSAL, DUNNING_REQUESTED, DUNNING_RECEIVED, AWAITING_RISK_ANALYSIS
     let status = 'pending';
-    if (mpData.status === 'approved') {
+    if (asaasData.status === 'RECEIVED' || asaasData.status === 'CONFIRMED' || asaasData.status === 'RECEIVED_IN_CASH') {
       status = 'approved';
-    } else if (mpData.status === 'rejected' || mpData.status === 'cancelled') {
+    } else if (asaasData.status === 'OVERDUE' || asaasData.status === 'REFUNDED') {
       status = 'rejected';
-    } else if (mpData.status === 'in_process' || mpData.status === 'pending') {
+    } else if (asaasData.status === 'PENDING' || asaasData.status === 'AWAITING_RISK_ANALYSIS') {
       status = 'pending';
     }
 
     // Get order number and handle approved payments
     let orderNumber = null;
+    const orderId = asaasData.externalReference || order_id;
     
-    if (status === 'approved' && mpData.external_reference) {
-      const orderId = mpData.external_reference;
-      
+    if (status === 'approved' && orderId) {
       // Fetch complete order
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -135,13 +139,14 @@ serve(async (req) => {
               status: 'approved',
               paid_at: new Date().toISOString(),
               mp_payment_id: String(paymentIdToCheck),
+              payment_method: 'pix',
             })
             .eq('id', orderId);
 
           if (updateError) {
             console.error('Error updating order:', updateError);
           } else {
-            // Cancel orphan orders from same customer with cancellation_type
+            // Cancel orphan orders from same customer
             console.log('[check-payment-status] Cancelling orphan orders for customer:', order.customer_email);
             const { data: cancelledOrders, error: cancelError } = await supabase
               .from('orders')
@@ -159,7 +164,7 @@ serve(async (req) => {
             } else {
               console.log('[check-payment-status] Orphan orders cancelled:', cancelledOrders?.length || 0);
               
-              // Record cancellation in history for each orphan order
+              // Record cancellation in history
               if (cancelledOrders && cancelledOrders.length > 0) {
                 for (const cancelled of cancelledOrders) {
                   await supabase.from('order_status_history').insert({
@@ -267,8 +272,7 @@ serve(async (req) => {
       JSON.stringify({ 
         status,
         order_number: orderNumber,
-        mp_status: mpData.status,
-        mp_status_detail: mpData.status_detail,
+        asaas_status: asaasData.status,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
