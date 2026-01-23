@@ -146,13 +146,43 @@ serve(async (req) => {
       const errorText = await mpResponse.text();
       console.error('MP API error:', mpResponse.status, errorText);
       
+      // Parse error response for detailed logging
+      let errorResponse = {};
+      try {
+        errorResponse = JSON.parse(errorText);
+      } catch {
+        errorResponse = { raw_error: errorText };
+      }
+
+      // Log error to database for analysis
+      await supabase
+        .from('payment_error_logs')
+        .insert({
+          order_id: orderId,
+          error_code: mpResponse.status.toString(),
+          error_message: errorText,
+          provider: 'mercadopago',
+          request_payload: paymentPayload,
+          response_payload: errorResponse,
+          customer_phone: customer.phone,
+          customer_email: customer.email,
+        });
+
       // Mark order as pix_failed so it doesn't appear as pending
       await supabase
         .from('orders')
         .update({ status: 'pix_failed' })
         .eq('id', orderId);
       
-      throw new Error(`Mercado Pago API error: ${mpResponse.status}`);
+      // Return user-friendly error message
+      const errorCode = (errorResponse as any)?.cause?.[0]?.code || '';
+      let userMessage = 'Erro ao criar pagamento PIX. Tente novamente.';
+      
+      if (errorCode === 'PIXPP02' || errorText.includes('PIXPP02')) {
+        userMessage = 'Pagamento PIX temporariamente indisponível. Por favor, finalize seu pedido via WhatsApp.';
+      }
+      
+      throw new Error(userMessage);
     }
 
     const mpData = await mpResponse.json();
