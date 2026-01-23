@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Smartphone, MessageCircle, CreditCard } from "lucide-react";
+import { Loader2, Smartphone, MessageCircle } from "lucide-react";
 import { useCart } from "./CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
 import { toast } from "@/hooks/use-toast";
 import { EmailAutocomplete } from "@/components/EmailAutocomplete";
+import PixPaymentModal from "@/components/PixPaymentModal";
+import { useNavigate } from "react-router-dom";
 
 const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
@@ -38,7 +40,8 @@ interface CheckoutFormProps {
 }
 
 const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
-  const { items, getTotal } = useCart();
+  const { items, getTotal, clearCart } = useCart();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
@@ -102,17 +105,15 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     }
   };
 
-  const handlePixPayment = async (data: FormData) => {
-    // If already has a pending order, redirect to stored init_point
-    if (pendingOrderId) {
-      const storedInitPoint = sessionStorage.getItem('mp_init_point');
-      if (storedInitPoint) {
-        setIsLoading(true);
-        window.location.href = storedInitPoint;
-        return;
-      }
-    }
+  const [pixModalData, setPixModalData] = useState<{
+    qrCode: string;
+    qrCodeBase64: string;
+    orderId: string;
+    total: number;
+    expirationDate: string;
+  } | null>(null);
 
+  const handlePixPayment = async (data: FormData) => {
     setIsLoading(true);
 
     // Track InitiateCheckout
@@ -125,7 +126,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     }
 
     try {
-      const { data: response, error } = await supabase.functions.invoke('create-mp-preference', {
+      const { data: response, error } = await supabase.functions.invoke('create-asaas-pix', {
         body: {
           items: items.map(item => ({
             name: item.name,
@@ -150,20 +151,34 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
 
       if (error) throw error;
 
-      if (response?.init_point) {
-        // Store order info to prevent duplicates
+      if (response?.success && response?.qr_code) {
+        // Store order info
         sessionStorage.setItem('pending_order_id', response.order_id);
-        sessionStorage.setItem('mp_init_point', response.init_point);
         setPendingOrderId(response.order_id);
         
-        // Redirect to Mercado Pago checkout
-        window.location.href = response.init_point;
+        // Show PIX modal with QR code
+        setPixModalData({
+          qrCode: response.qr_code,
+          qrCodeBase64: response.qr_code_base64,
+          orderId: response.order_id,
+          total: response.total,
+          expirationDate: response.expiration_date,
+        });
+
+        toast({
+          title: "PIX gerado com sucesso!",
+          description: "Escaneie o QR Code ou copie o código para pagar.",
+        });
       } else {
-        throw new Error('No init_point received');
+        throw new Error(response?.error || 'Erro ao gerar PIX');
       }
     } catch (error) {
-      console.error('Error creating payment:', error);
-      alert('Erro ao criar pagamento. Tente novamente ou finalize via WhatsApp.');
+      console.error('Error creating PIX payment:', error);
+      toast({
+        title: "Erro ao gerar PIX",
+        description: error instanceof Error ? error.message : "Tente novamente ou finalize via WhatsApp.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -355,24 +370,6 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
 
         <Button
           type="button"
-          variant="secondary"
-          size="lg"
-          className="w-full"
-          onClick={handleSubmit(handlePixPaymentWithAccount)}
-          disabled={!hasItems || isLoading}
-        >
-          {isLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <>
-              <CreditCard className="w-5 h-5" />
-              Pagar com Cartão (até 12x)
-            </>
-          )}
-        </Button>
-
-        <Button
-          type="button"
           variant="outline"
           size="lg"
           className="w-full"
@@ -383,6 +380,35 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           Finalizar via WhatsApp
         </Button>
       </div>
+
+      {/* PIX Payment Modal */}
+      {pixModalData && (
+        <PixPaymentModal
+          open={!!pixModalData}
+          onOpenChange={(open) => {
+            if (!open) setPixModalData(null);
+          }}
+          qrCode={pixModalData.qrCode}
+          qrCodeBase64={pixModalData.qrCodeBase64}
+          total={pixModalData.total}
+          paymentId={pixModalData.orderId}
+          orderId={pixModalData.orderId}
+          expirationDate={pixModalData.expirationDate}
+          onPaymentSuccess={(orderNumber) => {
+            setPixModalData(null);
+            clearCart();
+            navigate(`/pagamento/sucesso?order_id=${pixModalData.orderId}&order_number=${orderNumber}`);
+          }}
+          onPaymentFailed={() => {
+            setPixModalData(null);
+            toast({
+              title: "Pagamento não concluído",
+              description: "O PIX expirou ou foi cancelado. Tente novamente.",
+              variant: "destructive",
+            });
+          }}
+        />
+      )}
     </form>
   );
 };
