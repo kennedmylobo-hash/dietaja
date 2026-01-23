@@ -792,6 +792,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
               <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Entrega</th>
               <th className="pb-3 font-medium text-muted-foreground">Total</th>
               <th className="pb-3 font-medium text-muted-foreground">Status</th>
+              <th className="pb-3 font-medium text-muted-foreground hidden lg:table-cell">Pagamento</th>
               <th className="pb-3 font-medium text-muted-foreground hidden sm:table-cell">Tempo</th>
               <th className="pb-3 font-medium text-muted-foreground hidden lg:table-cell">Data</th>
               <th className="pb-3 font-medium text-muted-foreground">Ações</th>
@@ -835,6 +836,9 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                       </Badge>
                     )}
                   </div>
+                </td>
+                <td className="py-3 hidden lg:table-cell">
+                  {getPaymentMethodBadge(order.payment_method)}
                 </td>
                 <td className="py-3 hidden sm:table-cell">
                   <div className="flex items-center gap-1 text-muted-foreground">
