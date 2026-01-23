@@ -3,12 +3,6 @@ project_id = "fxlhpizydnbdkhuzrkpr"
 [functions.send-pending-reminders]
 verify_jwt = false
 
-[functions.create-mp-preference]
-verify_jwt = false
-
-[functions.mp-webhook]
-verify_jwt = false
-
 [functions.create-customer-account]
 verify_jwt = false
 
@@ -40,9 +34,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-cart-reminders]
-verify_jwt = false
-
-[functions.create-pix-payment]
 verify_jwt = false
 
 [functions.check-payment-status]

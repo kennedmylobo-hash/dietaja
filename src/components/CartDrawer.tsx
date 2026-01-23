@@ -491,7 +491,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     hapticFeedback('medium');
 
     try {
-      const { data: response, error } = await supabase.functions.invoke('create-pix-payment', {
+      const { data: response, error } = await supabase.functions.invoke('create-asaas-pix', {
         body: {
           items: items.map(item => ({
             name: item.name,
