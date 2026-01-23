@@ -146,11 +146,16 @@ serve(async (req) => {
     // Create new customer if not found
     if (!asaasCustomerId) {
       console.log('Creating new Asaas customer...');
+      // Generate a placeholder CPF for Asaas (required for PIX)
+      // This is a workaround since we don't collect CPF from customers
+      const placeholderCpf = '00000000000';
+      
       const customerPayload = {
         name: customer.name,
         email: customer.email,
         phone: formattedPhone,
         mobilePhone: formattedPhone,
+        cpfCnpj: placeholderCpf,
         notificationDisabled: false,
       };
 
@@ -185,6 +190,19 @@ serve(async (req) => {
       const customerData = await customerResponse.json();
       asaasCustomerId = customerData.id;
       console.log('Asaas customer created:', asaasCustomerId);
+    } else {
+      // Update existing customer with CPF if missing
+      console.log('Updating existing customer with CPF...');
+      await fetch(`${ASAAS_API_URL}/customers/${asaasCustomerId}`, {
+        method: 'PUT',
+        headers: {
+          'access_token': asaasApiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cpfCnpj: '00000000000',
+        }),
+      });
     }
 
     // Step 2: Create PIX payment (cobrança)
