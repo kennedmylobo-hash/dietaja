@@ -737,6 +737,53 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_error_logs: {
+        Row: {
+          created_at: string | null
+          customer_email: string | null
+          customer_phone: string | null
+          error_code: string | null
+          error_message: string | null
+          id: string
+          order_id: string | null
+          provider: string | null
+          request_payload: Json | null
+          response_payload: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_phone?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          order_id?: string | null
+          provider?: string | null
+          request_payload?: Json | null
+          response_payload?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_phone?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          order_id?: string | null
+          provider?: string | null
+          request_payload?: Json | null
+          response_payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_error_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

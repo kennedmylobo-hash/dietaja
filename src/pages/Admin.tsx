@@ -30,6 +30,7 @@ import {
   UserX,
   Bell,
   Radio,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Select,
@@ -61,6 +62,7 @@ import MarketingManager from "@/components/admin/MarketingManager";
 import NotificationTester from "@/components/admin/NotificationTester";
 import NotificationStats from "@/components/admin/NotificationStats";
 import LiveVisitors from "@/components/admin/LiveVisitors";
+import PaymentErrorLogs from "@/components/admin/PaymentErrorLogs";
 
 interface Lead {
   id: string;
@@ -641,7 +643,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="live" className="space-y-6">
-          <TabsList className="grid w-full max-w-7xl grid-cols-10">
+          <TabsList className="grid w-full max-w-7xl grid-cols-11">
             <TabsTrigger value="live" className="flex items-center gap-2 relative">
               <Radio className="w-4 h-4" />
               <span className="hidden sm:inline">Ao Vivo</span>
@@ -673,6 +675,10 @@ const Admin = () => {
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="w-4 h-4" />
               <span className="hidden sm:inline">Notificações</span>
+            </TabsTrigger>
+            <TabsTrigger value="payment-errors" className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              <span className="hidden sm:inline">Erros PIX</span>
             </TabsTrigger>
             <TabsTrigger value="stock" className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
@@ -1172,6 +1178,10 @@ const Admin = () => {
 
           <TabsContent value="notifications">
             <NotificationStats />
+          </TabsContent>
+
+          <TabsContent value="payment-errors">
+            <PaymentErrorLogs />
           </TabsContent>
 
           <TabsContent value="history">
