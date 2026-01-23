@@ -32,20 +32,18 @@ const formatPhone = (value: string): string => {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 };
 
-// CPF mask function: XXX.XXX.XXX-XX
-const formatCPF = (value: string): string => {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
-  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-};
+import { validateCPF, formatCPF } from "@/lib/cpf";
 
 const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
-  cpf: z.string().min(11, "CPF inválido").max(18),
+  cpf: z.string()
+    .min(11, "CPF deve ter 11 dígitos")
+    .max(18)
+    .refine((val) => validateCPF(val), {
+      message: "CPF inválido - verifique os dígitos",
+    }),
   deliveryOption: z.enum(["pickup", "delivery"]),
   address: z.string().optional(),
   saveData: z.boolean().optional(),
