@@ -184,7 +184,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             name: data.name,
             email: data.email,
             phone: data.phone,
-            cpf: data.cpf.replace(/\D/g, ''),
+            cpf: cpfValue,
           },
           delivery: {
             option: data.deliveryOption,
