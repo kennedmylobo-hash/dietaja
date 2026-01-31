@@ -23,12 +23,7 @@ const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
-  cpf: z.string()
-    .min(11, "CPF deve ter 11 dígitos")
-    .max(18)
-    .refine((val) => validateCPF(val), {
-      message: "CPF inválido - verifique os dígitos",
-    }),
+  cpf: z.string().optional(),
   deliveryOption: z.enum(["pickup", "delivery"]),
   address: z.string().optional(),
   saveData: z.boolean().optional(),
@@ -89,6 +84,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   });
 
   const emailValue = watch("email");
+  const [paymentMethod, setPaymentMethod] = useState<"pix" | "whatsapp" | null>(null);
   
   // Update watchedEmail when email changes (for cashback lookup)
   useEffect(() => {
@@ -148,6 +144,17 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     // Prevent double-click submissions
     if (isSubmittingRef.current || isLoading) {
       console.log('Already submitting PIX payment, ignoring click');
+      return;
+    }
+    
+    // Validate CPF for PIX payment
+    const cpfValue = data.cpf?.replace(/\D/g, '') || '';
+    if (cpfValue.length !== 11 || !validateCPF(data.cpf || '')) {
+      toast({
+        title: "CPF inválido",
+        description: "Por favor, preencha um CPF válido para pagar via PIX.",
+        variant: "destructive",
+      });
       return;
     }
     
@@ -306,25 +313,6 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             <p className="text-xs text-destructive mt-1">{errors.phone.message}</p>
           )}
         </div>
-
-        <div>
-          <Label htmlFor="cpf" className="text-sm font-medium">
-            CPF
-          </Label>
-          <Input
-            id="cpf"
-            placeholder="000.000.000-00"
-            {...register("cpf", {
-              onChange: (e) => {
-                e.target.value = formatCPF(e.target.value);
-              }
-            })}
-            className="mt-1"
-          />
-          {errors.cpf && (
-            <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>
-          )}
-        </div>
       </div>
 
       {/* Delivery option */}
@@ -426,37 +414,94 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
         </div>
       )}
 
+      {/* Payment method selection */}
+      <div className="flex flex-col gap-3 pt-2">
+        <Label className="text-sm font-medium">Forma de pagamento</Label>
+        <RadioGroup
+          value={paymentMethod || ""}
+          onValueChange={(value) => setPaymentMethod(value as "pix" | "whatsapp")}
+          className="grid grid-cols-2 gap-3"
+        >
+          <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'pix' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
+            <RadioGroupItem value="pix" id="payment-pix" className="sr-only" />
+            <Label htmlFor="payment-pix" className="flex items-center gap-2 cursor-pointer font-medium">
+              <Smartphone className="w-5 h-5" />
+              PIX
+            </Label>
+          </div>
+          <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'whatsapp' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
+            <RadioGroupItem value="whatsapp" id="payment-whatsapp" className="sr-only" />
+            <Label htmlFor="payment-whatsapp" className="flex items-center gap-2 cursor-pointer font-medium">
+              <MessageCircle className="w-5 h-5" />
+              WhatsApp
+            </Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      {/* CPF field - only shown when PIX is selected */}
+      {paymentMethod === "pix" && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+          <Label htmlFor="cpf" className="text-sm font-medium">
+            CPF (obrigatório para PIX)
+          </Label>
+          <Input
+            id="cpf"
+            placeholder="000.000.000-00"
+            {...register("cpf", {
+              onChange: (e) => {
+                e.target.value = formatCPF(e.target.value);
+              }
+            })}
+            className="mt-1"
+          />
+          {errors.cpf && (
+            <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>
+          )}
+        </div>
+      )}
+
       {/* Action buttons */}
       <div className="flex flex-col gap-3 pt-2">
-        <Button
-          type="button"
-          variant="cta"
-          size="lg"
-          className="w-full"
-          onClick={handleSubmit(handlePixPaymentWithAccount)}
-          disabled={!hasItems || isLoading}
-        >
-          {isLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <>
-              <Smartphone className="w-5 h-5" />
-              Pagar via PIX
-            </>
-          )}
-        </Button>
+        {paymentMethod === "pix" && (
+          <Button
+            type="button"
+            variant="cta"
+            size="lg"
+            className="w-full"
+            onClick={handleSubmit(handlePixPaymentWithAccount)}
+            disabled={!hasItems || isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <Smartphone className="w-5 h-5" />
+                Gerar PIX
+              </>
+            )}
+          </Button>
+        )}
 
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="w-full"
-          onClick={handleSubmit(handleWhatsApp)}
-          disabled={!hasItems || isLoading}
-        >
-          <MessageCircle className="w-5 h-5" />
-          Finalizar via WhatsApp
-        </Button>
+        {paymentMethod === "whatsapp" && (
+          <Button
+            type="button"
+            variant="cta"
+            size="lg"
+            className="w-full"
+            onClick={handleSubmit(handleWhatsApp)}
+            disabled={!hasItems || isLoading}
+          >
+            <MessageCircle className="w-5 h-5" />
+            Finalizar via WhatsApp
+          </Button>
+        )}
+
+        {!paymentMethod && (
+          <p className="text-sm text-muted-foreground text-center py-2">
+            Selecione a forma de pagamento acima
+          </p>
+        )}
       </div>
 
       {/* PIX Payment Modal */}
