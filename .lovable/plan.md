@@ -1,211 +1,103 @@
 
-# Plano: Prevenir Pedidos Duplicados e Corrigir Validação de CPF
 
-## Problema Identificado
+# Plano: Remover Dependência de Domínio para PIX Funcionar
 
-A cliente Claudia clicou 8 vezes no botão "Pagar via PIX" em 24 segundos. Cada clique:
-1. Criou um pedido novo no banco de dados
-2. Tentou criar cliente no Asaas com CPF `00000000000`
-3. Asaas rejeitou por CPF inválido
-4. Erro foi exibido, cliente clicou novamente
+## Problema Atual
 
-**Resultado:** 8 pedidos "orfãos" com status `pending` e nenhum PIX gerado.
+O Asaas está rejeitando a criação de cobranças PIX porque o campo `callback.successUrl` usa um domínio que não está cadastrado na sua conta Asaas. Você tem múltiplos domínios, o que complica ainda mais.
+
+## Solução Recomendada
+
+**Remover o campo `callback` da requisição de pagamento.** Isso elimina a validação de domínio e o PIX funciona imediatamente em qualquer domínio.
+
+### Por que isso funciona?
+
+O callback é **opcional** - é apenas um redirect automático após o pagamento. Seu sistema já tem:
+- ✅ **Webhook configurado** - recebe confirmação do Asaas automaticamente
+- ✅ **Polling na página PIX** - verifica status a cada poucos segundos
+- ✅ **Redirect automático** - quando detecta pagamento aprovado, redireciona para sucesso
 
 ---
 
-## Solução em 3 Partes
+## Alterações Técnicas
 
-### Parte 1: Proteção contra Cliques Múltiplos (Frontend)
+### Arquivo: `supabase/functions/create-asaas-pix/index.ts`
 
-**Arquivo:** `src/components/CheckoutForm.tsx`
+**Linha 306-316 - Remover o campo `callback`:**
 
-Adicionar um estado de "processando" mais robusto que:
-- Desabilite o botão imediatamente ao primeiro clique
-- Use `useRef` para prevenir reentrada
-- Mostre feedback visual mais claro durante processamento
+```typescript
+// DE:
+const paymentPayload = {
+  customer: asaasCustomerId,
+  billingType: 'PIX',
+  value: transactionAmount,
+  dueDate: dueDateStr,
+  description: `Pedido Dieta Já - ${items.length} item(s)`,
+  externalReference: orderId,
+  callback: {
+    successUrl: `${siteUrl}/pagamento/sucesso?order_id=${orderId}`,
+  },
+};
 
-```tsx
-// Adicionar ref para controle de submissão
-const isSubmitting = useRef(false);
-
-const handlePixPayment = async (data: FormData) => {
-  // Prevenir duplo clique
-  if (isSubmitting.current || isLoading) return;
-  isSubmitting.current = true;
-  setIsLoading(true);
-  
-  try {
-    // ... resto do código
-  } finally {
-    setIsLoading(false);
-    isSubmitting.current = false;
-  }
+// PARA:
+const paymentPayload = {
+  customer: asaasCustomerId,
+  billingType: 'PIX',
+  value: transactionAmount,
+  dueDate: dueDateStr,
+  description: `Pedido Dieta Já - ${items.length} item(s)`,
+  externalReference: orderId,
+  // Callback removido - redirect feito via polling no frontend
 };
 ```
 
----
-
-### Parte 2: Reutilizar Pedido Existente (Backend)
-
-**Arquivo:** `supabase/functions/create-asaas-pix/index.ts`
-
-Antes de criar um novo pedido, verificar se já existe um pedido recente (últimos 5 minutos) do mesmo cliente com status `pending`:
-
+**Também remover a linha 304 (variável não utilizada):**
 ```typescript
-// Verificar se já existe pedido recente deste cliente
-const { data: existingOrder } = await supabase
-  .from('orders')
-  .select('id, order_number')
-  .eq('customer_email', customer.email)
-  .eq('status', 'pending')
-  .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
-  .order('created_at', { ascending: false })
-  .limit(1)
-  .single();
-
-if (existingOrder) {
-  console.log('Reusing existing order:', existingOrder.id);
-  orderId = existingOrder.id;
-} else {
-  // Criar novo pedido
-}
+// REMOVER:
+const siteUrl = 'https://dietajavca.com.br';
 ```
 
 ---
 
-### Parte 3: Melhorar Validação de CPF (Frontend + Backend)
-
-**Problema:** O CPF está chegando como `00000000000` no backend.
-
-**Causa provável:** A validação do form só ocorre no submit, mas o CPF pode estar mal formatado ou o campo não foi preenchido.
-
-**Solução no Backend:**
-```typescript
-// Validar CPF antes de tentar criar cliente
-if (!customer.cpf || customer.cpf.replace(/\D/g, '').length !== 11) {
-  throw new Error('CPF inválido. Por favor, preencha corretamente.');
-}
-
-const customerCpf = customer.cpf.replace(/\D/g, '');
-// Remover o fallback para zeros
-```
-
-**Solução no Frontend:**
-Já existe validação no form, mas precisamos garantir que o erro seja mais visível quando o CPF for inválido.
-
----
-
-## Resumo das Alterações
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/CheckoutForm.tsx` | Adicionar `useRef` para prevenir duplo clique + feedback visual mais claro |
-| `supabase/functions/create-asaas-pix/index.ts` | Reutilizar pedido pendente recente do mesmo cliente + validação de CPF antes de chamar Asaas |
-
----
-
-## Fluxo Corrigido
+## Fluxo Após a Correção
 
 ```text
-Cliente clica "Pagar via PIX"
-       │
-       ▼
-  [Botão desabilitado imediatamente]
-       │
-       ▼
-  [Backend verifica pedido pendente recente]
-       │
-   ┌───┴───┐
-   │       │
-Existe?  Não existe?
-   │       │
-Reutiliza  Cria novo
-   │       │
-   └───┬───┘
-       │
-       ▼
-  [Valida CPF ≠ zeros]
-       │
-   ┌───┴───┐
-   │       │
-Válido?  Inválido?
-   │       │
-Continua  Retorna erro claro
-   │       
-   ▼       
-[Cria PIX no Asaas]
-       │
-       ▼
-[Exibe QR Code]
+1. Cliente clica "Pagar via PIX"
+        ↓
+2. Edge function cria cobrança (sem callback)
+        ↓
+3. QR Code é exibido na tela
+        ↓
+4. Cliente paga no app do banco
+        ↓
+5. Asaas envia confirmação via webhook
+        ↓
+6. Frontend detecta via polling e redireciona
+        ↓
+7. Página de sucesso é exibida
 ```
 
 ---
 
-## Impacto
+## Vantagens Desta Solução
 
-- Evita criação de pedidos duplicados
-- Melhora UX com feedback mais rápido
-- Mensagem de erro mais clara quando CPF é inválido
-- Reduz carga no banco de dados e API do Asaas
+| Aspecto | Benefício |
+|---------|-----------|
+| **Funciona imediatamente** | Não precisa configurar nada no Asaas |
+| **Multi-domínio** | Funciona em qualquer domínio (preview, produção, customizado) |
+| **Seguro** | Webhook já está configurado corretamente |
+| **UX preservada** | Polling detecta pagamento em 2-5 segundos |
 
 ---
 
-## Seção Técnica
+## Opcional: Cadastrar Domínio Depois
 
-### Alterações no Frontend (`CheckoutForm.tsx`)
+Se quiser ter o redirect automático pelo Asaas (além do polling), você pode cadastrar o domínio principal no futuro:
 
-1. Importar `useRef`:
-```tsx
-import { useState, useEffect, useCallback, useRef } from "react";
-```
+1. Acesse https://www.asaas.com
+2. Vá em **Minha Conta** > **Informações** ou **Dados do Site**
+3. Cadastre: `https://dietajavca.com.br`
+4. Depois disso, posso reativar o callback no código
 
-2. Criar ref:
-```tsx
-const isSubmittingRef = useRef(false);
-```
+Mas isso é **opcional** - a solução funciona perfeitamente sem.
 
-3. Modificar `handlePixPayment`:
-```tsx
-const handlePixPayment = async (data: FormData) => {
-  if (isSubmittingRef.current || isLoading) {
-    console.log('Already submitting, ignoring click');
-    return;
-  }
-  isSubmittingRef.current = true;
-  setIsLoading(true);
-  // ... resto do código existente ...
-  // No finally:
-  isSubmittingRef.current = false;
-  setIsLoading(false);
-};
-```
-
-### Alterações no Backend (`create-asaas-pix/index.ts`)
-
-1. Antes de criar pedido, buscar existente:
-```typescript
-// Verificar pedido duplicado
-const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-const { data: existingOrder } = await supabase
-  .from('orders')
-  .select('id, order_number')
-  .eq('customer_email', customer.email)
-  .in('status', ['pending', 'pix_failed'])
-  .gte('created_at', fiveMinutesAgo)
-  .order('created_at', { ascending: false })
-  .limit(1)
-  .maybeSingle();
-
-if (existingOrder && !order_id) {
-  orderId = existingOrder.id;
-  console.log('Reusing existing pending order:', orderId);
-}
-```
-
-2. Validar CPF antes de Asaas:
-```typescript
-const cleanCpf = customer.cpf?.replace(/\D/g, '') || '';
-if (cleanCpf.length !== 11 || cleanCpf === '00000000000') {
-  throw new Error('CPF inválido. Verifique os 11 dígitos.');
-}
-```
