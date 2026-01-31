@@ -14,6 +14,7 @@ import PagamentoErro from "./pages/PagamentoErro";
 import StatusPedido from "./pages/StatusPedido";
 import Cardapio from "./pages/Cardapio";
 import PixPayment from "./pages/PixPayment";
+import MinhaConta from "./pages/MinhaConta";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/cardapio" element={<Cardapio />} />
+              <Route path="/minha-conta" element={<MinhaConta />} />
               <Route path="/obrigado" element={<Obrigado />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />

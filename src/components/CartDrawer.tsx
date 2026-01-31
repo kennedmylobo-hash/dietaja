@@ -8,14 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, MessageCircle, ShoppingBag, Loader2, ArrowLeft, Smartphone, Pencil, CheckCircle2, Mail, Tag, X } from "lucide-react";
+import { Trash2, MessageCircle, ShoppingBag, Loader2, ArrowLeft, Smartphone, Pencil, CheckCircle2, Mail, Tag, X, User } from "lucide-react";
 import { useCart, CartItem, FlavorSelection } from "./CartContext";
 import { hapticFeedback } from "@/lib/haptics";
 import { celebrateCheckout } from "@/lib/confetti";
 // Force rebuild v2: Asaas PIX integration - 2026-01-23
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import FlavorSelectionModal from "./FlavorSelectionModal";
 import KitFlavorSelectionModal from "./KitFlavorSelectionModal";
 import PixPaymentModal from "./PixPaymentModal";
@@ -801,6 +801,14 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     <p className="text-sm text-muted-foreground mt-1">
                       Adicione kits detox ou marmitas para começar
                     </p>
+                    <Link 
+                      to="/minha-conta" 
+                      className="mt-6 inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                      onClick={() => handleOpenChange(false)}
+                    >
+                      <User className="w-4 h-4" />
+                      Acessar Minha Conta
+                    </Link>
                   </div>
                 ) : (
                   <div className="space-y-4">
