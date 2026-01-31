@@ -34,6 +34,10 @@ interface RequestBody {
     address?: string;
     fee: number;
   };
+  cashback?: {
+    use: boolean;
+    amount: number;
+  };
   utm_data?: Record<string, string>;
   coupon_code?: string;
   discount_amount?: number;
@@ -59,15 +63,16 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body: RequestBody = await req.json();
-    const { items, customer, delivery, utm_data, coupon_code, discount_amount, order_id } = body;
+    const { items, customer, delivery, utm_data, coupon_code, discount_amount, cashback, order_id } = body;
 
-    console.log('Creating Asaas PIX payment for:', { customer: customer.name, items: items.length, order_id });
+    console.log('Creating Asaas PIX payment for:', { customer: customer.name, items: items.length, order_id, cashback });
 
     // Calculate totals
     const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
     const deliveryFee = delivery.fee || 0;
     const discountValue = discount_amount || 0;
-    const total = subtotal + deliveryFee - discountValue;
+    const cashbackValue = (cashback?.use && cashback?.amount) ? cashback.amount : 0;
+    const total = subtotal + deliveryFee - discountValue - cashbackValue;
     const transactionAmount = Math.max(Math.round(total * 100) / 100, 1);
 
     let orderId = order_id;
@@ -90,7 +95,7 @@ serve(async (req) => {
           delivery_address: delivery.address || null,
           utm_data: utm_data || null,
           coupon_code: coupon_code || null,
-          discount_amount: discountValue,
+          discount_amount: discountValue + cashbackValue,
         })
         .select('id, order_number')
         .single();
@@ -102,6 +107,30 @@ serve(async (req) => {
 
       orderId = order.id;
       console.log('Order created:', orderId, order.order_number);
+
+      // If using cashback, deduct from balance
+      if (cashbackValue > 0) {
+        console.log('Processing cashback usage:', cashbackValue);
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/process-cashback`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({
+              action: 'use',
+              order_id: orderId,
+              customer_email: customer.email,
+              amount: cashbackValue,
+            }),
+          });
+          console.log('Cashback deducted successfully');
+        } catch (cashbackError) {
+          console.error('Error processing cashback:', cashbackError);
+          // Don't fail the order, just log the error
+        }
+      }
     } else {
       await supabase
         .from('orders')
@@ -109,7 +138,7 @@ serve(async (req) => {
           status: 'pending', 
           payment_method: 'pix',
           total,
-          discount_amount: discountValue,
+          discount_amount: discountValue + cashbackValue,
         })
         .eq('id', orderId);
     }

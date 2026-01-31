@@ -122,6 +122,106 @@ export type Database = {
         }
         Relationships: []
       }
+      cashback_balances: {
+        Row: {
+          created_at: string
+          current_balance: number
+          current_level_id: string | null
+          customer_email: string
+          id: string
+          total_earned: number
+          total_expired: number
+          total_orders: number
+          total_spent: number
+          total_used: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_balance?: number
+          current_level_id?: string | null
+          customer_email: string
+          id?: string
+          total_earned?: number
+          total_expired?: number
+          total_orders?: number
+          total_spent?: number
+          total_used?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_balance?: number
+          current_level_id?: string | null
+          customer_email?: string
+          id?: string
+          total_earned?: number
+          total_expired?: number
+          total_orders?: number
+          total_spent?: number
+          total_used?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashback_balances_current_level_id_fkey"
+            columns: ["current_level_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_levels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cashback_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          customer_email: string
+          expired: boolean
+          expires_at: string | null
+          id: string
+          level_slug: string | null
+          notes: string | null
+          order_id: string | null
+          transaction_type: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          created_at?: string
+          customer_email: string
+          expired?: boolean
+          expires_at?: string | null
+          id?: string
+          level_slug?: string | null
+          notes?: string | null
+          order_id?: string | null
+          transaction_type: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          customer_email?: string
+          expired?: boolean
+          expires_at?: string | null
+          id?: string
+          level_slug?: string | null
+          notes?: string | null
+          order_id?: string | null
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashback_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coupon_usage: {
         Row: {
           coupon_code: string
@@ -382,6 +482,48 @@ export type Database = {
           utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+        }
+        Relationships: []
+      }
+      loyalty_levels: {
+        Row: {
+          active: boolean
+          cashback_percent: number
+          created_at: string
+          emoji: string
+          id: string
+          min_orders: number
+          min_spent: number
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          cashback_percent?: number
+          created_at?: string
+          emoji?: string
+          id?: string
+          min_orders?: number
+          min_spent?: number
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          cashback_percent?: number
+          created_at?: string
+          emoji?: string
+          id?: string
+          min_orders?: number
+          min_spent?: number
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }

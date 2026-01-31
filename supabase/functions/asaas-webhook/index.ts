@@ -237,6 +237,27 @@ serve(async (req) => {
         } catch (whatsappError) {
           console.error('[asaas-webhook] Error sending WhatsApp:', whatsappError);
         }
+
+        // Credit cashback to customer
+        console.log('[asaas-webhook] Processing cashback...');
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/process-cashback`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({
+              action: 'credit',
+              order_id: orderId,
+              customer_email: order.customer_email,
+              order_total: order.total,
+            }),
+          });
+          console.log('[asaas-webhook] Cashback processed');
+        } catch (cashbackError) {
+          console.error('[asaas-webhook] Error processing cashback:', cashbackError);
+        }
       }
     }
 
