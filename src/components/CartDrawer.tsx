@@ -83,6 +83,11 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     total: number;
   } | null>(null);
   
+  // CPF state for PIX payment
+  const [cpfValue, setCpfValue] = useState("");
+  const [cpfError, setCpfError] = useState("");
+  const [showCpfInput, setShowCpfInput] = useState(false);
+  
   const handleGoToCheckout = () => {
     setStep('checkout');
     trackCheckoutStart();
@@ -481,8 +486,31 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     }
   };
 
+  const formatCpf = (value: string): string => {
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  };
+
+  const validateCpf = (cpf: string): boolean => {
+    const cleaned = cpf.replace(/\D/g, '');
+    if (cleaned.length !== 11) return false;
+    if (/^(\d)\1+$/.test(cleaned)) return false;
+    return true;
+  };
+
   const handlePixPayment = async (retryCount = 0) => {
     if (!formData) return;
+    
+    // Validate CPF before proceeding
+    const cleanedCpf = cpfValue.replace(/\D/g, '');
+    if (!validateCpf(cleanedCpf)) {
+      setCpfError("CPF inválido. Digite os 11 números.");
+      return;
+    }
+    setCpfError("");
     
     setIsLoading(true);
     hapticFeedback('medium');
@@ -506,7 +534,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             name: formData.name,
             email: formData.email,
             phone: formData.phone,
-            cpf: '',
+            cpf: cleanedCpf,
           },
           delivery: {
             option: formData.deliveryOption,
@@ -1275,12 +1303,34 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                   transition={{ delay: 0.5 }}
                   className="w-full space-y-3"
                 >
+                  {/* CPF Input for PIX */}
+                  <div className="space-y-2">
+                    <Label htmlFor="cpf-input" className="text-sm font-medium">
+                      CPF do pagador (obrigatório para PIX)
+                    </Label>
+                    <Input
+                      id="cpf-input"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="000.000.000-00"
+                      value={cpfValue}
+                      onChange={(e) => {
+                        setCpfValue(formatCpf(e.target.value));
+                        setCpfError("");
+                      }}
+                      className={cpfError ? "border-destructive" : ""}
+                    />
+                    {cpfError && (
+                      <p className="text-xs text-destructive">{cpfError}</p>
+                    )}
+                  </div>
+
                   <Button
                     variant="cta"
                     size="lg"
                     className="w-full"
                     onClick={() => handlePixPayment()}
-                    disabled={isLoading}
+                    disabled={isLoading || cpfValue.replace(/\D/g, '').length < 11}
                   >
                     {isLoading ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
