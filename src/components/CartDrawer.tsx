@@ -342,7 +342,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     setStep('confirmation');
   };
 
-  // NEW: Confirm order, save to DB, send email
+  // NEW: Confirm order - OPTIMIZED: Only create order, skip email until payment confirmed
   const handleConfirmOrder = async () => {
     if (!formData) return;
     
@@ -350,10 +350,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     hapticFeedback('medium');
 
     try {
-      // Create account if checkbox is checked
-      await createCustomerAccount(formData);
-
-      // Track InitiateCheckout
+      // Track InitiateCheckout immediately (non-blocking)
       if (typeof window !== 'undefined' && window.fbq) {
         window.fbq('track', 'InitiateCheckout', {
           value: total,
@@ -361,6 +358,11 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           num_items: items.length,
         });
       }
+
+      // Create account in background (don't wait)
+      createCustomerAccount(formData).catch(err => 
+        console.error('Background account creation error:', err)
+      );
 
       // Save order to database with 'awaiting_payment' status
       const { data: orderData, error: orderError } = await supabase
@@ -395,21 +397,6 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         .select('order_number')
         .single();
 
-      // Record coupon usage if applied
-      if (appliedCoupon && orderData) {
-        try {
-          await supabase.from('coupon_usage').insert({
-            coupon_code: appliedCoupon,
-            customer_email: formData.email.toLowerCase(),
-            order_id: null, // Will be linked later if needed
-          });
-          // Increment usage counter for standalone coupons
-          await supabase.rpc('increment_coupon_usage', { coupon_code_param: appliedCoupon });
-        } catch (usageError) {
-          console.error('Error recording coupon usage:', usageError);
-        }
-      }
-
       if (orderError) {
         console.error('Error creating order:', orderError);
         toast({
@@ -424,40 +411,19 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       const orderNumber = orderData.order_number;
       setConfirmedOrderNumber(orderNumber);
 
-      // Send confirmation email
-      try {
-        await supabase.functions.invoke('send-order-confirmation', {
-          body: {
-            order_number: orderNumber,
-            customer_name: formData.name,
-            customer_email: formData.email,
-            customer_phone: formData.phone,
-            items: items.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              totalPrice: item.totalPrice,
-              type: item.type,
-              flavors: item.flavors?.map(f => ({
-                name: f.name,
-                quantity: f.quantity,
-                category: f.category,
-              })),
-            })),
-            subtotal,
-            delivery_fee: deliveryFee,
-            total,
-            delivery_option: formData.deliveryOption,
-            delivery_address: formData.address,
-          },
-        });
-        console.log('Confirmation email sent');
-      } catch (emailError) {
-        console.error('Error sending confirmation email:', emailError);
-        // Don't block the flow if email fails
+      // Record coupon usage in background (don't wait)
+      if (appliedCoupon) {
+        Promise.all([
+          supabase.from('coupon_usage').insert({
+            coupon_code: appliedCoupon,
+            customer_email: formData.email.toLowerCase(),
+            order_id: null,
+          }),
+          supabase.rpc('increment_coupon_usage', { coupon_code_param: appliedCoupon }),
+        ]).catch(err => console.error('Background coupon usage error:', err));
       }
 
-      // Update customer info with email for future use
+      // Update customer info immediately (sync, but fast)
       if (formData.email && !customerInfo.email) {
         setCustomerInfo({
           ...customerInfo,
@@ -465,12 +431,17 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         });
       }
 
-      // Mark cart as converted
-      await markCartAsConverted();
+      // Mark cart as converted in background (don't wait)
+      markCartAsConverted().catch(err => 
+        console.error('Background cart conversion error:', err)
+      );
 
       // Track checkout complete
       trackCheckoutComplete(total);
       celebrateCheckout();
+
+      // NOTE: Confirmation email will be sent by webhook when payment is confirmed
+      // This removes ~1-2s of latency from this step
 
       // Go to success step
       setStep('success');
