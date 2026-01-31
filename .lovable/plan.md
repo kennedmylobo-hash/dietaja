@@ -1,152 +1,217 @@
 
 
-## Plano: Carrinho em Tempo Real + Criação Automática de Conta
+## Plano: Página de Perfil do Cliente
 
-### Contexto
-Atualmente:
-1. **Carrinhos** - A tabela `carts` armazena carrinhos com dados do cliente (nome, telefone, email, itens), mas o admin só vê carrinhos "abandonados" ou "ativos" na aba "Recuperar"
-2. **Contas de cliente** - A criação de conta é **opcional** via checkbox "Salvar meus dados para próximas compras" no checkout
-3. **Admin "Ao Vivo"** - Mostra visitantes online e eventos de analytics, mas NÃO mostra carrinhos em tempo real
+### Contexto Atual
+1. **Autenticação de clientes** - Contas são criadas automaticamente via edge function `create-customer-account` (magic link)
+2. **Tabela `profiles`** - Armazena: `user_id`, `name`, `email`, `phone`, `preferred_delivery_option`, `preferred_address`
+3. **Tabela `orders`** - Não tem `user_id`, mas tem `customer_email` que pode ser vinculado ao perfil
+4. **RLS em `orders`** - Admins veem tudo; anônimos veem pedidos criados nos últimos 5 minutos
+5. **RLS em `profiles`** - Usuários podem ver/editar apenas seu próprio perfil
 
-### Objetivo
-1. Criar um novo componente no Admin que exiba **carrinhos ativos em tempo real** com itens, valores e dados do cliente
-2. **Automatizar a criação de conta** sempre que um pedido for confirmado (sem depender do checkbox)
+### O Que Será Implementado
 
----
+#### 1. Nova Página `/perfil` (ou `/minha-conta`)
 
-### Funcionalidade 1: Visualização de Carrinhos em Tempo Real
+**Arquivo:** `src/pages/MinhaConta.tsx`
 
-**Novo componente:** `src/components/admin/LiveCarts.tsx`
+**Funcionalidades:**
+- Tela de login via magic link (se não logado)
+- Dashboard com dados do perfil e histórico de pedidos
+- Edição de dados pessoais (nome, telefone, endereço preferido)
+- Lista de todos os pedidos do cliente com status em tempo real
+- Botão de logout
 
-Características:
-- Exibe carrinhos com status "active" ordenados por última atividade
-- Atualização em tempo real via Supabase Realtime (já habilitado na tabela `carts`)
-- Mostra: nome do cliente, telefone, itens no carrinho, valor total, tempo desde última atividade
-- Card expandível para ver detalhes dos itens e sabores selecionados
-- Indicador visual de "adicionando agora" quando a atividade é recente (< 2 min)
-- Botão para abrir WhatsApp diretamente
-
-**Integração no Admin:**
-- Adicionar `LiveCarts` dentro da aba "Ao Vivo" (`LiveVisitors.tsx` ou diretamente no `Admin.tsx`)
-- Ou criar uma nova aba específica "Carrinhos" ao lado de "Ao Vivo"
-
-**Dados exibidos por carrinho:**
+**Layout:**
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ 🟢 Elton                         R$ 600,87              │
-│ 📱 77988254159                   há 2 min               │
-│ ─────────────────────────────────────────────────────── │
-│ • 21x Combo Hipertrofia 21 (marmita)                    │
-│   Sabores: Carne moída c/ arroz (2), Frango grelhado... │
-│ ─────────────────────────────────────────────────────── │
-│ [💬 WhatsApp]                                           │
+│ 🏠 Logo              Minha Conta                [Sair]  │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Olá, Larissa! 👋                                       │
+│  larissa@email.com | (73) 98218-4352                   │
+│                                                         │
+│  [✏️ Editar Dados]                                      │
+│                                                         │
+├─────────────────────────────────────────────────────────┤
+│  📦 Meus Pedidos                                        │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ #DJA-0078  •  31/01/2026                        │   │
+│  │ 🟢 Aprovado  •  R$ 286,00                       │   │
+│  │ 7x Marmita Emagrecimento                        │   │
+│  │ [Ver Detalhes] [Acompanhar]                     │   │
+│  └─────────────────────────────────────────────────┘   │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ #DJA-0065  •  15/01/2026                        │   │
+│  │ ✅ Entregue  •  R$ 143,00                       │   │
+│  │ 3x Kit Detox                                    │   │
+│  │ [Ver Detalhes]                                  │   │
+│  └─────────────────────────────────────────────────┘   │
+│                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Funcionalidade 2: Criação Automática de Conta
+#### 2. Atualização de RLS para Pedidos
 
-**Modificação:** `src/components/CartDrawer.tsx`
+**Problema atual:** Clientes não conseguem ver seus próprios pedidos antigos (RLS só permite ver pedidos dos últimos 5 minutos).
 
-Na função `handleConfirmOrder()`, após criar o pedido com sucesso:
-1. **Remover a condição** `if (!saveData) return` da função `createCustomerAccount`
-2. **Sempre chamar** `createCustomerAccount` quando o pedido for confirmado
-3. Manter o checkbox como informativo ("Seus dados serão salvos automaticamente")
-
-**Ou alternativa mais elegante:**
-- Criar a conta **no backend** dentro da Edge Function `create-asaas-pix` ou um trigger no banco
-- Isso garante que mesmo pedidos via WhatsApp tenham conta criada
-
-**Modificação sugerida (frontend):**
-
-```typescript
-// Antes (CartDrawer.tsx linha 188)
-const createCustomerAccount = async (data: FormData) => {
-  if (!saveData) return;  // ← REMOVER ESTA LINHA
-  ...
-}
-
-// handleConfirmOrder já chama createCustomerAccount
+**Nova policy no `orders`:**
+```sql
+-- Clientes podem ver seus próprios pedidos (por email)
+CREATE POLICY "Customers can view their own orders by email"
+ON public.orders FOR SELECT
+TO authenticated
+USING (
+  customer_email = (
+    SELECT email FROM public.profiles 
+    WHERE user_id = auth.uid()
+  )
+);
 ```
-
-**Ou via Backend (preferível):**
-Criar um trigger SQL ou modificar a Edge Function para:
-1. Quando um pedido for inserido com status `awaiting_payment` ou `approved`
-2. Verificar se já existe perfil para o email/telefone
-3. Se não existir, criar automaticamente
 
 ---
 
-### Resumo de Arquivos
+#### 3. Tela de Login com Magic Link
+
+**Fluxo:**
+1. Cliente acessa `/minha-conta`
+2. Se não logado, exibe campo de email
+3. Cliente digita email e clica "Enviar link de acesso"
+4. Sistema envia magic link via Supabase Auth
+5. Cliente clica no link e é redirecionado para `/minha-conta` já logado
+
+**Código:**
+```typescript
+const handleLoginRequest = async () => {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${window.location.origin}/minha-conta`,
+    },
+  });
+};
+```
+
+---
+
+#### 4. Hook de Autenticação Reutilizável
+
+**Novo arquivo:** `src/hooks/useAuth.ts`
+
+```typescript
+export const useAuth = () => {
+  const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Listener primeiro
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    // Depois busca sessão atual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return { user, session, loading };
+};
+```
+
+---
+
+#### 5. Link no Header/Footer
+
+**Modificar:** Header da landing page ou adicionar no drawer do carrinho
+
+- Link "Minha Conta" visível para todos
+- Se logado, mostra nome do cliente
+- Se não logado, leva para tela de login
+
+---
+
+### Arquivos a Criar/Modificar
 
 | Arquivo | Ação |
 |---------|------|
-| `src/components/admin/LiveCarts.tsx` | Criar componente de carrinhos em tempo real |
-| `src/components/admin/LiveVisitors.tsx` | Modificar para incluir LiveCarts ou... |
-| `src/pages/Admin.tsx` | Adicionar LiveCarts na aba "Ao Vivo" |
-| `src/components/CartDrawer.tsx` | Remover condição `if (!saveData)` para criar conta automaticamente |
+| `src/pages/MinhaConta.tsx` | Criar página de perfil do cliente |
+| `src/hooks/useAuth.ts` | Criar hook de autenticação |
+| `src/App.tsx` | Adicionar rota `/minha-conta` |
+| `src/components/CartDrawer.tsx` | Adicionar link "Minha Conta" |
+| Migração SQL | Adicionar RLS policy para clientes verem seus pedidos |
 
 ---
 
 ### Detalhes Técnicos
 
-**LiveCarts.tsx - Estrutura básica:**
+**MinhaConta.tsx - Estrutura:**
 
 ```typescript
-// Hook para carrinhos em tempo real
-const useLiveCarts = () => {
-  const [carts, setCarts] = useState([]);
+const MinhaConta = () => {
+  const { user, session, loading } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [orders, setOrders] = useState([]);
   
+  // Se não logado, mostrar tela de login
+  if (!session && !loading) {
+    return <LoginScreen />;
+  }
+  
+  // Buscar perfil e pedidos
   useEffect(() => {
-    // Fetch inicial
-    fetchActiveCarts();
-    
-    // Subscription realtime
-    const channel = supabase
-      .channel('live-carts')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'carts',
-        filter: 'status=eq.active'
-      }, () => fetchActiveCarts())
-      .subscribe();
-      
-    return () => supabase.removeChannel(channel);
-  }, []);
+    if (user) {
+      fetchProfile();
+      fetchOrders();
+    }
+  }, [user]);
   
-  return { carts };
+  // Renderizar dashboard
+  return (
+    <div>
+      <ProfileCard profile={profile} onEdit={...} />
+      <OrdersList orders={orders} />
+    </div>
+  );
 };
 ```
 
-**Criação automática de conta - Lógica:**
+**Busca de pedidos:**
 
 ```typescript
-// CartDrawer.tsx - handleConfirmOrder (após criar pedido)
-// Sempre criar/atualizar conta com os dados do checkout
-await createCustomerAccount(formData);
-
-// createCustomerAccount já faz upsert:
-// - Se usuário existe: atualiza profile
-// - Se não existe: cria user + profile + envia magic link
+const fetchOrders = async () => {
+  const { data } = await supabase
+    .from('orders')
+    .select('*')
+    .order('created_at', { ascending: false });
+  setOrders(data || []);
+};
 ```
 
 ---
 
-### Fluxo Final
+### Fluxo Completo
 
-**Carrinho em Tempo Real:**
 ```
-Cliente adiciona item → Cart salvo no banco → 
-Realtime dispara → Admin vê carrinho aparecer instantaneamente
-```
-
-**Criação Automática de Conta:**
-```
-Cliente confirma pedido → Pedido criado no banco →
-Conta criada/atualizada → Magic link enviado por email →
-Cliente pode acessar histórico de pedidos futuramente
+1. Cliente faz primeiro pedido → Conta criada automaticamente
+2. Magic link enviado por email
+3. Cliente clica no link → Logado automaticamente
+4. Cliente acessa /minha-conta → Vê histórico de pedidos
+5. Cliente pode editar dados pessoais
+6. Próximo pedido: dados pré-preenchidos no checkout
 ```
 
 ---
@@ -155,7 +220,18 @@ Cliente pode acessar histórico de pedidos futuramente
 
 | Antes | Depois |
 |-------|--------|
-| Admin não vê carrinhos em tempo real | Carrinhos aparecem instantaneamente |
-| Conta criada só se cliente marcar checkbox | Conta sempre criada automaticamente |
-| Difícil acompanhar cliente navegando | Pode ver cliente montando carrinho e intervir via WhatsApp |
+| Cliente não tem acesso ao histórico | Histórico completo de pedidos |
+| Sem área logada para clientes | Dashboard pessoal |
+| Dados digitados toda vez | Dados salvos e pré-preenchidos |
+| Sem rastreamento de pedidos | Status em tempo real |
+| Difícil fidelizar cliente | Cliente com conta = recompra facilitada |
+
+---
+
+### Segurança
+
+1. **Autenticação via Magic Link** - Sem senha, mais seguro
+2. **RLS por email** - Cliente só vê seus próprios pedidos
+3. **Sessão persistente** - Token gerenciado pelo Supabase
+4. **Validação no servidor** - Profile só acessível pelo dono
 
