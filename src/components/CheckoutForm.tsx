@@ -147,16 +147,8 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
       return;
     }
     
-    // Validate CPF for PIX payment
+    // CPF is optional - just clean it if provided
     const cpfValue = data.cpf?.replace(/\D/g, '') || '';
-    if (cpfValue.length !== 11 || !validateCPF(data.cpf || '')) {
-      toast({
-        title: "CPF inválido",
-        description: "Por favor, preencha um CPF válido para pagar via PIX.",
-        variant: "destructive",
-      });
-      return;
-    }
     
     isSubmittingRef.current = true;
     setIsLoading(true);
@@ -439,27 +431,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
         </RadioGroup>
       </div>
 
-      {/* CPF field - only shown when PIX is selected */}
-      {paymentMethod === "pix" && (
-        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-          <Label htmlFor="cpf" className="text-sm font-medium">
-            CPF (obrigatório para PIX)
-          </Label>
-          <Input
-            id="cpf"
-            placeholder="000.000.000-00"
-            {...register("cpf", {
-              onChange: (e) => {
-                e.target.value = formatCPF(e.target.value);
-              }
-            })}
-            className="mt-1"
-          />
-          {errors.cpf && (
-            <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>
-          )}
-        </div>
-      )}
+      {/* CPF field removed - testing without it for better conversion */}
 
       {/* Action buttons */}
       <div className="flex flex-col gap-3 pt-2">
