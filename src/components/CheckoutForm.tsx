@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -54,6 +54,9 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  
+  // Ref to prevent double-click submissions
+  const isSubmittingRef = useRef(false);
   
   // Cashback state
   const [useCashback, setUseCashback] = useState(false);
@@ -142,6 +145,13 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   } | null>(null);
 
   const handlePixPayment = async (data: FormData) => {
+    // Prevent double-click submissions
+    if (isSubmittingRef.current || isLoading) {
+      console.log('Already submitting PIX payment, ignoring click');
+      return;
+    }
+    
+    isSubmittingRef.current = true;
     setIsLoading(true);
 
     // Track InitiateCheckout
@@ -214,6 +224,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
       });
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
