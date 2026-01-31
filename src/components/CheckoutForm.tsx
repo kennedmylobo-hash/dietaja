@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { EmailAutocomplete } from "@/components/EmailAutocomplete";
 import PixPaymentModal from "@/components/PixPaymentModal";
 import { useNavigate } from "react-router-dom";
+import CashbackUsage from "@/components/checkout/CashbackUsage";
 
 import { validateCPF, formatCPF } from "@/lib/cpf";
 
@@ -53,6 +54,11 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  
+  // Cashback state
+  const [useCashback, setUseCashback] = useState(false);
+  const [cashbackAmount, setCashbackAmount] = useState(0);
+  const [watchedEmail, setWatchedEmail] = useState('');
 
   // Restore pending order from sessionStorage on mount
   useEffect(() => {
@@ -79,10 +85,23 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     },
   });
 
+  const emailValue = watch("email");
+  
+  // Update watchedEmail when email changes (for cashback lookup)
+  useEffect(() => {
+    setWatchedEmail(emailValue);
+  }, [emailValue]);
+
   const deliveryOption = watch("deliveryOption");
   const deliveryFee = deliveryOption === "delivery" ? 10 : 0;
   const subtotal = getTotal();
-  const total = subtotal + deliveryFee;
+  const totalBeforeCashback = subtotal + deliveryFee;
+  const total = totalBeforeCashback - cashbackAmount;
+
+  const handleCashbackChange = useCallback((use: boolean, amount: number) => {
+    setUseCashback(use);
+    setCashbackAmount(amount);
+  }, []);
 
   const createCustomerAccount = async (data: FormData) => {
     if (!saveData) return;
@@ -154,6 +173,10 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             option: data.deliveryOption,
             address: data.address,
             fee: deliveryFee,
+          },
+          cashback: {
+            use: useCashback,
+            amount: cashbackAmount,
           },
           utm_data: getUTMParams(),
         },
@@ -357,6 +380,15 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
         </div>
       )}
 
+      {/* Cashback usage */}
+      {hasItems && watchedEmail && (
+        <CashbackUsage
+          customerEmail={watchedEmail}
+          orderTotal={totalBeforeCashback}
+          onCashbackChange={handleCashbackChange}
+        />
+      )}
+
       {/* Totals */}
       {hasItems && (
         <div className="pt-3 border-t border-border space-y-1">
@@ -368,6 +400,12 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Entrega</span>
               <span>R$ {deliveryFee.toFixed(2).replace(".", ",")}</span>
+            </div>
+          )}
+          {cashbackAmount > 0 && (
+            <div className="flex justify-between text-sm text-green-600">
+              <span>Cashback aplicado</span>
+              <span>-R$ {cashbackAmount.toFixed(2).replace(".", ",")}</span>
             </div>
           )}
           <div className="flex justify-between font-bold text-lg pt-1">

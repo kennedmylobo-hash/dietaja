@@ -12,6 +12,9 @@ import { ArrowLeft, LogOut, Edit2, Package, MapPin, Phone, Mail, User, Check, X,
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Logo from '@/components/Logo';
+import { useCashback } from '@/hooks/useCashback';
+import CashbackCard from '@/components/minha-conta/CashbackCard';
+import CashbackHistory from '@/components/minha-conta/CashbackHistory';
 
 interface Profile {
   id: string;
@@ -68,6 +71,9 @@ const MinhaConta = () => {
     preferred_address: '',
   });
   const [saving, setSaving] = useState(false);
+
+  // Cashback data
+  const cashbackData = useCashback(profile?.email);
 
   // Fetch profile when user is logged in
   useEffect(() => {
@@ -374,6 +380,14 @@ const MinhaConta = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Cashback Section */}
+        <CashbackCard cashbackData={cashbackData} />
+
+        {/* Cashback History */}
+        {cashbackData.transactions.length > 0 && (
+          <CashbackHistory transactions={cashbackData.transactions} />
+        )}
 
         {/* Orders Section */}
         <div className="space-y-4">
