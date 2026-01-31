@@ -370,49 +370,62 @@ serve(async (req) => {
     const expirationDate = new Date(paymentData.dueDate);
     expirationDate.setHours(23, 59, 59);
 
-    // Update order with Asaas payment ID and PIX data
-    await supabase
-      .from('orders')
-      .update({ 
-        mp_payment_id: paymentData.id,
-        mp_preference_id: paymentData.id,
-        pix_qr_code: pixData.payload,
-        pix_qr_code_base64: pixData.encodedImage,
-        pix_expiration: expirationDate.toISOString(),
-      })
-      .eq('id', orderId);
+    // Prepare response data BEFORE background tasks
+    const responseData = {
+      success: true,
+      order_id: orderId,
+      payment_id: paymentData.id,
+      qr_code: pixData.payload,
+      qr_code_base64: pixData.encodedImage,
+      invoice_url: paymentData.invoiceUrl,
+      expiration_date: expirationDate.toISOString(),
+      total: transactionAmount,
+    };
 
-    // Send WhatsApp notification with PIX code
-    console.log('Sending WhatsApp notification with PIX code...');
-    try {
-      await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-        body: JSON.stringify({
-          order_id: orderId,
-          status: 'pending',
-          pix_code: pixData.payload,
-        }),
-      });
-      console.log('WhatsApp notification sent for pending order');
-    } catch (whatsappError) {
-      console.error('Error sending WhatsApp:', whatsappError);
-    }
+    // Move DB update and WhatsApp to background - don't block the response
+    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+    EdgeRuntime.waitUntil((async () => {
+      // Update order with Asaas payment ID and PIX data
+      try {
+        await supabase
+          .from('orders')
+          .update({ 
+            mp_payment_id: paymentData.id,
+            mp_preference_id: paymentData.id,
+            pix_qr_code: pixData.payload,
+            pix_qr_code_base64: pixData.encodedImage,
+            pix_expiration: expirationDate.toISOString(),
+          })
+          .eq('id', orderId);
+        console.log('✅ Order updated with PIX data in background');
+      } catch (dbError) {
+        console.error('❌ Background DB update error:', dbError);
+      }
 
+      // Send WhatsApp notification with PIX code
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+          body: JSON.stringify({
+            order_id: orderId,
+            status: 'pending',
+            pix_code: pixData.payload,
+          }),
+        });
+        console.log('✅ WhatsApp notification sent in background');
+      } catch (whatsappError) {
+        console.error('❌ Background WhatsApp error:', whatsappError);
+      }
+    })());
+
+    // Return immediately with QR Code data - much faster!
+    console.log('Returning PIX data immediately (background tasks running)');
     return new Response(
-      JSON.stringify({
-        success: true,
-        order_id: orderId,
-        payment_id: paymentData.id,
-        qr_code: pixData.payload,
-        qr_code_base64: pixData.encodedImage,
-        invoice_url: paymentData.invoiceUrl,
-        expiration_date: expirationDate.toISOString(),
-        total: transactionAmount,
-      }),
+      JSON.stringify(responseData),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
