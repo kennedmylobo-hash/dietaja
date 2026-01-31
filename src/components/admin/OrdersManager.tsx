@@ -447,6 +447,23 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       const currentOrder = orders.find(o => o.id === orderId);
       const previousStatus = currentOrder?.status || 'unknown';
 
+      // First, try to cancel the payment in Asaas
+      console.log('Attempting to cancel Asaas payment for order:', orderId);
+      try {
+        const { data: cancelResult, error: cancelError } = await supabase.functions.invoke('cancel-asaas-payment', {
+          body: { order_id: orderId }
+        });
+        
+        if (cancelError) {
+          console.error('Error calling cancel-asaas-payment:', cancelError);
+        } else {
+          console.log('Asaas cancellation result:', cancelResult);
+        }
+      } catch (asaasError) {
+        console.error('Error cancelling Asaas payment:', asaasError);
+        // Continue with order cancellation even if Asaas fails
+      }
+
       const { error: updateError } = await supabase
         .from('orders')
         .update({ 
