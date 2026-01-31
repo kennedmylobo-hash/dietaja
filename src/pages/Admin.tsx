@@ -644,7 +644,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="live" className="space-y-6">
-          <TabsList className="grid w-full max-w-7xl grid-cols-11">
+          <TabsList className="flex overflow-x-auto w-full max-w-7xl gap-1">
             <TabsTrigger value="live" className="flex items-center gap-2 relative">
               <Radio className="w-4 h-4" />
               <span className="hidden sm:inline">Ao Vivo</span>
