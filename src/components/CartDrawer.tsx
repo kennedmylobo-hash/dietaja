@@ -185,9 +185,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     soups: days * 2,
   });
 
+  // Always create/update customer account on order confirmation
   const createCustomerAccount = async (data: FormData) => {
-    if (!saveData) return;
-    
     try {
       const { data: response, error } = await supabase.functions.invoke('create-customer-account', {
         body: {
@@ -205,10 +204,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       }
 
       if (response?.success) {
-        toast({
-          title: response.isExisting ? "Dados atualizados!" : "Conta criada!",
-          description: "Enviamos um link de acesso para seu email.",
-        });
+        console.log(response.isExisting ? 'Customer data updated' : 'Customer account created');
       }
     } catch (error) {
       console.error('Error creating customer account:', error);
