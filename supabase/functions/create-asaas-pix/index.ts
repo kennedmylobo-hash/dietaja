@@ -67,6 +67,13 @@ serve(async (req) => {
 
     console.log('Creating Asaas PIX payment for:', { customer: customer.name, items: items.length, order_id, cashback });
 
+    // Validate CPF before proceeding
+    const cleanCpf = customer.cpf?.replace(/\D/g, '') || '';
+    if (cleanCpf.length !== 11 || cleanCpf === '00000000000' || /^(\d)\1+$/.test(cleanCpf)) {
+      console.error('Invalid CPF provided:', cleanCpf);
+      throw new Error('CPF inválido. Por favor, verifique os 11 dígitos.');
+    }
+
     // Calculate totals
     const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
     const deliveryFee = delivery.fee || 0;
@@ -77,7 +84,46 @@ serve(async (req) => {
 
     let orderId = order_id;
 
-    // Create or update order
+    // Check for existing pending order from same customer (prevent duplicates)
+    if (!orderId) {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const { data: existingOrder } = await supabase
+        .from('orders')
+        .select('id, order_number')
+        .eq('customer_email', customer.email)
+        .in('status', ['pending', 'pix_failed'])
+        .gte('created_at', fiveMinutesAgo)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingOrder) {
+        orderId = existingOrder.id;
+        console.log('Reusing existing pending order:', orderId, existingOrder.order_number);
+        
+        // Update the existing order with current data
+        await supabase
+          .from('orders')
+          .update({ 
+            status: 'pending', 
+            payment_method: 'pix',
+            items: items,
+            subtotal,
+            delivery_fee: deliveryFee,
+            total,
+            customer_name: customer.name,
+            customer_phone: customer.phone,
+            delivery_option: delivery.option,
+            delivery_address: delivery.address || null,
+            utm_data: utm_data || null,
+            coupon_code: coupon_code || null,
+            discount_amount: discountValue + cashbackValue,
+          })
+          .eq('id', orderId);
+      }
+    }
+
+    // Create new order if no existing one found
     if (!orderId) {
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -176,15 +222,13 @@ serve(async (req) => {
     // Create new customer if not found
     if (!asaasCustomerId) {
       console.log('Creating new Asaas customer...');
-      // Use CPF from customer data, fallback to placeholder if not provided
-      const customerCpf = customer.cpf?.replace(/\D/g, '') || '00000000000';
       
       const customerPayload = {
         name: customer.name,
         email: customer.email,
         phone: formattedPhone,
         mobilePhone: formattedPhone,
-        cpfCnpj: customerCpf,
+        cpfCnpj: cleanCpf,
         notificationDisabled: false,
       };
 
@@ -221,7 +265,6 @@ serve(async (req) => {
       console.log('Asaas customer created:', asaasCustomerId);
     } else {
       // Update existing customer with CPF from request
-      const customerCpf = customer.cpf?.replace(/\D/g, '') || '00000000000';
       console.log('Updating existing customer with CPF...');
       await fetch(`${ASAAS_API_URL}/customers/${asaasCustomerId}`, {
         method: 'PUT',
@@ -230,7 +273,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          cpfCnpj: customerCpf,
+          cpfCnpj: cleanCpf,
         }),
       });
     }
