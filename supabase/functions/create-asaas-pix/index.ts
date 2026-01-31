@@ -300,9 +300,6 @@ serve(async (req) => {
 
     const webhookUrl = `${supabaseUrl}/functions/v1/asaas-webhook`;
     
-    // Usar o domínio público correto (cadastrado no Asaas)
-    const siteUrl = 'https://dietajavca.com.br';
-
     const paymentPayload = {
       customer: asaasCustomerId,
       billingType: 'PIX',
@@ -310,9 +307,7 @@ serve(async (req) => {
       dueDate: dueDateStr,
       description: `Pedido Dieta Já - ${items.length} item(s)`,
       externalReference: orderId,
-      callback: {
-        successUrl: `${siteUrl}/pagamento/sucesso?order_id=${orderId}`,
-      },
+      // Callback removido - redirect feito via polling no frontend
     };
 
     console.log('Creating Asaas PIX payment:', JSON.stringify(paymentPayload));
