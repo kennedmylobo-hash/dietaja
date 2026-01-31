@@ -558,15 +558,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         });
         setShowPixModal(true);
         
-        // Send WhatsApp with PIX code (non-blocking)
-        supabase.functions.invoke('send-order-whatsapp', {
-          body: {
-            order_id: response.order_id,
-            status: 'pending',
-            pix_code: response.qr_code,
-          },
-        }).then(() => console.log('✅ WhatsApp PIX sent'))
-          .catch(err => console.error('WhatsApp PIX error:', err));
+        // WhatsApp is now sent in background by the edge function - no need to send again here
+        console.log('✅ PIX modal shown - WhatsApp sent by edge function in background');
       } else {
         throw new Error('No PIX data received');
       }
