@@ -74,20 +74,9 @@ serve(async (req) => {
       cashback 
     });
 
-    // Validate CPF before proceeding
+    // CPF is optional - clean if provided
     const cleanCpf = customer.cpf?.replace(/\D/g, '') || '';
-    console.log('CPF validation:', { original: customer.cpf, cleaned: cleanCpf, length: cleanCpf.length });
-    
-    if (cleanCpf.length !== 11 || cleanCpf === '00000000000' || /^(\d)\1+$/.test(cleanCpf)) {
-      console.error('Invalid CPF rejected:', cleanCpf);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'CPF inválido. Por favor, verifique os 11 dígitos.' 
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    console.log('CPF info:', { original: customer.cpf, cleaned: cleanCpf, length: cleanCpf.length });
 
     // Calculate totals
     const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -238,14 +227,18 @@ serve(async (req) => {
     if (!asaasCustomerId) {
       console.log('Creating new Asaas customer...');
       
-      const customerPayload = {
+      const customerPayload: Record<string, unknown> = {
         name: customer.name,
         email: customer.email,
         phone: formattedPhone,
         mobilePhone: formattedPhone,
-        cpfCnpj: cleanCpf,
         notificationDisabled: false,
       };
+      
+      // Only include CPF if provided and valid (11 digits)
+      if (cleanCpf.length === 11 && !/^(\d)\1+$/.test(cleanCpf)) {
+        customerPayload.cpfCnpj = cleanCpf;
+      }
 
       const customerResponse = await fetch(`${ASAAS_API_URL}/customers`, {
         method: 'POST',
@@ -278,8 +271,8 @@ serve(async (req) => {
       const customerData = await customerResponse.json();
       asaasCustomerId = customerData.id;
       console.log('Asaas customer created:', asaasCustomerId);
-    } else {
-      // Update existing customer with CPF from request
+    } else if (cleanCpf.length === 11 && !/^(\d)\1+$/.test(cleanCpf)) {
+      // Update existing customer with CPF only if valid
       console.log('Updating existing customer with CPF...');
       await fetch(`${ASAAS_API_URL}/customers/${asaasCustomerId}`, {
         method: 'PUT',
