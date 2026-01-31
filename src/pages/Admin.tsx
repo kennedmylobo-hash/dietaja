@@ -62,6 +62,7 @@ import MarketingManager from "@/components/admin/MarketingManager";
 import NotificationTester from "@/components/admin/NotificationTester";
 import NotificationStats from "@/components/admin/NotificationStats";
 import LiveVisitors from "@/components/admin/LiveVisitors";
+import LiveCarts from "@/components/admin/LiveCarts";
 import PaymentErrorLogs from "@/components/admin/PaymentErrorLogs";
 
 interface Lead {
@@ -697,6 +698,7 @@ const Admin = () => {
           {/* Ao Vivo Tab */}
           <TabsContent value="live" className="space-y-6">
             <LiveVisitors />
+            <LiveCarts />
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-8">
