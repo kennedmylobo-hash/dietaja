@@ -504,13 +504,10 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const handlePixPayment = async (retryCount = 0) => {
     if (!formData) return;
     
-    // Validate CPF before proceeding
+    // CPF is optional now - just clean it if provided
     const cleanedCpf = cpfValue.replace(/\D/g, '');
-    if (!validateCpf(cleanedCpf)) {
-      setCpfError("CPF inválido. Digite os 11 números.");
-      return;
-    }
-    setCpfError("");
+    
+    setIsLoading(true);
     
     setIsLoading(true);
     hapticFeedback('medium');
@@ -1303,34 +1300,14 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                   transition={{ delay: 0.5 }}
                   className="w-full space-y-3"
                 >
-                  {/* CPF Input for PIX */}
-                  <div className="space-y-2">
-                    <Label htmlFor="cpf-input" className="text-sm font-medium">
-                      CPF do pagador (obrigatório para PIX)
-                    </Label>
-                    <Input
-                      id="cpf-input"
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="000.000.000-00"
-                      value={cpfValue}
-                      onChange={(e) => {
-                        setCpfValue(formatCpf(e.target.value));
-                        setCpfError("");
-                      }}
-                      className={cpfError ? "border-destructive" : ""}
-                    />
-                    {cpfError && (
-                      <p className="text-xs text-destructive">{cpfError}</p>
-                    )}
-                  </div>
+                  {/* CPF field removed - testing without it for better conversion */}
 
                   <Button
                     variant="cta"
                     size="lg"
                     className="w-full"
                     onClick={() => handlePixPayment()}
-                    disabled={isLoading || cpfValue.replace(/\D/g, '').length < 11}
+                    disabled={isLoading}
                   >
                     {isLoading ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
