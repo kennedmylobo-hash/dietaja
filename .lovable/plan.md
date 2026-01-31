@@ -1,103 +1,144 @@
 
-
-# Plano: Remover Dependência de Domínio para PIX Funcionar
+# Plano: Otimizar Tempo de Carregamento do Checkout PIX
 
 ## Problema Atual
 
-O Asaas está rejeitando a criação de cobranças PIX porque o campo `callback.successUrl` usa um domínio que não está cadastrado na sua conta Asaas. Você tem múltiplos domínios, o que complica ainda mais.
+O checkout está lento porque executa várias operações **sequencialmente** quando poderiam ser **paralelas** ou **em background**:
 
-## Solução Recomendada
+```text
+Fluxo Atual (Sequencial):
+┌────────────────────────────────────────────────────────────────────┐
+│ 1. Frontend cria conta do cliente      → ~500ms (await)           │
+│ 2. Frontend insere pedido no DB        → ~200ms                   │
+│ 3. Frontend envia email de confirmação → ~1-2s (await!)           │
+│ 4. Frontend chama create-asaas-pix     → ??? ms                   │
+│    ├─ Busca cliente no Asaas           → ~300ms                   │
+│    ├─ Cria/atualiza cliente            → ~300ms                   │
+│    ├─ Cria cobrança PIX                → ~400ms                   │
+│    ├─ Busca QR Code                    → ~300ms                   │
+│    ├─ Atualiza pedido no DB            → ~100ms                   │
+│    └─ Envia WhatsApp                   → ~500ms (await!)          │
+│                                                                    │
+│ Total Aproximado: 3.5-4.5 segundos!                               │
+└────────────────────────────────────────────────────────────────────┘
+```
 
-**Remover o campo `callback` da requisição de pagamento.** Isso elimina a validação de domínio e o PIX funciona imediatamente em qualquer domínio.
+---
 
-### Por que isso funciona?
+## Solução Proposta
 
-O callback é **opcional** - é apenas um redirect automático após o pagamento. Seu sistema já tem:
-- ✅ **Webhook configurado** - recebe confirmação do Asaas automaticamente
-- ✅ **Polling na página PIX** - verifica status a cada poucos segundos
-- ✅ **Redirect automático** - quando detecta pagamento aprovado, redireciona para sucesso
+Mover operações não-críticas para **background** e remover etapas duplicadas.
+
+```text
+Fluxo Otimizado:
+┌────────────────────────────────────────────────────────────────────┐
+│ 1. Frontend chama create-asaas-pix diretamente                    │
+│    ├─ Busca/cria cliente no Asaas      → ~400ms                   │
+│    ├─ Cria cobrança PIX                → ~400ms                   │
+│    ├─ Busca QR Code                    → ~300ms                   │
+│    └─ Retorna resposta (QR Code)                                  │
+│                                                                    │
+│ Total: ~1-1.5 segundos                                            │
+│                                                                    │
+│ (Em background - não bloqueia UI):                                │
+│    → Atualiza pedido no DB                                        │
+│    → Envia WhatsApp via background task                           │
+│    → Cria conta do cliente (se solicitado)                        │
+└────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Alterações Técnicas
 
-### Arquivo: `supabase/functions/create-asaas-pix/index.ts`
+### 1. Edge Function: `create-asaas-pix/index.ts`
 
-**Linha 306-316 - Remover o campo `callback`:**
+**Mover WhatsApp para background task:**
 
 ```typescript
-// DE:
-const paymentPayload = {
-  customer: asaasCustomerId,
-  billingType: 'PIX',
-  value: transactionAmount,
-  dueDate: dueDateStr,
-  description: `Pedido Dieta Já - ${items.length} item(s)`,
-  externalReference: orderId,
-  callback: {
-    successUrl: `${siteUrl}/pagamento/sucesso?order_id=${orderId}`,
-  },
-};
+// ANTES (bloqueante):
+await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {...});
+console.log('WhatsApp notification sent');
 
-// PARA:
-const paymentPayload = {
-  customer: asaasCustomerId,
-  billingType: 'PIX',
-  value: transactionAmount,
-  dueDate: dueDateStr,
-  description: `Pedido Dieta Já - ${items.length} item(s)`,
-  externalReference: orderId,
-  // Callback removido - redirect feito via polling no frontend
-};
+// DEPOIS (background - não bloqueia):
+EdgeRuntime.waitUntil(
+  fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {...})
+    .then(() => console.log('WhatsApp sent in background'))
+    .catch(err => console.error('Background WhatsApp error:', err))
+);
 ```
 
-**Também remover a linha 304 (variável não utilizada):**
+**Retornar mais cedo:**
+
 ```typescript
-// REMOVER:
-const siteUrl = 'https://dietajavca.com.br';
+// Retorna resposta ANTES de atualizar DB e enviar WhatsApp
+// Essas operações vão para background
 ```
 
 ---
 
-## Fluxo Após a Correção
+### 2. Frontend: `CartDrawer.tsx`
+
+**Remover etapas duplicadas antes de chamar PIX:**
+
+O fluxo atual no frontend faz:
+1. `handleConfirmOrder` → cria pedido + envia email
+2. Usuário clica PIX → `handlePixPayment`
+
+Mas a edge function **já cria o pedido**! Então o frontend cria 2 vezes.
+
+**Simplificar para:**
+- Ir direto para `handlePixPayment` sem criar pedido antes
+- A edge function já cuida de tudo
+- Email de confirmação será enviado pelo webhook quando pagamento for aprovado
+
+---
+
+### 3. Remover Email de Confirmação Prematuro
+
+Atualmente envia email **antes** do pagamento. Isso:
+- Atrasa o checkout em ~1-2 segundos
+- Confunde o cliente (recebe email mas não pagou ainda)
+
+**Mover para:** Enviar email apenas quando pagamento for aprovado (já funciona via webhook).
+
+---
+
+## Resumo das Mudanças
+
+| Arquivo | Mudança |
+|---------|---------|
+| `supabase/functions/create-asaas-pix/index.ts` | WhatsApp e atualização DB em background via `EdgeRuntime.waitUntil` |
+| `src/components/CartDrawer.tsx` | Remover criação de pedido duplicada + email prematuro |
+
+---
+
+## Resultado Esperado
+
+| Métrica | Antes | Depois |
+|---------|-------|--------|
+| Tempo até ver QR Code | 3-5 segundos | 1-1.5 segundos |
+| Email de confirmação | Antes do pagamento | Após pagamento (via webhook) |
+| WhatsApp | Bloqueia UI | Background (não bloqueia) |
+
+---
+
+## Fluxo Simplificado Final
 
 ```text
-1. Cliente clica "Pagar via PIX"
+Cliente clica "Pagar via PIX"
         ↓
-2. Edge function cria cobrança (sem callback)
+Edge function create-asaas-pix:
+  → Busca/cria cliente Asaas (~400ms)
+  → Cria cobrança PIX (~400ms)  
+  → Busca QR Code (~300ms)
+  → Retorna QR Code para frontend
         ↓
-3. QR Code é exibido na tela
+QR Code aparece na tela (~1 segundo total)
         ↓
-4. Cliente paga no app do banco
+(Background: salva dados, envia WhatsApp)
         ↓
-5. Asaas envia confirmação via webhook
+Cliente paga
         ↓
-6. Frontend detecta via polling e redireciona
-        ↓
-7. Página de sucesso é exibida
+Webhook confirma → envia email de sucesso
 ```
-
----
-
-## Vantagens Desta Solução
-
-| Aspecto | Benefício |
-|---------|-----------|
-| **Funciona imediatamente** | Não precisa configurar nada no Asaas |
-| **Multi-domínio** | Funciona em qualquer domínio (preview, produção, customizado) |
-| **Seguro** | Webhook já está configurado corretamente |
-| **UX preservada** | Polling detecta pagamento em 2-5 segundos |
-
----
-
-## Opcional: Cadastrar Domínio Depois
-
-Se quiser ter o redirect automático pelo Asaas (além do polling), você pode cadastrar o domínio principal no futuro:
-
-1. Acesse https://www.asaas.com
-2. Vá em **Minha Conta** > **Informações** ou **Dados do Site**
-3. Cadastre: `https://dietajavca.com.br`
-4. Depois disso, posso reativar o callback no código
-
-Mas isso é **opcional** - a solução funciona perfeitamente sem.
-
