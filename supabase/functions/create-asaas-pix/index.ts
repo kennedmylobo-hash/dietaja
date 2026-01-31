@@ -65,13 +65,28 @@ serve(async (req) => {
     const body: RequestBody = await req.json();
     const { items, customer, delivery, utm_data, coupon_code, discount_amount, cashback, order_id } = body;
 
-    console.log('Creating Asaas PIX payment for:', { customer: customer.name, items: items.length, order_id, cashback });
+    console.log('Creating Asaas PIX payment for:', { 
+      customer: customer.name, 
+      email: customer.email,
+      cpf: customer.cpf,
+      items: items.length, 
+      order_id, 
+      cashback 
+    });
 
     // Validate CPF before proceeding
     const cleanCpf = customer.cpf?.replace(/\D/g, '') || '';
+    console.log('CPF validation:', { original: customer.cpf, cleaned: cleanCpf, length: cleanCpf.length });
+    
     if (cleanCpf.length !== 11 || cleanCpf === '00000000000' || /^(\d)\1+$/.test(cleanCpf)) {
-      console.error('Invalid CPF provided:', cleanCpf);
-      throw new Error('CPF inválido. Por favor, verifique os 11 dígitos.');
+      console.error('Invalid CPF rejected:', cleanCpf);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'CPF inválido. Por favor, verifique os 11 dígitos.' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Calculate totals
