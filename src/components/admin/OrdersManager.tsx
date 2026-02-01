@@ -117,6 +117,8 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const [cancelReason, setCancelReason] = useState('');
   const [lastStatusChanges, setLastStatusChanges] = useState<Record<string, string>>({});
   const [cancellationTypeFilter, setCancellationTypeFilter] = useState<string>('all');
+  const [isBulkCancelling, setIsBulkCancelling] = useState(false);
+  const [bulkCancelReason, setBulkCancelReason] = useState('');
 
   const getDateRange = () => {
     const now = new Date();
@@ -507,6 +509,55 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       alert('Erro ao cancelar pedido');
     } finally {
       setIsUpdatingStatus(null);
+    }
+  };
+
+  // Bulk cancel all orphan orders for a specific customer
+  const bulkCancelOrphanOrders = async (ordersToCancel: Order[], reason: string) => {
+    setIsBulkCancelling(true);
+    
+    try {
+      const cancelPromises = ordersToCancel.map(async (order) => {
+        // Cancel in Asaas
+        try {
+          await supabase.functions.invoke('cancel-asaas-payment', {
+            body: { order_id: order.id }
+          });
+        } catch (asaasError) {
+          console.error('Asaas cancel error for order:', order.id, asaasError);
+        }
+        
+        // Update order in database
+        await supabase.from('orders').update({
+          status: 'cancelled',
+          cancellation_type: 'manual_bulk'
+        }).eq('id', order.id);
+        
+        // Record in history
+        await recordStatusChange(
+          order.id, 
+          order.status, 
+          'cancelled', 
+          reason || 'Cancelamento em lote de pedidos órfãos'
+        );
+      });
+      
+      await Promise.all(cancelPromises);
+      
+      // Update local state
+      setOrders(prev => prev.map(o => 
+        ordersToCancel.find(c => c.id === o.id) 
+          ? { ...o, status: 'cancelled', cancellation_type: 'manual_bulk' } 
+          : o
+      ));
+      
+      setBulkCancelReason('');
+      
+    } catch (error) {
+      console.error('Error in bulkCancelOrphanOrders:', error);
+      alert('Erro ao cancelar pedidos em lote');
+    } finally {
+      setIsBulkCancelling(false);
     }
   };
 
@@ -1045,17 +1096,76 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                 : `${duplicateCustomers.length} clientes têm múltiplos pedidos pendentes.`
               } Considere verificar e cancelar manualmente os duplicados.
             </p>
-            <div className="space-y-1">
+            <div className="space-y-3">
               {duplicateCustomers.map(({ email, customerName, count, orders }) => (
-                <div key={email} className="flex items-center gap-2 text-sm flex-wrap">
-                  <Badge variant="outline" className="bg-amber-100 border-amber-300">
-                    {count} pedidos
-                  </Badge>
-                  <span className="font-medium text-amber-800">{customerName}</span>
-                  <span className="text-amber-600">({email})</span>
-                  <span className="text-xs text-amber-500">
+                <div key={email} className="flex flex-col gap-2 p-3 bg-amber-100/50 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm flex-wrap">
+                    <Badge variant="outline" className="bg-amber-100 border-amber-300">
+                      {count} pedidos
+                    </Badge>
+                    <span className="font-medium text-amber-800">{customerName}</span>
+                    <span className="text-amber-600">({email})</span>
+                  </div>
+                  <div className="text-xs text-amber-500">
                     {orders.map(o => `#${o.order_number || o.id.slice(0,6)}`).join(', ')}
-                  </span>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        className="w-fit"
+                        disabled={isBulkCancelling}
+                      >
+                        <Ban className="w-3 h-3 mr-1" />
+                        Cancelar Todos os {count} Pedidos
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Cancelar {count} pedidos?</AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                          <div>
+                            <p className="mb-3">
+                              Todos os pedidos pendentes de <strong>{customerName}</strong> serão cancelados.
+                              Os pagamentos PIX também serão cancelados no Asaas.
+                            </p>
+                            <div className="bg-muted p-2 rounded text-xs max-h-32 overflow-y-auto">
+                              {orders.map(o => (
+                                <div key={o.id} className="py-1 border-b last:border-0">
+                                  #{o.order_number || o.id.slice(0,6)} - R$ {o.total.toFixed(2).replace('.', ',')}
+                                </div>
+                              ))}
+                            </div>
+                            <Textarea
+                              placeholder="Motivo do cancelamento (opcional)"
+                              value={bulkCancelReason}
+                              onChange={(e) => setBulkCancelReason(e.target.value)}
+                              className="mt-3"
+                              rows={2}
+                            />
+                          </div>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isBulkCancelling}>Voltar</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={() => bulkCancelOrphanOrders(orders, bulkCancelReason)}
+                          disabled={isBulkCancelling}
+                          className="bg-destructive hover:bg-destructive/90"
+                        >
+                          {isBulkCancelling ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                              Cancelando...
+                            </>
+                          ) : (
+                            <>Sim, Cancelar Todos</>
+                          )}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               ))}
             </div>
