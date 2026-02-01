@@ -1,144 +1,163 @@
 
-# Plano: Otimizar Tempo de Carregamento do Checkout PIX
+# Plano: Adicionar Botão "Cancelar Todos" para Pedidos Órfãos
 
-## Problema Atual
+## Objetivo
 
-O checkout está lento porque executa várias operações **sequencialmente** quando poderiam ser **paralelas** ou **em background**:
+Adicionar um botão "Cancelar Todos" ao alerta de pedidos órfãos detectados, permitindo cancelar todos os pedidos pendentes de um cliente específico com uma única confirmação.
+
+---
+
+## Como Vai Funcionar
 
 ```text
-Fluxo Atual (Sequencial):
-┌────────────────────────────────────────────────────────────────────┐
-│ 1. Frontend cria conta do cliente      → ~500ms (await)           │
-│ 2. Frontend insere pedido no DB        → ~200ms                   │
-│ 3. Frontend envia email de confirmação → ~1-2s (await!)           │
-│ 4. Frontend chama create-asaas-pix     → ??? ms                   │
-│    ├─ Busca cliente no Asaas           → ~300ms                   │
-│    ├─ Cria/atualiza cliente            → ~300ms                   │
-│    ├─ Cria cobrança PIX                → ~400ms                   │
-│    ├─ Busca QR Code                    → ~300ms                   │
-│    ├─ Atualiza pedido no DB            → ~100ms                   │
-│    └─ Envia WhatsApp                   → ~500ms (await!)          │
-│                                                                    │
-│ Total Aproximado: 3.5-4.5 segundos!                               │
-└────────────────────────────────────────────────────────────────────┘
+Alerta Atual:
+┌──────────────────────────────────────────────────────────────────┐
+│ ⚠️ Potenciais Pedidos Órfãos Detectados                         │
+│ 1 cliente tem múltiplos pedidos pendentes...                    │
+│                                                                  │
+│ [16 pedidos] kennedy (kennedmylobo@gmail.com)                   │
+│ #DJA-0106, #DJA-0105, #DJA-0102...                              │
+└──────────────────────────────────────────────────────────────────┘
+
+Alerta Novo (com botão):
+┌──────────────────────────────────────────────────────────────────┐
+│ ⚠️ Potenciais Pedidos Órfãos Detectados                         │
+│ 1 cliente tem múltiplos pedidos pendentes...                    │
+│                                                                  │
+│ [16 pedidos] kennedy (kennedmylobo@gmail.com)                   │
+│ #DJA-0106, #DJA-0105, #DJA-0102...                              │
+│                                                                  │
+│                              [🚫 Cancelar Todos os 16 Pedidos]  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Solução Proposta
+## Fluxo de Uso
 
-Mover operações não-críticas para **background** e remover etapas duplicadas.
-
-```text
-Fluxo Otimizado:
-┌────────────────────────────────────────────────────────────────────┐
-│ 1. Frontend chama create-asaas-pix diretamente                    │
-│    ├─ Busca/cria cliente no Asaas      → ~400ms                   │
-│    ├─ Cria cobrança PIX                → ~400ms                   │
-│    ├─ Busca QR Code                    → ~300ms                   │
-│    └─ Retorna resposta (QR Code)                                  │
-│                                                                    │
-│ Total: ~1-1.5 segundos                                            │
-│                                                                    │
-│ (Em background - não bloqueia UI):                                │
-│    → Atualiza pedido no DB                                        │
-│    → Envia WhatsApp via background task                           │
-│    → Cria conta do cliente (se solicitado)                        │
-└────────────────────────────────────────────────────────────────────┘
-```
+1. Admin vê o alerta com pedidos órfãos
+2. Clica em "Cancelar Todos os X Pedidos"
+3. Aparece um **AlertDialog de confirmação** perguntando:
+   - "Deseja cancelar todos os **16 pedidos** pendentes de **kennedy**?"
+   - Lista os pedidos que serão cancelados
+   - Campo para motivo opcional
+4. Ao confirmar:
+   - Cancela pagamento no Asaas para cada pedido (em paralelo)
+   - Atualiza status para `cancelled` com `cancellation_type: 'manual_bulk'`
+   - Registra no histórico com nota "Cancelamento em lote"
+   - Atualiza lista em tempo real
 
 ---
 
 ## Alterações Técnicas
 
-### 1. Edge Function: `create-asaas-pix/index.ts`
+### Arquivo: `src/components/admin/OrdersManager.tsx`
 
-**Mover WhatsApp para background task:**
-
-```typescript
-// ANTES (bloqueante):
-await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {...});
-console.log('WhatsApp notification sent');
-
-// DEPOIS (background - não bloqueia):
-EdgeRuntime.waitUntil(
-  fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {...})
-    .then(() => console.log('WhatsApp sent in background'))
-    .catch(err => console.error('Background WhatsApp error:', err))
-);
-```
-
-**Retornar mais cedo:**
+**1. Adicionar estados para controle do modal de cancelamento em lote:**
 
 ```typescript
-// Retorna resposta ANTES de atualizar DB e enviar WhatsApp
-// Essas operações vão para background
+const [bulkCancelCustomer, setBulkCancelCustomer] = useState<{
+  email: string;
+  name: string;
+  orders: Order[];
+} | null>(null);
+const [isBulkCancelling, setIsBulkCancelling] = useState(false);
+```
+
+**2. Criar função `cancelAllOrphanOrders`:**
+
+```typescript
+const cancelAllOrphanOrders = async (ordersToCancel: Order[], reason: string) => {
+  setIsBulkCancelling(true);
+  
+  try {
+    // Cancelar todos em paralelo
+    const cancelPromises = ordersToCancel.map(async (order) => {
+      // Cancelar no Asaas
+      await supabase.functions.invoke('cancel-asaas-payment', {
+        body: { order_id: order.id }
+      }).catch(err => console.error('Asaas error:', err));
+      
+      // Atualizar no banco
+      await supabase.from('orders').update({
+        status: 'cancelled',
+        cancellation_type: 'manual_bulk'
+      }).eq('id', order.id);
+      
+      // Registrar histórico
+      await recordStatusChange(order.id, order.status, 'cancelled', 
+        reason || 'Cancelamento em lote de pedidos órfãos');
+    });
+    
+    await Promise.all(cancelPromises);
+    
+    // Atualizar estado local
+    setOrders(prev => prev.map(o => 
+      ordersToCancel.find(c => c.id === o.id) 
+        ? { ...o, status: 'cancelled' } 
+        : o
+    ));
+    
+    setBulkCancelCustomer(null);
+  } finally {
+    setIsBulkCancelling(false);
+  }
+};
+```
+
+**3. Adicionar botão e AlertDialog na UI do alerta:**
+
+```tsx
+{duplicateCustomers.map(({ email, customerName, count, orders }) => (
+  <div key={email} className="...">
+    {/* Conteúdo existente */}
+    
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button 
+          variant="destructive" 
+          size="sm"
+          className="mt-2"
+        >
+          <Ban className="w-3 h-3 mr-1" />
+          Cancelar Todos os {count} Pedidos
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Cancelar {count} pedidos?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Todos os pedidos pendentes de {customerName} serão cancelados.
+            Os pagamentos PIX também serão cancelados no Asaas.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {/* Lista dos pedidos */}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Voltar</AlertDialogCancel>
+          <AlertDialogAction onClick={() => cancelAllOrphanOrders(orders, '...')}>
+            Sim, Cancelar Todos
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </div>
+))}
 ```
 
 ---
 
-### 2. Frontend: `CartDrawer.tsx`
+## Resumo
 
-**Remover etapas duplicadas antes de chamar PIX:**
-
-O fluxo atual no frontend faz:
-1. `handleConfirmOrder` → cria pedido + envia email
-2. Usuário clica PIX → `handlePixPayment`
-
-Mas a edge function **já cria o pedido**! Então o frontend cria 2 vezes.
-
-**Simplificar para:**
-- Ir direto para `handlePixPayment` sem criar pedido antes
-- A edge function já cuida de tudo
-- Email de confirmação será enviado pelo webhook quando pagamento for aprovado
-
----
-
-### 3. Remover Email de Confirmação Prematuro
-
-Atualmente envia email **antes** do pagamento. Isso:
-- Atrasa o checkout em ~1-2 segundos
-- Confunde o cliente (recebe email mas não pagou ainda)
-
-**Mover para:** Enviar email apenas quando pagamento for aprovado (já funciona via webhook).
-
----
-
-## Resumo das Mudanças
-
-| Arquivo | Mudança |
-|---------|---------|
-| `supabase/functions/create-asaas-pix/index.ts` | WhatsApp e atualização DB em background via `EdgeRuntime.waitUntil` |
-| `src/components/CartDrawer.tsx` | Remover criação de pedido duplicada + email prematuro |
+| Componente | Alteração |
+|------------|-----------|
+| `OrdersManager.tsx` | Nova função `cancelAllOrphanOrders` + AlertDialog com botão por cliente |
 
 ---
 
 ## Resultado Esperado
 
-| Métrica | Antes | Depois |
-|---------|-------|--------|
-| Tempo até ver QR Code | 3-5 segundos | 1-1.5 segundos |
-| Email de confirmação | Antes do pagamento | Após pagamento (via webhook) |
-| WhatsApp | Bloqueia UI | Background (não bloqueia) |
-
----
-
-## Fluxo Simplificado Final
-
-```text
-Cliente clica "Pagar via PIX"
-        ↓
-Edge function create-asaas-pix:
-  → Busca/cria cliente Asaas (~400ms)
-  → Cria cobrança PIX (~400ms)  
-  → Busca QR Code (~300ms)
-  → Retorna QR Code para frontend
-        ↓
-QR Code aparece na tela (~1 segundo total)
-        ↓
-(Background: salva dados, envia WhatsApp)
-        ↓
-Cliente paga
-        ↓
-Webhook confirma → envia email de sucesso
-```
+- Cada cliente com pedidos órfãos terá um botão "Cancelar Todos"
+- Um clique abre confirmação com lista de pedidos
+- Ao confirmar, todos são cancelados em paralelo (~1-2s)
+- Pagamentos PIX são cancelados no Asaas automaticamente
+- Histórico registra "Cancelamento em lote de pedidos órfãos"
