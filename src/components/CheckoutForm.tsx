@@ -49,6 +49,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [cpfError, setCpfError] = useState<string | null>(null);
   
   // Ref to prevent double-click submissions
   const isSubmittingRef = useRef(false);
@@ -147,8 +148,20 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
       return;
     }
     
-    // CPF is optional - just clean it if provided
+    // CPF is required for PIX payments
     const cpfValue = data.cpf?.replace(/\D/g, '') || '';
+    
+    if (!cpfValue || cpfValue.length !== 11) {
+      setCpfError('CPF é obrigatório para pagamento PIX');
+      return;
+    }
+    
+    if (!validateCPF(cpfValue)) {
+      setCpfError('CPF inválido. Verifique os números.');
+      return;
+    }
+    
+    setCpfError(null);
     
     isSubmittingRef.current = true;
     setIsLoading(true);
@@ -431,7 +444,34 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
         </RadioGroup>
       </div>
 
-      {/* CPF field removed - testing without it for better conversion */}
+      {/* CPF field - required for PIX */}
+      {paymentMethod === "pix" && (
+        <div>
+          <Label htmlFor="cpf" className="text-sm font-medium">
+            CPF <span className="text-muted-foreground">(exigido pelo PIX)</span>
+          </Label>
+          <Controller
+            name="cpf"
+            control={control}
+            render={({ field }) => (
+              <Input
+                id="cpf"
+                inputMode="numeric"
+                placeholder="000.000.000-00"
+                value={formatCPF(field.value || '')}
+                onChange={(e) => {
+                  field.onChange(formatCPF(e.target.value));
+                  setCpfError(null);
+                }}
+                className={`mt-1 ${cpfError ? 'border-destructive' : ''}`}
+              />
+            )}
+          />
+          {cpfError && (
+            <p className="text-xs text-destructive mt-1">{cpfError}</p>
+          )}
+        </div>
+      )}
 
       {/* Action buttons */}
       <div className="flex flex-col gap-3 pt-2">
