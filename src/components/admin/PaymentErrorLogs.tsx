@@ -61,12 +61,28 @@ const PaymentErrorLogs = () => {
     const response = log.response_payload as Record<string, unknown> | null;
     if (!response) return null;
 
-    const cause = (response.cause as Array<{ code?: string; description?: string }>) || [];
-    const firstCause = cause[0];
-    
+    // Formato Asaas: { errors: [{ code, description }] }
+    const errors = response.errors as Array<{ code?: string; description?: string }> | undefined;
+    if (errors && errors.length > 0) {
+      return {
+        code: errors[0]?.code,
+        description: errors[0]?.description,
+      };
+    }
+
+    // Formato Mercado Pago legado: { cause: [{ code, description }] }
+    const cause = response.cause as Array<{ code?: string; description?: string }> | undefined;
+    if (cause && cause.length > 0) {
+      return {
+        code: cause[0]?.code,
+        description: cause[0]?.description,
+      };
+    }
+
+    // Fallback para outros formatos
     return {
-      code: firstCause?.code || response.error,
-      description: firstCause?.description || response.message,
+      code: response.error as string,
+      description: response.message as string,
     };
   };
 
@@ -191,7 +207,7 @@ const PaymentErrorLogs = () => {
                             </div>
                             
                             <div>
-                              <h4 className="font-medium mb-2">Resposta do Mercado Pago</h4>
+                              <h4 className="font-medium mb-2">Resposta do Gateway ({log.provider || 'Asaas'})</h4>
                               <pre className="bg-muted p-3 rounded text-xs overflow-auto max-h-[200px]">
                                 {JSON.stringify(log.response_payload, null, 2)}
                               </pre>
