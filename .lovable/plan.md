@@ -1,163 +1,166 @@
 
-# Plano: Adicionar Botão "Cancelar Todos" para Pedidos Órfãos
+# Plano: Adicionar Campo CPF Obrigatório para PIX
 
-## Objetivo
+## Problema Identificado
 
-Adicionar um botão "Cancelar Todos" ao alerta de pedidos órfãos detectados, permitindo cancelar todos os pedidos pendentes de um cliente específico com uma única confirmação.
+O Asaas agora **exige CPF/CNPJ para criar cobranças PIX**. Clientes antigos cadastrados sem CPF (como Bianca Gomes - `cus_000159400711`) estão recebendo erro:
 
----
-
-## Como Vai Funcionar
-
-```text
-Alerta Atual:
-┌──────────────────────────────────────────────────────────────────┐
-│ ⚠️ Potenciais Pedidos Órfãos Detectados                         │
-│ 1 cliente tem múltiplos pedidos pendentes...                    │
-│                                                                  │
-│ [16 pedidos] kennedy (kennedmylobo@gmail.com)                   │
-│ #DJA-0106, #DJA-0105, #DJA-0102...                              │
-└──────────────────────────────────────────────────────────────────┘
-
-Alerta Novo (com botão):
-┌──────────────────────────────────────────────────────────────────┐
-│ ⚠️ Potenciais Pedidos Órfãos Detectados                         │
-│ 1 cliente tem múltiplos pedidos pendentes...                    │
-│                                                                  │
-│ [16 pedidos] kennedy (kennedmylobo@gmail.com)                   │
-│ #DJA-0106, #DJA-0105, #DJA-0102...                              │
-│                                                                  │
-│                              [🚫 Cancelar Todos os 16 Pedidos]  │
-└──────────────────────────────────────────────────────────────────┘
+```
+"Para criar esta cobrança é necessário preencher o CPF ou CNPJ do cliente."
 ```
 
 ---
 
-## Fluxo de Uso
+## Solução
 
-1. Admin vê o alerta com pedidos órfãos
-2. Clica em "Cancelar Todos os X Pedidos"
-3. Aparece um **AlertDialog de confirmação** perguntando:
-   - "Deseja cancelar todos os **16 pedidos** pendentes de **kennedy**?"
-   - Lista os pedidos que serão cancelados
-   - Campo para motivo opcional
-4. Ao confirmar:
-   - Cancela pagamento no Asaas para cada pedido (em paralelo)
-   - Atualiza status para `cancelled` com `cancellation_type: 'manual_bulk'`
-   - Registra no histórico com nota "Cancelamento em lote"
-   - Atualiza lista em tempo real
+Adicionar campo CPF **obrigatório** no checkout quando PIX for selecionado.
+
+### Visual do Formulário
+
+```text
+┌─────────────────────────────────────────┐
+│ Nome completo                           │
+│ [________________________]              │
+│                                         │
+│ Email                                   │
+│ [________________________]              │
+│                                         │
+│ WhatsApp                                │
+│ [________________________]              │
+│                                         │
+│ ┌─────────────────────────────────────┐ │
+│ │ Forma de pagamento                  │ │
+│ │ [PIX ✓]  [WhatsApp]                 │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ CPF (exigido pelo PIX)       👈 NOVO    │
+│ [___.___.___-__]                        │
+│                                         │
+│ [         Gerar PIX         ]           │
+└─────────────────────────────────────────┘
+```
 
 ---
 
 ## Alterações Técnicas
 
-### Arquivo: `src/components/admin/OrdersManager.tsx`
+### Arquivo: `src/components/CheckoutForm.tsx`
 
-**1. Adicionar estados para controle do modal de cancelamento em lote:**
+**1. Atualizar schema Zod para validar CPF quando PIX:**
 
 ```typescript
-const [bulkCancelCustomer, setBulkCancelCustomer] = useState<{
-  email: string;
-  name: string;
-  orders: Order[];
-} | null>(null);
-const [isBulkCancelling, setIsBulkCancelling] = useState(false);
+const formSchema = z.object({
+  name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+  email: z.string().email("Email inválido"),
+  phone: z.string().min(10, "Telefone inválido").max(15),
+  cpf: z.string().optional(),
+  deliveryOption: z.enum(["pickup", "delivery"]),
+  address: z.string().optional(),
+  saveData: z.boolean().optional(),
+});
+```
+> CPF permanece opcional no schema, validação real é feita antes do submit PIX
+
+**2. Adicionar campo CPF visível quando PIX selecionado:**
+
+```tsx
+{paymentMethod === "pix" && (
+  <div>
+    <Label htmlFor="cpf" className="text-sm font-medium">
+      CPF <span className="text-muted-foreground">(exigido pelo PIX)</span>
+    </Label>
+    <Controller
+      name="cpf"
+      control={control}
+      render={({ field }) => (
+        <Input
+          id="cpf"
+          inputMode="numeric"
+          placeholder="000.000.000-00"
+          value={formatCPF(field.value || '')}
+          onChange={(e) => field.onChange(formatCPF(e.target.value))}
+          className="mt-1"
+        />
+      )}
+    />
+    {cpfError && (
+      <p className="text-xs text-destructive mt-1">{cpfError}</p>
+    )}
+  </div>
+)}
 ```
 
-**2. Criar função `cancelAllOrphanOrders`:**
+**3. Validar CPF antes de gerar PIX:**
 
 ```typescript
-const cancelAllOrphanOrders = async (ordersToCancel: Order[], reason: string) => {
-  setIsBulkCancelling(true);
+const [cpfError, setCpfError] = useState<string | null>(null);
+
+const handlePixPayment = async (data: FormData) => {
+  // Validar CPF obrigatório para PIX
+  const cpfValue = data.cpf?.replace(/\D/g, '') || '';
   
-  try {
-    // Cancelar todos em paralelo
-    const cancelPromises = ordersToCancel.map(async (order) => {
-      // Cancelar no Asaas
-      await supabase.functions.invoke('cancel-asaas-payment', {
-        body: { order_id: order.id }
-      }).catch(err => console.error('Asaas error:', err));
-      
-      // Atualizar no banco
-      await supabase.from('orders').update({
-        status: 'cancelled',
-        cancellation_type: 'manual_bulk'
-      }).eq('id', order.id);
-      
-      // Registrar histórico
-      await recordStatusChange(order.id, order.status, 'cancelled', 
-        reason || 'Cancelamento em lote de pedidos órfãos');
-    });
-    
-    await Promise.all(cancelPromises);
-    
-    // Atualizar estado local
-    setOrders(prev => prev.map(o => 
-      ordersToCancel.find(c => c.id === o.id) 
-        ? { ...o, status: 'cancelled' } 
-        : o
-    ));
-    
-    setBulkCancelCustomer(null);
-  } finally {
-    setIsBulkCancelling(false);
+  if (!cpfValue || cpfValue.length !== 11) {
+    setCpfError('CPF é obrigatório para pagamento PIX');
+    return;
   }
+  
+  if (!validateCPF(cpfValue)) {
+    setCpfError('CPF inválido. Verifique os números.');
+    return;
+  }
+  
+  setCpfError(null);
+  // ... resto do código de pagamento
 };
 ```
 
-**3. Adicionar botão e AlertDialog na UI do alerta:**
+### Arquivo: `supabase/functions/create-asaas-pix/index.ts`
 
-```tsx
-{duplicateCustomers.map(({ email, customerName, count, orders }) => (
-  <div key={email} className="...">
-    {/* Conteúdo existente */}
-    
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button 
-          variant="destructive" 
-          size="sm"
-          className="mt-2"
-        >
-          <Ban className="w-3 h-3 mr-1" />
-          Cancelar Todos os {count} Pedidos
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Cancelar {count} pedidos?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Todos os pedidos pendentes de {customerName} serão cancelados.
-            Os pagamentos PIX também serão cancelados no Asaas.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        {/* Lista dos pedidos */}
-        <AlertDialogFooter>
-          <AlertDialogCancel>Voltar</AlertDialogCancel>
-          <AlertDialogAction onClick={() => cancelAllOrphanOrders(orders, '...')}>
-            Sim, Cancelar Todos
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  </div>
-))}
+**4. Garantir atualização do CPF em cliente existente:**
+
+```typescript
+// Se encontrou cliente existente no Asaas, atualizar CPF
+if (asaasCustomerId && cleanCpf.length === 11) {
+  console.log('Updating existing Asaas customer with CPF...');
+  await fetch(`${ASAAS_API_URL}/customers/${asaasCustomerId}`, {
+    method: 'PUT',
+    headers: {
+      'access_token': asaasApiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ cpfCnpj: cleanCpf }),
+  });
+}
 ```
 
 ---
 
-## Resumo
+## Resumo de Alterações
 
-| Componente | Alteração |
-|------------|-----------|
-| `OrdersManager.tsx` | Nova função `cancelAllOrphanOrders` + AlertDialog com botão por cliente |
+| Arquivo | Alteração |
+|---------|-----------|
+| `CheckoutForm.tsx` | Adicionar campo CPF visível quando PIX selecionado |
+| `CheckoutForm.tsx` | Validação obrigatória do CPF antes do submit |
+| `CheckoutForm.tsx` | Estado `cpfError` para exibir erro de validação |
+| `create-asaas-pix/index.ts` | Forçar atualização de CPF em clientes existentes |
+
+---
+
+## Fluxo do Cliente
+
+1. Cliente preenche dados (nome, email, WhatsApp)
+2. Seleciona **PIX** como forma de pagamento
+3. Campo CPF aparece com máscara automática
+4. Ao clicar "Gerar PIX":
+   - Sistema valida CPF (11 dígitos + algoritmo)
+   - Se inválido → mostra erro no campo
+   - Se válido → atualiza cliente no Asaas e gera QR Code
 
 ---
 
 ## Resultado Esperado
 
-- Cada cliente com pedidos órfãos terá um botão "Cancelar Todos"
-- Um clique abre confirmação com lista de pedidos
-- Ao confirmar, todos são cancelados em paralelo (~1-2s)
-- Pagamentos PIX são cancelados no Asaas automaticamente
-- Histórico registra "Cancelamento em lote de pedidos órfãos"
+- Bianca Gomes conseguirá pagar informando seu CPF
+- Novos clientes sempre terão CPF cadastrado
+- Clientes antigos terão CPF atualizado automaticamente
+- WhatsApp continua funcionando **sem exigir CPF**
