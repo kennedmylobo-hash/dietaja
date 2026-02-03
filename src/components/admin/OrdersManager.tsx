@@ -34,6 +34,10 @@ import {
   Ban,
   AlertTriangle,
   History,
+  QrCode,
+  Copy,
+  Check,
+  Link as LinkIcon,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -55,6 +59,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 
 interface FlavorItem {
   name: string;
@@ -119,6 +124,20 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const [cancellationTypeFilter, setCancellationTypeFilter] = useState<string>('all');
   const [isBulkCancelling, setIsBulkCancelling] = useState(false);
   const [bulkCancelReason, setBulkCancelReason] = useState('');
+  
+  // PIX Generation states
+  const [isGeneratingPix, setIsGeneratingPix] = useState<string | null>(null);
+  const [pixResult, setPixResult] = useState<{
+    pix_code: string;
+    pix_link: string;
+    qr_code_base64: string;
+    whatsapp_sent: boolean;
+    email_sent: boolean;
+    total: number;
+    reused?: boolean;
+  } | null>(null);
+  const [showPixModal, setShowPixModal] = useState(false);
+  const [copiedField, setCopiedField] = useState<'code' | 'link' | null>(null);
 
   const getDateRange = () => {
     const now = new Date();
@@ -814,6 +833,60 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     window.open(`https://wa.me/55${phone.replace(/\D/g, '')}?text=${message}`, '_blank');
   };
 
+  // Generate PIX for order from admin panel
+  const generatePixForOrder = async (orderId: string) => {
+    setIsGeneratingPix(orderId);
+    setCopiedField(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-pix-admin', {
+        body: { order_id: orderId, send_whatsapp: true, send_email: true }
+      });
+      
+      if (error) throw error;
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao gerar PIX');
+      }
+      
+      setPixResult({
+        pix_code: data.pix_code,
+        pix_link: data.pix_link,
+        qr_code_base64: data.qr_code_base64,
+        whatsapp_sent: data.notifications?.whatsapp_sent || false,
+        email_sent: data.notifications?.email_sent || false,
+        total: data.total,
+        reused: data.reused,
+      });
+      setShowPixModal(true);
+      
+      toast({ 
+        title: data.reused ? "PIX existente recuperado!" : "PIX gerado com sucesso!", 
+        description: "Notificações enviadas ao cliente." 
+      });
+    } catch (err) {
+      console.error('Error generating PIX:', err);
+      toast({ 
+        title: "Erro ao gerar PIX", 
+        description: err instanceof Error ? err.message : 'Tente novamente',
+        variant: "destructive" 
+      });
+    } finally {
+      setIsGeneratingPix(null);
+    }
+  };
+
+  const copyToClipboard = async (text: string, field: 'code' | 'link') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      toast({ title: "Copiado!", description: field === 'code' ? "Código PIX copiado" : "Link copiado" });
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   const exportOrdersCSV = () => {
     if (filteredOrders.length === 0) return;
 
@@ -1492,6 +1565,23 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                   </Button>
                 )}
 
+                {/* Generate PIX button - for pending orders */}
+                {['whatsapp_pending', 'pending', 'awaiting_payment'].includes(selectedOrder.status) && (
+                  <Button
+                    variant="default"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => generatePixForOrder(selectedOrder.id)}
+                    disabled={isGeneratingPix === selectedOrder.id}
+                  >
+                    {isGeneratingPix === selectedOrder.id ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <QrCode className="w-4 h-4 mr-2" />
+                    )}
+                    Gerar PIX
+                  </Button>
+                )}
+
                 {/* Next status action */}
                 {getNextStatusAction(selectedOrder.status) && (
                   <Button
@@ -1593,6 +1683,119 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                 <Ban className="w-4 h-4 mr-2" />
               )}
               Confirmar Cancelamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PIX Result Modal */}
+      <Dialog 
+        open={showPixModal} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowPixModal(false);
+            setPixResult(null);
+            setCopiedField(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-600">
+              <QrCode className="w-5 h-5" />
+              {pixResult?.reused ? 'PIX Recuperado' : 'PIX Gerado'} - R$ {pixResult?.total?.toFixed(2).replace('.', ',')}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {pixResult && (
+            <div className="space-y-4">
+              {/* QR Code */}
+              {pixResult.qr_code_base64 && (
+                <div className="flex justify-center">
+                  <img 
+                    src={`data:image/png;base64,${pixResult.qr_code_base64}`} 
+                    alt="QR Code PIX" 
+                    className="w-48 h-48 border rounded-lg"
+                  />
+                </div>
+              )}
+
+              {/* Payment link */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Link da página de pagamento:
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 p-2 bg-muted rounded-lg text-xs font-mono break-all">
+                    {pixResult.pix_link}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(pixResult.pix_link, 'link')}
+                    className="shrink-0"
+                  >
+                    {copiedField === 'link' ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <LinkIcon className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* PIX code */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Código PIX (copia e cola):
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 p-2 bg-muted rounded-lg text-xs font-mono break-all max-h-20 overflow-y-auto">
+                    {pixResult.pix_code}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(pixResult.pix_code, 'code')}
+                    className="shrink-0"
+                  >
+                    {copiedField === 'code' ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Notification status */}
+              <div className="border-t pt-4 space-y-2">
+                <p className="text-sm font-medium">Notificações:</p>
+                <div className="flex flex-col gap-1 text-sm">
+                  <div className="flex items-center gap-2">
+                    {pixResult.whatsapp_sent ? (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-500" />
+                    )}
+                    <span>WhatsApp {pixResult.whatsapp_sent ? 'enviado' : 'não enviado'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {pixResult.email_sent ? (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-500" />
+                    )}
+                    <span>Email {pixResult.email_sent ? 'enviado' : 'não enviado'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPixModal(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
