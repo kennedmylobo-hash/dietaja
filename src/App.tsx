@@ -16,6 +16,9 @@ import Cardapio from "./pages/Cardapio";
 import PixPayment from "./pages/PixPayment";
 import MinhaConta from "./pages/MinhaConta";
 import AdminResetPassword from "./pages/AdminResetPassword";
+import Detox from "./pages/Detox";
+import Fit from "./pages/Fit";
+import Fitness from "./pages/Fitness";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +42,10 @@ const App = () => (
               <Route path="/pix/:paymentId" element={<PixPayment />} />
               <Route path="/pedido/:orderNumber" element={<StatusPedido />} />
               <Route path="/pedido" element={<StatusPedido />} />
+              {/* Landing pages de categoria */}
+              <Route path="/detox" element={<Detox />} />
+              <Route path="/fit" element={<Fit />} />
+              <Route path="/fitness" element={<Fitness />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
