@@ -1,58 +1,89 @@
 
-# Plano: Forçar Publicação das Landing Pages
+# Plano: Corrigir Erro 404 nas Landing Pages de Forma Definitiva
 
 ## Problema Identificado
 
-O erro 404 ocorre porque as novas rotas (`/fit`, `/fitness`, `/detox`) existem no código do editor, mas ainda **não foram publicadas** para o domínio de produção `pedidos.dietajavca.com.br`.
+O erro 404 ocorre quando clientes acessam diretamente URLs como `pedidos.dietajavca.com.br/fit` ou `/fitness`. Isso é um problema clássico de SPA (Single Page Application) onde o servidor tenta encontrar um arquivo físico para a rota em vez de servir o `index.html` e deixar o React Router gerenciar.
 
 ---
 
-## Verificação do Código
+## Diagnóstico Técnico
 
-As rotas estão corretamente configuradas em `src/App.tsx`:
+### O que já existe
+- `public/_redirects` com `/* /index.html 200` (correto para Netlify)
+- Rotas configuradas corretamente no `src/App.tsx`
+- Páginas `Fit.tsx` e `Fitness.tsx` existem e funcionam
 
-```typescript
-// Linhas 46-48
-<Route path="/detox" element={<Detox />} />
-<Route path="/fit" element={<Fit />} />
-<Route path="/fitness" element={<Fitness />} />
+### O que falta
+- Arquivo `vercel.json` para rewrites (caso o deploy seja no Vercel/Lovable)
+- Possível problema de cache ou sincronização do deploy
+
+---
+
+## Solução Completa (3 Ações)
+
+### 1. Criar arquivo `vercel.json` na raiz do projeto
+
+Este arquivo garante que TODAS as requisições sejam redirecionadas para o `index.html`, permitindo que o React Router gerencie as rotas.
+
+```json
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
 ```
 
+### 2. Garantir que `_redirects` está no formato correto
+
+O arquivo já existe mas vou confirmar que está sem espaços extras ou problemas de encoding.
+
+### 3. Adicionar `404.html` como fallback adicional
+
+Criar cópia do `index.html` como `404.html` no build - configuração no `vite.config.ts`.
+
 ---
 
-## Solução
+## Arquivos a Modificar
 
-Para forçar o sistema a reconhecer as mudanças e permitir a publicação, vou fazer uma pequena alteração técnica em um dos arquivos:
+| Arquivo | Ação |
+|---------|------|
+| `vercel.json` (novo) | Criar com rewrites para SPA |
+| `vite.config.ts` | Adicionar plugin para copiar index.html como 404.html |
 
-### Alteração Proposta
+---
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/App.tsx` | Adicionar comentário de versão para forçar detecção de mudança |
+## Por que essa solução é definitiva?
 
-```typescript
-// v2.0 - Landing pages Fit, Fitness e Detox
-const queryClient = new QueryClient();
+```text
++-------------------+      +-------------------+      +-------------------+
+|   Cliente acessa  | ---> |   Servidor busca  | ---> |   vercel.json ou  |
+|   /fit direto     |      |   arquivo /fit    |      |   _redirects      |
++-------------------+      +-------------------+      +-------------------+
+                                    |
+                                    v
+                           +-------------------+
+                           |   Redireciona     |
+                           |   para index.html |
+                           +-------------------+
+                                    |
+                                    v
+                           +-------------------+
+                           |   React Router    |
+                           |   renderiza /fit  |
+                           +-------------------+
 ```
-
----
-
-## Passos Após Aprovação
-
-1. Eu faço a alteração mínima no código
-2. Você clica em **"Publish"** no canto superior direito
-3. Clica em **"Update"** para publicar
-4. Aguarda alguns segundos para o deploy concluir
-5. Testa `pedidos.dietajavca.com.br/fit`
 
 ---
 
 ## Resultado Esperado
 
-Após publicar:
+Após implementar e publicar:
 
 | URL | Status |
 |-----|--------|
 | pedidos.dietajavca.com.br/fit | Funcionando |
 | pedidos.dietajavca.com.br/fitness | Funcionando |
 | pedidos.dietajavca.com.br/detox | Funcionando |
+| Acesso direto via link WhatsApp | Funcionando |
+| Atualização de página (F5) | Funcionando |
