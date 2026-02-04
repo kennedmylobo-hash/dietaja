@@ -1,57 +1,117 @@
 
 
-# Plano: Centralizar Cards de Pacotes (3 unidades)
+# Plano: Link de Rastreio para Entregas (iFood, 99, Uber, Motoboy)
 
-## Problema Atual
+## Objetivo
 
-O grid de pacotes usa `lg:grid-cols-4`, então com apenas 3 kits, os cards ficam alinhados à esquerda com um espaço vazio à direita.
+Quando o despachante clicar em **"Saiu p/ Entrega"**, aparecerá um campo opcional para colar o link de rastreio. O cliente receberá automaticamente esse link via WhatsApp e Email.
 
-## Solução
+---
 
-Modificar o componente `PackageCards` para adaptar o grid dinamicamente:
+## Mudanças Necessárias
 
-| Quantidade | Layout Desktop | Comportamento |
-|------------|----------------|---------------|
-| 3 itens | `lg:grid-cols-3` | Cards centralizados, ocupando todo espaço |
-| 4+ itens | `lg:grid-cols-4` | Mantém layout atual |
+### 1. Banco de Dados - Novo Campo
 
-## Alteração Técnica
+Adicionar coluna `tracking_link` na tabela `orders`:
 
-**Arquivo:** `src/components/landing/PackageCards.tsx`
-
-**Antes (linha 75):**
-```tsx
-<div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+```sql
+ALTER TABLE orders ADD COLUMN tracking_link TEXT;
 ```
 
-**Depois:**
-```tsx
-<div className={`grid sm:grid-cols-2 gap-4 ${
-  packages.length === 3 
-    ? 'lg:grid-cols-3 max-w-4xl mx-auto' 
-    : 'lg:grid-cols-4'
-}`}>
-```
+### 2. Frontend - Modal de Link de Rastreio
 
-## Resultado Visual
+Quando o status mudar para **"delivering"**, abrir um modal com:
+- Campo de texto para colar o link (opcional)
+- Botões: "Enviar sem link" e "Enviar com link"
+
+**Arquivo:** `src/components/admin/OrdersManager.tsx`
+
+### 3. Backend - Notificação com Link
+
+A edge function `send-status-notification` passará a:
+- Buscar o `tracking_link` do pedido
+- Incluir na mensagem de WhatsApp e Email se existir
+
+**Arquivo:** `supabase/functions/send-status-notification/index.ts`
+
+---
+
+## Fluxo do Usuário
 
 ```text
-ANTES (3 cards em grid de 4):
-┌─────┐ ┌─────┐ ┌─────┐ [vazio]
-│ Kit │ │ Kit │ │ Kit │
-│  3  │ │  5  │ │  7  │
-└─────┘ └─────┘ └─────┘
-
-DEPOIS (3 cards centralizados):
-     ┌─────┐ ┌─────┐ ┌─────┐
-     │ Kit │ │ Kit │ │ Kit │
-     │  3  │ │  5  │ │  7  │
-     └─────┘ └─────┘ └─────┘
+Despachante clica em "Saiu p/ Entrega"
+             ↓
+    Modal abre com campo de link
+             ↓
+     ┌───────────────────┐
+     │ Cole o link aqui  │
+     │ (opcional)        │
+     └───────────────────┘
+             ↓
+     [Enviar sem link]  [Enviar com link]
+             ↓
+    Status atualizado + Notificação enviada
+             ↓
+    Cliente recebe WhatsApp/Email com link
 ```
 
-## Benefícios
+---
 
-- Layout mais equilibrado e profissional
-- Reutilizável: funciona para 3 ou 4+ pacotes automaticamente
-- Responsivo: mobile continua com 2 colunas
+## Mensagem de Exemplo (WhatsApp)
+
+**SEM link:**
+```
+🛵 *Saiu para Entrega!*
+
+Olá Maria! Seu pedido *#DJA-0079* está a caminho!
+
+🔗 Acompanhe: https://dietajavca.com.br/pedido/DJA-0079
+```
+
+**COM link:**
+```
+🛵 *Saiu para Entrega!*
+
+Olá Maria! Seu pedido *#DJA-0079* está a caminho!
+
+📍 Rastreie em tempo real:
+https://meupedido.ifood.com.br/49b7d5d5-9652...
+
+🔗 Acompanhe: https://dietajavca.com.br/pedido/DJA-0079
+```
+
+---
+
+## Arquivos a Modificar
+
+| Arquivo | Alteração |
+|---------|-----------|
+| Migração SQL | Adicionar coluna `tracking_link` |
+| `OrdersManager.tsx` | Modal para colar link ao mudar para "delivering" |
+| `send-status-notification/index.ts` | Incluir link na mensagem |
+
+---
+
+## Detalhes Técnicos
+
+### Alterações no OrdersManager.tsx
+
+1. Novo estado para controlar o modal de tracking:
+   ```tsx
+   const [trackingModal, setTrackingModal] = useState<{ orderId: string; show: boolean }>({ orderId: '', show: false });
+   const [trackingLink, setTrackingLink] = useState('');
+   ```
+
+2. Modificar `updateOrderStatus` para abrir modal quando `newStatus === 'delivering'`
+
+3. Nova função `sendToDelivery(orderId, link?)` que:
+   - Salva o link no pedido
+   - Atualiza status para "delivering"
+   - Dispara notificação
+
+### Alterações na Edge Function
+
+1. Buscar campo `tracking_link` junto com os dados do pedido
+2. Adicionar variável `{rastreio}` no `replaceVariables`
+3. Modificar mensagem de status "delivering" para incluir link se existir
 
