@@ -584,6 +584,7 @@ export type Database = {
           low_stock_threshold: number | null
           name: string
           show_stock: boolean
+          sides: Json | null
           sort_order: number
           stock_quantity: number | null
         }
@@ -595,6 +596,7 @@ export type Database = {
           low_stock_threshold?: number | null
           name: string
           show_stock?: boolean
+          sides?: Json | null
           sort_order?: number
           stock_quantity?: number | null
         }
@@ -606,6 +608,7 @@ export type Database = {
           low_stock_threshold?: number | null
           name?: string
           show_stock?: boolean
+          sides?: Json | null
           sort_order?: number
           stock_quantity?: number | null
         }
@@ -656,6 +659,36 @@ export type Database = {
           unit_price?: number
           updated_at?: string
           weight?: number | null
+        }
+        Relationships: []
+      }
+      marmita_sides: {
+        Row: {
+          active: boolean | null
+          category: string | null
+          created_at: string | null
+          id: string
+          name: string
+          sort_order: number | null
+          weight_grams: number
+        }
+        Insert: {
+          active?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          sort_order?: number | null
+          weight_grams?: number
+        }
+        Update: {
+          active?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          sort_order?: number | null
+          weight_grams?: number
         }
         Relationships: []
       }

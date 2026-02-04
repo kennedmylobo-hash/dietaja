@@ -31,6 +31,7 @@ import {
   Bell,
   Radio,
   AlertTriangle,
+  ChefHat,
 } from "lucide-react";
 import {
   Select,
@@ -64,6 +65,9 @@ import NotificationStats from "@/components/admin/NotificationStats";
 import LiveVisitors from "@/components/admin/LiveVisitors";
 import LiveCarts from "@/components/admin/LiveCarts";
 import PaymentErrorLogs from "@/components/admin/PaymentErrorLogs";
+import ProductionPanel from "@/components/admin/ProductionPanel";
+import WhatsAppOrderImporter from "@/components/admin/WhatsAppOrderImporter";
+import SidesManager from "@/components/admin/SidesManager";
 
 interface Lead {
   id: string;
@@ -693,6 +697,14 @@ const Admin = () => {
               <UtensilsCrossed className="w-4 h-4" />
               <span className="hidden sm:inline">Cardápio</span>
             </TabsTrigger>
+            <TabsTrigger value="production" className="flex items-center gap-2">
+              <ChefHat className="w-4 h-4" />
+              <span className="hidden sm:inline">Produção</span>
+            </TabsTrigger>
+            <TabsTrigger value="whatsapp-import" className="flex items-center gap-2">
+              <MessageCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Importar</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Ao Vivo Tab */}
@@ -1190,8 +1202,17 @@ const Admin = () => {
             <StockHistory />
           </TabsContent>
 
-          <TabsContent value="menu">
+          <TabsContent value="menu" className="space-y-6">
             <MenuManager />
+            <SidesManager />
+          </TabsContent>
+
+          <TabsContent value="production">
+            <ProductionPanel dateFilter={dateFilter} />
+          </TabsContent>
+
+          <TabsContent value="whatsapp-import">
+            <WhatsAppOrderImporter />
           </TabsContent>
         </Tabs>
       </main>
