@@ -1,97 +1,58 @@
 
+# Plano: Forçar Publicação das Landing Pages
 
-# Plano: Adicionar Imagens Reais nas Landing Pages
+## Problema Identificado
 
-## Objetivo
-
-Reutilizar os assets existentes do projeto nas novas landing pages:
-- **/fit** e **/fitness**: Usar fotos reais de marmitas
-- **/detox**: Usar vídeo real dos produtos detox
+O erro 404 ocorre porque as novas rotas (`/fit`, `/fitness`, `/detox`) existem no código do editor, mas ainda **não foram publicadas** para o domínio de produção `pedidos.dietajavca.com.br`.
 
 ---
 
-## Assets Disponíveis
+## Verificação do Código
 
-| Asset | Caminho | Uso Atual |
-|-------|---------|-----------|
-| marmita-1.png | src/assets/marmita-1.png | MarmitasSection (7un) |
-| marmita-2.png | src/assets/marmita-2.png | MarmitasSection (14/21un) |
-| marmita-3.png | src/assets/marmita-3.png | MarmitasSection (28un) |
-| produtos-detox-video.mp4 | src/assets/produtos-detox-video.mp4 | HeroSection principal |
-
----
-
-## Alterações Propostas
-
-### 1. Página /fit (Marmitas 300g)
-
-**Arquivo:** `src/pages/Fit.tsx`
-
-- Importar: `marmita1` de `@/assets/marmita-1.png`
-- Usar no `LandingHero` como `imageUrl`
-
-### 2. Página /fitness (Marmitas 450g)
-
-**Arquivo:** `src/pages/Fitness.tsx`
-
-- Importar: `marmita2` de `@/assets/marmita-2.png`
-- Usar no `LandingHero` como `imageUrl`
-
-### 3. Página /detox (Kits Detox)
-
-**Arquivo:** `src/pages/Detox.tsx`
-
-- Importar: `produtosVideo` de `@/assets/produtos-detox-video.mp4`
-- Alterar o `LandingHero` para exibir vídeo ao invés de imagem estática
-
-### 4. Componente LandingHero
-
-**Arquivo:** `src/components/landing/LandingHero.tsx`
-
-- Adicionar prop opcional `videoUrl` para suportar vídeo
-- Renderizar `<video>` quando `videoUrl` for passado, ou `<img>` quando `imageUrl` for passado
-
----
-
-## Detalhes Técnicos
-
-### Nova prop no LandingHero
+As rotas estão corretamente configuradas em `src/App.tsx`:
 
 ```typescript
-interface LandingHeroProps {
-  // ... props existentes
-  imageUrl?: string;
-  videoUrl?: string; // NOVA - para página detox
-}
+// Linhas 46-48
+<Route path="/detox" element={<Detox />} />
+<Route path="/fit" element={<Fit />} />
+<Route path="/fitness" element={<Fitness />} />
 ```
 
-### Renderização condicional
+---
+
+## Solução
+
+Para forçar o sistema a reconhecer as mudanças e permitir a publicação, vou fazer uma pequena alteração técnica em um dos arquivos:
+
+### Alteração Proposta
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/App.tsx` | Adicionar comentário de versão para forçar detecção de mudança |
 
 ```typescript
-{videoUrl ? (
-  <video
-    src={videoUrl}
-    autoPlay
-    loop
-    muted
-    playsInline
-    preload="metadata"
-    className="w-full h-full object-cover"
-  />
-) : imageUrl ? (
-  <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
-) : null}
+// v2.0 - Landing pages Fit, Fitness e Detox
+const queryClient = new QueryClient();
 ```
+
+---
+
+## Passos Após Aprovação
+
+1. Eu faço a alteração mínima no código
+2. Você clica em **"Publish"** no canto superior direito
+3. Clica em **"Update"** para publicar
+4. Aguarda alguns segundos para o deploy concluir
+5. Testa `pedidos.dietajavca.com.br/fit`
 
 ---
 
 ## Resultado Esperado
 
-| Página | Asset Exibido |
-|--------|---------------|
-| /fit | Foto marmita-1.png |
-| /fitness | Foto marmita-2.png |
-| /detox | Video produtos-detox-video.mp4 |
+Após publicar:
 
-Todos os assets serao importados via Vite, garantindo otimizacao e cache automatico.
-
+| URL | Status |
+|-----|--------|
+| pedidos.dietajavca.com.br/fit | Funcionando |
+| pedidos.dietajavca.com.br/fitness | Funcionando |
+| pedidos.dietajavca.com.br/detox | Funcionando |
