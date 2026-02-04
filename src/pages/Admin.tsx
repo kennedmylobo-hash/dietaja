@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, 
   TrendingUp, 
@@ -21,17 +20,8 @@ import {
   Percent,
   Filter,
   MapPin,
-  Package,
-  UtensilsCrossed,
-  History,
-  Activity,
   AlertCircle,
-  Megaphone,
   UserX,
-  Bell,
-  Radio,
-  AlertTriangle,
-  ChefHat,
 } from "lucide-react";
 import {
   Select,
@@ -42,8 +32,6 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { 
-  LineChart, 
-  Line, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -68,6 +56,7 @@ import PaymentErrorLogs from "@/components/admin/PaymentErrorLogs";
 import ProductionPanel from "@/components/admin/ProductionPanel";
 import WhatsAppOrderImporter from "@/components/admin/WhatsAppOrderImporter";
 import SidesManager from "@/components/admin/SidesManager";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
 
 interface Lead {
   id: string;
@@ -106,6 +95,7 @@ const Admin = () => {
   const [loginLoading, setLoginLoading] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [activeSection, setActiveSection] = useState("live");
   
   const [leads, setLeads] = useState<Lead[]>([]);
   const [analyticsEvents, setAnalyticsEvents] = useState<any[]>([]);
@@ -565,657 +555,597 @@ const Admin = () => {
     );
   }
 
-  // Dashboard
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-foreground">Painel Dieta Já</h1>
-          <div className="flex items-center gap-2 md:gap-4 flex-wrap">
-            {/* Source Filter */}
-            <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger className="w-[140px] h-9">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Origem" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas origens</SelectItem>
-                <SelectItem value="direct">Direto</SelectItem>
-                {availableSources.map(source => (
-                  <SelectItem key={source} value={source}>
-                    {source}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Location Filter */}
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-[160px] h-9">
-                <MapPin className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Localização" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas localizações</SelectItem>
-                <SelectItem value="sem-local">Sem localização</SelectItem>
-                {availableLocations.map(location => (
-                  <SelectItem key={location} value={location}>
-                    {location}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Date Filter */}
-            <div className="flex gap-1 bg-muted rounded-lg p-1">
-              {(['today', 'week', 'month'] as const).map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setDateFilter(period)}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                    dateFilter === period
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {period === 'today' ? 'Hoje' : period === 'week' ? '7 dias' : '30 dias'}
-                </button>
-              ))}
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => {
-                localStorage.removeItem('dietaja_customer');
-                toast({
-                  title: "Dados limpos!",
-                  description: "Agora você pode testar como um novo cliente.",
-                });
-              }}
-              title="Limpar dados salvos do cliente para testar o modal de identificação"
-            >
-              <UserX className="w-4 h-4 mr-2" />
-              <span className="hidden md:inline">Simular Novo Cliente</span>
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="live" className="space-y-6">
-          <TabsList className="flex overflow-x-auto w-full max-w-7xl gap-1">
-            <TabsTrigger value="live" className="flex items-center gap-2 relative">
-              <Radio className="w-4 h-4" />
-              <span className="hidden sm:inline">Ao Vivo</span>
-              <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Analytics</span>
-            </TabsTrigger>
-            <TabsTrigger value="funnel" className="flex items-center gap-2">
-              <Activity className="w-4 h-4" />
-              <span className="hidden sm:inline">Funil</span>
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-2">
-              <Package className="w-4 h-4" />
-              <span className="hidden sm:inline">Pedidos</span>
-            </TabsTrigger>
-            <TabsTrigger value="recovery" className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Recuperar</span>
-            </TabsTrigger>
-            <TabsTrigger value="marketing" className="flex items-center gap-2">
-              <Megaphone className="w-4 h-4" />
-              <span className="hidden sm:inline">Marketing</span>
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="w-4 h-4" />
-              <span className="hidden sm:inline">Notificações</span>
-            </TabsTrigger>
-            <TabsTrigger value="payment-errors" className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" />
-              <span className="hidden sm:inline">Erros PIX</span>
-            </TabsTrigger>
-            <TabsTrigger value="stock" className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              <span className="hidden sm:inline">Estoque</span>
-            </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <History className="w-4 h-4" />
-              <span className="hidden sm:inline">Histórico</span>
-            </TabsTrigger>
-            <TabsTrigger value="menu" className="flex items-center gap-2">
-              <UtensilsCrossed className="w-4 h-4" />
-              <span className="hidden sm:inline">Cardápio</span>
-            </TabsTrigger>
-            <TabsTrigger value="production" className="flex items-center gap-2">
-              <ChefHat className="w-4 h-4" />
-              <span className="hidden sm:inline">Produção</span>
-            </TabsTrigger>
-            <TabsTrigger value="whatsapp-import" className="flex items-center gap-2">
-              <MessageCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Importar</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Ao Vivo Tab */}
-          <TabsContent value="live" className="space-y-6">
+  // Render section content based on activeSection
+  const renderSectionContent = () => {
+    switch (activeSection) {
+      case "live":
+        return (
+          <div className="space-y-6">
             <LiveVisitors />
             <LiveCarts />
-          </TabsContent>
+          </div>
+        );
 
-          <TabsContent value="analytics" className="space-y-8">
+      case "orders":
+        return <OrdersManager dateFilter={dateFilter} />;
+
+      case "production":
+        return <ProductionPanel dateFilter={dateFilter} />;
+
+      case "whatsapp-import":
+        return <WhatsAppOrderImporter />;
+
+      case "analytics":
+        return (
+          <div className="space-y-8">
             {/* Metrics Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{filteredLeads.length}</p>
-                  <p className="text-xs text-muted-foreground">Leads</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{filteredLeads.filter(l => l.converted).length}</p>
-                  <p className="text-xs text-muted-foreground">Convertidos</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Eye className="w-5 h-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{new Set(filteredEvents.filter(e => e.event_type === 'page_view').map(e => e.session_id)).size}</p>
-                  <p className="text-xs text-muted-foreground">Visitantes</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-orange-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {(() => {
-                      const timeEvents = filteredEvents.filter(e => e.event_type === 'time_on_page' && e.time_on_page);
-                      const avgTime = timeEvents.length > 0
-                        ? Math.round(timeEvents.reduce((sum, e) => sum + (e.time_on_page || 0), 0) / timeEvents.length)
-                        : 0;
-                      return avgTime ? `${Math.floor(avgTime / 60)}:${String(avgTime % 60).padStart(2, '0')}` : '0:00';
-                    })()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Tempo médio</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Evolution Charts */}
-        {dateFilter !== 'today' && (
-          <div className="grid md:grid-cols-3 gap-4 mb-8">
-            {/* Leads Evolution */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" />
-                  Evolução de Leads
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {dailyChartData.some(d => d.leads > 0) ? (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={dailyChartData}>
-                      <defs>
-                        <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis 
-                        dataKey="date" 
-                        tick={{ fontSize: 12 }} 
-                        className="text-muted-foreground"
-                      />
-                      <YAxis 
-                        tick={{ fontSize: 12 }} 
-                        allowDecimals={false}
-                        className="text-muted-foreground"
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))', 
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
-                        }}
-                        labelStyle={{ color: 'hsl(var(--foreground))' }}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="leads" 
-                        stroke="hsl(var(--primary))" 
-                        strokeWidth={2}
-                        fill="url(#leadsGradient)"
-                        name="Leads"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Sem leads no período</p>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{filteredLeads.length}</p>
+                      <p className="text-xs text-muted-foreground">Leads</p>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Visitors Evolution */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-blue-500" />
-                  Evolução de Visitantes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {dailyChartData.some(d => d.visitors > 0) ? (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={dailyChartData}>
-                      <defs>
-                        <linearGradient id="visitorsGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis 
-                        dataKey="date" 
-                        tick={{ fontSize: 12 }} 
-                        className="text-muted-foreground"
-                      />
-                      <YAxis 
-                        tick={{ fontSize: 12 }} 
-                        allowDecimals={false}
-                        className="text-muted-foreground"
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))', 
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
-                        }}
-                        labelStyle={{ color: 'hsl(var(--foreground))' }}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="visitors" 
-                        stroke="#3b82f6" 
-                        strokeWidth={2}
-                        fill="url(#visitorsGradient)"
-                        name="Visitantes"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Sem visitantes no período</p>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{filteredLeads.filter(l => l.converted).length}</p>
+                      <p className="text-xs text-muted-foreground">Convertidos</p>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Conversion Rate Evolution */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Percent className="w-5 h-5 text-green-500" />
-                  Taxa de Conversão
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {dailyChartData.some(d => d.visitors > 0) ? (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={dailyChartData}>
-                      <defs>
-                        <linearGradient id="conversionGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis 
-                        dataKey="date" 
-                        tick={{ fontSize: 12 }} 
-                        className="text-muted-foreground"
-                      />
-                      <YAxis 
-                        tick={{ fontSize: 12 }} 
-                        allowDecimals={true}
-                        unit="%"
-                        className="text-muted-foreground"
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))', 
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
-                        }}
-                        labelStyle={{ color: 'hsl(var(--foreground))' }}
-                        formatter={(value: number) => [`${value}%`, 'Conversão']}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="conversionRate" 
-                        stroke="#22c55e" 
-                        strokeWidth={2}
-                        fill="url(#conversionGradient)"
-                        name="Taxa de Conversão"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Sem dados no período</p>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                      <Eye className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{new Set(filteredEvents.filter(e => e.event_type === 'page_view').map(e => e.session_id)).size}</p>
+                      <p className="text-xs text-muted-foreground">Visitantes</p>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                </CardContent>
+              </Card>
 
-        {/* Leads Table */}
-        <Card className="mb-8">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">
-              Leads Capturados
-              {sourceFilter !== 'all' && (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  ({sourceFilter === 'direct' ? 'Direto' : sourceFilter})
-                </span>
-              )}
-            </CardTitle>
-            <Button variant="outline" size="sm" onClick={exportLeadsCSV} disabled={filteredLeads.length === 0}>
-              <Download className="w-4 h-4 mr-2" />
-              Exportar CSV
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {filteredLeads.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhum lead capturado no período{sourceFilter !== 'all' ? ` para origem "${sourceFilter === 'direct' ? 'Direto' : sourceFilter}"` : ''}.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left">
-                      <th className="pb-3 font-medium text-muted-foreground">Nome</th>
-                      <th className="pb-3 font-medium text-muted-foreground">Contato</th>
-                      <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Local</th>
-                      <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Objetivo</th>
-                      <th className="pb-3 font-medium text-muted-foreground hidden lg:table-cell">Recomendação</th>
-                      <th className="pb-3 font-medium text-muted-foreground hidden xl:table-cell">Origem</th>
-                      <th className="pb-3 font-medium text-muted-foreground">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredLeads.map((lead) => (
-                      <tr key={lead.id} className="border-b last:border-0">
-                        <td className="py-3">
-                          <div>
-                            <p className="font-medium">{lead.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(lead.created_at).toLocaleDateString('pt-BR')}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="py-3">
-                          <p className="flex items-center gap-1">
-                            <Phone className="w-3 h-3" />
-                            {lead.phone}
-                          </p>
-                        </td>
-                        <td className="py-3 hidden md:table-cell">
-                          {lead.location ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-600 rounded text-xs">
-                              <MapPin className="w-3 h-3" />
-                              {lead.location}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                        </td>
-                        <td className="py-3 hidden md:table-cell">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted rounded text-xs">
-                            <Target className="w-3 h-3" />
-                            {lead.objective || '-'}
-                          </span>
-                        </td>
-                        <td className="py-3 hidden lg:table-cell">
-                          {lead.recommendation_name && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-xs">
-                              <ShoppingCart className="w-3 h-3" />
-                              {lead.recommendation_name}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 hidden xl:table-cell text-xs text-muted-foreground">
-                          {lead.utm_source || 'direto'}
-                        </td>
-                        <td className="py-3">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openWhatsApp(lead.phone, lead.name)}
-                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">
+                        {(() => {
+                          const timeEvents = filteredEvents.filter(e => e.event_type === 'time_on_page' && e.time_on_page);
+                          const avgTime = timeEvents.length > 0
+                            ? Math.round(timeEvents.reduce((sum, e) => sum + (e.time_on_page || 0), 0) / timeEvents.length)
+                            : 0;
+                          return avgTime ? `${Math.floor(avgTime / 60)}:${String(avgTime % 60).padStart(2, '0')}` : '0:00';
+                        })()}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Tempo médio</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Evolution Charts */}
+            {dateFilter !== 'today' && (
+              <div className="grid md:grid-cols-3 gap-4">
+                {/* Leads Evolution */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Users className="w-5 h-5 text-primary" />
+                      Evolução de Leads
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {dailyChartData.some(d => d.leads > 0) ? (
+                      <ResponsiveContainer width="100%" height={200}>
+                        <AreaChart data={dailyChartData}>
+                          <defs>
+                            <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="date" tick={{ fontSize: 12 }} className="text-muted-foreground" />
+                          <YAxis tick={{ fontSize: 12 }} allowDecimals={false} className="text-muted-foreground" />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                            labelStyle={{ color: 'hsl(var(--foreground))' }}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="leads" 
+                            stroke="hsl(var(--primary))" 
+                            strokeWidth={2}
+                            fill="url(#leadsGradient)"
+                            name="Leads"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Sem leads no período</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Visitors Evolution */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Eye className="w-5 h-5 text-blue-500" />
+                      Evolução de Visitantes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {dailyChartData.some(d => d.visitors > 0) ? (
+                      <ResponsiveContainer width="100%" height={200}>
+                        <AreaChart data={dailyChartData}>
+                          <defs>
+                            <linearGradient id="visitorsGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="date" tick={{ fontSize: 12 }} className="text-muted-foreground" />
+                          <YAxis tick={{ fontSize: 12 }} allowDecimals={false} className="text-muted-foreground" />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                            labelStyle={{ color: 'hsl(var(--foreground))' }}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="visitors" 
+                            stroke="#3b82f6" 
+                            strokeWidth={2}
+                            fill="url(#visitorsGradient)"
+                            name="Visitantes"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Sem visitantes no período</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Conversion Rate Evolution */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Percent className="w-5 h-5 text-green-500" />
+                      Taxa de Conversão
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {dailyChartData.some(d => d.visitors > 0) ? (
+                      <ResponsiveContainer width="100%" height={200}>
+                        <AreaChart data={dailyChartData}>
+                          <defs>
+                            <linearGradient id="conversionGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="date" tick={{ fontSize: 12 }} className="text-muted-foreground" />
+                          <YAxis tick={{ fontSize: 12 }} allowDecimals={true} unit="%" className="text-muted-foreground" />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                            labelStyle={{ color: 'hsl(var(--foreground))' }}
+                            formatter={(value: number) => [`${value}%`, 'Conversão']}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="conversionRate" 
+                            stroke="#22c55e" 
+                            strokeWidth={2}
+                            fill="url(#conversionGradient)"
+                            name="Taxa de Conversão"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Sem dados no período</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             )}
-          </CardContent>
-        </Card>
 
-        {/* Location Distribution */}
-        {locationDistribution.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-blue-500" />
-                Distribuição por Localização
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {locationDistribution.map(({ location, count }) => {
-                  const percentage = Math.round((count / filteredLeads.length) * 100);
-                  return (
-                    <div key={location} className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium">{location}</span>
-                        <span className="text-muted-foreground">{count} ({percentage}%)</span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-blue-500 rounded-full transition-all"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Analytics Section */}
-        {analytics && (analytics.scrollDepth.length > 0 || analytics.topSections.length > 0) && (
-          <div className="grid md:grid-cols-2 gap-4">
-            {/* Scroll Depth */}
+            {/* Leads Table */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Profundidade de Scroll</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg">
+                  Leads Capturados
+                  {sourceFilter !== 'all' && (
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      ({sourceFilter === 'direct' ? 'Direto' : sourceFilter})
+                    </span>
+                  )}
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={exportLeadsCSV} disabled={filteredLeads.length === 0}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar CSV
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {analytics.scrollDepth.map(({ depth, count }) => (
-                    <div key={depth}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>{depth}%</span>
-                        <span className="text-muted-foreground">{count} sessões</span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all"
-                          style={{
-                            width: `${Math.min((count / (analytics.uniqueSessions || 1)) * 100, 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Top Sections */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Seções Mais Vistas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {analytics.topSections.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">
-                    Sem dados de seções ainda.
+                {filteredLeads.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum lead capturado no período{sourceFilter !== 'all' ? ` para origem "${sourceFilter === 'direct' ? 'Direto' : sourceFilter}"` : ''}.
                   </p>
                 ) : (
-                  <div className="space-y-3">
-                    {analytics.topSections.map(({ section, count }, index) => (
-                      <div key={section} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-medium">
-                            {index + 1}
-                          </span>
-                          <span className="text-sm">{section}</span>
-                        </div>
-                        <span className="text-sm text-muted-foreground">{count}x</span>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left">
+                          <th className="pb-3 font-medium text-muted-foreground">Nome</th>
+                          <th className="pb-3 font-medium text-muted-foreground">Contato</th>
+                          <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Local</th>
+                          <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Objetivo</th>
+                          <th className="pb-3 font-medium text-muted-foreground hidden lg:table-cell">Recomendação</th>
+                          <th className="pb-3 font-medium text-muted-foreground hidden xl:table-cell">Origem</th>
+                          <th className="pb-3 font-medium text-muted-foreground">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredLeads.map((lead) => (
+                          <tr key={lead.id} className="border-b last:border-0">
+                            <td className="py-3">
+                              <div>
+                                <p className="font-medium">{lead.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(lead.created_at).toLocaleDateString('pt-BR')}
+                                </p>
+                              </div>
+                            </td>
+                            <td className="py-3">
+                              <p className="flex items-center gap-1">
+                                <Phone className="w-3 h-3" />
+                                {lead.phone}
+                              </p>
+                            </td>
+                            <td className="py-3 hidden md:table-cell">
+                              {lead.location ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-600 rounded text-xs">
+                                  <MapPin className="w-3 h-3" />
+                                  {lead.location}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">-</span>
+                              )}
+                            </td>
+                            <td className="py-3 hidden md:table-cell">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted rounded text-xs">
+                                <Target className="w-3 h-3" />
+                                {lead.objective || '-'}
+                              </span>
+                            </td>
+                            <td className="py-3 hidden lg:table-cell">
+                              {lead.recommendation_name && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-xs">
+                                  <ShoppingCart className="w-3 h-3" />
+                                  {lead.recommendation_name}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 hidden xl:table-cell text-xs text-muted-foreground">
+                              {lead.utm_source || 'direto'}
+                            </td>
+                            <td className="py-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openWhatsApp(lead.phone, lead.name)}
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* Location Distribution */}
+            {locationDistribution.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-blue-500" />
+                    Distribuição por Localização
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {locationDistribution.map(({ location, count }) => {
+                      const percentage = Math.round((count / filteredLeads.length) * 100);
+                      return (
+                        <div key={location} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-medium">{location}</span>
+                            <span className="text-muted-foreground">{count} ({percentage}%)</span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-blue-500 rounded-full transition-all"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Analytics Section */}
+            {analytics && (analytics.scrollDepth.length > 0 || analytics.topSections.length > 0) && (
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Scroll Depth */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Profundidade de Scroll</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {analytics.scrollDepth.map(({ depth, count }) => (
+                        <div key={depth}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>{depth}%</span>
+                            <span className="text-muted-foreground">{count} sessões</span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary rounded-full transition-all"
+                              style={{
+                                width: `${Math.min((count / (analytics.uniqueSessions || 1)) * 100, 100)}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Top Sections */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Seções Mais Vistas</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {analytics.topSections.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-4">
+                        Sem dados de seções ainda.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {analytics.topSections.map(({ section, count }, index) => (
+                          <div key={section} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-medium">
+                                {index + 1}
+                              </span>
+                              <span className="text-sm">{section}</span>
+                            </div>
+                            <span className="text-sm text-muted-foreground">{count}x</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
-        )}
-          </TabsContent>
+        );
 
-          <TabsContent value="funnel">
-            <FunnelReport dateFilter={dateFilter} sourceFilter={sourceFilter} />
-          </TabsContent>
+      case "funnel":
+        return <FunnelReport dateFilter={dateFilter} sourceFilter={sourceFilter} />;
 
-          <TabsContent value="orders">
-            <OrdersManager dateFilter={dateFilter} />
-          </TabsContent>
-
-          <TabsContent value="recovery">
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-orange-500" />
-                  Pedidos Pendentes de Pagamento
-                </h3>
-                <PendingOrdersRecovery />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5 text-yellow-500" />
-                  Carrinhos Abandonados (sem pedido)
-                </h3>
-                <AbandonedCartsRecovery />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="marketing" className="space-y-6">
-            <NotificationTester />
-            <MarketingManager />
-          </TabsContent>
-
-          <TabsContent value="stock">
-            <StockReport />
-          </TabsContent>
-
-          <TabsContent value="notifications">
-            <NotificationStats />
-          </TabsContent>
-
-          <TabsContent value="payment-errors">
-            <PaymentErrorLogs />
-          </TabsContent>
-
-          <TabsContent value="history">
-            <StockHistory />
-          </TabsContent>
-
-          <TabsContent value="menu" className="space-y-6">
+      case "menu":
+        return (
+          <div className="space-y-6">
             <MenuManager />
             <SidesManager />
-          </TabsContent>
+          </div>
+        );
 
-          <TabsContent value="production">
-            <ProductionPanel dateFilter={dateFilter} />
-          </TabsContent>
+      case "stock":
+        return <StockReport />;
 
-          <TabsContent value="whatsapp-import">
-            <WhatsAppOrderImporter />
-          </TabsContent>
-        </Tabs>
-      </main>
+      case "history":
+        return <StockHistory />;
+
+      case "marketing":
+        return (
+          <div className="space-y-6">
+            <NotificationTester />
+            <MarketingManager />
+          </div>
+        );
+
+      case "notifications":
+        return <NotificationStats />;
+
+      case "recovery":
+        return (
+          <div className="space-y-8">
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-orange-500" />
+                Pedidos Pendentes de Pagamento
+              </h3>
+              <PendingOrdersRecovery />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-yellow-500" />
+                Carrinhos Abandonados (sem pedido)
+              </h3>
+              <AbandonedCartsRecovery />
+            </div>
+          </div>
+        );
+
+      case "payment-errors":
+        return <PaymentErrorLogs />;
+
+      default:
+        return <div className="text-muted-foreground">Selecione uma seção no menu</div>;
+    }
+  };
+
+  // Dashboard with Sidebar
+  return (
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar */}
+      <AdminSidebar 
+        activeSection={activeSection} 
+        onSectionChange={setActiveSection} 
+      />
+      
+      {/* Main Content */}
+      <div className="flex-1 md:ml-60">
+        {/* Header */}
+        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-20 mt-14 md:mt-0">
+          <div className="px-4 md:px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2 md:gap-4 flex-wrap">
+              {/* Source Filter */}
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="w-[140px] h-9">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Origem" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas origens</SelectItem>
+                  <SelectItem value="direct">Direto</SelectItem>
+                  {availableSources.map(source => (
+                    <SelectItem key={source} value={source}>
+                      {source}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Location Filter */}
+              <Select value={locationFilter} onValueChange={setLocationFilter}>
+                <SelectTrigger className="w-[160px] h-9">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Localização" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas localizações</SelectItem>
+                  <SelectItem value="sem-local">Sem localização</SelectItem>
+                  {availableLocations.map(location => (
+                    <SelectItem key={location} value={location}>
+                      {location}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Date Filter */}
+              <div className="flex gap-1 bg-muted rounded-lg p-1">
+                {(['today', 'week', 'month'] as const).map((period) => (
+                  <button
+                    key={period}
+                    onClick={() => setDateFilter(period)}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                      dateFilter === period
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {period === 'today' ? 'Hoje' : period === 'week' ? '7 dias' : '30 dias'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  localStorage.removeItem('dietaja_customer');
+                  toast({
+                    title: "Dados limpos!",
+                    description: "Agora você pode testar como um novo cliente.",
+                  });
+                }}
+                title="Limpar dados salvos do cliente para testar o modal de identificação"
+              >
+                <UserX className="w-4 h-4 mr-2" />
+                <span className="hidden md:inline">Simular Novo Cliente</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                <LogOut className="w-4 h-4 mr-2" />
+                <span className="hidden md:inline">Sair</span>
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {/* Content Area */}
+        <main className="p-4 md:p-6">
+          {renderSectionContent()}
+        </main>
+      </div>
     </div>
   );
 };
