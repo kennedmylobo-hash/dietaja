@@ -5,20 +5,32 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { lazy, Suspense } from "react";
+
+// Eager load critical pages
 import Index from "./pages/Index";
-import Obrigado from "./pages/Obrigado";
-import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
-import PagamentoSucesso from "./pages/PagamentoSucesso";
-import PagamentoErro from "./pages/PagamentoErro";
-import StatusPedido from "./pages/StatusPedido";
-import Cardapio from "./pages/Cardapio";
-import PixPayment from "./pages/PixPayment";
-import MinhaConta from "./pages/MinhaConta";
-import AdminResetPassword from "./pages/AdminResetPassword";
-import Detox from "./pages/Detox";
-import Fit from "./pages/Fit";
-import Fitness from "./pages/Fitness";
+
+// Lazy load less critical pages
+const Obrigado = lazy(() => import("./pages/Obrigado"));
+const Admin = lazy(() => import("./pages/Admin"));
+const PagamentoSucesso = lazy(() => import("./pages/PagamentoSucesso"));
+const PagamentoErro = lazy(() => import("./pages/PagamentoErro"));
+const StatusPedido = lazy(() => import("./pages/StatusPedido"));
+const Cardapio = lazy(() => import("./pages/Cardapio"));
+const PixPayment = lazy(() => import("./pages/PixPayment"));
+const MinhaConta = lazy(() => import("./pages/MinhaConta"));
+const AdminResetPassword = lazy(() => import("./pages/AdminResetPassword"));
+const Detox = lazy(() => import("./pages/Detox"));
+const Fit = lazy(() => import("./pages/Fit"));
+const Fitness = lazy(() => import("./pages/Fitness"));
+
+// Simple loading fallback
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 // v2.0 - Landing pages Fit, Fitness e Detox
 const queryClient = new QueryClient();
@@ -31,25 +43,27 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/cardapio" element={<Cardapio />} />
-              <Route path="/minha-conta" element={<MinhaConta />} />
-              <Route path="/obrigado" element={<Obrigado />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/admin/reset-password" element={<AdminResetPassword />} />
-              <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />
-              <Route path="/pagamento/erro" element={<PagamentoErro />} />
-              <Route path="/pix/:paymentId" element={<PixPayment />} />
-              <Route path="/pedido/:orderNumber" element={<StatusPedido />} />
-              <Route path="/pedido" element={<StatusPedido />} />
-              {/* Landing pages de categoria */}
-              <Route path="/detox" element={<Detox />} />
-              <Route path="/fit" element={<Fit />} />
-              <Route path="/fitness" element={<Fitness />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/cardapio" element={<Cardapio />} />
+                <Route path="/minha-conta" element={<MinhaConta />} />
+                <Route path="/obrigado" element={<Obrigado />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/admin/reset-password" element={<AdminResetPassword />} />
+                <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />
+                <Route path="/pagamento/erro" element={<PagamentoErro />} />
+                <Route path="/pix/:paymentId" element={<PixPayment />} />
+                <Route path="/pedido/:orderNumber" element={<StatusPedido />} />
+                <Route path="/pedido" element={<StatusPedido />} />
+                {/* Landing pages de categoria */}
+                <Route path="/detox" element={<Detox />} />
+                <Route path="/fit" element={<Fit />} />
+                <Route path="/fitness" element={<Fitness />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>

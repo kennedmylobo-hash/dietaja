@@ -1,5 +1,6 @@
 import { Star, CheckCircle2 } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
+import produtosPoster from "@/assets/produtos-detox.jpg";
 import { siteConfig } from "@/config/site";
 
 const HeroSection = () => {
@@ -10,11 +11,12 @@ const HeroSection = () => {
       <div className="absolute inset-0 z-0">
         <video
           src={produtosVideo}
+          poster={produtosPoster}
           autoPlay
           loop
           muted
           playsInline
-          preload="metadata"
+          preload="none"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: 'center 15%' }}
         />
