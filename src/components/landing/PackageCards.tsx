@@ -72,7 +72,11 @@ const PackageCards = ({
           )}
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className={`grid sm:grid-cols-2 gap-4 ${
+          packages.length === 3 
+            ? 'lg:grid-cols-3 max-w-4xl mx-auto' 
+            : 'lg:grid-cols-4'
+        }`}>
           {packages.map((pkg, index) => {
             const isPopular = pkg.popular || pkg.id === bestValueId;
             const isLoading = loadingId === pkg.id;
