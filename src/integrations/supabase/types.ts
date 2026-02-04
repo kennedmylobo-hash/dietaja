@@ -851,6 +851,7 @@ export type Database = {
           stock_decremented: boolean | null
           subtotal: number
           total: number
+          tracking_link: string | null
           utm_data: Json | null
           whatsapp_2_sent_at: string | null
           whatsapp_sent_at: string | null
@@ -883,6 +884,7 @@ export type Database = {
           stock_decremented?: boolean | null
           subtotal: number
           total: number
+          tracking_link?: string | null
           utm_data?: Json | null
           whatsapp_2_sent_at?: string | null
           whatsapp_sent_at?: string | null
@@ -915,6 +917,7 @@ export type Database = {
           stock_decremented?: boolean | null
           subtotal?: number
           total?: number
+          tracking_link?: string | null
           utm_data?: Json | null
           whatsapp_2_sent_at?: string | null
           whatsapp_sent_at?: string | null

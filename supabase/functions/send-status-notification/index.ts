@@ -20,6 +20,7 @@ interface OrderData {
   delivery_option: string;
   total: number;
   items: any[];
+  tracking_link: string | null;
 }
 
 interface MarketingMessage {
@@ -56,7 +57,7 @@ const FALLBACK_MESSAGES: Record<string, { title: string; emoji: string; color: s
     title: "Saiu para Entrega!",
     emoji: "🛵",
     color: "#f59e0b",
-    whatsapp: "🛵 *Saiu para Entrega!*\n\nOlá {nome}! Seu pedido *#{pedido}* está a caminho!\n\n🔗 Acompanhe: {link}",
+    whatsapp: "🛵 *Saiu para Entrega!*\n\nOlá {nome}! Seu pedido *#{pedido}* está a caminho!{rastreio}\n\n🔗 Acompanhe: {link}",
     email_subject: "🛵 Seu pedido #{pedido} saiu para entrega!"
   },
   delivered: {
@@ -79,12 +80,18 @@ const replaceVariables = (template: string, order: OrderData): string => {
   const firstName = order.customer_name.split(" ")[0];
   const trackingUrl = `https://dietajavca.com.br/pedido/${order.order_number}`;
   
+  // Build tracking link section
+  const trackingSection = order.tracking_link 
+    ? `\n\n📍 Rastreie em tempo real:\n${order.tracking_link}` 
+    : '';
+  
   return template
     .replace(/{nome}/g, firstName)
     .replace(/{nome_completo}/g, order.customer_name)
     .replace(/{pedido}/g, order.order_number)
     .replace(/{total}/g, order.total.toFixed(2).replace(".", ","))
-    .replace(/{link}/g, trackingUrl);
+    .replace(/{link}/g, trackingUrl)
+    .replace(/{rastreio}/g, trackingSection);
 };
 
 // Send simple text message (for messages within 24h window)
@@ -268,6 +275,18 @@ const sendEmailNotification = async (email: string, order: OrderData, subject: s
             </p>
           </div>
           
+          ${order.tracking_link ? `
+          <!-- Tracking Link -->
+          <div style="background: #fef3c7; border-radius: 8px; padding: 15px; margin-bottom: 25px; text-align: center;">
+            <p style="margin: 0 0 10px 0; color: #92400e; font-weight: bold;">
+              📍 Rastreie sua entrega em tempo real:
+            </p>
+            <a href="${order.tracking_link}" style="color: #d97706; word-break: break-all; font-size: 14px;">
+              ${order.tracking_link}
+            </a>
+          </div>
+          ` : ''}
+          
           <!-- CTA -->
           <div style="text-align: center;">
             <a href="${trackingUrl}" style="display: inline-block; background: ${statusColor}; color: white; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
@@ -338,10 +357,10 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch order data
+    // Fetch order data with tracking_link
     const { data: order, error } = await supabase
       .from("orders")
-      .select("order_number, customer_name, customer_email, customer_phone, delivery_option, total, items")
+      .select("order_number, customer_name, customer_email, customer_phone, delivery_option, total, items, tracking_link")
       .eq("id", order_id)
       .single();
 
