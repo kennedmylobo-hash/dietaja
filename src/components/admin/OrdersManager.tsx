@@ -141,6 +141,10 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const [showPixModal, setShowPixModal] = useState(false);
   const [copiedField, setCopiedField] = useState<'code' | 'link' | null>(null);
 
+  // Tracking Link Modal states
+  const [trackingModal, setTrackingModal] = useState<{ orderId: string; show: boolean }>({ orderId: '', show: false });
+  const [trackingLink, setTrackingLink] = useState('');
+
   const getDateRange = () => {
     const now = new Date();
     let start = new Date();
@@ -764,7 +768,14 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
 
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
 
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+  const updateOrderStatus = async (orderId: string, newStatus: string, trackingLinkValue?: string) => {
+    // If status is "delivering" and we don't have a tracking link decision yet, open modal
+    if (newStatus === 'delivering' && trackingLinkValue === undefined) {
+      setTrackingModal({ orderId, show: true });
+      setTrackingLink('');
+      return;
+    }
+
     setIsUpdatingStatus(orderId);
     
     try {
@@ -772,9 +783,15 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       const currentOrder = orders.find(o => o.id === orderId);
       const previousStatus = currentOrder?.status || 'unknown';
 
+      // Build update object
+      const updateData: { status: string; tracking_link?: string | null } = { status: newStatus };
+      if (newStatus === 'delivering') {
+        updateData.tracking_link = trackingLinkValue || null;
+      }
+
       const { error: updateError } = await supabase
         .from('orders')
-        .update({ status: newStatus })
+        .update(updateData)
         .eq('id', orderId);
 
       if (updateError) {
@@ -784,7 +801,8 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       }
 
       // Record the status change in history
-      await recordStatusChange(orderId, previousStatus, newStatus);
+      const notes = trackingLinkValue ? `Link de rastreio: ${trackingLinkValue}` : undefined;
+      await recordStatusChange(orderId, previousStatus, newStatus, notes);
 
       // Update local state
       setOrders(prev => 
@@ -805,12 +823,22 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         sendStatusNotification(orderId, newStatus);
       }
 
+      // Close tracking modal if open
+      setTrackingModal({ orderId: '', show: false });
+      setTrackingLink('');
+
     } catch (error) {
       console.error('Error in updateOrderStatus:', error);
       alert('Erro ao atualizar status');
     } finally {
       setIsUpdatingStatus(null);
     }
+  };
+
+  const handleSendToDelivery = (withLink: boolean) => {
+    const orderId = trackingModal.orderId;
+    const link = withLink ? trackingLink.trim() : '';
+    updateOrderStatus(orderId, 'delivering', link);
   };
 
   const getNextStatusAction = (status: string): { label: string; nextStatus: string; icon: React.ReactNode; color: string } | null => {
@@ -1808,6 +1836,68 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPixModal(false)}>
               Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tracking Link Modal */}
+      <Dialog 
+        open={trackingModal.show} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setTrackingModal({ orderId: '', show: false });
+            setTrackingLink('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <Truck className="w-5 h-5" />
+              Saiu para Entrega
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Cole abaixo o link de rastreio do iFood, 99, Uber ou outro serviço de entrega. 
+              O cliente receberá automaticamente via WhatsApp e Email.
+            </p>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Link de rastreio (opcional):
+              </label>
+              <Textarea
+                value={trackingLink}
+                onChange={(e) => setTrackingLink(e.target.value)}
+                placeholder="https://meupedido.ifood.com.br/..."
+                className="min-h-[80px] font-mono text-sm"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => handleSendToDelivery(false)}
+              disabled={isUpdatingStatus === trackingModal.orderId}
+              className="w-full sm:w-auto"
+            >
+              Enviar sem link
+            </Button>
+            <Button
+              onClick={() => handleSendToDelivery(true)}
+              disabled={isUpdatingStatus === trackingModal.orderId || !trackingLink.trim()}
+              className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700"
+            >
+              {isUpdatingStatus === trackingModal.orderId ? (
+                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <LinkIcon className="w-4 h-4 mr-2" />
+              )}
+              Enviar com link
             </Button>
           </DialogFooter>
         </DialogContent>
