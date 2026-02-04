@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
-import { Scale, Utensils, Clock, ShieldCheck, Beef, Drumstick, Sparkles } from "lucide-react";
+import { Scale, Utensils, Clock, ShieldCheck } from "lucide-react";
+import marmitaImage from "@/assets/marmita-1.png";
 import { CartProvider, useCart } from "@/components/CartContext";
 import CartDrawer from "@/components/CartDrawer";
 import CartFloatingButton from "@/components/CartFloatingButton";
@@ -131,7 +132,7 @@ const FitContent = () => {
         badgeText="Linha Emagrecimento"
         badgeEmoji="🥗"
         accentColor="primary"
-        imageUrl="/placeholder.svg"
+        imageUrl={marmitaImage}
       />
 
       <BenefitsSection

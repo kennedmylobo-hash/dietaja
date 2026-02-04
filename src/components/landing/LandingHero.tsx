@@ -11,6 +11,7 @@ export interface LandingHeroProps {
   badgeEmoji: string;
   accentColor?: 'primary' | 'terracotta' | 'blue';
   imageUrl?: string;
+  videoUrl?: string;
 }
 
 const LandingHero = ({
@@ -21,6 +22,7 @@ const LandingHero = ({
   badgeEmoji,
   accentColor = 'primary',
   imageUrl,
+  videoUrl,
 }: LandingHeroProps) => {
   const colorClasses = {
     primary: {
@@ -91,8 +93,8 @@ const LandingHero = ({
             </ul>
           </motion.div>
 
-          {/* Image */}
-          {imageUrl && (
+          {/* Image or Video */}
+          {(imageUrl || videoUrl) && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -100,11 +102,23 @@ const LandingHero = ({
               className="relative"
             >
               <div className="aspect-square md:aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl">
-                <img
-                  src={imageUrl}
-                  alt={title}
-                  className="w-full h-full object-cover"
-                />
+                {videoUrl ? (
+                  <video
+                    src={videoUrl}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    preload="metadata"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <img
+                    src={imageUrl}
+                    alt={title}
+                    className="w-full h-full object-cover"
+                  />
+                )}
               </div>
               {/* Decorative elements */}
               <div className={`absolute -bottom-4 -right-4 w-24 h-24 bg-gradient-to-br ${colors.gradient} rounded-full blur-2xl`} />

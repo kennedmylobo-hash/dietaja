@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { Droplets, Zap, Scale, ShieldCheck } from "lucide-react";
+import detoxVideo from "@/assets/produtos-detox-video.mp4";
 import { CartProvider, useCart } from "@/components/CartContext";
 import CartDrawer from "@/components/CartDrawer";
 import CartFloatingButton from "@/components/CartFloatingButton";
@@ -144,7 +145,7 @@ const DetoxContent = () => {
         badgeText="Detox funcional"
         badgeEmoji="🍃"
         accentColor="primary"
-        imageUrl="/placeholder.svg"
+        videoUrl={detoxVideo}
       />
 
       <BenefitsSection
