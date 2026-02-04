@@ -1,83 +1,57 @@
 
-# Plano: Corrigir Reset de Senha do Admin (Definitivo)
 
-## Problemas Identificados
+# Plano: Centralizar Cards de Pacotes (3 unidades)
 
-### Problema 1: Rota 404
-A rota `/admin/reset-password` existe no código mas o `vercel.json` com as configurações de SPA routing ainda **não foi publicado** para produção.
+## Problema Atual
 
-### Problema 2: URL Errada no Email
-O email de recuperação envia link para `diet-on-demand.lovable.app` mas seu domínio de produção é `pedidos.dietajavca.com.br`.
-
-```typescript
-// Linha 46 do send-password-reset/index.ts - PROBLEMA
-const redirectTo = "https://diet-on-demand.lovable.app/admin/reset-password";
-```
-
----
+O grid de pacotes usa `lg:grid-cols-4`, então com apenas 3 kits, os cards ficam alinhados à esquerda com um espaço vazio à direita.
 
 ## Solução
 
-### 1. Atualizar Edge Function com URL Correta
+Modificar o componente `PackageCards` para adaptar o grid dinamicamente:
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `supabase/functions/send-password-reset/index.ts` | Usar domínio de produção correto |
+| Quantidade | Layout Desktop | Comportamento |
+|------------|----------------|---------------|
+| 3 itens | `lg:grid-cols-3` | Cards centralizados, ocupando todo espaço |
+| 4+ itens | `lg:grid-cols-4` | Mantém layout atual |
 
-```typescript
-// ANTES
-const redirectTo = "https://diet-on-demand.lovable.app/admin/reset-password";
+## Alteração Técnica
 
-// DEPOIS  
-const redirectTo = "https://pedidos.dietajavca.com.br/admin/reset-password";
+**Arquivo:** `src/components/landing/PackageCards.tsx`
+
+**Antes (linha 75):**
+```tsx
+<div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
 ```
 
-### 2. Publicar Tudo
+**Depois:**
+```tsx
+<div className={`grid sm:grid-cols-2 gap-4 ${
+  packages.length === 3 
+    ? 'lg:grid-cols-3 max-w-4xl mx-auto' 
+    : 'lg:grid-cols-4'
+}`}>
+```
 
-Após a correção, você precisa clicar em **Publish > Update** para:
-- Deploy das configurações de SPA routing (vercel.json)
-- Deploy da edge function corrigida
-- Deploy das landing pages
-
----
-
-## Por que o 404 aparece atualmente?
+## Resultado Visual
 
 ```text
-Email enviado com link para:
-diet-on-demand.lovable.app/admin/reset-password
-                           ↓
-Servidor da Lovable recebe requisição
-                           ↓
-Tenta encontrar arquivo /admin/reset-password
-                           ↓
-Arquivo não existe → vercel.json não publicado
-                           ↓
-404 Error ❌
+ANTES (3 cards em grid de 4):
+┌─────┐ ┌─────┐ ┌─────┐ [vazio]
+│ Kit │ │ Kit │ │ Kit │
+│  3  │ │  5  │ │  7  │
+└─────┘ └─────┘ └─────┘
+
+DEPOIS (3 cards centralizados):
+     ┌─────┐ ┌─────┐ ┌─────┐
+     │ Kit │ │ Kit │ │ Kit │
+     │  3  │ │  5  │ │  7  │
+     └─────┘ └─────┘ └─────┘
 ```
 
-## Como ficará após correção:
+## Benefícios
 
-```text
-Email enviado com link para:
-pedidos.dietajavca.com.br/admin/reset-password
-                           ↓
-Servidor recebe requisição
-                           ↓
-vercel.json redireciona para index.html
-                           ↓
-React Router renderiza AdminResetPassword
-                           ↓
-Página de redefinição de senha ✅
-```
+- Layout mais equilibrado e profissional
+- Reutilizável: funciona para 3 ou 4+ pacotes automaticamente
+- Responsivo: mobile continua com 2 colunas
 
----
-
-## Resultado Esperado
-
-| Item | Status Após Correção |
-|------|---------------------|
-| Link de recuperação no email | Aponta para domínio correto |
-| Página `/admin/reset-password` | Carrega normalmente |
-| Landing pages `/fit`, `/fitness`, `/detox` | Funcionando |
-| Acesso direto via links | Funcionando |
