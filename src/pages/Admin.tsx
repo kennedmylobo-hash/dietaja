@@ -95,6 +95,9 @@ const Admin = () => {
   const [loginLoading, setLoginLoading] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [activeSection, setActiveSection] = useState("live");
   
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -431,6 +434,47 @@ const Admin = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email) {
+      toast({
+        title: "Email obrigatório",
+        description: "Digite seu email para recuperar a senha.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setResetLoading(true);
+
+    try {
+      const response = await supabase.functions.invoke('send-password-reset', {
+        body: { email }
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      setResetEmailSent(true);
+      toast({
+        title: "Email enviado!",
+        description: "Verifique sua caixa de entrada e spam.",
+      });
+    } catch (error: any) {
+      console.error("Error sending reset email:", error);
+      // Still show success to prevent email enumeration
+      setResetEmailSent(true);
+      toast({
+        title: "Email enviado!",
+        description: "Se o email estiver cadastrado, você receberá o link.",
+      });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setIsAuthenticated(false);
@@ -507,6 +551,79 @@ const Admin = () => {
       );
     }
 
+    // Email sent confirmation screen
+    if (resetEmailSent) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-6 h-6 text-primary" />
+              </div>
+              <CardTitle>Email enviado!</CardTitle>
+              <p className="text-muted-foreground text-sm mt-2">
+                Verifique sua caixa de entrada e spam. O link expira em 1 hora.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full" 
+                onClick={() => {
+                  setResetEmailSent(false);
+                  setShowForgotPassword(false);
+                }}
+              >
+                Voltar para login
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    // Forgot password form
+    if (showForgotPassword) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Lock className="w-6 h-6 text-primary" />
+              </div>
+              <CardTitle>Recuperar senha</CardTitle>
+              <p className="text-muted-foreground text-sm">
+                Digite seu email para receber o link de recuperação
+              </p>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <Button type="submit" className="w-full" disabled={resetLoading}>
+                  {resetLoading ? 'Enviando...' : 'Enviar link de recuperação'}
+                </Button>
+              </form>
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(false)}
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  ← Voltar para login
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    // Login/Signup form
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
@@ -540,7 +657,16 @@ const Admin = () => {
                 {loginLoading ? (isSignup ? 'Criando...' : 'Entrando...') : (isSignup ? 'Criar conta' : 'Entrar')}
               </Button>
             </form>
-            <div className="mt-4 text-center">
+            <div className="mt-4 flex flex-col items-center gap-2">
+              {!isSignup && (
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-primary hover:text-primary/80 hover:underline"
+                >
+                  Esqueci minha senha
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setIsSignup(!isSignup)}

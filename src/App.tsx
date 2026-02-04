@@ -15,6 +15,7 @@ import StatusPedido from "./pages/StatusPedido";
 import Cardapio from "./pages/Cardapio";
 import PixPayment from "./pages/PixPayment";
 import MinhaConta from "./pages/MinhaConta";
+import AdminResetPassword from "./pages/AdminResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/minha-conta" element={<MinhaConta />} />
               <Route path="/obrigado" element={<Obrigado />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/admin/reset-password" element={<AdminResetPassword />} />
               <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />
               <Route path="/pagamento/erro" element={<PagamentoErro />} />
               <Route path="/pix/:paymentId" element={<PixPayment />} />
