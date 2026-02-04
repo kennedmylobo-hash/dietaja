@@ -20,6 +20,7 @@ import Detox from "./pages/Detox";
 import Fit from "./pages/Fit";
 import Fitness from "./pages/Fitness";
 
+// v2.0 - Landing pages Fit, Fitness e Detox
 const queryClient = new QueryClient();
 
 const App = () => (
