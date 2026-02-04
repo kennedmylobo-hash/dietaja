@@ -1,89 +1,83 @@
 
-# Plano: Corrigir Erro 404 nas Landing Pages de Forma Definitiva
+# Plano: Corrigir Reset de Senha do Admin (Definitivo)
 
-## Problema Identificado
+## Problemas Identificados
 
-O erro 404 ocorre quando clientes acessam diretamente URLs como `pedidos.dietajavca.com.br/fit` ou `/fitness`. Isso é um problema clássico de SPA (Single Page Application) onde o servidor tenta encontrar um arquivo físico para a rota em vez de servir o `index.html` e deixar o React Router gerenciar.
+### Problema 1: Rota 404
+A rota `/admin/reset-password` existe no código mas o `vercel.json` com as configurações de SPA routing ainda **não foi publicado** para produção.
 
----
+### Problema 2: URL Errada no Email
+O email de recuperação envia link para `diet-on-demand.lovable.app` mas seu domínio de produção é `pedidos.dietajavca.com.br`.
 
-## Diagnóstico Técnico
-
-### O que já existe
-- `public/_redirects` com `/* /index.html 200` (correto para Netlify)
-- Rotas configuradas corretamente no `src/App.tsx`
-- Páginas `Fit.tsx` e `Fitness.tsx` existem e funcionam
-
-### O que falta
-- Arquivo `vercel.json` para rewrites (caso o deploy seja no Vercel/Lovable)
-- Possível problema de cache ou sincronização do deploy
-
----
-
-## Solução Completa (3 Ações)
-
-### 1. Criar arquivo `vercel.json` na raiz do projeto
-
-Este arquivo garante que TODAS as requisições sejam redirecionadas para o `index.html`, permitindo que o React Router gerencie as rotas.
-
-```json
-{
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
+```typescript
+// Linha 46 do send-password-reset/index.ts - PROBLEMA
+const redirectTo = "https://diet-on-demand.lovable.app/admin/reset-password";
 ```
 
-### 2. Garantir que `_redirects` está no formato correto
+---
 
-O arquivo já existe mas vou confirmar que está sem espaços extras ou problemas de encoding.
+## Solução
 
-### 3. Adicionar `404.html` como fallback adicional
+### 1. Atualizar Edge Function com URL Correta
 
-Criar cópia do `index.html` como `404.html` no build - configuração no `vite.config.ts`.
+| Arquivo | Alteração |
+|---------|-----------|
+| `supabase/functions/send-password-reset/index.ts` | Usar domínio de produção correto |
+
+```typescript
+// ANTES
+const redirectTo = "https://diet-on-demand.lovable.app/admin/reset-password";
+
+// DEPOIS  
+const redirectTo = "https://pedidos.dietajavca.com.br/admin/reset-password";
+```
+
+### 2. Publicar Tudo
+
+Após a correção, você precisa clicar em **Publish > Update** para:
+- Deploy das configurações de SPA routing (vercel.json)
+- Deploy da edge function corrigida
+- Deploy das landing pages
 
 ---
 
-## Arquivos a Modificar
-
-| Arquivo | Ação |
-|---------|------|
-| `vercel.json` (novo) | Criar com rewrites para SPA |
-| `vite.config.ts` | Adicionar plugin para copiar index.html como 404.html |
-
----
-
-## Por que essa solução é definitiva?
+## Por que o 404 aparece atualmente?
 
 ```text
-+-------------------+      +-------------------+      +-------------------+
-|   Cliente acessa  | ---> |   Servidor busca  | ---> |   vercel.json ou  |
-|   /fit direto     |      |   arquivo /fit    |      |   _redirects      |
-+-------------------+      +-------------------+      +-------------------+
-                                    |
-                                    v
-                           +-------------------+
-                           |   Redireciona     |
-                           |   para index.html |
-                           +-------------------+
-                                    |
-                                    v
-                           +-------------------+
-                           |   React Router    |
-                           |   renderiza /fit  |
-                           +-------------------+
+Email enviado com link para:
+diet-on-demand.lovable.app/admin/reset-password
+                           ↓
+Servidor da Lovable recebe requisição
+                           ↓
+Tenta encontrar arquivo /admin/reset-password
+                           ↓
+Arquivo não existe → vercel.json não publicado
+                           ↓
+404 Error ❌
+```
+
+## Como ficará após correção:
+
+```text
+Email enviado com link para:
+pedidos.dietajavca.com.br/admin/reset-password
+                           ↓
+Servidor recebe requisição
+                           ↓
+vercel.json redireciona para index.html
+                           ↓
+React Router renderiza AdminResetPassword
+                           ↓
+Página de redefinição de senha ✅
 ```
 
 ---
 
 ## Resultado Esperado
 
-Após implementar e publicar:
-
-| URL | Status |
-|-----|--------|
-| pedidos.dietajavca.com.br/fit | Funcionando |
-| pedidos.dietajavca.com.br/fitness | Funcionando |
-| pedidos.dietajavca.com.br/detox | Funcionando |
-| Acesso direto via link WhatsApp | Funcionando |
-| Atualização de página (F5) | Funcionando |
+| Item | Status Após Correção |
+|------|---------------------|
+| Link de recuperação no email | Aponta para domínio correto |
+| Página `/admin/reset-password` | Carrega normalmente |
+| Landing pages `/fit`, `/fitness`, `/detox` | Funcionando |
+| Acesso direto via links | Funcionando |
