@@ -769,11 +769,8 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
 
   const updateOrderStatus = async (orderId: string, newStatus: string, trackingLinkValue?: string) => {
-    console.log('[updateOrderStatus] Called with:', { orderId, newStatus, trackingLinkValue });
-    
     // If status is "delivering" and we don't have a tracking link decision yet, open modal
     if (newStatus === 'delivering' && trackingLinkValue === undefined) {
-      console.log('[updateOrderStatus] Opening tracking modal');
       setTrackingModal({ orderId, show: true });
       setTrackingLink('');
       return;

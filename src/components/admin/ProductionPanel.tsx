@@ -88,6 +88,22 @@ interface ProductionPanelProps {
 }
 
 const PROTEIN_WEIGHT = 150; // Default protein weight in grams
+const JUICE_UNIT_ML = 300;  // Sucos são de 300ml por unidade
+const SOUP_UNIT_ML = 450;   // Sopas são de 450ml por unidade
+
+// Format juice display: X un (Y L) or X un (Y ml)
+const formatJuiceDisplay = (quantity: number): string => {
+  const totalMl = quantity * JUICE_UNIT_ML;
+  const liters = totalMl / 1000;
+  return liters >= 1 
+    ? `${quantity} un (${liters.toFixed(1)}L)` 
+    : `${quantity} un (${totalMl}ml)`;
+};
+
+// Format soup display: X un
+const formatSoupDisplay = (quantity: number): string => {
+  return `${quantity} un`;
+};
 
 const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -198,6 +214,41 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
         // Process marmitas with flavors
         if (item.flavors && Array.isArray(item.flavors)) {
           for (const flavor of item.flavors) {
+            const flavorCategory = flavor.category?.toLowerCase() || '';
+            
+            // === CHECK IF JUICE - Add to juiceMap instead of proteins ===
+            if (flavorCategory === 'suco') {
+              const juiceEmoji = kitJuices.find(j => 
+                j.name.toLowerCase().includes(flavor.name.toLowerCase().replace('suco ', '').replace('suco', '').trim()) ||
+                flavor.name.toLowerCase().includes(j.name.toLowerCase())
+              )?.emoji || '🥤';
+              const key = flavor.name;
+              const existing = juiceMap.get(key);
+              if (existing) {
+                existing.quantity += flavor.quantity;
+              } else {
+                juiceMap.set(key, { emoji: juiceEmoji, name: flavor.name, quantity: flavor.quantity });
+              }
+              continue; // Don't process as protein
+            }
+            
+            // === CHECK IF SOUP - Add to soupMap instead of proteins ===
+            if (flavorCategory === 'sopa') {
+              const soupEmoji = kitSoups.find(s => 
+                s.name.toLowerCase().includes(flavor.name.toLowerCase().replace('sopa de ', '').replace('sopa', '').trim()) ||
+                flavor.name.toLowerCase().includes(s.name.toLowerCase())
+              )?.emoji || '🥣';
+              const key = flavor.name;
+              const existing = soupMap.get(key);
+              if (existing) {
+                existing.quantity += flavor.quantity;
+              } else {
+                soupMap.set(key, { emoji: soupEmoji, name: flavor.name, quantity: flavor.quantity });
+              }
+              continue; // Don't process as protein
+            }
+            
+            // === Normal marmita processing ===
             const flavorSides = getFlavorSides(flavor.name);
             
             // === KITCHEN LIST: Aggregate protein ===
@@ -381,21 +432,21 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
           `).join('')}
         
         ${productionData.juices.length > 0 ? `
-          <h2>🥤 SUCOS</h2>
+          <h2>🥤 SUCOS (300ml/un)</h2>
           ${productionData.juices.map(j => `
             <div class="item">
               <span>${j.emoji} ${j.name}</span>
-              <span class="weight">${j.quantity} un</span>
+              <span class="weight">${formatJuiceDisplay(j.quantity)}</span>
             </div>
           `).join('')}
         ` : ''}
         
         ${productionData.soups.length > 0 ? `
-          <h2>🥣 SOPAS</h2>
+          <h2>🥣 SOPAS (450ml/un)</h2>
           ${productionData.soups.map(s => `
             <div class="item">
               <span>${s.emoji} ${s.name}</span>
-              <span class="weight">${s.quantity} un</span>
+              <span class="weight">${formatSoupDisplay(s.quantity)}</span>
             </div>
           `).join('')}
         ` : ''}
@@ -498,18 +549,18 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
     
     // Juices
     if (productionData.juices.length > 0) {
-      text += `*🥤 SUCOS*\n`;
+      text += `*🥤 SUCOS (300ml/un)*\n`;
       productionData.juices.forEach(j => {
-        text += `• ${j.emoji} ${j.name}: *${j.quantity} un*\n`;
+        text += `• ${j.emoji} ${j.name}: *${formatJuiceDisplay(j.quantity)}*\n`;
       });
       text += `\n`;
     }
     
     // Soups
     if (productionData.soups.length > 0) {
-      text += `*🥣 SOPAS*\n`;
+      text += `*🥣 SOPAS (450ml/un)*\n`;
       productionData.soups.forEach(s => {
-        text += `• ${s.emoji} ${s.name}: *${s.quantity} un*\n`;
+        text += `• ${s.emoji} ${s.name}: *${formatSoupDisplay(s.quantity)}*\n`;
       });
       text += `\n`;
     }
@@ -727,7 +778,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                       >
                         <span>{juice.emoji} {juice.name}</span>
                         <Badge variant="outline" className="text-lg font-bold">
-                          {juice.quantity} un
+                          {formatJuiceDisplay(juice.quantity)}
                         </Badge>
                       </div>
                     ))}
@@ -754,7 +805,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                       >
                         <span>{soup.emoji} {soup.name}</span>
                         <Badge variant="outline" className="text-lg font-bold">
-                          {soup.quantity} un
+                          {formatSoupDisplay(soup.quantity)}
                         </Badge>
                       </div>
                     ))}
