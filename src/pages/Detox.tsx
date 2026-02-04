@@ -18,6 +18,7 @@ import { useKitPackages, useKitSoups, useKitJuices } from "@/hooks/useMenuData";
 import { FlavorSelection } from "@/components/CartContext";
 
 const DetoxContent = () => {
+  const menuRef = useRef<HTMLDivElement>(null);
   const packagesRef = useRef<HTMLDivElement>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -43,6 +44,12 @@ const DetoxContent = () => {
   const scrollToPackages = useCallback(() => {
     if (packagesRef.current) {
       packagesRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  const scrollToMenu = useCallback(() => {
+    if (menuRef.current) {
+      menuRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, []);
 
@@ -146,6 +153,7 @@ const DetoxContent = () => {
         badgeEmoji="🍃"
         accentColor="primary"
         videoUrl={detoxVideo}
+        onScrollToMenu={scrollToMenu}
       />
 
       <BenefitsSection
@@ -155,7 +163,9 @@ const DetoxContent = () => {
         accentColor="primary"
       />
 
-      <DetoxFlavorMenu />
+      <div ref={menuRef}>
+        <DetoxFlavorMenu />
+      </div>
 
       <div ref={packagesRef}>
         <PackageCards

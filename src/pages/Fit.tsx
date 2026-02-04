@@ -18,6 +18,7 @@ import { useMarmitaEmagrecimento, useGroupedMarmitaFlavors, useMarmitaFlavors } 
 import { FlavorSelection } from "@/components/CartContext";
 
 const FitContent = () => {
+  const menuRef = useRef<HTMLDivElement>(null);
   const packagesRef = useRef<HTMLDivElement>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -59,6 +60,12 @@ const FitContent = () => {
   const scrollToPackages = useCallback(() => {
     if (packagesRef.current) {
       packagesRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  const scrollToMenu = useCallback(() => {
+    if (menuRef.current) {
+      menuRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, []);
 
@@ -133,6 +140,7 @@ const FitContent = () => {
         badgeEmoji="🥗"
         accentColor="primary"
         imageUrl={marmitaImage}
+        onScrollToMenu={scrollToMenu}
       />
 
       <BenefitsSection
@@ -142,11 +150,13 @@ const FitContent = () => {
         accentColor="primary"
       />
 
-      <FlavorMenu
-        title="🍽️ Nosso Cardápio"
-        subtitle="Escolha entre dezenas de opções deliciosas"
-        categories={flavorsByCategory}
-      />
+      <div ref={menuRef}>
+        <FlavorMenu
+          title="🍽️ Nosso Cardápio"
+          subtitle="Escolha entre dezenas de opções deliciosas"
+          categories={flavorsByCategory}
+        />
+      </div>
 
       <div ref={packagesRef}>
         <PackageCards
