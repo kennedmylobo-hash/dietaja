@@ -1,186 +1,170 @@
 
+# Plano: Botão "Esqueci Minha Senha" no Admin
 
-# Plano: Menu Lateral para Painel Admin
+## Visão Geral
 
-## Problema Atual
-
-O painel Admin possui **13 abas** em uma barra horizontal com scroll:
-- Ao Vivo, Analytics, Funil, Pedidos, Recuperar, Marketing, Notificações, Erros PIX, Estoque, Histórico, Cardápio, Produção, Importar
-
-Isso dificulta a navegação pois:
-- Precisa fazer scroll horizontal para ver todas
-- Em telas menores, os nomes ficam escondidos (só ícones)
-- Não é possível ter uma visão geral de todas as opções
+Adicionar funcionalidade completa de recuperação de senha na tela de login do Admin, incluindo:
+- Botão "Esqueci minha senha" 
+- Envio de email com link de recuperação via Resend
+- Tela para redefinir a senha
 
 ---
 
-## Solução: Sidebar com Menu Lateral
-
-Transformar a navegação de abas para uma **sidebar fixa à esquerda** no estilo iFood/Spotify:
+## Fluxo do Usuário
 
 ```text
-┌────────────────────────────────────────────────────────────────────────┐
-│ Painel Dieta Já                                    [Filtros] [Logout] │
-├───────────────────┬────────────────────────────────────────────────────┤
-│                   │                                                    │
-│ 📊 OPERAÇÕES      │    ┌─────────────────────────────────────────┐    │
-│                   │    │                                         │    │
-│   📻 Ao Vivo  ●   │    │        CONTEÚDO DA SEÇÃO ATIVA         │    │
-│   📦 Pedidos      │    │                                         │    │
-│   👨‍🍳 Produção     │    │    (LiveVisitors, OrdersManager, etc)   │    │
-│   📥 Importar     │    │                                         │    │
-│                   │    └─────────────────────────────────────────┘    │
-│ ─────────────     │                                                    │
-│ 📈 ANALYTICS      │                                                    │
-│                   │                                                    │
-│   📊 Analytics    │                                                    │
-│   🔄 Funil        │                                                    │
-│                   │                                                    │
-│ ─────────────     │                                                    │
-│ ⚙️ GESTÃO         │                                                    │
-│                   │                                                    │
-│   🍽️ Cardápio     │                                                    │
-│   📦 Estoque      │                                                    │
-│   📜 Histórico    │                                                    │
-│                   │                                                    │
-│ ─────────────     │                                                    │
-│ 📣 MARKETING      │                                                    │
-│                   │                                                    │
-│   📢 Campanhas    │                                                    │
-│   🔔 Notificações │                                                    │
-│   🔁 Recuperar    │                                                    │
-│                   │                                                    │
-│ ─────────────     │                                                    │
-│ ⚠️ ERROS         │                                                    │
-│                   │                                                    │
-│   💳 Erros PIX    │                                                    │
-│                   │                                                    │
-└───────────────────┴────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    TELA DE LOGIN                                │
+│                                                                 │
+│   ┌───────────────────────────────────────────────────────┐    │
+│   │  Email: [_________________________________]            │    │
+│   │  Senha: [_________________________________]            │    │
+│   │                                                        │    │
+│   │  [        ENTRAR        ]                             │    │
+│   │                                                        │    │
+│   │  Esqueci minha senha    │    Não tem conta?           │    │
+│   └───────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+                           │
+                           ▼ Clica "Esqueci minha senha"
+┌─────────────────────────────────────────────────────────────────┐
+│                    RECUPERAR SENHA                              │
+│                                                                 │
+│   ┌───────────────────────────────────────────────────────┐    │
+│   │  Digite seu email para receber o link de recuperação  │    │
+│   │                                                        │    │
+│   │  Email: [_________________________________]            │    │
+│   │                                                        │    │
+│   │  [    ENVIAR LINK DE RECUPERAÇÃO    ]                 │    │
+│   │                                                        │    │
+│   │  ← Voltar para login                                  │    │
+│   └───────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+                           │
+                           ▼ Email enviado
+┌─────────────────────────────────────────────────────────────────┐
+│                    EMAIL ENVIADO                                │
+│                                                                 │
+│   ┌───────────────────────────────────────────────────────┐    │
+│   │           ✓ Email enviado com sucesso!                │    │
+│   │                                                        │    │
+│   │   Verifique sua caixa de entrada e spam.              │    │
+│   │   O link expira em 1 hora.                            │    │
+│   │                                                        │    │
+│   │  [    VOLTAR PARA LOGIN    ]                          │    │
+│   └───────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+                           │
+                           ▼ Clica no link do email
+┌─────────────────────────────────────────────────────────────────┐
+│                    NOVA SENHA                                   │
+│                                                                 │
+│   ┌───────────────────────────────────────────────────────┐    │
+│   │  Digite sua nova senha                                 │    │
+│   │                                                        │    │
+│   │  Nova Senha: [______________________________]          │    │
+│   │  Confirmar:  [______________________________]          │    │
+│   │                                                        │    │
+│   │  [        REDEFINIR SENHA        ]                    │    │
+│   └───────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Características do Menu
+## Alteracoes Tecnicas
 
-### Agrupamento por Categoria
-| Categoria | Itens |
-|-----------|-------|
-| **Operações** | Ao Vivo, Pedidos, Produção, Importar |
-| **Analytics** | Analytics, Funil |
-| **Gestão** | Cardápio, Estoque, Histórico |
-| **Marketing** | Campanhas, Notificações, Recuperar |
-| **Erros** | Erros PIX |
+### 1. Nova Rota para Reset de Senha
 
-### Comportamento Responsivo
-- **Desktop**: Sidebar fixa de 240px, sempre visível
-- **Mobile**: Sidebar colapsada em ícones (60px) com tooltip no hover, ou drawer que abre por gesto
+| Arquivo | Acao |
+|---------|------|
+| `src/App.tsx` | Adicionar rota `/admin/reset-password` |
+| `src/pages/AdminResetPassword.tsx` | CRIAR nova pagina |
 
-### Indicadores Visuais
-- Item ativo: fundo colorido + borda lateral
-- "Ao Vivo": bolinha verde pulsante (como já tem)
-- Contadores: badge numérico para pedidos pendentes/erros
+### 2. Modificar Tela de Login
+
+| Arquivo | Acao |
+|---------|------|
+| `src/pages/Admin.tsx` | Adicionar estado e UI para recuperacao de senha |
+
+### 3. Nova Edge Function
+
+| Arquivo | Acao |
+|---------|------|
+| `supabase/functions/send-password-reset/index.ts` | CRIAR funcao para enviar email |
 
 ---
 
-## Alterações Técnicas
+## Detalhes de Implementacao
 
-### Arquivos a Modificar
-
-| Arquivo | Ação |
-|---------|------|
-| `src/pages/Admin.tsx` | Substituir Tabs por layout com Sidebar |
-| `src/components/admin/AdminSidebar.tsx` | CRIAR novo componente |
-
-### Estrutura do AdminSidebar
+### Edge Function: send-password-reset
 
 ```typescript
-interface AdminMenuItem {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  badge?: number;
-  pulse?: boolean; // para "Ao Vivo"
-}
-
-interface AdminMenuGroup {
-  title: string;
-  items: AdminMenuItem[];
-}
-
-const menuGroups: AdminMenuGroup[] = [
-  {
-    title: "Operações",
-    items: [
-      { id: "live", label: "Ao Vivo", icon: Radio, pulse: true },
-      { id: "orders", label: "Pedidos", icon: Package },
-      { id: "production", label: "Produção", icon: ChefHat },
-      { id: "whatsapp-import", label: "Importar", icon: MessageCircle },
-    ]
-  },
-  {
-    title: "Analytics",
-    items: [
-      { id: "analytics", label: "Analytics", icon: BarChart3 },
-      { id: "funnel", label: "Funil", icon: Activity },
-    ]
-  },
-  // ... outros grupos
-];
+// Recebe email do usuario
+// Usa supabase.auth.resetPasswordForEmail() para gerar token
+// Envia email personalizado via Resend com link para /admin/reset-password
 ```
 
-### Layout Principal (Admin.tsx)
+**Email enviado tera:**
+- Logo do Dieta Ja
+- Botao "Redefinir Senha" com link
+- Aviso de expiracao (1 hora)
+- Contato de suporte
 
-```tsx
-<div className="min-h-screen bg-background flex">
-  {/* Sidebar fixa */}
-  <AdminSidebar 
-    activeSection={activeSection} 
-    onSectionChange={setActiveSection} 
-  />
-  
-  {/* Conteúdo principal */}
-  <div className="flex-1 ml-60">
-    <header>...</header>
-    <main>
-      {activeSection === "live" && <LiveVisitors />}
-      {activeSection === "orders" && <OrdersManager />}
-      {/* ... */}
-    </main>
-  </div>
-</div>
+### Pagina AdminResetPassword
+
+- Detecta token na URL (parametro `code` do Supabase)
+- Formulario com nova senha e confirmacao
+- Validacao: minimo 6 caracteres, senhas devem coincidir
+- Chama `supabase.auth.updateUser({ password })` para atualizar
+- Redireciona para `/admin` apos sucesso
+
+### Modificacoes no Admin.tsx
+
+Adicionar novo estado:
+```typescript
+const [showForgotPassword, setShowForgotPassword] = useState(false);
+const [resetEmailSent, setResetEmailSent] = useState(false);
+```
+
+Adicionar funcao:
+```typescript
+const handleForgotPassword = async () => {
+  // Chama edge function send-password-reset
+  // Mostra confirmacao de email enviado
+};
+```
+
+Adicionar UI:
+- Link "Esqueci minha senha" abaixo do botao Entrar
+- Tela condicional para inserir email de recuperacao
+- Tela de confirmacao apos envio
+
+---
+
+## Configuracao do Supabase
+
+O Supabase tem configuracao nativa de redirect URL para reset de senha. 
+O link enviado tera formato:
+```
+https://diet-on-demand.lovable.app/admin/reset-password#access_token=...
 ```
 
 ---
 
-## Comportamento Mobile
+## Seguranca
 
-No mobile, a sidebar se transforma em um **bottom drawer** ou **hamburger menu**:
-
-```text
-┌─────────────────────────────────────────┐
-│ ≡ Painel Dieta Já         [🔍] [👤]    │
-├─────────────────────────────────────────┤
-│                                         │
-│        CONTEÚDO DA SEÇÃO ATIVA          │
-│                                         │
-├─────────────────────────────────────────┤
-│ 📻  │  📦  │  👨‍🍳  │  📊  │  ⋯       │  <- Navegação inferior
-└─────────────────────────────────────────┘
-```
-
----
-
-## Vantagens da Mudança
-
-1. **Visibilidade total**: Todas as 13 opções visíveis sem scroll
-2. **Organização lógica**: Grupos de funcionalidades relacionadas
-3. **Navegação rápida**: Um clique para qualquer seção
-4. **Indicadores visuais**: Badges e pulsos para informações importantes
-5. **Consistência**: Mesmo padrão do CardapioSidebar
+- Nao revelar se email existe ou nao (mensagem generica)
+- Token expira em 1 hora
+- Validacao de senha forte (minimo 6 caracteres)
+- Rate limiting no edge function (futuro)
 
 ---
 
 ## Resultado Esperado
 
-Ao abrir o Admin, o usuário verá imediatamente todas as opções organizadas em categorias na lateral esquerda, podendo navegar rapidamente para qualquer seção sem precisar fazer scroll horizontal.
-
+1. Usuario clica "Esqueci minha senha" na tela de login
+2. Digita seu email e clica enviar
+3. Recebe email com design do Dieta Ja e link
+4. Clica no link e abre pagina para definir nova senha
+5. Define nova senha e faz login normalmente
