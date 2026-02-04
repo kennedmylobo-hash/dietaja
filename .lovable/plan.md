@@ -1,170 +1,52 @@
 
-# Plano: Botão "Esqueci Minha Senha" no Admin
+# Corrigir Erro 404 na Recuperação de Senha
 
-## Visão Geral
+## Diagnóstico
 
-Adicionar funcionalidade completa de recuperação de senha na tela de login do Admin, incluindo:
-- Botão "Esqueci minha senha" 
-- Envio de email com link de recuperação via Resend
-- Tela para redefinir a senha
+O erro 404 ocorre porque:
 
----
+1. A edge function `send-password-reset` envia o link apontando para a URL de **produção**: `https://diet-on-demand.lovable.app/admin/reset-password`
+2. O código da página `AdminResetPassword.tsx` foi criado, mas ainda **não foi publicado** no ambiente live
+3. Por isso, quando você clica no link do email, a versão publicada não reconhece a rota e mostra 404
 
-## Fluxo do Usuário
+## Solução
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    TELA DE LOGIN                                │
-│                                                                 │
-│   ┌───────────────────────────────────────────────────────┐    │
-│   │  Email: [_________________________________]            │    │
-│   │  Senha: [_________________________________]            │    │
-│   │                                                        │    │
-│   │  [        ENTRAR        ]                             │    │
-│   │                                                        │    │
-│   │  Esqueci minha senha    │    Não tem conta?           │    │
-│   └───────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-                           │
-                           ▼ Clica "Esqueci minha senha"
-┌─────────────────────────────────────────────────────────────────┐
-│                    RECUPERAR SENHA                              │
-│                                                                 │
-│   ┌───────────────────────────────────────────────────────┐    │
-│   │  Digite seu email para receber o link de recuperação  │    │
-│   │                                                        │    │
-│   │  Email: [_________________________________]            │    │
-│   │                                                        │    │
-│   │  [    ENVIAR LINK DE RECUPERAÇÃO    ]                 │    │
-│   │                                                        │    │
-│   │  ← Voltar para login                                  │    │
-│   └───────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-                           │
-                           ▼ Email enviado
-┌─────────────────────────────────────────────────────────────────┐
-│                    EMAIL ENVIADO                                │
-│                                                                 │
-│   ┌───────────────────────────────────────────────────────┐    │
-│   │           ✓ Email enviado com sucesso!                │    │
-│   │                                                        │    │
-│   │   Verifique sua caixa de entrada e spam.              │    │
-│   │   O link expira em 1 hora.                            │    │
-│   │                                                        │    │
-│   │  [    VOLTAR PARA LOGIN    ]                          │    │
-│   └───────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-                           │
-                           ▼ Clica no link do email
-┌─────────────────────────────────────────────────────────────────┐
-│                    NOVA SENHA                                   │
-│                                                                 │
-│   ┌───────────────────────────────────────────────────────┐    │
-│   │  Digite sua nova senha                                 │    │
-│   │                                                        │    │
-│   │  Nova Senha: [______________________________]          │    │
-│   │  Confirmar:  [______________________________]          │    │
-│   │                                                        │    │
-│   │  [        REDEFINIR SENHA        ]                    │    │
-│   └───────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-```
+### Opcao 1: Publicar o Projeto (Recomendada)
 
----
+Publicar o projeto atual para que a página `/admin/reset-password` fique disponível na URL de produção.
 
-## Alteracoes Tecnicas
+**Passos:**
+- Clicar no botão "Publish" no canto superior direito do Lovable
+- Aguardar a publicação completar
+- Testar novamente o fluxo de recuperação de senha
 
-### 1. Nova Rota para Reset de Senha
+### Opcao 2: Atualizar Edge Function para Ambiente de Preview
 
-| Arquivo | Acao |
-|---------|------|
-| `src/App.tsx` | Adicionar rota `/admin/reset-password` |
-| `src/pages/AdminResetPassword.tsx` | CRIAR nova pagina |
+Se quiser testar antes de publicar, podemos atualizar a edge function para detectar o ambiente e usar a URL correta:
 
-### 2. Modificar Tela de Login
+| Arquivo | Alteracao |
+|---------|-----------|
+| `supabase/functions/send-password-reset/index.ts` | Usar URL do preview para testes |
 
-| Arquivo | Acao |
-|---------|------|
-| `src/pages/Admin.tsx` | Adicionar estado e UI para recuperacao de senha |
-
-### 3. Nova Edge Function
-
-| Arquivo | Acao |
-|---------|------|
-| `supabase/functions/send-password-reset/index.ts` | CRIAR funcao para enviar email |
-
----
-
-## Detalhes de Implementacao
-
-### Edge Function: send-password-reset
-
+**Mudanca necessaria:**
 ```typescript
-// Recebe email do usuario
-// Usa supabase.auth.resetPasswordForEmail() para gerar token
-// Envia email personalizado via Resend com link para /admin/reset-password
+// Linha 46 - Alterar de:
+const redirectTo = "https://diet-on-demand.lovable.app/admin/reset-password";
+
+// Para detectar ambiente ou usar preview:
+const redirectTo = "https://id-preview--247e9b8a-37d6-4949-85c4-3917e55c8126.lovable.app/admin/reset-password";
 ```
 
-**Email enviado tera:**
-- Logo do Dieta Ja
-- Botao "Redefinir Senha" com link
-- Aviso de expiracao (1 hora)
-- Contato de suporte
+## Recomendacao
 
-### Pagina AdminResetPassword
+A **Opcao 1** (publicar) é a melhor escolha porque:
+- O código já está pronto e funcionando
+- A URL de produção é a correta para uso real
+- Após publicar, o fluxo funcionará para todos os usuários
 
-- Detecta token na URL (parametro `code` do Supabase)
-- Formulario com nova senha e confirmacao
-- Validacao: minimo 6 caracteres, senhas devem coincidir
-- Chama `supabase.auth.updateUser({ password })` para atualizar
-- Redireciona para `/admin` apos sucesso
+## Próximos Passos
 
-### Modificacoes no Admin.tsx
-
-Adicionar novo estado:
-```typescript
-const [showForgotPassword, setShowForgotPassword] = useState(false);
-const [resetEmailSent, setResetEmailSent] = useState(false);
-```
-
-Adicionar funcao:
-```typescript
-const handleForgotPassword = async () => {
-  // Chama edge function send-password-reset
-  // Mostra confirmacao de email enviado
-};
-```
-
-Adicionar UI:
-- Link "Esqueci minha senha" abaixo do botao Entrar
-- Tela condicional para inserir email de recuperacao
-- Tela de confirmacao apos envio
-
----
-
-## Configuracao do Supabase
-
-O Supabase tem configuracao nativa de redirect URL para reset de senha. 
-O link enviado tera formato:
-```
-https://diet-on-demand.lovable.app/admin/reset-password#access_token=...
-```
-
----
-
-## Seguranca
-
-- Nao revelar se email existe ou nao (mensagem generica)
-- Token expira em 1 hora
-- Validacao de senha forte (minimo 6 caracteres)
-- Rate limiting no edge function (futuro)
-
----
-
-## Resultado Esperado
-
-1. Usuario clica "Esqueci minha senha" na tela de login
-2. Digita seu email e clica enviar
-3. Recebe email com design do Dieta Ja e link
-4. Clica no link e abre pagina para definir nova senha
-5. Define nova senha e faz login normalmente
+1. **Publicar o projeto** clicando no botão "Publish"
+2. Aguardar a publicação (cerca de 1-2 minutos)
+3. Solicitar novo link de recuperação de senha
+4. Clicar no link do email - agora a página deve carregar corretamente
