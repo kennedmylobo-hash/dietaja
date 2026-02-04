@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
-import { Dumbbell, Flame, Beef, ShieldCheck, Clock, Utensils } from "lucide-react";
+import { Dumbbell, Flame, ShieldCheck, Clock } from "lucide-react";
+import marmitaImage from "@/assets/marmita-2.png";
 import { CartProvider, useCart } from "@/components/CartContext";
 import CartDrawer from "@/components/CartDrawer";
 import CartFloatingButton from "@/components/CartFloatingButton";
@@ -131,7 +132,7 @@ const FitnessContent = () => {
         badgeText="Linha Hipertrofia"
         badgeEmoji="💪"
         accentColor="terracotta"
-        imageUrl="/placeholder.svg"
+        imageUrl={marmitaImage}
       />
 
       <BenefitsSection
