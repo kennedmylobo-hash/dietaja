@@ -43,7 +43,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     // Generate password reset link using Supabase Auth
-    const redirectTo = "https://diet-on-demand.lovable.app/admin/reset-password";
+    const redirectTo = "https://pedidos.dietajavca.com.br/admin/reset-password";
     
     const { data, error: resetError } = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",
