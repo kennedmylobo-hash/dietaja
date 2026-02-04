@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import { Check, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Check, Sparkles, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 
 export interface LandingHeroProps {
@@ -12,6 +13,7 @@ export interface LandingHeroProps {
   accentColor?: 'primary' | 'terracotta' | 'blue';
   imageUrl?: string;
   videoUrl?: string;
+  onScrollToMenu?: () => void;
 }
 
 const LandingHero = ({
@@ -23,6 +25,7 @@ const LandingHero = ({
   accentColor = 'primary',
   imageUrl,
   videoUrl,
+  onScrollToMenu,
 }: LandingHeroProps) => {
   const colorClasses = {
     primary: {
@@ -91,6 +94,25 @@ const LandingHero = ({
                 </motion.li>
               ))}
             </ul>
+
+            {/* Ver Cardápio Button */}
+            {onScrollToMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.6 }}
+              >
+                <Button
+                  onClick={onScrollToMenu}
+                  variant="outline"
+                  size="lg"
+                  className="group border-2 hover:bg-primary/5"
+                >
+                  Ver Cardápio 👇
+                  <ChevronDown className="ml-2 w-4 h-4 group-hover:translate-y-1 transition-transform" />
+                </Button>
+              </motion.div>
+            )}
           </motion.div>
 
           {/* Image or Video */}
