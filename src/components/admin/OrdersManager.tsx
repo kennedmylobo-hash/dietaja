@@ -38,6 +38,7 @@ import {
   Copy,
   Check,
   Link as LinkIcon,
+  Printer,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -60,6 +61,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { printOrderTicket } from "@/lib/print-utils";
 
 interface FlavorItem {
   name: string;
@@ -1598,6 +1600,16 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                     <span className="ml-2">{getNextStatusAction(selectedOrder.status)!.label}</span>
                   </Button>
                 )}
+
+                {/* Print button */}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => printOrderTicket(selectedOrder)}
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  Imprimir Ficha
+                </Button>
 
                 {/* WhatsApp button */}
                 <Button
