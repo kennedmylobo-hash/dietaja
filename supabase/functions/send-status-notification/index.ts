@@ -57,7 +57,7 @@ const FALLBACK_MESSAGES: Record<string, { title: string; emoji: string; color: s
     title: "Saiu para Entrega!",
     emoji: "🛵",
     color: "#f59e0b",
-    whatsapp: "🛵 *Saiu para Entrega!*\n\nOlá {nome}! Seu pedido *#{pedido}* está a caminho!{rastreio}\n\n🔗 Acompanhe: {link}",
+    whatsapp: "🛵 *Saiu para Entrega!*\n\nOlá {nome}! Seu pedido *#{pedido}* está a caminho!\n\n{link_rastreio}\n\n⚠️ *Atenção:* A entrega é realizada por parceiros (iFood, 99 ou Uber). Acompanhe o rastreio e confirme se o endereço está correto!",
     email_subject: "🛵 Seu pedido #{pedido} saiu para entrega!"
   },
   delivered: {
@@ -80,10 +80,10 @@ const replaceVariables = (template: string, order: OrderData): string => {
   const firstName = order.customer_name.split(" ")[0];
   const trackingUrl = `https://dietajavca.com.br/pedido/${order.order_number}`;
   
-  // Build tracking link section
-  const trackingSection = order.tracking_link 
-    ? `\n\n📍 Rastreie em tempo real:\n${order.tracking_link}` 
-    : '';
+  // Link de rastreio: externo se existir, senão interno
+  const linkRastreio = order.tracking_link 
+    ? `📍 Rastreie em tempo real:\n${order.tracking_link}`
+    : `🔗 Acompanhe seu pedido:\n${trackingUrl}`;
   
   return template
     .replace(/{nome}/g, firstName)
@@ -91,7 +91,7 @@ const replaceVariables = (template: string, order: OrderData): string => {
     .replace(/{pedido}/g, order.order_number)
     .replace(/{total}/g, order.total.toFixed(2).replace(".", ","))
     .replace(/{link}/g, trackingUrl)
-    .replace(/{rastreio}/g, trackingSection);
+    .replace(/{link_rastreio}/g, linkRastreio);
 };
 
 // Send simple text message (for messages within 24h window)
