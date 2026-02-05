@@ -1,139 +1,117 @@
 
+# Plano: Corrigir Bug do PIX - CPF não é atualizado no cliente Asaas
 
-# Plano: Sistema de Clientes Recorrentes
+## Problema Identificado
 
-## Objetivo
+No arquivo `supabase/functions/create-asaas-pix/index.ts`, há um **bug crítico** na lógica de atualização do CPF do cliente Asaas:
 
-Criar um sistema para cadastrar **clientes fixos** que fazem pedidos em dias específicos da semana (toda segunda, toda terça, etc.), garantindo que você nunca esqueça de preparar os pedidos deles.
-
-## Como vai funcionar
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                    ABA "RECORRENTES" NO ADMIN                       │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  📅 HOJE: QUARTA-FEIRA                                              │
-│                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ 🔔 ENTREGAS DE HOJE (3)                                     │    │
-│  ├─────────────────────────────────────────────────────────────┤    │
-│  │ ✓ Maria Silva        | 10x Marmitas Fit    | Delivery       │    │
-│  │ ✓ João Santos        | 5x Marmitas         | Retirada       │    │
-│  │ ○ Ana Costa          | Kit Detox 5 dias    | Delivery       │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ 📋 TODOS OS CLIENTES RECORRENTES                            │    │
-│  ├─────────────────────────────────────────────────────────────┤    │
-│  │ Cliente        | Dia       | Pedido Padrão    | Ativo       │    │
-│  │ Maria Silva    | Quarta    | 10x Marmitas Fit | ✅          │    │
-│  │ João Santos    | Quarta    | 5x Marmitas      | ✅          │    │
-│  │ Ana Costa      | Quarta    | Kit Detox 5 dias | ✅          │    │
-│  │ Carlos Lima    | Segunda   | 8x Marmitas      | ✅          │    │
-│  │ Paula Mendes   | Sexta     | 15x Marmitas     | ⏸️          │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│                                                                     │
-│  [+ Adicionar Cliente Recorrente]                                   │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+**Linhas 274-287** - A atualização do CPF é feita **SEM validação de resposta**:
+```typescript
+} else if (cleanCpf.length === 11 && !/^(\d)\1+$/.test(cleanCpf)) {
+  // Update existing customer with CPF only if valid
+  console.log('Updating existing customer with CPF...');
+  await fetch(`${ASAAS_API_URL}/customers/${asaasCustomerId}`, {
+    method: 'PUT',
+    headers: {
+      'access_token': asaasApiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      cpfCnpj: cleanCpf,
+    }),
+  });
+}
 ```
 
-## Funcionalidades
+**Problemas:**
+1. **Nenhuma validação de resposta da API** - O código não verifica se a atualização foi bem-sucedida (`response.ok`)
+2. **Nenhum tratamento de erro** - Se o Asaas retornar erro 400, 409 ou qualquer outro, ele é ignorado
+3. **Sem log de erro** - Não registra na tabela `payment_error_logs` quando a atualização falha
+4. **Fluxo continua mesmo com falha** - Tenta criar o PIX mesmo que o CPF não tenha sido atualizado
 
-### 1. Cadastro de Cliente Recorrente
-- Nome, telefone, email
-- **Dia da semana** para entrega (Segunda, Terça, Quarta, etc.)
-- **Pedido padrão** (descrição do que sempre pede)
-- Opção de delivery ou retirada
-- Endereço (se delivery)
-- Observações
-- Status ativo/inativo (para pausar temporariamente)
+**Por isso a Rebeca recebeu o erro:** O sistema tentou criar a cobrança sem o CPF atualizado, e o Asaas respondeu com `"Para criar esta cobrança é necessário preencher o CPF ou CNPJ do cliente."`
 
-### 2. Lista de Entregas do Dia
-- Mostrar automaticamente quem precisa receber **hoje**
-- Checkbox para marcar como "preparado" ou "entregue"
-- Destaque visual para os clientes do dia atual
+## Solução
 
-### 3. Visão Semanal
-- Ver todos os clientes organizados por dia da semana
-- Contador de quantos clientes em cada dia
+Modificar `supabase/functions/create-asaas-pix/index.ts` para:
 
----
+1. **Validar a resposta da API** quando atualizar o CPF
+2. **Logar erros de atualização** na tabela `payment_error_logs`
+3. **Falhar early** se não conseguir atualizar o CPF (em vez de tentar criar o PIX)
+4. **Adicionar logs detalhados** para debug
 
-## Estrutura do Banco de Dados
+## Alterações Necessárias
 
-**Nova tabela: `recurring_customers`**
+### Arquivo: `supabase/functions/create-asaas-pix/index.ts`
 
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | UUID | Identificador único |
-| customer_name | TEXT | Nome do cliente |
-| customer_phone | TEXT | Telefone |
-| customer_email | TEXT | Email (opcional) |
-| delivery_day | TEXT | Dia da semana (monday, tuesday, etc.) |
-| default_order | TEXT | Descrição do pedido padrão |
-| delivery_option | TEXT | 'delivery' ou 'retirada' |
-| delivery_address | TEXT | Endereço (se delivery) |
-| notes | TEXT | Observações |
-| is_active | BOOLEAN | Se está ativo ou pausado |
-| last_delivered_at | TIMESTAMPTZ | Última entrega realizada |
-| created_at | TIMESTAMPTZ | Data de cadastro |
+**Seção a ser corrigida (linhas 274-287):**
 
----
+Substituir:
+```typescript
+} else if (cleanCpf.length === 11 && !/^(\d)\1+$/.test(cleanCpf)) {
+  // Update existing customer with CPF only if valid
+  console.log('Updating existing customer with CPF...');
+  await fetch(`${ASAAS_API_URL}/customers/${asaasCustomerId}`, {
+    method: 'PUT',
+    headers: {
+      'access_token': asaasApiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      cpfCnpj: cleanCpf,
+    }),
+  });
+}
+```
 
-## Arquivos a Criar/Modificar
+Por:
+```typescript
+} else if (cleanCpf.length === 11 && !/^(\d)\1+$/.test(cleanCpf)) {
+  // Update existing customer with CPF only if valid
+  console.log('Updating existing customer with CPF...');
+  const updateResponse = await fetch(`${ASAAS_API_URL}/customers/${asaasCustomerId}`, {
+    method: 'PUT',
+    headers: {
+      'access_token': asaasApiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      cpfCnpj: cleanCpf,
+    }),
+  });
 
-### Novos Arquivos
+  if (!updateResponse.ok) {
+    const updateErrorText = await updateResponse.text();
+    console.error('Asaas customer CPF update error:', updateResponse.status, updateErrorText);
+    
+    // Log error to database
+    await supabase.from('payment_error_logs').insert({
+      order_id: orderId,
+      error_code: updateResponse.status.toString(),
+      error_message: `Erro ao atualizar CPF do cliente: ${updateErrorText}`,
+      provider: 'asaas',
+      request_payload: { cpfCnpj: cleanCpf },
+      response_payload: JSON.parse(updateErrorText || '{}'),
+      customer_phone: customer.phone,
+      customer_email: customer.email,
+    });
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/components/admin/RecurringCustomers.tsx` | Componente principal com lista e formulário |
-| Migration SQL | Criar tabela `recurring_customers` |
+    throw new Error(`Erro ao atualizar CPF do cliente no Asaas. Verifique os dados e tente novamente.`);
+  }
 
-### Arquivos a Modificar
+  const updateData = await updateResponse.json();
+  console.log('Asaas customer CPF updated successfully:', asaasCustomerId);
+}
+```
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/admin/AdminSidebar.tsx` | Adicionar item "Recorrentes" no menu |
-| `src/pages/Admin.tsx` | Renderizar novo componente |
+## Resultado Esperado
 
----
+- ✅ CPF será sempre validado e atualizado no cliente Asaas **antes** de criar o PIX
+- ✅ Erros de atualização serão logados adequadamente
+- ✅ Se houver erro na atualização do CPF, o fluxo é interrompido com uma mensagem clara
+- ✅ Cliente receberá mensagem de erro amigável: "Erro ao atualizar CPF do cliente no Asaas. Verifique os dados e tente novamente."
+- ✅ Admin poderá ver o erro detalhado em `payment_error_logs`
 
-## Interface do Componente
+## Para Rebeca
 
-### Seção "Entregas de Hoje"
-- Cards destacados com os clientes que precisam receber hoje
-- Botão "Marcar como Entregue" que atualiza `last_delivered_at`
-- Botão para abrir WhatsApp com mensagem pronta
-
-### Seção "Todos os Clientes"
-- Tabela com todos os clientes recorrentes
-- Filtro por dia da semana
-- Botões: Editar, Pausar/Ativar, Excluir
-- Badge colorido indicando o dia da semana
-
-### Modal de Cadastro/Edição
-- Formulário com todos os campos
-- Seletor de dia da semana com visual amigável
-- Validação de campos obrigatórios
-
----
-
-## Fluxo de Uso
-
-1. **Administrador acessa aba "Recorrentes"**
-2. **Vê imediatamente** os clientes que precisam de entrega hoje
-3. **Marca como entregue** conforme vai preparando
-4. **Cadastra novos clientes** quando necessário
-5. **Pausa clientes** que não vão pedir naquela semana
-
----
-
-## Benefícios
-
-- **Nunca esquecer** um cliente fixo
-- **Visão clara** do que precisa preparar cada dia
-- **Histórico** de última entrega para cada cliente
-- **Flexibilidade** para pausar temporariamente
-
+Após a correção, gerar um novo PIX usando a função `generate-pix-admin` para o pedido `DJA-0113` com o CPF dela devidamente validado.
