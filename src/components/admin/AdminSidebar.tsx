@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Menu,
   X,
+   Users,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -48,6 +49,7 @@ const menuGroups: AdminMenuGroup[] = [
     items: [
       { id: "analytics", label: "Analytics", icon: BarChart3 },
       { id: "funnel", label: "Funil", icon: Activity },
+       { id: "customers", label: "Clientes", icon: Users },
     ],
   },
   {

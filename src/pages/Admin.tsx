@@ -57,6 +57,7 @@ import ProductionPanel from "@/components/admin/ProductionPanel";
 import WhatsAppOrderImporter from "@/components/admin/WhatsAppOrderImporter";
 import SidesManager from "@/components/admin/SidesManager";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+ import CustomersManager from "@/components/admin/CustomersManager";
 
 interface Lead {
   id: string;
@@ -1123,6 +1124,9 @@ const Admin = () => {
       case "funnel":
         return <FunnelReport dateFilter={dateFilter} sourceFilter={sourceFilter} />;
 
+       case "customers":
+         return <CustomersManager dateFilter={dateFilter} />;
+ 
       case "menu":
         return (
           <div className="space-y-6">
