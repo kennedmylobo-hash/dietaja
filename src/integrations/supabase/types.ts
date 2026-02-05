@@ -1039,6 +1039,51 @@ export type Database = {
           },
         ]
       }
+      recurring_customers: {
+        Row: {
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          default_order: string
+          delivery_address: string | null
+          delivery_day: string
+          delivery_option: string
+          id: string
+          is_active: boolean
+          last_delivered_at: string | null
+          notes: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          default_order: string
+          delivery_address?: string | null
+          delivery_day: string
+          delivery_option?: string
+          id?: string
+          is_active?: boolean
+          last_delivered_at?: string | null
+          notes?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          default_order?: string
+          delivery_address?: string | null
+          delivery_day?: string
+          delivery_option?: string
+          id?: string
+          is_active?: boolean
+          last_delivered_at?: string | null
+          notes?: string | null
+        }
+        Relationships: []
+      }
       reminder_settings: {
         Row: {
           created_at: string | null
