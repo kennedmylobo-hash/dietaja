@@ -271,19 +271,9 @@ const PendingOrdersRecovery = () => {
             payment_method: paymentNote === 'delivery' ? 'na_entrega' : 'manual'
           }
         });
-        console.log('✅ Email confirmation sent');
+       console.log('✅ Email + WhatsApp confirmation sent via send-order-approved');
       } catch (emailError) {
         console.error('Email confirmation error:', emailError);
-      }
-
-      // Send WhatsApp confirmation
-      try {
-        await supabase.functions.invoke('send-order-whatsapp', {
-          body: { order_id: orderId, status: 'approved' }
-        });
-        console.log('✅ WhatsApp confirmation sent');
-      } catch (whatsappError) {
-        console.error('WhatsApp confirmation error:', whatsappError);
       }
 
       // Mark associated cart as converted

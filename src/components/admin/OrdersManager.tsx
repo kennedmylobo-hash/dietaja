@@ -701,19 +701,9 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
             payment_method: currentOrder?.payment_method || 'manual'
           }
         });
-        console.log('✅ Email confirmation sent');
+       console.log('✅ Email + WhatsApp confirmation sent via send-order-approved');
       } catch (emailError) {
         console.error('Error sending email:', emailError);
-      }
-
-      // Send WhatsApp confirmation
-      try {
-        await supabase.functions.invoke('send-order-whatsapp', {
-          body: { order_id: orderId, status: 'approved' }
-        });
-        console.log('✅ WhatsApp confirmation sent');
-      } catch (whatsappError) {
-        console.error('Error sending WhatsApp:', whatsappError);
       }
 
       // Mark associated cart as converted
