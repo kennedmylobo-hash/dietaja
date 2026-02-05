@@ -202,7 +202,10 @@ serve(async (req) => {
         }
 
         // Decrement stock
-        if (!order.stock_decremented) {
+       // Note: WhatsApp confirmation is already sent by send-order-approved
+       
+       // Decrement stock
+       if (!order.stock_decremented) {
           console.log('[asaas-webhook] Decrementing stock...');
           try {
             await fetch(`${supabaseUrl}/functions/v1/decrement-stock`, {
@@ -217,25 +220,6 @@ serve(async (req) => {
           } catch (stockError) {
             console.error('[asaas-webhook] Error decrementing stock:', stockError);
           }
-        }
-
-        // Send WhatsApp confirmation
-        console.log('[asaas-webhook] Sending WhatsApp confirmation...');
-        try {
-          await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseKey}`,
-            },
-            body: JSON.stringify({
-              order_id: orderId,
-              status: 'approved',
-            }),
-          });
-          console.log('[asaas-webhook] WhatsApp confirmation sent');
-        } catch (whatsappError) {
-          console.error('[asaas-webhook] Error sending WhatsApp:', whatsappError);
         }
 
         // Credit cashback to customer
