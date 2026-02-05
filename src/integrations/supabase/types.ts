@@ -1066,6 +1066,47 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          customer_email: string
+          customer_name: string | null
+          id: string
+          is_approved: boolean | null
+          order_id: string | null
+          rating: number
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          customer_email: string
+          customer_name?: string | null
+          id?: string
+          is_approved?: boolean | null
+          order_id?: string | null
+          rating: number
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          customer_email?: string
+          customer_name?: string | null
+          id?: string
+          is_approved?: boolean | null
+          order_id?: string | null
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_movements: {
         Row: {
           created_at: string

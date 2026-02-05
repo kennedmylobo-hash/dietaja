@@ -58,6 +58,8 @@ import WhatsAppOrderImporter from "@/components/admin/WhatsAppOrderImporter";
 import SidesManager from "@/components/admin/SidesManager";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
  import CustomersManager from "@/components/admin/CustomersManager";
+ import KPIDashboard from "@/components/admin/KPIDashboard";
+ import ReviewsManager from "@/components/admin/ReviewsManager";
 
 interface Lead {
   id: string;
@@ -701,6 +703,12 @@ const Admin = () => {
 
       case "whatsapp-import":
         return <WhatsAppOrderImporter />;
+
+      case "kpis":
+        return <KPIDashboard dateFilter={dateFilter} />;
+
+      case "reviews":
+        return <ReviewsManager />;
 
       case "analytics":
         return (

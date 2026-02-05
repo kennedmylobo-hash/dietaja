@@ -16,6 +16,8 @@ import {
   Menu,
   X,
    Users,
+   TrendingUp,
+   Star,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -47,9 +49,10 @@ const menuGroups: AdminMenuGroup[] = [
   {
     title: "Analytics",
     items: [
+      { id: "kpis", label: "Dashboard", icon: TrendingUp },
       { id: "analytics", label: "Analytics", icon: BarChart3 },
       { id: "funnel", label: "Funil", icon: Activity },
-       { id: "customers", label: "Clientes", icon: Users },
+      { id: "customers", label: "Clientes", icon: Users },
     ],
   },
   {
@@ -58,6 +61,7 @@ const menuGroups: AdminMenuGroup[] = [
       { id: "menu", label: "Cardápio", icon: UtensilsCrossed },
       { id: "stock", label: "Estoque", icon: Warehouse },
       { id: "history", label: "Histórico", icon: History },
+      { id: "reviews", label: "Avaliações", icon: Star },
     ],
   },
   {
