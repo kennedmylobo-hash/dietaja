@@ -60,6 +60,7 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
  import CustomersManager from "@/components/admin/CustomersManager";
  import KPIDashboard from "@/components/admin/KPIDashboard";
  import ReviewsManager from "@/components/admin/ReviewsManager";
+ import RecurringCustomers from "@/components/admin/RecurringCustomers";
 
 interface Lead {
   id: string;
@@ -701,6 +702,9 @@ const Admin = () => {
       case "production":
         return <ProductionPanel dateFilter={dateFilter} />;
 
+       case "recurring":
+         return <RecurringCustomers />;
+ 
       case "whatsapp-import":
         return <WhatsAppOrderImporter />;
 
