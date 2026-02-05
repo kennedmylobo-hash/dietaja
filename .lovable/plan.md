@@ -1,271 +1,139 @@
 
-# Plano Completo: 5 Melhorias para o Sistema
 
-## Visão Geral
+# Plano: Sistema de Clientes Recorrentes
 
-Vamos implementar 5 melhorias significativas:
+## Objetivo
 
-| # | Melhoria | Esforço |
-|---|----------|---------|
-| 1 | Dashboard de KPIs | Médio |
-| 2 | Histórico + Repetir Pedido | Médio |
-| 3 | Sistema de Avaliações | Alto |
-| 4 | Etiquetas para Produção | Médio |
-| 5 | Campanhas de Recompra Automáticas | Já existe (melhorar) |
+Criar um sistema para cadastrar **clientes fixos** que fazem pedidos em dias específicos da semana (toda segunda, toda terça, etc.), garantindo que você nunca esqueça de preparar os pedidos deles.
 
----
-
-## 1. Dashboard de KPIs no Admin
-
-**Objetivo:** Criar um painel consolidado com métricas de receita, pedidos e ticket médio.
-
-**Nova Seção:** `KPIDashboard` no menu "Analytics"
-
-### Métricas Principais (Cards)
-- **Receita Total** (dia/semana/mês)
-- **Número de Pedidos**
-- **Ticket Médio**
-- **Taxa de Conversão** (leads → pedidos)
-- **Receita por Categoria** (Marmitas vs Kits Detox)
-
-### Gráficos
-- **Receita diária** (linha/área)
-- **Pedidos por status** (pizza)
-- **Top 5 produtos mais vendidos**
-- **Comparativo período anterior** (% crescimento)
-
-### Arquivos a Criar
-- `src/components/admin/KPIDashboard.tsx`
-
-### Dados Necessários
-```sql
-SELECT 
-  DATE(created_at) as date,
-  COUNT(*) as orders,
-  SUM(total) as revenue,
-  AVG(total) as avg_ticket
-FROM orders 
-WHERE status NOT IN ('cancelled', 'pending')
-GROUP BY DATE(created_at)
-ORDER BY date DESC
-```
-
----
-
-## 2. Histórico de Pedidos + Repetir Pedido
-
-**Objetivo:** Melhorar página "Minha Conta" com histórico completo e botão de recompra.
-
-### Funcionalidades
-- Exibir **todos os pedidos** do cliente (paginado)
-- Botão **"Repetir Pedido"** que:
-  1. Adiciona os mesmos itens ao carrinho
-  2. Mantém sabores e quantidades
-  3. Redireciona para checkout
-
-### Arquivos a Modificar
-- `src/pages/MinhaConta.tsx`
-  - Adicionar botão "Repetir Pedido"
-  - Implementar função `handleRepeatOrder()`
-
-### Lógica do Repetir Pedido
-```typescript
-const handleRepeatOrder = (order: Order) => {
-  // Para cada item do pedido
-  order.items.forEach(item => {
-    addItem({
-      type: item.type,
-      name: item.name,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      totalPrice: item.totalPrice,
-      flavors: item.flavors,
-    });
-  });
-  
-  // Redireciona para o checkout
-  navigate('/cardapio');
-  toast({ title: "Itens adicionados ao carrinho!" });
-};
-```
-
----
-
-## 3. Sistema de Avaliações
-
-**Objetivo:** Coletar feedback dos clientes após entrega.
-
-### Estrutura do Banco
-
-**Nova tabela: `reviews`**
-```sql
-CREATE TABLE reviews (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id UUID REFERENCES orders(id),
-  customer_email TEXT NOT NULL,
-  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-  comment TEXT,
-  is_approved BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-### Fluxo Completo
+## Como vai funcionar
 
 ```text
-+-------------------+     +------------------+     +------------------+
-| Pedido Entregue   | --> | WhatsApp c/ Link | --> | Página Avaliação |
-+-------------------+     +------------------+     +------------------+
-                                                           |
-                                                           v
-                                                  +------------------+
-                                                  | Salva no Banco   |
-                                                  +------------------+
-                                                           |
-                                                           v
-                                                  +------------------+
-                                                  | Admin aprova e   |
-                                                  | exibe no site    |
-                                                  +------------------+
+┌─────────────────────────────────────────────────────────────────────┐
+│                    ABA "RECORRENTES" NO ADMIN                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  📅 HOJE: QUARTA-FEIRA                                              │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ 🔔 ENTREGAS DE HOJE (3)                                     │    │
+│  ├─────────────────────────────────────────────────────────────┤    │
+│  │ ✓ Maria Silva        | 10x Marmitas Fit    | Delivery       │    │
+│  │ ✓ João Santos        | 5x Marmitas         | Retirada       │    │
+│  │ ○ Ana Costa          | Kit Detox 5 dias    | Delivery       │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ 📋 TODOS OS CLIENTES RECORRENTES                            │    │
+│  ├─────────────────────────────────────────────────────────────┤    │
+│  │ Cliente        | Dia       | Pedido Padrão    | Ativo       │    │
+│  │ Maria Silva    | Quarta    | 10x Marmitas Fit | ✅          │    │
+│  │ João Santos    | Quarta    | 5x Marmitas      | ✅          │    │
+│  │ Ana Costa      | Quarta    | Kit Detox 5 dias | ✅          │    │
+│  │ Carlos Lima    | Segunda   | 8x Marmitas      | ✅          │    │
+│  │ Paula Mendes   | Sexta     | 15x Marmitas     | ⏸️          │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                     │
+│  [+ Adicionar Cliente Recorrente]                                   │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Arquivos a Criar
-1. **Página pública:** `src/pages/Avaliar.tsx`
-   - Formulário com estrelas (1-5) e comentário
-   - Rota: `/avaliar/:orderToken`
-   
-2. **Componente Admin:** `src/components/admin/ReviewsManager.tsx`
-   - Lista de avaliações pendentes
-   - Aprovar/Rejeitar
-   - Estatísticas (média, total)
+## Funcionalidades
 
-3. **Edge Function:** Já existe `send-review-request` - apenas ajustar link
+### 1. Cadastro de Cliente Recorrente
+- Nome, telefone, email
+- **Dia da semana** para entrega (Segunda, Terça, Quarta, etc.)
+- **Pedido padrão** (descrição do que sempre pede)
+- Opção de delivery ou retirada
+- Endereço (se delivery)
+- Observações
+- Status ativo/inativo (para pausar temporariamente)
 
-### Token de Avaliação
-Gerar token único por pedido para evitar avaliações falsas:
-```typescript
-const reviewToken = btoa(`${orderId}:${customerEmail}`);
-const reviewUrl = `https://dietajavca.com.br/avaliar/${reviewToken}`;
-```
+### 2. Lista de Entregas do Dia
+- Mostrar automaticamente quem precisa receber **hoje**
+- Checkbox para marcar como "preparado" ou "entregue"
+- Destaque visual para os clientes do dia atual
+
+### 3. Visão Semanal
+- Ver todos os clientes organizados por dia da semana
+- Contador de quantos clientes em cada dia
 
 ---
 
-## 4. Etiquetas para Produção (PDF)
+## Estrutura do Banco de Dados
 
-**Objetivo:** Gerar etiquetas com nome do cliente e itens para colar nas embalagens.
+**Nova tabela: `recurring_customers`**
 
-### Layout da Etiqueta
-
-```text
-+---------------------------+
-| DIETA JÁ                  |
-+---------------------------+
-| Cliente: MARIA SILVA      |
-| Pedido: #DJA-0123         |
-+---------------------------+
-| ✓ 5x Frango Grelhado     |
-| ✓ 3x Carne Moída          |
-| ✓ 2x Kit Detox 3 Dias     |
-+---------------------------+
-| 📍 Delivery - Candeias    |
-+---------------------------+
-```
-
-### Tamanhos Suportados
-- **A7** (74 x 105mm) - Padrão
-- **Térmica 80mm** - Para impressoras de etiquetas
-
-### Arquivos a Criar/Modificar
-1. **Novo:** `src/lib/label-utils.ts` - Geração de PDF com etiquetas
-2. **Modificar:** `src/components/admin/ProductionPanel.tsx` - Botão "Imprimir Etiquetas"
-
-### Implementação
-Usar biblioteca `jspdf` para gerar PDF:
-```typescript
-import jsPDF from 'jspdf';
-
-const generateLabels = (orders: Order[]) => {
-  const doc = new jsPDF({ format: 'a7', orientation: 'landscape' });
-  
-  orders.forEach((order, index) => {
-    if (index > 0) doc.addPage();
-    
-    doc.setFontSize(16);
-    doc.text('DIETA JÁ', 10, 10);
-    doc.setFontSize(12);
-    doc.text(`Cliente: ${order.customer_name}`, 10, 25);
-    doc.text(`Pedido: #${order.order_number}`, 10, 35);
-    // ... itens
-  });
-  
-  doc.save('etiquetas.pdf');
-};
-```
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | UUID | Identificador único |
+| customer_name | TEXT | Nome do cliente |
+| customer_phone | TEXT | Telefone |
+| customer_email | TEXT | Email (opcional) |
+| delivery_day | TEXT | Dia da semana (monday, tuesday, etc.) |
+| default_order | TEXT | Descrição do pedido padrão |
+| delivery_option | TEXT | 'delivery' ou 'retirada' |
+| delivery_address | TEXT | Endereço (se delivery) |
+| notes | TEXT | Observações |
+| is_active | BOOLEAN | Se está ativo ou pausado |
+| last_delivered_at | TIMESTAMPTZ | Última entrega realizada |
+| created_at | TIMESTAMPTZ | Data de cadastro |
 
 ---
 
-## 5. Melhorar Campanhas de Recompra
+## Arquivos a Criar/Modificar
 
-**Status Atual:** Já existe `send-recompra-campaigns` mas precisa de melhorias.
+### Novos Arquivos
 
-### Melhorias Propostas
-
-1. **Dashboard de Campanhas no Admin**
-   - Ver campanhas enviadas
-   - Taxa de conversão (cupom usado)
-   - Próximos envios programados
-
-2. **Novos Triggers**
-   - **7 dias** após entrega → Lembrete
-   - **14 dias** → Cupom 5%
-   - **30 dias** → Cupom 10% (sentimos sua falta)
-   - **Aniversário** → Cupom especial
-
-3. **Segmentação RFM**
-   - Recency: Dias desde última compra
-   - Frequency: Número de pedidos
-   - Monetary: Valor total gasto
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/components/admin/RecurringCustomers.tsx` | Componente principal com lista e formulário |
+| Migration SQL | Criar tabela `recurring_customers` |
 
 ### Arquivos a Modificar
-- `src/components/admin/MarketingManager.tsx` - Adicionar aba de campanhas
-- `supabase/functions/send-recompra-campaigns/index.ts` - Melhorar lógica
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/components/admin/AdminSidebar.tsx` | Adicionar item "Recorrentes" no menu |
+| `src/pages/Admin.tsx` | Renderizar novo componente |
 
 ---
 
-## Dependências a Instalar
+## Interface do Componente
 
-```bash
-npm install jspdf
-```
+### Seção "Entregas de Hoje"
+- Cards destacados com os clientes que precisam receber hoje
+- Botão "Marcar como Entregue" que atualiza `last_delivered_at`
+- Botão para abrir WhatsApp com mensagem pronta
+
+### Seção "Todos os Clientes"
+- Tabela com todos os clientes recorrentes
+- Filtro por dia da semana
+- Botões: Editar, Pausar/Ativar, Excluir
+- Badge colorido indicando o dia da semana
+
+### Modal de Cadastro/Edição
+- Formulário com todos os campos
+- Seletor de dia da semana com visual amigável
+- Validação de campos obrigatórios
 
 ---
 
-## Ordem de Implementação
+## Fluxo de Uso
 
-| Fase | Tarefas | Arquivos |
-|------|---------|----------|
-| **1** | Dashboard KPIs | `KPIDashboard.tsx`, `AdminSidebar.tsx`, `Admin.tsx` |
-| **2** | Repetir Pedido | `MinhaConta.tsx` |
-| **3** | Tabela reviews + Página avaliar | Migration SQL, `Avaliar.tsx` |
-| **4** | Admin de avaliações | `ReviewsManager.tsx` |
-| **5** | Etiquetas PDF | `label-utils.ts`, `ProductionPanel.tsx` |
-| **6** | Dashboard campanhas | `MarketingManager.tsx` |
+1. **Administrador acessa aba "Recorrentes"**
+2. **Vê imediatamente** os clientes que precisam de entrega hoje
+3. **Marca como entregue** conforme vai preparando
+4. **Cadastra novos clientes** quando necessário
+5. **Pausa clientes** que não vão pedir naquela semana
 
 ---
 
-## Resumo de Criação de Arquivos
+## Benefícios
 
-### Novos Arquivos (6)
-1. `src/components/admin/KPIDashboard.tsx`
-2. `src/components/admin/ReviewsManager.tsx`
-3. `src/pages/Avaliar.tsx`
-4. `src/lib/label-utils.ts`
-5. Migration SQL para tabela `reviews`
-6. Atualização de rotas em `App.tsx`
+- **Nunca esquecer** um cliente fixo
+- **Visão clara** do que precisa preparar cada dia
+- **Histórico** de última entrega para cada cliente
+- **Flexibilidade** para pausar temporariamente
 
-### Arquivos Modificados (5)
-1. `src/pages/MinhaConta.tsx` - Botão repetir pedido
-2. `src/components/admin/AdminSidebar.tsx` - Novos itens menu
-3. `src/pages/Admin.tsx` - Render novos componentes
-4. `src/components/admin/ProductionPanel.tsx` - Botão etiquetas
-5. `src/components/admin/MarketingManager.tsx` - Dashboard campanhas
