@@ -1,183 +1,110 @@
 
-# Plano: Separar Sucos e Sopas da Lista de Proteínas
+# Plano: Corrigir Notificações Duplicadas
 
 ## Problema Identificado
 
-Atualmente, no painel de produção (`ProductionPanel.tsx`), os **sucos** e **sopas** de kits detox são misturados com as proteínas porque:
-1. O código processa todos os `item.flavors` como proteínas
-2. Não verifica a categoria do flavor (`category: "Suco"` ou `category: "Sopa"`)
-3. Exibe tudo em gramas em vez de em unidades/litros
+As mensagens de "Pedido Confirmado" estão sendo enviadas **em duplicidade** porque existem **dois pontos de disparo** para WhatsApp:
 
-## Regras de Exibição
+| Ordem | Função Chamada | O que faz |
+|-------|---------------|-----------|
+| 1º | `send-order-approved` | Envia **Email + WhatsApp** (template `compraa_confrimadaa`) |
+| 2º | `send-order-whatsapp` | Envia **WhatsApp novamente** (mesmo template) |
 
-| Tipo | Unidade Base | Exibição |
-|------|--------------|----------|
-| Sucos | 300ml | "X un (Y L)" - ex: "3 un (0.9L)" |
-| Sopas | 450ml | "X un" - ex: "2 un" |
-| Proteínas | gramas | "Xg" ou "X kg" (mantém atual) |
+**Evidência na tabela `notification_events`** para pedido #DJA-0111:
+- 01:42:21 → Email sent
+- 01:42:22 → WhatsApp sent (1ª vez - via `send-order-approved`)
+- 01:42:24 → WhatsApp sent (2ª vez - via `send-order-whatsapp`)
+
+## Locais Afetados
+
+1. **`asaas-webhook/index.ts`** (linhas 176-238) - Webhook de pagamento PIX
+2. **`OrdersManager.tsx`** (linhas 688-717) - Confirmação manual no Admin
+3. **`PendingOrdersRecovery.tsx`** (linhas 259-287) - Recuperação de pedidos pendentes
 
 ---
 
-## Alterações Técnicas
+## Solução
 
-**Arquivo:** `supabase/functions/send-status-notification/index.ts`
-- Remover logs de debug que foram adicionados anteriormente
+**Remover a chamada duplicada de `send-order-whatsapp`** nesses 3 locais, já que `send-order-approved` já envia o WhatsApp.
 
-**Arquivo:** `src/components/admin/ProductionPanel.tsx`
+### Arquivos a Alterar
 
-### 1. Modificar processamento de flavors (linhas 199-267)
+**1. `supabase/functions/asaas-webhook/index.ts`**
 
-Verificar a categoria do flavor antes de adicionar no mapa:
-
-```typescript
-for (const flavor of item.flavors) {
-  const flavorCategory = flavor.category?.toLowerCase() || '';
-  
-  // Se for suco, adiciona no mapa de sucos
-  if (flavorCategory === 'suco') {
-    const juiceEmoji = kitJuices.find(j => 
-      j.name.toLowerCase() === flavor.name.toLowerCase().replace('suco ', ''))?.emoji || '🥤';
-    const key = flavor.name;
-    const existing = juiceMap.get(key);
-    if (existing) {
-      existing.quantity += flavor.quantity;
-    } else {
-      juiceMap.set(key, { emoji: juiceEmoji, name: flavor.name, quantity: flavor.quantity });
-    }
-    continue; // Não processa como proteína
-  }
-  
-  // Se for sopa, adiciona no mapa de sopas
-  if (flavorCategory === 'sopa') {
-    const soupEmoji = kitSoups.find(s => 
-      s.name.toLowerCase().includes(flavor.name.toLowerCase().replace('sopa de ', '')))?.emoji || '🥣';
-    const key = flavor.name;
-    const existing = soupMap.get(key);
-    if (existing) {
-      existing.quantity += flavor.quantity;
-    } else {
-      soupMap.set(key, { emoji: soupEmoji, name: flavor.name, quantity: flavor.quantity });
-    }
-    continue; // Não processa como proteína
-  }
-  
-  // Continua processamento normal para marmitas (proteínas)
-  // ... código existente ...
-}
-```
-
-### 2. Criar função formatJuiceDisplay
+Remover linhas 222-239 (chamada de `send-order-whatsapp`):
 
 ```typescript
-const JUICE_UNIT_ML = 300;  // Sucos são de 300ml
-const SOUP_UNIT_ML = 450;   // Sopas são de 450ml
-
-const formatJuiceDisplay = (quantity: number): string => {
-  const totalMl = quantity * JUICE_UNIT_ML;
-  const liters = totalMl / 1000;
-  return liters >= 1 
-    ? `${quantity} un (${liters.toFixed(1)}L)` 
-    : `${quantity} un (${totalMl}ml)`;
-};
-
-const formatSoupDisplay = (quantity: number): string => {
-  return `${quantity} un`;
-};
-```
-
-### 3. Atualizar exibição nos Cards (linhas 712-763)
-
-**Sucos:**
-```tsx
-<Badge variant="outline" className="text-lg font-bold">
-  {formatJuiceDisplay(juice.quantity)}
-</Badge>
-```
-
-**Sopas:**
-```tsx
-<Badge variant="outline" className="text-lg font-bold">
-  {formatSoupDisplay(soup.quantity)}
-</Badge>
-```
-
-### 4. Atualizar impressão (handlePrintProduction)
-
-```typescript
-${productionData.juices.length > 0 ? `
-  <h2>🥤 SUCOS (300ml/un)</h2>
-  ${productionData.juices.map(j => `
-    <div class="item">
-      <span>${j.emoji} ${j.name}</span>
-      <span class="weight">${formatJuiceDisplay(j.quantity)}</span>
-    </div>
-  `).join('')}
-` : ''}
-
-${productionData.soups.length > 0 ? `
-  <h2>🥣 SOPAS (450ml/un)</h2>
-  ${productionData.soups.map(s => `
-    <div class="item">
-      <span>${s.emoji} ${s.name}</span>
-      <span class="weight">${formatSoupDisplay(s.quantity)}</span>
-    </div>
-  `).join('')}
-` : ''}
-```
-
-### 5. Atualizar WhatsApp (handleShareProduction)
-
-```typescript
-// Sucos
-if (productionData.juices.length > 0) {
-  text += `*🥤 SUCOS (300ml/un)*\n`;
-  productionData.juices.forEach(j => {
-    text += `• ${j.emoji} ${j.name}: *${formatJuiceDisplay(j.quantity)}*\n`;
+// REMOVER ESTE BLOCO (linhas 222-239)
+// Send WhatsApp confirmation
+console.log('[asaas-webhook] Sending WhatsApp confirmation...');
+try {
+  await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
+    method: 'POST',
+    headers: { ... },
+    body: JSON.stringify({
+      order_id: orderId,
+      status: 'approved',
+    }),
   });
-  text += `\n`;
+  console.log('[asaas-webhook] WhatsApp confirmation sent');
+} catch (whatsappError) {
+  console.error('[asaas-webhook] Error sending WhatsApp:', whatsappError);
 }
+```
 
-// Sopas
-if (productionData.soups.length > 0) {
-  text += `*🥣 SOPAS (450ml/un)*\n`;
-  productionData.soups.forEach(s => {
-    text += `• ${s.emoji} ${s.name}: *${formatSoupDisplay(s.quantity)}*\n`;
+**2. `src/components/admin/OrdersManager.tsx`**
+
+Remover linhas 709-717 (chamada de `send-order-whatsapp`):
+
+```typescript
+// REMOVER ESTE BLOCO (linhas 709-717)
+// Send WhatsApp confirmation
+try {
+  await supabase.functions.invoke('send-order-whatsapp', {
+    body: { order_id: orderId, status: 'approved' }
   });
-  text += `\n`;
+  console.log('✅ WhatsApp confirmation sent');
+} catch (whatsappError) {
+  console.error('Error sending WhatsApp:', whatsappError);
+}
+```
+
+**3. `src/components/admin/PendingOrdersRecovery.tsx`**
+
+Remover linhas 279-287 (chamada de `send-order-whatsapp`):
+
+```typescript
+// REMOVER ESTE BLOCO (linhas 279-287)
+// Send WhatsApp confirmation
+try {
+  await supabase.functions.invoke('send-order-whatsapp', {
+    body: { order_id: orderId, status: 'approved' }
+  });
+  console.log('✅ WhatsApp confirmation sent');
+} catch (whatsappError) {
+  console.error('WhatsApp confirmation error:', whatsappError);
 }
 ```
 
 ---
 
-## Exemplo do Resultado
+## Resultado Esperado
 
-**Antes (Proteínas misturadas):**
-```
-🥩 Proteínas
-• Suco Verde: 900g
-• Suco Rosa: 900g
-• Sopa de Abóbora: 750g
-• Frango desfiado: 450g
-```
+Após a correção, quando um pedido for confirmado:
 
-**Depois (Separados):**
-```
-🥩 Proteínas
-• Frango desfiado: 450g
-• Carne moída: 300g
+| Notificação | Quantidade | Via |
+|------------|-----------|-----|
+| Email | 1x | `send-order-approved` |
+| WhatsApp | 1x | `send-order-approved` |
 
-🥤 Sucos (300ml/un)
-• 🍍 Suco Verde: 3 un (0.9L)
-• 🍉 Suco Rosa: 3 un (0.9L)
-
-🥣 Sopas (450ml/un)
-• 🎃 Sopa de Abóbora: 2 un
-• 🥔 Sopa de Aipim: 2 un
-```
+**Nenhuma duplicação.**
 
 ---
 
-## Arquivos Modificados
+## Resumo das Alterações
 
-1. `src/components/admin/ProductionPanel.tsx` - Lógica principal de separação
-2. `src/components/admin/OrdersManager.tsx` - Remover console.logs de debug
+| Arquivo | Ação |
+|---------|------|
+| `supabase/functions/asaas-webhook/index.ts` | Remover bloco de chamada `send-order-whatsapp` |
+| `src/components/admin/OrdersManager.tsx` | Remover bloco de chamada `send-order-whatsapp` |
+| `src/components/admin/PendingOrdersRecovery.tsx` | Remover bloco de chamada `send-order-whatsapp` |
