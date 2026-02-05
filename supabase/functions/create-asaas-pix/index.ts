@@ -274,7 +274,7 @@ serve(async (req) => {
     } else if (cleanCpf.length === 11 && !/^(\d)\1+$/.test(cleanCpf)) {
       // Update existing customer with CPF only if valid
       console.log('Updating existing customer with CPF...');
-      await fetch(`${ASAAS_API_URL}/customers/${asaasCustomerId}`, {
+      const updateResponse = await fetch(`${ASAAS_API_URL}/customers/${asaasCustomerId}`, {
         method: 'PUT',
         headers: {
           'access_token': asaasApiKey,
@@ -284,6 +284,34 @@ serve(async (req) => {
           cpfCnpj: cleanCpf,
         }),
       });
+
+      if (!updateResponse.ok) {
+        const updateErrorText = await updateResponse.text();
+        console.error('Asaas customer CPF update error:', updateResponse.status, updateErrorText);
+        
+        let updateErrorResponse = {};
+        try {
+          updateErrorResponse = JSON.parse(updateErrorText || '{}');
+        } catch {
+          updateErrorResponse = { raw_error: updateErrorText };
+        }
+
+        // Log error to database
+        await supabase.from('payment_error_logs').insert({
+          order_id: orderId,
+          error_code: updateResponse.status.toString(),
+          error_message: `Erro ao atualizar CPF do cliente: ${updateErrorText}`,
+          provider: 'asaas',
+          request_payload: { cpfCnpj: cleanCpf },
+          response_payload: updateErrorResponse,
+          customer_phone: customer.phone,
+          customer_email: customer.email,
+        });
+
+        throw new Error(`Erro ao atualizar CPF do cliente no Asaas. Verifique os dados e tente novamente.`);
+      }
+
+      console.log('Asaas customer CPF updated successfully:', asaasCustomerId);
     }
 
     // Step 2: Create PIX payment (cobrança)
