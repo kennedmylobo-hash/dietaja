@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Printer, Share2, RefreshCw, ChefHat, Loader2, Package, Utensils } from "lucide-react";
+import { Printer, Share2, RefreshCw, ChefHat, Loader2, Package, Utensils, Tag } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { formatDateShort } from "@/lib/print-utils";
+import { generateLabelsA7 } from "@/lib/label-utils";
 
 interface FlavorItem {
   name: string;
@@ -818,6 +819,19 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
           {/* ASSEMBLY TAB - Individual marmita combinations */}
           <TabsContent value="assembly" className="space-y-4">
             <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => {
+                const ordersForLabels = filteredOrders.map(o => ({
+                  order_number: o.order_number,
+                  customer_name: o.customer_name,
+                  delivery_option: 'delivery',
+                  items: o.items,
+                }));
+                generateLabelsA7(ordersForLabels);
+                toast({ title: "Etiquetas geradas!" });
+              }}>
+                <Tag className="w-4 h-4 mr-2" />
+                Etiquetas A7
+              </Button>
               <Button variant="outline" onClick={handlePrintAssembly}>
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimir

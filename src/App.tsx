@@ -24,6 +24,7 @@ const AdminResetPassword = lazy(() => import("./pages/AdminResetPassword"));
 const Detox = lazy(() => import("./pages/Detox"));
 const Fit = lazy(() => import("./pages/Fit"));
 const Fitness = lazy(() => import("./pages/Fitness"));
+const Avaliar = lazy(() => import("./pages/Avaliar"));
 
 // Simple loading fallback
 const PageLoader = () => (
@@ -60,6 +61,7 @@ const App = () => (
                 <Route path="/detox" element={<Detox />} />
                 <Route path="/fit" element={<Fit />} />
                 <Route path="/fitness" element={<Fitness />} />
+                <Route path="/avaliar/:orderToken" element={<Avaliar />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

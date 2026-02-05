@@ -15,6 +15,7 @@ import Logo from '@/components/Logo';
 import { useCashback } from '@/hooks/useCashback';
 import CashbackCard from '@/components/minha-conta/CashbackCard';
 import CashbackHistory from '@/components/minha-conta/CashbackHistory';
+import { useCart, FlavorSelection } from '@/components/CartContext';
 
 interface Profile {
   id: string;
@@ -51,6 +52,7 @@ const MinhaConta = () => {
   const { user, session, loading: authLoading, signOut, signInWithOtp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { addItem, isIdentified, setCustomerInfo, customerInfo } = useCart();
 
   // Login state
   const [email, setEmail] = useState('');
@@ -74,6 +76,50 @@ const MinhaConta = () => {
 
   // Cashback data
   const cashbackData = useCashback(profile?.email);
+
+  // Repeat order function
+  const handleRepeatOrder = (order: Order) => {
+    const items = order.items as any[];
+    if (!Array.isArray(items) || items.length === 0) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível recuperar os itens deste pedido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // If not identified but we have profile data, set it
+    if (!isIdentified && profile) {
+      setCustomerInfo({
+        name: profile.name,
+        phone: profile.phone || '',
+        email: profile.email,
+        cartId: customerInfo.cartId,
+      });
+    }
+
+    // Add each item to cart
+    items.forEach((item) => {
+      addItem({
+        type: item.type || 'marmita',
+        name: item.name,
+        quantity: item.quantity || 1,
+        unitPrice: item.unitPrice || item.totalPrice / (item.quantity || 1),
+        totalPrice: item.totalPrice,
+        description: item.description,
+        flavors: item.flavors as FlavorSelection[],
+        fishAdditional: item.fishAdditional,
+      });
+    });
+
+    toast({
+      title: 'Itens adicionados! 🛒',
+      description: 'Os itens foram adicionados ao carrinho.',
+    });
+
+    navigate('/cardapio');
+  };
 
   // Fetch profile when user is logged in
   useEffect(() => {
@@ -447,12 +493,22 @@ const MinhaConta = () => {
                         <span className="font-semibold text-lg">
                           R$ {order.total.toFixed(2).replace('.', ',')}
                         </span>
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link to={`/pedido/${order.order_number || order.id}`}>
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            Detalhes
-                          </Link>
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRepeatOrder(order)}
+                          >
+                            <Package className="h-4 w-4 mr-1" />
+                            Repetir
+                          </Button>
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link to={`/pedido/${order.order_number || order.id}`}>
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Detalhes
+                            </Link>
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
