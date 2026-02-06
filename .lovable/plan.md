@@ -1,106 +1,106 @@
 
 
-# Filtro de Nomes Ofensivos
+# Composicao por Linha (Fit / Fitness) no JSONB do Sabor
 
-## Problema
-Um cliente digitou "piroquinha" como nome e isso foi salvo no pedido e usado em mensagens automaticas (WhatsApp, e-mail). Nao ha nenhuma validacao de conteudo ofensivo nos campos de nome.
+## Resumo
 
-## Solucao
+Cada sabor de marmita tera seus pesos/composicoes guardados dentro do campo `sides` ja existente, mas agora separados por linha (`fit` e `fitness`). O admin preenche os dois conjuntos de pesos para cada sabor. O cliente ve apenas a descricao da linha que escolheu.
 
-Criar uma funcao utilitaria centralizada que sanitiza nomes, e aplica-la em todos os pontos onde o nome do cliente e capturado.
+## Estrutura do JSONB `sides`
 
-### 1. Criar `src/lib/name-sanitizer.ts`
+O campo `sides` (que ja existe e esta vazio `[]`) passara a ter este formato:
 
-Funcao `sanitizeCustomerName(input: string): string` que:
+```text
+{
+  "fit": [
+    { "name": "Carne moida", "weight": 100 },
+    { "name": "Aipim", "weight": 150 },
+    { "name": "Mix de salada", "weight": 50 }
+  ],
+  "fitness": [
+    { "name": "Carne moida", "weight": 150 },
+    { "name": "Salada de legumes", "weight": 100 },
+    { "name": "Feijao fradinho", "weight": 200 }
+  ]
+}
+```
 
-- Remove acentos e normaliza o texto para comparacao (sem alterar o nome final se for valido)
-- Substitui caracteres comuns de "leet speak" (0→o, 1→i, 4→a, 3→e, @→a, !→i, etc.)
-- Compara contra uma lista de termos proibidos em portugues (palavroes, termos sexuais, ofensivos)
-- Se qualquer termo proibido for encontrado no nome normalizado, retorna "Cliente"
-- Se o nome estiver vazio, conter apenas simbolos/numeros, ou tiver menos de 2 letras, retorna "Cliente"
-- Permite apenas letras (incluindo acentos), espacos e hifens no nome final
+Nenhuma migracao de banco necessaria - o campo `sides` ja e JSONB e aceita qualquer estrutura.
 
-Lista de termos incluira categorias:
-- Termos sexuais/anatomicos (piroca, pinto, rola, buceta, etc.)
-- Palavroes gerais (porra, merda, caralho, foda, etc.)
-- Xingamentos (viado, puta, corno, etc.)
-- Variantes parciais para capturar derivados (piroquinha, putinha, etc.)
+## Mudancas
 
-A funcao tambem exportara `getOriginalNameForLog(sanitized, original)` que retorna o nome original apenas para uso em logs administrativos.
+### 1. Painel Admin - MenuManager.tsx (aba Sabores)
 
-### 2. Aplicar nos 3 pontos de entrada de nome
+Na listagem de cada sabor, adicionar um botao "Editar Composicao" que abre um mini-formulario inline ou modal com duas colunas:
 
-**`src/components/CartDrawer.tsx`** - Na funcao `handleGoToConfirmation`:
-- Sanitizar `data.name` antes de setar no `formData`
+| FIT (300g) | FITNESS (450g) |
+|---|---|
+| Ingrediente + peso | Ingrediente + peso |
+| [+ Adicionar] | [+ Adicionar] |
 
-**`src/components/CheckoutForm.tsx`** - Na funcao `onSubmit`:
-- Sanitizar `data.name` antes de usar
+- O admin adiciona linhas com nome do ingrediente e peso em gramas
+- O total e calculado automaticamente e exibido (ex: "Total: 300g")
+- Ao salvar, grava no campo `sides` no formato `{ fit: [...], fitness: [...] }`
+- Sabores que nao tiverem composicao preenchida continuam funcionando normalmente (fallback para descricao padrao)
 
-**`src/components/SoftIdentificationModal.tsx`** - Na funcao `validateAndSubmit`:
-- Sanitizar `name` antes de chamar `onConfirm`
+### 2. Funcao utilitaria - src/lib/flavor-description.ts (novo)
 
-### 3. Comportamento
-- Substituicao silenciosa, sem erro visivel ao usuario
-- O nome "Cliente" e usado em todas as automacoes (WhatsApp, e-mail, Asaas)
-- Log do nome original fica disponivel apenas no console para auditoria admin
+```text
+getFlavorDescription(sides: JSON, lineType: 'fit' | 'fitness'): string
+```
+
+Gera automaticamente a descricao legivel, ex:
+- Input: sides.fit = [{ name: "Carne moida", weight: 100 }, { name: "Aipim", weight: 150 }]
+- Output: "100g Carne moida + 150g Aipim"
+
+### 3. Frontend (cliente) - Cardapio e Selecao de Sabores
+
+- `FlavorSelectionModal.tsx`: Ao lado de cada sabor, mostrar a descricao da composicao baseada na linha do pacote selecionado (fit ou fitness)
+- `ProductCard.tsx` / `CategorySection.tsx`: Exibir a descricao na listagem do cardapio quando disponivel
+- A linha (`line_type`) ja vem do pacote selecionado (`marmita_packages.line_type`), entao o sistema ja sabe qual composicao mostrar
+
+### 4. Producao (admin) - ProductionPanel.tsx
+
+- Atualizar `getFlavorSides` para receber o `line_type` do pedido e buscar os pesos corretos (`sides.fit` ou `sides.fitness`)
+- A lista de producao mostrara os pesos exatos por linha
 
 ## Arquivos
 
 | Arquivo | Mudanca |
-|---------|---------|
-| `src/lib/name-sanitizer.ts` | **Novo** - Funcao de sanitizacao com lista de termos |
-| `src/components/CartDrawer.tsx` | Importar e aplicar `sanitizeCustomerName` |
-| `src/components/CheckoutForm.tsx` | Importar e aplicar `sanitizeCustomerName` |
-| `src/components/SoftIdentificationModal.tsx` | Importar e aplicar `sanitizeCustomerName` |
+|---|---|
+| `src/lib/flavor-description.ts` | **Novo** - Funcao para gerar descricao a partir do JSONB |
+| `src/components/admin/MenuManager.tsx` | Adicionar editor de composicao por linha em cada sabor |
+| `src/components/FlavorSelectionModal.tsx` | Exibir descricao da composicao baseada na linha |
+| `src/components/admin/ProductionPanel.tsx` | Usar `line_type` para buscar pesos corretos |
+| `src/hooks/useMenuData.ts` | Incluir `sides` no tipo `MarmitaFlavor` |
 
-## Exemplo da funcao
+## Fluxo
 
-```typescript
-const LEET_MAP: Record<string, string> = {
-  '0': 'o', '1': 'i', '3': 'e', '4': 'a',
-  '5': 's', '7': 't', '@': 'a', '!': 'i',
-  '$': 's',
-};
-
-const BLOCKED_TERMS = [
-  'piroc', 'pirok', 'pint', 'rola', 'bucet', 'buset',
-  'caralh', 'porra', 'merda', 'fod', 'viado',
-  'viada', 'puta', 'corno', 'cacet', 'cu ',
-  'arromb', 'desgraç', 'bagulh', // etc.
-];
-
-export function sanitizeCustomerName(input: string): string {
-  if (!input || !input.trim()) return 'Cliente';
-
-  const cleaned = input.trim();
-  // Remove accents + apply leet map for comparison only
-  const normalized = removeDiacritics(cleaned)
-    .toLowerCase()
-    .split('')
-    .map(c => LEET_MAP[c] || c)
-    .join('')
-    .replace(/[^a-z]/g, '');
-
-  if (normalized.length < 2) return 'Cliente';
-
-  for (const term of BLOCKED_TERMS) {
-    if (normalized.includes(term)) {
-      console.warn('[name-sanitizer] Blocked:', cleaned);
-      return 'Cliente';
-    }
-  }
-
-  // Only allow letters, spaces, hyphens, accents
-  if (!/^[\p{L}\s'-]+$/u.test(cleaned)) return 'Cliente';
-
-  return cleaned;
-}
+```text
+Admin preenche composicao
+        |
+        v
+sides = { fit: [...], fitness: [...] }
+        |
+        v
+  Cliente seleciona pacote Fit 14un
+        |
+        v
+  Modal de sabores mostra: "100g Carne moida + 150g Aipim + 50g Mix"
+        |
+        v
+  Pedido confirmado
+        |
+        v
+  Producao ve: "150g Carne moida + 100g Salada + 200g Feijao" (se fitness)
+              ou "100g Carne moida + 150g Aipim + 50g Mix" (se fit)
 ```
 
-## Resultado
-- "piroquinha" → "Cliente"
-- "cacetinho" → "Cliente"
-- "p1r0c4" → "Cliente"
-- "Carlos Silva" → "Carlos Silva"
-- "" → "Cliente"
-- "!!@@##" → "Cliente"
+## Secao Tecnica
+
+- O campo `sides` ja existe como `Json | null` na tabela `marmita_flavors` - nao precisa de migracao
+- O tipo no `useMenuData.ts` precisa incluir `sides` na interface `MarmitaFlavor`
+- O `saveMarmitaFlavors` no MenuManager precisa salvar o campo `sides` junto
+- O `line_type` do pacote (emagrecimento/hipertrofia) sera mapeado para fit/fitness no JSONB
+- Fallback: se `sides` estiver vazio ou nao tiver a linha, nenhuma descricao e exibida (comportamento atual)
+
