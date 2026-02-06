@@ -2,6 +2,7 @@ import { createContext, useContext, useState, ReactNode, useCallback, useEffect 
 import { useCartTracking } from "@/hooks/useSectionTracking";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
+import { useTenantId } from "@/hooks/useTenantId";
 
 export interface FlavorSelection {
   name: string;
@@ -66,6 +67,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [showIdentificationModal, setShowIdentificationModal] = useState(false);
   const [pendingItem, setPendingItem] = useState<Omit<CartItem, "id"> | null>(null);
   const { trackCartEvent } = useCartTracking();
+  const tenantId = useTenantId();
 
   const isIdentified = !!(customerInfo.phone && customerInfo.name);
 
@@ -172,6 +174,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             utm_source: utmParams?.utm_source || null,
             utm_medium: utmParams?.utm_medium || null,
             utm_campaign: utmParams?.utm_campaign || null,
+            tenant_id: tenantId,
           })
           .eq('phone', info.phone);
 
@@ -194,6 +197,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             utm_source: utmParams?.utm_source || null,
             utm_medium: utmParams?.utm_medium || null,
             utm_campaign: utmParams?.utm_campaign || null,
+            tenant_id: tenantId,
           })
           .select('id')
           .single();

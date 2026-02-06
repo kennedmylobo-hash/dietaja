@@ -6,6 +6,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getUTMParams } from '@/lib/utm';
+import { useTenantId } from './useTenantId';
 
 // Session ID único
 const getSessionId = (): string => {
@@ -44,6 +45,7 @@ export const useSectionTracking = () => {
   const activeSections = useRef<Map<string, SectionTime>>(new Map());
   const trackedEnters = useRef<Set<string>>(new Set());
   const observersRef = useRef<Map<string, IntersectionObserver>>(new Map());
+  const tenantId = useTenantId();
 
   // Enviar evento de seção
   const trackSectionEvent = useCallback(async (
@@ -63,11 +65,12 @@ export const useSectionTracking = () => {
         user_agent: navigator.userAgent,
         utm_source: utmParams.current.utm_source || null,
         utm_campaign: utmParams.current.utm_campaign || null,
+        tenant_id: tenantId,
       });
     } catch (error) {
       console.debug('Section tracking error:', error);
     }
-  }, []);
+  }, [tenantId]);
 
   // Rastrear entrada em seção
   const handleSectionEnter = useCallback((section: string) => {
@@ -179,6 +182,7 @@ export const useCartTracking = () => {
   const sessionId = useRef(getSessionId());
   const utmParams = useRef(getUTMParams());
   const deviceType = useRef(getDeviceType());
+  const tenantId = useTenantId();
 
   const trackCartEvent = useCallback(async (
     eventType: 'cart_open' | 'cart_add' | 'cart_remove' | 'checkout_start' | 'checkout_complete',
@@ -195,11 +199,12 @@ export const useCartTracking = () => {
         utm_source: utmParams.current.utm_source || null,
         utm_campaign: utmParams.current.utm_campaign || null,
         metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : null,
+        tenant_id: tenantId,
       });
     } catch (error) {
       console.debug('Cart tracking error:', error);
     }
-  }, []);
+  }, [tenantId]);
 
   return { trackCartEvent };
 };

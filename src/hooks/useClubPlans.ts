@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantId } from "./useTenantId";
 
 export interface ClubPlan {
   id: string;
@@ -15,13 +16,15 @@ export interface ClubPlan {
 }
 
 export const useClubPlans = () => {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ["club-plans"],
+    queryKey: ["club-plans", tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("club_plans")
         .select("*")
         .eq("active", true)
+        .eq("tenant_id", tenantId)
         .order("sort_order");
 
       if (error) throw error;

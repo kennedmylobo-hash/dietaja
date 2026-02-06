@@ -6,6 +6,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getUTMParams } from '@/lib/utm';
+import { useTenantId } from './useTenantId';
 
 // Gera ou recupera session ID único
 const getSessionId = (): string => {
@@ -39,6 +40,7 @@ export const useAnalytics = () => {
   const sessionId = useRef(getSessionId());
   const pageStartTime = useRef(Date.now());
   const utmParams = useRef(getUTMParams());
+  const tenantId = useTenantId();
 
   // Envia evento para o banco
   const trackEvent = useCallback(async (event: AnalyticsEvent) => {
@@ -54,12 +56,12 @@ export const useAnalytics = () => {
         user_agent: navigator.userAgent,
         utm_source: utmParams.current.utm_source || null,
         utm_campaign: utmParams.current.utm_campaign || null,
+        tenant_id: tenantId,
       });
     } catch (error) {
-      // Silenciar erros de analytics para não impactar UX
       console.debug('Analytics error:', error);
     }
-  }, []);
+  }, [tenantId]);
 
   // Track page view
   const trackPageView = useCallback((page?: string) => {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useTenantId } from './useTenantId';
 
 interface LoyaltyLevel {
   id: string;
@@ -55,6 +56,7 @@ export interface CashbackData {
 }
 
 export const useCashback = (customerEmail?: string) => {
+  const tenantId = useTenantId();
   const [data, setData] = useState<CashbackData>({
     balance: null,
     currentLevel: null,
@@ -86,6 +88,7 @@ export const useCashback = (customerEmail?: string) => {
           .from('loyalty_levels')
           .select('*')
           .eq('active', true)
+          .eq('tenant_id', tenantId)
           .order('sort_order', { ascending: true }),
         supabase
           .from('cashback_balances')
