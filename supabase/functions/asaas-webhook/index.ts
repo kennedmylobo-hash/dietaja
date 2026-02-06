@@ -72,7 +72,7 @@ serve(async (req) => {
     // Check if order already processed
     const { data: existingOrder, error: checkError } = await supabase
       .from('orders')
-      .select('status, stock_decremented, customer_email, customer_phone, order_number')
+      .select('status, stock_decremented, customer_email, customer_phone, order_number, tenant_id')
       .eq('id', orderId)
       .maybeSingle();
 
@@ -149,14 +149,15 @@ serve(async (req) => {
           
           // Record cancellation in history
           for (const cancelled of cancelledOrders) {
-            await supabase.from('order_status_history').insert({
-              order_id: cancelled.id,
-              previous_status: 'pending',
-              new_status: 'cancelled',
-              changed_by_name: 'Sistema',
-              notes: `Cancelado automaticamente - Pedido #${order.order_number} foi pago`
-            });
-          }
+              await supabase.from('order_status_history').insert({
+                order_id: cancelled.id,
+                previous_status: 'pending',
+                new_status: 'cancelled',
+                changed_by_name: 'Sistema',
+                notes: `Cancelado automaticamente - Pedido #${order.order_number} foi pago`,
+                tenant_id: order.tenant_id || '00000000-0000-0000-0000-000000000001',
+              });
+            }
         }
 
         // Mark cart as converted

@@ -172,7 +172,8 @@ serve(async (req) => {
                     previous_status: 'awaiting_payment',
                     new_status: 'cancelled',
                     changed_by_name: 'Sistema',
-                    notes: `Cancelado automaticamente - Pedido #${order.order_number} foi pago`
+                    notes: `Cancelado automaticamente - Pedido #${order.order_number} foi pago`,
+                    tenant_id: order.tenant_id || '00000000-0000-0000-0000-000000000001',
                   });
                 }
               }

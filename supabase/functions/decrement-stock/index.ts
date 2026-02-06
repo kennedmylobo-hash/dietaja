@@ -41,7 +41,7 @@ serve(async (req) => {
     // Fetch the order
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, items, stock_decremented')
+      .select('id, items, stock_decremented, tenant_id')
       .eq('id', order_id)
       .single();
 
@@ -93,6 +93,7 @@ serve(async (req) => {
           .from(tableName)
           .select('id, name, stock_quantity')
           .eq('name', flavorName)
+          .eq('tenant_id', order.tenant_id || '00000000-0000-0000-0000-000000000001')
           .maybeSingle();
 
         if (fetchError) {
@@ -137,6 +138,7 @@ serve(async (req) => {
             quantity_after: newStock,
             quantity_change: -flavorQuantity,
             notes: `Pedido #${order_id.slice(0, 8)}`,
+            tenant_id: order.tenant_id || '00000000-0000-0000-0000-000000000001',
           });
         }
       }

@@ -22,7 +22,8 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json();
-    const { plan_id, kit_type, kit_name, price, customer, delivery } = body;
+    const { plan_id, kit_type, kit_name, price, customer, delivery, tenant_id } = body;
+    const effectiveTenantId = tenant_id || '00000000-0000-0000-0000-000000000001';
 
     console.log('[create-club-subscription] Starting:', { kit_type, kit_name, price, customer: customer.name });
 
@@ -124,6 +125,7 @@ serve(async (req) => {
         request_payload: subscriptionPayload,
         customer_phone: customer.phone,
         customer_email: customer.email,
+        tenant_id: effectiveTenantId,
       });
 
       throw new Error('Erro ao criar assinatura no gateway');
@@ -147,6 +149,7 @@ serve(async (req) => {
       price,
       status: 'active',
       next_due_date: formattedDate,
+      tenant_id: effectiveTenantId,
     });
 
     if (insertError) {

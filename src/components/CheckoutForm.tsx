@@ -117,6 +117,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           phone: data.phone,
           deliveryOption: data.deliveryOption,
           address: data.address,
+          tenant_id: tenantId,
         },
       });
 

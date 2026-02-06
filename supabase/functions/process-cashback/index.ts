@@ -30,8 +30,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { action, ...params } = await req.json();
-    console.log(`[process-cashback] Action: ${action}`, params);
+    const { action, tenant_id: reqTenantId, ...params } = await req.json();
+    const effectiveTenantId = reqTenantId || '00000000-0000-0000-0000-000000000001';
+    console.log(`[process-cashback] Action: ${action}, tenant: ${effectiveTenantId}`, params);
 
     if (action === 'credit') {
       // Credit cashback after order is approved
@@ -41,7 +42,7 @@ serve(async (req) => {
       let balance = await getOrCreateBalance(supabase, customer_email);
 
       // Get customer's current level
-      const level = await getCustomerLevel(supabase, balance.total_orders, balance.total_spent);
+      const level = await getCustomerLevel(supabase, balance.total_orders, balance.total_spent, effectiveTenantId);
       if (!level) {
         console.error('[process-cashback] No loyalty levels configured');
         return new Response(
@@ -85,6 +86,7 @@ serve(async (req) => {
           expires_at: expiresAt.toISOString(),
           level_slug: level.slug,
           notes: `Cashback de ${level.cashback_percent}% no pedido`,
+          tenant_id: effectiveTenantId,
         });
 
       if (txError) {
@@ -155,6 +157,7 @@ serve(async (req) => {
           amount,
           balance_after: newBalance,
           notes: 'Cashback utilizado no pedido',
+          tenant_id: effectiveTenantId,
         });
 
       if (txError) {
@@ -281,12 +284,18 @@ async function getOrCreateBalance(supabase: any, customerEmail: string) {
   return newBalance;
 }
 
-async function getCustomerLevel(supabase: any, totalOrders: number, totalSpent: number) {
-  const { data: levels, error } = await supabase
+async function getCustomerLevel(supabase: any, totalOrders: number, totalSpent: number, tenantId?: string) {
+  const query = supabase
     .from('loyalty_levels')
     .select('*')
     .eq('active', true)
     .order('sort_order', { ascending: true });
+  
+  if (tenantId) {
+    query.eq('tenant_id', tenantId);
+  }
+  
+  const { data: levels, error } = await query;
 
   if (error || !levels?.length) return null;
 

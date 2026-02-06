@@ -10,6 +10,7 @@ interface RequestBody {
   code: string;
   customer_email: string;
   subtotal: number;
+  tenant_id?: string;
 }
 
 serve(async (req) => {
@@ -23,7 +24,8 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body: RequestBody = await req.json();
-    const { code, customer_email, subtotal } = body;
+    const { code, customer_email, subtotal, tenant_id } = body;
+    const effectiveTenantId = tenant_id || '00000000-0000-0000-0000-000000000001';
 
     const couponCode = code.trim().toUpperCase();
     
@@ -42,6 +44,7 @@ serve(async (req) => {
       .select('*')
       .eq('code', couponCode)
       .eq('is_active', true)
+      .eq('tenant_id', effectiveTenantId)
       .maybeSingle();
 
     if (couponError) {
@@ -77,6 +80,7 @@ serve(async (req) => {
         .select('*')
         .eq('coupon_code', couponCode)
         .eq('is_active', true)
+        .eq('tenant_id', effectiveTenantId)
         .maybeSingle();
 
       if (marketingError) {
