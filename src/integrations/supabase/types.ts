@@ -1735,6 +1735,7 @@ export type Database = {
           is_active: boolean
           logo_url: string | null
           og_image_url: string | null
+          order_prefix: string
           owner_user_id: string | null
           pickup_neighborhood: string
           plan_due_date: string | null
@@ -1761,6 +1762,7 @@ export type Database = {
           is_active?: boolean
           logo_url?: string | null
           og_image_url?: string | null
+          order_prefix?: string
           owner_user_id?: string | null
           pickup_neighborhood?: string
           plan_due_date?: string | null
@@ -1787,6 +1789,7 @@ export type Database = {
           is_active?: boolean
           logo_url?: string | null
           og_image_url?: string | null
+          order_prefix?: string
           owner_user_id?: string | null
           pickup_neighborhood?: string
           plan_due_date?: string | null

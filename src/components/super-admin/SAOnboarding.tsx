@@ -25,6 +25,7 @@ export default function SAOnboarding() {
     admin_password: "",
     plan_type: "basico",
     primary_color: "#22c55e",
+    order_prefix: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,6 +56,7 @@ export default function SAOnboarding() {
         admin_password: "",
         plan_type: "basico",
         primary_color: "#22c55e",
+        order_prefix: "",
       });
     } catch (err: any) {
       toast({ title: "Erro no onboarding", description: err.message, variant: "destructive" });
@@ -106,6 +108,17 @@ export default function SAOnboarding() {
             <div>
               <Label>WhatsApp</Label>
               <Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="5511999999999" />
+            </div>
+            <div>
+              <Label>Prefixo do Pedido *</Label>
+              <Input
+                value={form.order_prefix}
+                onChange={(e) => setForm({ ...form, order_prefix: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5) })}
+                placeholder="MFT"
+                maxLength={5}
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">Ex: MFT → pedidos serão MFT-0001, MFT-0002…</p>
             </div>
             <div>
               <Label>Cor Primária</Label>
