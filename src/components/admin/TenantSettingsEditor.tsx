@@ -37,6 +37,7 @@ export default function TenantSettingsEditor() {
     delivery_fee: 0,
     facebook_pixel_id: "",
     google_analytics_id: "",
+    domain: "",
   });
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function TenantSettingsEditor() {
         delivery_fee: tenant.delivery_fee || 0,
         facebook_pixel_id: tenant.facebook_pixel_id || "",
         google_analytics_id: tenant.google_analytics_id || "",
+        domain: tenant.domain || "",
       });
     }
   }, [tenant]);
@@ -142,6 +144,16 @@ export default function TenantSettingsEditor() {
             <div>
               <Label>Taxa de Entrega (R$)</Label>
               <Input type="number" value={form.delivery_fee} onChange={(e) => setForm({ ...form, delivery_fee: Number(e.target.value) })} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+            <div className="md:col-span-2">
+              <Label>Domínio Personalizado</Label>
+              <Input value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} placeholder="www.meurestaurante.com.br" />
+              <p className="text-xs text-muted-foreground mt-1">
+                Configure o DNS do seu domínio apontando para o IP <code className="bg-muted px-1 rounded">185.158.133.1</code> (registro A) ou CNAME para <code className="bg-muted px-1 rounded">suaplataforma.com.br</code>
+              </p>
             </div>
           </div>
 
