@@ -1,187 +1,158 @@
 
 
-# Fase 3 -- Isolamento Multi-tenant (RLS + Queries Frontend + Edge Functions)
+# Painel Admin: Editor de Landing Page por Tenant
 
 ## Objetivo
 
-Garantir que cada restaurante (tenant) veja **somente** seus dados em todas as camadas: banco de dados (RLS), frontend (queries) e backend (edge functions). Adicionalmente, ao onboarding de novos tenants, o cardapio do Dieta Ja sera oferecido como modelo opcional para clonagem.
+Permitir que cada restaurante (tenant) personalize completamente sua landing page pelo painel admin, editando textos, imagens, depoimentos e secoes -- sem precisar mexer em codigo.
 
 ---
 
-## Parte A -- RLS Policies (Migracao SQL)
+## Arquitetura
 
-Atualizar as politicas RLS das ~20 tabelas que possuem `tenant_id` para filtrar por tenant. A estrategia sera:
-
-- **Tabelas publicas (leitura anonima)**: Adicionar `tenant_id = current_setting('app.current_tenant_id')::uuid` ou manter filtro via query frontend (mais simples e sem exigir configuracao de settings no client). **Decisao: filtrar pelo frontend**, ja que o client envia o `tenant_id` nas queries e o RLS garante que admins so vejam dados do seu tenant.
-
-- **Tabelas de admin**: Trocar `has_role(auth.uid(), 'admin')` por `has_role(auth.uid(), 'admin') AND tenant_id = get_current_tenant_id()` para SELECT/UPDATE/DELETE/ALL.
-
-- **Tabelas de INSERT publico** (orders, leads, carts, analytics_events, reviews): Manter INSERT aberto mas adicionar `tenant_id` default no insert.
-
-### Tabelas e mudancas de RLS
-
-| Tabela | Politica atual | Mudanca |
-|--------|---------------|---------|
-| `orders` | Admin vee tudo | Admin filtra por `tenant_id = get_current_tenant_id()` |
-| `marmita_packages` | Admin ALL, Anyone SELECT | Admin ALL com tenant_id, Anyone SELECT com tenant_id (via query) |
-| `marmita_flavors` | Admin ALL, Anyone SELECT | Idem |
-| `marmita_sides` | Admin ALL, Anyone SELECT | Idem |
-| `kit_packages` | Admin ALL, Anyone SELECT | Idem |
-| `kit_soups` | Admin ALL, Anyone SELECT | Idem |
-| `kit_juices` | Admin ALL, Anyone SELECT | Idem |
-| `menu_categories` | Admin ALL, Anyone SELECT | Idem |
-| `carts` | Admin SELECT/UPDATE | Admin filtra por tenant_id |
-| `leads` | Admin SELECT | Admin filtra por tenant_id |
-| `analytics_events` | Admin SELECT | Admin filtra por tenant_id |
-| `reviews` | Admin ALL, Anyone SELECT approved | Admin com tenant_id |
-| `coupons` | Admin ALL, Anyone SELECT active | Admin com tenant_id |
-| `coupon_usage` | Admin SELECT | Admin com tenant_id |
-| `cashback_balances` | Admin SELECT | Admin com tenant_id |
-| `cashback_transactions` | Admin SELECT | Admin com tenant_id |
-| `club_plans` | Admin ALL, Anyone SELECT | Admin com tenant_id |
-| `club_subscriptions` | Admin SELECT | Admin com tenant_id |
-| `marketing_messages` | Admin ALL | Admin com tenant_id |
-| `recurring_customers` | Admin ALL | Admin com tenant_id |
-| `reminder_settings` | Admin ALL | Admin com tenant_id |
-| `order_status_history` | Admin SELECT/INSERT | Admin com tenant_id |
-| `stock_movements` | Admin SELECT/INSERT | Admin com tenant_id |
-| `notification_events` | Admin SELECT | Admin com tenant_id |
-| `payment_error_logs` | Admin SELECT | Admin com tenant_id |
-| `loyalty_levels` | Admin ALL, Anyone SELECT | Admin com tenant_id |
-| `recompra_campaigns` | Admin SELECT | Admin com tenant_id |
-| `pending_notifications` | Service role ALL | Sem mudanca (service role) |
-| `profiles` | Admin SELECT, Users own | Admin com tenant_id |
-
-A migracao SQL ira:
-1. Dropar as policies antigas de admin
-2. Recriar com filtro `tenant_id = get_current_tenant_id()` usando a funcao ja existente
-3. Para tabelas de leitura publica, manter as policies atuais (o filtro sera feito na query)
+Criar uma tabela `tenant_landing_content` que armazena blocos de conteudo editavel por secao, e um novo modulo "Minha Loja" no admin para gerenciar tudo.
 
 ---
 
-## Parte B -- Frontend: Queries com tenant_id
+## Parte 1 -- Tabela de conteudo da landing page
 
-Adaptar todos os hooks e componentes que fazem queries ao Supabase para incluir `.eq('tenant_id', tenant.id)` usando o contexto do `useTenant()`.
+Criar a tabela `tenant_landing_content` com a seguinte estrutura:
 
-### Arquivos afetados
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| section_key | text | Identificador da secao (ex: `hero`, `testimonials`, `banners`) |
+| content | jsonb | Conteudo editavel da secao |
+| is_visible | boolean | Se a secao esta ativa |
+| sort_order | integer | Ordem de exibicao |
+| created_at / updated_at | timestamptz | |
 
-**Hooks de dados publicos (cardapio):**
-- `src/hooks/useMenuData.ts` -- Adicionar `tenant_id` filter em todos os 7 hooks (useMarmitaPackages, useMarmitaFlavors, useKitPackages, etc.)
-- `src/hooks/useMenuCategories.ts` -- Adicionar `tenant_id` filter
-- `src/hooks/useClubPlans.ts` -- Adicionar `tenant_id` filter
+Unique constraint em `(tenant_id, section_key)`.
 
-**Hooks de analytics/tracking:**
-- `src/hooks/useAnalytics.ts` -- Inserir `tenant_id` nos inserts de analytics_events
-- `src/hooks/useSectionTracking.ts` -- Inserir `tenant_id` nos inserts
+### Secoes editaveis (section_key)
 
-**Hooks de cashback:**
-- `src/hooks/useCashback.ts` -- Queries de loyalty_levels, cashback_balances, cashback_transactions (tenant_id filter para leitura publica)
+1. **`hero`** -- Titulo principal, subtitulo, badges (ex: "Retirada gratis"), social proof ("200+ kits"), video/imagem de fundo (URL)
+2. **`identification`** -- Texto emocional principal e subtexto
+3. **`testimonials`** -- Array de depoimentos (nome, cargo, frase, iniciais)
+4. **`solution`** -- Texto principal e lista de features
+5. **`before_after`** -- Items do "antes" e "depois"
+6. **`product_gallery`** -- Titulo, badges, video/imagem URL
+7. **`banners`** -- Array de banners promocionais (titulo, subtitulo, descricao)
+8. **`guarantee`** -- Array de garantias (titulo, descricao, icone)
+9. **`faq`** -- Array de perguntas e respostas
+10. **`custom_diet`** -- Textos da secao dieta personalizada
 
-**Cart e Checkout:**
-- `src/components/CartContext.tsx` -- Adicionar `tenant_id` nos inserts/updates de carts
-- `src/components/CartDrawer.tsx` -- Adicionar `tenant_id` nos inserts de orders
-- `src/components/CheckoutForm.tsx` -- Passa tenant_id para edge functions
+### RLS
 
-**Componentes Admin (todos precisam de tenant_id filter):**
-- `src/components/admin/OrdersManager.tsx`
-- `src/components/admin/KPIDashboard.tsx`
-- `src/components/admin/LiveCarts.tsx`
-- `src/components/admin/LiveVisitors.tsx`
-- `src/components/admin/ProductionPanel.tsx`
-- `src/components/admin/MenuManager.tsx`
-- `src/components/admin/CategoryManager.tsx`
-- `src/components/admin/SidesManager.tsx`
-- `src/components/admin/ReviewsManager.tsx`
-- `src/components/admin/CustomersManager.tsx`
-- `src/components/admin/MarketingManager.tsx`
-- `src/components/admin/StockReport.tsx`
-- `src/components/admin/StockHistory.tsx`
-- `src/components/admin/RecurringCustomers.tsx`
-- `src/components/admin/AbandonedCartsRecovery.tsx`
-- `src/components/admin/PendingOrdersRecovery.tsx`
-- `src/components/admin/NotificationStats.tsx`
-- `src/components/admin/FunnelReport.tsx`
-- `src/components/admin/WhatsAppOrderImporter.tsx`
-- `src/components/admin/PaymentErrorLogs.tsx`
+- SELECT publico (qualquer um pode ler para renderizar a landing)
+- INSERT/UPDATE/DELETE apenas admin do tenant
 
-**Paginas:**
-- `src/pages/Admin.tsx` -- Queries de leads e analytics_events com tenant_id
-- `src/pages/Avaliar.tsx` -- Insert de reviews com tenant_id
-- `src/pages/StatusPedido.tsx` -- Query de orders com tenant_id
+---
 
-### Estrategia de implementacao
+## Parte 2 -- Seed do conteudo padrao
 
-Criar um hook utilitario `useTenantId()` que retorna o `tenant.id` do contexto, simplificando o uso:
+Ao criar um novo tenant (edge function `create-tenant`), inserir automaticamente os registros de `tenant_landing_content` com o conteudo padrao (mesmo conteudo hardcoded atual do Dieta Ja). Isso permite que o novo restaurante tenha uma landing funcional imediatamente e edite conforme desejar.
 
-```typescript
-// Nos hooks de dados
-const { tenant } = useTenant();
-// Nas queries
-.eq('tenant_id', tenant?.id)
+---
+
+## Parte 3 -- Modulo Admin: "Minha Loja"
+
+Adicionar uma nova secao no `AdminSidebar` chamada **"Minha Loja"** (icone Store/Palette) com sub-secoes:
+
+### 3.1 -- Dados do Restaurante
+Editor para campos da tabela `tenants`:
+- Nome da marca, slogan
+- Logo (upload para Storage)
+- Cor primaria (color picker)
+- Cidade, estado, bairro de retirada
+- WhatsApp, taxa de entrega
+- Facebook Pixel ID, Google Analytics ID
+
+### 3.2 -- Editor de Secoes da Landing
+Interface visual para cada secao editavel:
+
+- **Hero**: Campos para titulo, subtitulo, badges (adicionar/remover), texto de social proof, upload de video/imagem de fundo
+- **Depoimentos**: Lista editavel (adicionar, editar, remover depoimentos) com campos nome, cargo, frase
+- **Banners Promo**: Lista editavel de banners com titulo, subtitulo, descricao
+- **FAQ**: Lista editavel de perguntas e respostas
+- **Secoes On/Off**: Toggle para mostrar/esconder cada secao (ex: desativar "Antes/Depois" se nao aplicavel)
+
+Cada secao tera um formulario com "Salvar" que faz upsert na `tenant_landing_content`.
+
+### 3.3 -- Imagens e Midias
+- Upload de logo, hero background, imagens de galeria
+- Utilizara Lovable Cloud Storage (bucket `tenant-assets`)
+- URLs salvas no `content` JSONB ou na tabela `tenants`
+
+---
+
+## Parte 4 -- Frontend: Renderizar conteudo dinamico
+
+Criar um hook `useLandingContent(sectionKey)` que busca o conteudo de `tenant_landing_content` para o tenant atual. Os componentes da landing serao atualizados para:
+
+1. Tentar carregar conteudo do banco (via hook)
+2. Usar fallback hardcoded se nao houver registro (compatibilidade retroativa com Dieta Ja)
+
+Exemplo de fluxo:
+
+```text
+HeroSection
+  |
+  +-- useLandingContent('hero')
+  |     |
+  |     +-- Dados do banco? --> Renderiza dinamico
+  |     +-- Sem dados? -------> Usa conteudo hardcoded atual
 ```
 
-Para os hooks que usam `useQuery`, o `tenant_id` sera parte da `queryKey` para cache correto por tenant.
+### Componentes a atualizar:
+- `HeroSection.tsx` -- titulo, subtitulo, badges, social proof, video URL
+- `IdentificationSection.tsx` -- textos emocionais
+- `TestimonialsSection.tsx` -- lista de depoimentos
+- `SolutionSection.tsx` -- textos e features
+- `BeforeAfterSection.tsx` -- items antes/depois
+- `ProductGallerySection.tsx` -- titulo, badges, video
+- `PromoBannersSection.tsx` -- banners
+- `GuaranteeSection.tsx` -- garantias
+- `FAQSection.tsx` -- perguntas
+- `ValueSection.tsx` -- beneficios
 
 ---
 
-## Parte C -- Edge Functions com tenant_id
+## Parte 5 -- Storage para imagens
 
-Todas as edge functions que leem/escrevem no banco precisam receber e/ou resolver o `tenant_id`. A estrategia:
-
-1. **Edge functions chamadas pelo frontend** (create-asaas-pix, validate-coupon, create-club-subscription, etc.): Receber `tenant_id` no body da requisicao
-2. **Edge functions de webhook** (asaas-webhook, notificame-webhook, resend-webhook): Resolver tenant_id a partir do order_id
-3. **Edge functions de cron/batch** (send-cart-reminders, send-recompra-campaigns, etc.): Iterar por tenant ou resolver tenant_id do registro
-
-### Edge functions a atualizar (~20)
-
-Cada uma precisara incluir `tenant_id` nos INSERTs e filtrar por `tenant_id` nos SELECTs:
-- `create-asaas-pix` -- Recebe tenant_id, passa para insert de orders
-- `asaas-webhook` -- Resolve tenant_id do order
-- `validate-coupon` -- Filtra cupons por tenant_id
-- `create-club-subscription` -- Insere com tenant_id
-- `create-customer-account` -- Insere profile com tenant_id
-- `decrement-stock` -- Filtra por tenant_id
-- `process-cashback` -- Filtra por tenant_id
-- `send-order-confirmation`, `send-order-approved`, `send-order-whatsapp`, `send-order-pending-email`, `send-status-notification` -- Resolve do order
-- `send-cart-reminders`, `send-pending-reminders` -- Resolve do cart/order
-- `send-recompra-campaigns`, `send-review-request` -- Resolve do order
-- `generate-pix-admin` -- Recebe tenant_id
-- `check-payment-status`, `cancel-asaas-payment`, `get-pix-details`, `get-order-status` -- Resolve do order
-
----
-
-## Parte D -- Clonagem de Cardapio (Sugestao do Dieta Ja)
-
-Atualizar a edge function `create-tenant` para aceitar um parametro opcional `clone_menu_from` (tenant_id de origem). Quando informado:
-
-1. Copiar todos os `marmita_packages` do tenant origem para o novo (com novo tenant_id)
-2. Copiar `marmita_flavors` e `marmita_sides`
-3. Copiar `kit_packages`, `kit_soups`, `kit_juices`
-4. Copiar `menu_categories`
-5. Copiar `loyalty_levels` e `club_plans`
-
-Atualizar o formulario de onboarding em `SAOnboarding.tsx` com um checkbox "Clonar cardapio do Dieta Ja como modelo" (pre-marcado).
+Criar um bucket `tenant-assets` no Lovable Cloud Storage com:
+- Politica publica de leitura
+- Upload restrito ao admin do tenant
+- Organizacao: `tenant-assets/{tenant_id}/hero.jpg`, `tenant-assets/{tenant_id}/logo.png`, etc.
 
 ---
 
 ## Secao Tecnica -- Resumo de Mudancas
 
-### Migracao SQL (1 grande migracao)
-- DROP + CREATE de ~50 RLS policies para ~27 tabelas
-- Todas as policies de admin passam a incluir `tenant_id = get_current_tenant_id()`
+### Migracao SQL
+- Criar tabela `tenant_landing_content` com RLS
+- Criar bucket de storage `tenant-assets`
+- Seed do conteudo padrao para tenant Dieta Ja
 
-### Arquivos frontend (~30 arquivos)
-- Todos os hooks de dados: adicionar `.eq('tenant_id', tenant?.id)` e `tenant_id` na queryKey
-- Todos os inserts: incluir `tenant_id` no payload
-- Componentes admin: filtrar queries pelo tenant do admin logado
+### Novos componentes admin (~3 arquivos)
+- `src/components/admin/LandingEditor.tsx` -- Editor principal com abas por secao
+- `src/components/admin/TenantSettingsEditor.tsx` -- Editor de dados do restaurante (tabela tenants)
+- `src/components/admin/SectionEditor.tsx` -- Componente reutilizavel para editar arrays (depoimentos, FAQ, banners)
 
-### Edge functions (~20 funcoes)
-- Adicionar `tenant_id` nos inserts
-- Filtrar reads por `tenant_id`
-- Edge function `create-tenant`: adicionar logica de clonagem de cardapio
+### Hook novo
+- `src/hooks/useLandingContent.ts` -- Busca conteudo da landing por section_key e tenant_id
+
+### Arquivos editados
+- `AdminSidebar.tsx` -- Adicionar grupo "Minha Loja"
+- `Admin.tsx` -- Renderizar novos componentes
+- ~10 componentes da landing -- Usar hook `useLandingContent` com fallback
+
+### Edge function
+- `create-tenant` -- Adicionar seed de `tenant_landing_content` no onboarding
 
 ### Impacto
-- Zero breaking change para o tenant "Dieta Ja" (tenant_id default ja existe em todos os registros)
-- Novos tenants terao isolamento completo
-- Admins de cada tenant verao apenas seus dados
+- Zero breaking change: Dieta Ja continua funcionando com fallback hardcoded
+- Novos tenants recebem conteudo editavel desde o primeiro dia
+- Admins podem personalizar tudo sem suporte tecnico
 
