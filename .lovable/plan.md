@@ -1,77 +1,32 @@
 
-# Restaurar Sidebar Fixa no Admin
+# Corrigir nomes genéricos "Proteína" nos escondidinhos
 
-## Objetivo
-Restaurar o layout de sidebar vertical fixa (como na imagem de referencia) no lugar das abas horizontais atuais. Este layout sera permanente.
+## Problema
+Os 5 escondidinhos no banco de dados estão com o nome genérico "Proteína" no campo `sides`, ao inves do nome real da proteina do prato. Isso aparece no cardapio do cliente como "175g Proteina" e tambem sairia assim na impressao para a cozinha.
 
-## Layout da Referencia (imagem)
-- Sidebar fixa a esquerda (240px) com fundo branco e borda direita
-- Header "Painel Admin / Dieta Ja" no topo da sidebar
-- Grupos de menu: OPERACOES, ANALYTICS, GESTAO, MARKETING, ERROS
-- Item ativo com fundo verde e texto branco
-- Icones ao lado de cada item
-- Conteudo principal a direita com filtros no topo
-- Mobile: hamburger menu com drawer
+## O que sera feito
+Atualizar o campo `sides` (JSONB) dos 5 escondidinhos para trocar "Proteina" pelo nome correto:
 
-## Mudancas
+| Sabor | Antes | Depois |
+|-------|-------|--------|
+| Escondidinho de carne bovina com pure de aipim | Proteina | Carne bovina |
+| Escondidinho de carne bovina com pure de batata doce | Proteina | Carne bovina |
+| Escondidinho de carne bovina com pure de abobora | Proteina | Carne bovina |
+| Escondidinho de frango com pure de aipim | Proteina | Frango |
+| Escondidinho de frango com pure de batata doce | Proteina | Frango |
 
-### 1. Admin.tsx - Substituir abas horizontais pela AdminSidebar
-
-- Remover o bloco de `Tabs`/`TabsList`/`TabsTrigger` (linhas 1280-1294)
-- Importar e usar o componente `AdminSidebar` que ja existe em `src/components/admin/AdminSidebar.tsx`
-- Reestruturar o layout para:
-  - Desktop: sidebar fixa 240px a esquerda + conteudo com `ml-60`
-  - Mobile: header fixo com hamburger + conteudo com `mt-16`
-- Mover os filtros (origem, local, periodo) e botoes (Simular, Sair) para dentro da area de conteudo principal
-- Remover imports de `Tabs`, `TabsList`, `TabsTrigger`
-
-### 2. AdminSidebar.tsx - Manter como esta
-
-O componente `AdminSidebar` ja existe e tem exatamente o layout da imagem com todos os grupos e itens necessarios. Nenhuma alteracao necessaria.
-
-## Estrutura Final do Layout
-
-```text
-+------------------+------------------------------------------+
-| Sidebar (240px)  |  Filtros (origem, local, periodo) + Sair |
-| fixo a esquerda  |------------------------------------------|
-|                  |                                          |
-| OPERACOES        |  Conteudo da secao ativa                 |
-|  Ao Vivo         |                                          |
-|  Pedidos  [ativo]|                                          |
-|  Producao        |                                          |
-|  Recorrentes     |                                          |
-|  Importar        |                                          |
-|                  |                                          |
-| ANALYTICS        |                                          |
-|  Dashboard       |                                          |
-|  Analytics       |                                          |
-|  Funil           |                                          |
-|  Clientes        |                                          |
-|                  |                                          |
-| GESTAO           |                                          |
-|  Cardapio        |                                          |
-|  Estoque         |                                          |
-|  Historico       |                                          |
-|  Avaliacoes      |                                          |
-|                  |                                          |
-| MARKETING        |                                          |
-|  Campanhas       |                                          |
-|  Notificacoes    |                                          |
-|  Recuperar       |                                          |
-|                  |                                          |
-| ERROS            |                                          |
-|  Erros PIX       |                                          |
-+------------------+------------------------------------------+
-```
+## Resultado esperado
+- **Cliente**: Vera "120g Carne bovina + 180g Pure de aipim" (Fit) ou "175g Carne bovina + 275g Pure de aipim" (Fitness)
+- **Cozinha/Producao**: A impressao do pedido ja usa esses mesmos dados, entao vai sair com o peso certinho de cada ingrediente por sabor e por linha (Fit ou Fitness)
 
 ## Secao Tecnica
 
-**Arquivo modificado:** `src/pages/Admin.tsx`
+5 updates SQL no campo `sides` da tabela `marmita_flavors`:
 
-- Remover imports: `Tabs, TabsList, TabsTrigger`
-- Adicionar import: `AdminSidebar` de `@/components/admin/AdminSidebar`
-- Trocar o return do dashboard (linhas ~1196-1303) para usar o layout com sidebar:
-  - `AdminSidebar` com props `activeSection` e `onSectionChange={setActiveSection}`
-  - Main content com `md:ml-60` e `md:pt-0 pt-16`
-  - Filtros e botoes dentro do main content como barra de ferramentas
+- `ee4d579a` (Esc. carne bovina + aipim): "Proteina" -> "Carne bovina" em fit e fitness
+- `9a9d91af` (Esc. carne bovina + batata doce): "Proteina" -> "Carne bovina"
+- `403cb1f4` (Esc. carne bovina + abobora): "Proteina" -> "Carne bovina"
+- `45f4a930` (Esc. frango + aipim): "Proteina" -> "Frango"
+- `b8de8055` (Esc. frango + batata doce): "Proteina" -> "Frango"
+
+Nenhum arquivo de codigo precisa ser alterado — apenas dados no banco.
