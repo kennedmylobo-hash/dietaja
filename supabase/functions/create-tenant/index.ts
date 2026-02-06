@@ -49,7 +49,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { brand_name, slug, city, state, whatsapp, admin_email, admin_password, plan_type, primary_color, clone_menu_from } = body;
+    const { brand_name, slug, city, state, whatsapp, admin_email, admin_password, plan_type, primary_color, clone_menu_from, order_prefix } = body;
 
     if (!brand_name || !slug || !admin_email || !admin_password) {
       return new Response(JSON.stringify({ error: "Campos obrigatórios faltando" }), {
@@ -97,6 +97,7 @@ serve(async (req) => {
         plan_price: planPrice,
         plan_status: "active",
         owner_user_id: newUser.user.id,
+        order_prefix: order_prefix || slug.toUpperCase().slice(0, 3),
       })
       .select()
       .single();

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -15,11 +16,7 @@ interface OrderItem {
   unitPrice: number;
   totalPrice: number;
   type: string;
-  flavors?: Array<{
-    name: string;
-    quantity: number;
-    category?: string;
-  }>;
+  flavors?: Array<{ name: string; quantity: number; category?: string }>;
 }
 
 interface OrderApprovedRequest {
@@ -34,6 +31,7 @@ interface OrderApprovedRequest {
   delivery_option: string;
   delivery_address?: string;
   payment_method?: string;
+  tenant_id?: string;
 }
 
 function formatPhone(phone: string): string {
@@ -49,325 +47,155 @@ function formatItemsList(items: OrderItem[]): string {
   return items.map(item => `${item.quantity}x ${item.name}`).join(', ');
 }
 
-// Send WhatsApp template message using correct NotificaMe API format
 async function sendWhatsAppTemplate(
-  phone: string,
-  templateName: string,
-  fields: Record<string, string>,
-  apiToken: string,
-  channelToken: string,
-  orderNumber: string,
-  supabaseClient: any,
-  orderId?: string
+  phone: string, templateName: string, fields: Record<string, string>,
+  apiToken: string, channelToken: string, orderNumber: string,
+  supabaseClient: any, orderId?: string, tenantId?: string
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   try {
     const formattedPhone = formatPhone(phone);
-    
-    console.log(`[WHATSAPP] Sending template "${templateName}" to ${formattedPhone} for order ${orderNumber}`);
-    console.log(`[WHATSAPP] Fields:`, JSON.stringify(fields));
+    console.log(`[WHATSAPP] Sending template "${templateName}" to ${formattedPhone}`);
 
-    // Convert fields object to ordered parameters array per NotificaMe docs
     const fieldKeys = Object.keys(fields).sort((a, b) => Number(a) - Number(b));
-    const parameters = fieldKeys.map(key => ({
-      type: "text",
-      text: fields[key]
-    }));
+    const parameters = fieldKeys.map(key => ({ type: "text", text: fields[key] }));
 
-    // Correct payload format per NotificaMe API documentation
     const payload = {
-      from: channelToken,
-      to: formattedPhone,
-      contents: [{
-        type: 'template',
-        template: {
-          name: templateName,
-          language: {
-            code: 'pt_BR'
-          },
-          components: [
-            {
-              type: 'body',
-              parameters: parameters
-            }
-          ]
-        }
-      }],
+      from: channelToken, to: formattedPhone,
+      contents: [{ type: 'template', template: { name: templateName, language: { code: 'pt_BR' }, components: [{ type: 'body', parameters }] } }],
     };
-
-    console.log(`[WHATSAPP] Full payload:`, JSON.stringify(payload, null, 2));
 
     const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
       method: 'POST',
-      headers: {
-        'X-Api-Token': apiToken,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'X-Api-Token': apiToken, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
     const responseText = await response.text();
     let responseJson = null;
-    try {
-      responseJson = JSON.parse(responseText);
-    } catch (e) {}
-    console.log(`[WHATSAPP] NotificaMe FULL response for ${orderNumber}:`, JSON.stringify({
-      status: response.status,
-      statusText: response.statusText,
-      body: responseJson || responseText,
-      headers: Object.fromEntries(response.headers.entries())
-    }));
-
+    try { responseJson = JSON.parse(responseText); } catch (_e) {}
     const messageId = responseJson?.id || responseJson?.messageId;
 
     if (!response.ok) {
-      // Log failed event
       await supabaseClient.from('notification_events').insert({
-        channel: 'whatsapp',
-        event_type: 'failed',
-        order_id: orderId,
-        order_number: orderNumber,
-        recipient_phone: formattedPhone,
-        template_name: templateName,
-        message_id: messageId,
-        metadata: { error: responseText }
+        channel: 'whatsapp', event_type: 'failed', order_id: orderId, order_number: orderNumber,
+        recipient_phone: formattedPhone, template_name: templateName, message_id: messageId,
+        tenant_id: tenantId, metadata: { error: responseText }
       });
-      return { success: false, error: `NotificaMe API error: ${response.status} - ${responseText}` };
+      return { success: false, error: `NotificaMe API error: ${response.status}` };
     }
 
-    // Log sent event
     await supabaseClient.from('notification_events').insert({
-      channel: 'whatsapp',
-      event_type: 'sent',
-      order_id: orderId,
-      order_number: orderNumber,
-      recipient_phone: formattedPhone,
-      template_name: templateName,
-      message_id: messageId,
-      metadata: { response: responseJson }
+      channel: 'whatsapp', event_type: 'sent', order_id: orderId, order_number: orderNumber,
+      recipient_phone: formattedPhone, template_name: templateName, message_id: messageId,
+      tenant_id: tenantId, metadata: { response: responseJson }
     });
 
-    console.log(`[WHATSAPP] Template sent successfully for order ${orderNumber}`);
     return { success: true, messageId };
   } catch (error: any) {
-    console.error('[WHATSAPP] Error sending template:', error);
+    console.error('[WHATSAPP] Error:', error);
     return { success: false, error: error.message };
   }
 }
 
-const generateEmailHtml = (data: OrderApprovedRequest): string => {
+const generateEmailHtml = (data: OrderApprovedRequest, brandName: string, whatsapp: string, whatsappFormatted: string, baseUrl: string): string => {
   const itemsHtml = data.items.map(item => {
     let flavorsHtml = '';
     if (item.flavors && item.flavors.length > 0) {
-      flavorsHtml = `
-        <div style="margin-top: 4px; padding-left: 12px; font-size: 12px; color: #666;">
-          ${item.flavors.map(f => `• ${f.quantity}x ${f.name}`).join('<br>')}
-        </div>
-      `;
+      flavorsHtml = `<div style="margin-top: 4px; padding-left: 12px; font-size: 12px; color: #666;">${item.flavors.map(f => `• ${f.quantity}x ${f.name}`).join('<br>')}</div>`;
     }
-    return `
-      <tr>
-        <td style="padding: 12px; border-bottom: 1px solid #eee;">
-          <strong>${item.name}</strong>
-          ${flavorsHtml}
-        </td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right; white-space: nowrap;">
-          R$ ${item.totalPrice.toFixed(2).replace('.', ',')}
-        </td>
-      </tr>
-    `;
+    return `<tr><td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>${item.name}</strong>${flavorsHtml}</td><td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right; white-space: nowrap;">R$ ${item.totalPrice.toFixed(2).replace('.', ',')}</td></tr>`;
   }).join('');
 
-  const deliveryInfo = data.delivery_option === 'pickup' 
-    ? '📍 Retirada no local - Bairro Recreio'
-    : `🛵 Entrega - ${data.delivery_address}`;
-
+  const deliveryInfo = data.delivery_option === 'pickup' ? '📍 Retirada no local' : `🛵 Entrega - ${data.delivery_address}`;
   const paymentMethodText = data.payment_method === 'pix' ? 'PIX' : 'Mercado Pago';
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-        
-        <!-- Header -->
-        <div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); padding: 32px 24px; text-align: center;">
-          <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">🥗 Dieta Já</h1>
-          <p style="margin: 8px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Alimentação saudável para sua rotina</p>
-        </div>
-
-        <!-- Success Badge -->
-        <div style="text-align: center; padding: 32px 24px 16px;">
-          <div style="display: inline-block; background-color: #dcfce7; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 32px;">
-            ✅
-          </div>
-          <h2 style="margin: 16px 0 8px; color: #16a34a; font-size: 24px;">Pedido Confirmado!</h2>
-          <p style="margin: 0; font-size: 14px; color: #666;">Pagamento recebido com sucesso via ${paymentMethodText}</p>
-        </div>
-
-        <!-- Order Number -->
-        <div style="margin: 0 24px; padding: 16px; background-color: #f0fdf4; border-radius: 12px; text-align: center;">
-          <p style="margin: 0 0 4px; font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px;">Número do Pedido</p>
-          <p style="margin: 0; font-size: 28px; font-weight: bold; color: #16a34a;">#${data.order_number}</p>
-        </div>
-
-        <!-- Customer Info -->
-        <div style="padding: 24px;">
-          <h3 style="margin: 0 0 12px; font-size: 14px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Dados do Cliente</h3>
-          <p style="margin: 0 0 8px; font-size: 15px;"><strong>👤 Nome:</strong> ${data.customer_name}</p>
-          <p style="margin: 0 0 8px; font-size: 15px;"><strong>📱 WhatsApp:</strong> ${data.customer_phone}</p>
-          <p style="margin: 0; font-size: 15px;"><strong>${deliveryInfo}</strong></p>
-        </div>
-
-        <!-- Status Badge -->
-        <div style="margin: 0 24px; padding: 16px; background-color: #dcfce7; border-radius: 8px; text-align: center; border: 2px solid #22c55e;">
-          <p style="margin: 0; font-size: 16px; color: #166534; font-weight: bold;">🎉 Seu pedido já está sendo preparado!</p>
-        </div>
-
-        <!-- Items Table -->
-        <div style="padding: 24px;">
-          <h3 style="margin: 0 0 12px; font-size: 14px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Itens do Pedido</h3>
-          <table style="width: 100%; border-collapse: collapse; background-color: #fafafa; border-radius: 8px; overflow: hidden;">
-            ${itemsHtml}
-          </table>
-        </div>
-
-        <!-- Totals -->
-        <div style="margin: 0 24px 24px; padding: 16px; background-color: #f9fafb; border-radius: 8px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="color: #666;">Subtotal</span>
-            <span>R$ ${data.subtotal.toFixed(2).replace('.', ',')}</span>
-          </div>
-          ${data.delivery_fee > 0 ? `
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="color: #666;">Taxa de Entrega</span>
-            <span>R$ ${data.delivery_fee.toFixed(2).replace('.', ',')}</span>
-          </div>
-          ` : ''}
-          <div style="display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 18px; font-weight: bold;">
-            <span>Total Pago</span>
-            <span style="color: #16a34a;">R$ ${data.total.toFixed(2).replace('.', ',')}</span>
-          </div>
-        </div>
-
-        <!-- Track Order Button -->
-        <div style="padding: 0 24px 16px; text-align: center;">
-          <a href="https://dietajavca.com.br/pedido/${data.order_number}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">
-            📦 Acompanhar Pedido
-          </a>
-        </div>
-
-        <!-- WhatsApp Button -->
-        <div style="padding: 0 24px 32px; text-align: center;">
-          <p style="margin: 0 0 16px; font-size: 14px; color: #666;">Dúvidas sobre seu pedido?</p>
-          <a href="https://wa.me/5577991001658?text=Ol%C3%A1!%20Tenho%20uma%20d%C3%BAvida%20sobre%20meu%20pedido%20%23${data.order_number}" style="display: inline-block; padding: 12px 24px; background-color: #25D366; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">
-            💬 Falar com Atendente
-          </a>
-        </div>
-
-        <!-- Footer -->
-        <div style="padding: 24px; background-color: #f9fafb; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="margin: 0 0 8px; font-size: 13px; color: #666;">
-            📞 WhatsApp: (77) 99100-1658
-          </p>
-          <p style="margin: 0; font-size: 12px; color: #999;">
-            Este é um e-mail automático. Por favor, não responda.
-          </p>
-        </div>
-
-      </div>
-    </body>
-    </html>
-  `;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
+<div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+  <div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); padding: 32px 24px; text-align: center;">
+    <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">🥗 ${brandName}</h1>
+    <p style="margin: 8px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Alimentação saudável para sua rotina</p>
+  </div>
+  <div style="text-align: center; padding: 32px 24px 16px;">
+    <h2 style="margin: 16px 0 8px; color: #16a34a; font-size: 24px;">Pedido Confirmado! ✅</h2>
+    <p style="margin: 0; font-size: 14px; color: #666;">Pagamento recebido via ${paymentMethodText}</p>
+  </div>
+  <div style="margin: 0 24px; padding: 16px; background-color: #f0fdf4; border-radius: 12px; text-align: center;">
+    <p style="margin: 0 0 4px; font-size: 12px; color: #666; text-transform: uppercase;">Número do Pedido</p>
+    <p style="margin: 0; font-size: 28px; font-weight: bold; color: #16a34a;">#${data.order_number}</p>
+  </div>
+  <div style="padding: 24px;">
+    <p style="margin: 0 0 8px; font-size: 15px;"><strong>👤</strong> ${data.customer_name}</p>
+    <p style="margin: 0 0 8px; font-size: 15px;"><strong>📱</strong> ${data.customer_phone}</p>
+    <p style="margin: 0; font-size: 15px;"><strong>${deliveryInfo}</strong></p>
+  </div>
+  <div style="margin: 0 24px; padding: 16px; background-color: #dcfce7; border-radius: 8px; text-align: center;">
+    <p style="margin: 0; font-size: 16px; color: #166534; font-weight: bold;">🎉 Seu pedido já está sendo preparado!</p>
+  </div>
+  <div style="padding: 24px;"><table style="width: 100%; border-collapse: collapse;">${itemsHtml}</table></div>
+  <div style="margin: 0 24px 24px; padding: 16px; background-color: #f9fafb; border-radius: 8px;">
+    <div style="display: flex; justify-content: space-between; padding-top: 12px; font-size: 18px; font-weight: bold;"><span>Total Pago</span><span style="color: #16a34a;">R$ ${data.total.toFixed(2).replace('.', ',')}</span></div>
+  </div>
+  <div style="padding: 0 24px 16px; text-align: center;">
+    <a href="${baseUrl}/pedido/${data.order_number}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">📦 Acompanhar Pedido</a>
+  </div>
+  <div style="padding: 0 24px 32px; text-align: center;">
+    <a href="https://wa.me/${whatsapp}?text=${encodeURIComponent(`Olá! Tenho uma dúvida sobre meu pedido #${data.order_number}`)}" style="display: inline-block; padding: 12px 24px; background-color: #25D366; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">💬 Falar com Atendente</a>
+  </div>
+  <div style="padding: 24px; background-color: #f9fafb; text-align: center; border-top: 1px solid #e5e7eb;">
+    <p style="margin: 0 0 8px; font-size: 13px; color: #666;">📞 WhatsApp: ${whatsappFormatted}</p>
+    <p style="margin: 0; font-size: 12px; color: #999;">Este é um e-mail automático.</p>
+  </div>
+</div></body></html>`;
 };
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("send-order-approved function called");
-
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const data: OrderApprovedRequest = await req.json();
-    console.log("Order approved request:", JSON.stringify(data, null, 2));
-
-    // Validate required fields
     if (!data.order_number || !data.customer_email || !data.customer_name) {
-      console.error("Missing required fields");
-      return new Response(
-        JSON.stringify({ error: "Missing required fields: order_number, customer_email, customer_name" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
-    const results = {
-      email: { success: false, error: null as string | null },
-      whatsapp: { success: false, error: null as string | null }
-    };
+    // Fetch tenant branding
+    const branding = await getTenantBranding(supabase, data.tenant_id);
+    const baseUrl = getTenantBaseUrl(branding);
+
+    const results = { email: { success: false, error: null as string | null }, whatsapp: { success: false, error: null as string | null } };
 
     // Send Email
     try {
-      const html = generateEmailHtml(data);
-      console.log(`[EMAIL] Sending approved email to ${data.customer_email}`);
-
+      const html = generateEmailHtml(data, branding.brand_name, branding.whatsapp, branding.whatsapp_formatted, baseUrl);
       const { data: emailResponse, error } = await resend.emails.send({
-        from: "Dieta Já <pedidos@dietajavca.com.br>",
+        from: `${branding.brand_name} <pedidos@dietajavca.com.br>`,
         to: [data.customer_email],
-        subject: `Pedido #${data.order_number} Confirmado! ✅ - Dieta Já`,
+        subject: `Pedido #${data.order_number} Confirmado! ✅ - ${branding.brand_name}`,
         html,
       });
 
       if (error) {
-        console.error("[EMAIL] Resend error:", error);
         results.email.error = error.message;
-        
-        // Log failed email event
-        await supabase.from('notification_events').insert({
-          channel: 'email',
-          event_type: 'failed',
-          order_number: data.order_number,
-          recipient_email: data.customer_email,
-          template_name: 'order_approved',
-          metadata: { error: error.message }
-        });
+        await supabase.from('notification_events').insert({ channel: 'email', event_type: 'failed', order_number: data.order_number, recipient_email: data.customer_email, template_name: 'order_approved', tenant_id: data.tenant_id, metadata: { error: error.message } });
       } else {
-        console.log("[EMAIL] Approved email sent successfully:", emailResponse);
         results.email.success = true;
-        
-        // Log sent email event
-        await supabase.from('notification_events').insert({
-          channel: 'email',
-          event_type: 'sent',
-          order_number: data.order_number,
-          recipient_email: data.customer_email,
-          template_name: 'order_approved',
-          message_id: emailResponse?.id,
-          metadata: { response: emailResponse }
-        });
+        await supabase.from('notification_events').insert({ channel: 'email', event_type: 'sent', order_number: data.order_number, recipient_email: data.customer_email, template_name: 'order_approved', tenant_id: data.tenant_id, message_id: emailResponse?.id });
       }
     } catch (emailError: any) {
-      console.error("[EMAIL] Error sending email:", emailError);
       results.email.error = emailError.message;
     }
 
-    // Send WhatsApp using template compraa_confrimadaa
+    // Send WhatsApp
     const notificameApiToken = Deno.env.get("NOTIFICAME_API_TOKEN");
     const notificameChannelToken = Deno.env.get("NOTIFICAME_WHATSAPP_CHANNEL_TOKEN");
 
     if (notificameApiToken && notificameChannelToken && data.customer_phone) {
       try {
-        // Template compraa_confrimadaa has 4 variables:
-        // {{1}} = nome, {{2}} = pedido, {{3}} = itens, {{4}} = total
         const templateFields = {
           "1": data.customer_name?.split(' ')[0] || 'cliente',
           "2": data.order_number,
@@ -375,46 +203,23 @@ const handler = async (req: Request): Promise<Response> => {
           "4": formatCurrency(data.total)
         };
 
-        console.log(`[WHATSAPP] Sending compraa_confrimadaa to ${data.customer_phone}`);
-        
         const whatsappResult = await sendWhatsAppTemplate(
-          data.customer_phone,
-          'compraa_confrimadaa',
-          templateFields,
-          notificameApiToken,
-          notificameChannelToken,
-          data.order_number,
-          supabase
+          data.customer_phone, 'compraa_confrimadaa', templateFields,
+          notificameApiToken, notificameChannelToken, data.order_number,
+          supabase, undefined, data.tenant_id
         );
 
         results.whatsapp.success = whatsappResult.success;
-        if (!whatsappResult.success) {
-          results.whatsapp.error = whatsappResult.error || 'Unknown error';
-        }
+        if (!whatsappResult.success) results.whatsapp.error = whatsappResult.error || 'Unknown error';
       } catch (whatsappError: any) {
-        console.error("[WHATSAPP] Error sending WhatsApp:", whatsappError);
         results.whatsapp.error = whatsappError.message;
       }
-    } else {
-      console.warn("[WHATSAPP] NotificaMe credentials not configured or no phone - WhatsApp skipped");
-      results.whatsapp.error = "Credentials not configured or no phone";
     }
 
-    console.log("send-order-approved completed:", results);
-
-    return new Response(
-      JSON.stringify({ 
-        success: results.email.success || results.whatsapp.success,
-        results 
-      }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+    return new Response(JSON.stringify({ success: results.email.success || results.whatsapp.success, results }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
   } catch (error: any) {
-    console.error("Error in send-order-approved function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+    console.error("Error in send-order-approved:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
   }
 };
 

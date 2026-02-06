@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { getTenantBranding, getTenantBaseUrl, type TenantBranding } from "../_shared/tenant-branding.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,11 +77,12 @@ const FALLBACK_MESSAGES: Record<string, { title: string; emoji: string; color: s
   }
 };
 
-const replaceVariables = (template: string, order: OrderData): string => {
+// Replace variables in templates - now accepts branding for dynamic URLs
+const replaceVariables = (template: string, order: OrderData, branding?: TenantBranding): string => {
   const firstName = order.customer_name.split(" ")[0];
-  const trackingUrl = `https://dietajavca.com.br/pedido/${order.order_number}`;
+  const baseUrl = branding ? getTenantBaseUrl(branding) : "https://dietajavca.com.br";
+  const trackingUrl = `${baseUrl}/pedido/${order.order_number}`;
   
-  // Link de rastreio: externo se existir, senão interno
   const linkRastreio = order.tracking_link 
     ? `📍 Rastreie em tempo real:\n${order.tracking_link}`
     : `🔗 Acompanhe seu pedido:\n${trackingUrl}`;
@@ -91,7 +93,8 @@ const replaceVariables = (template: string, order: OrderData): string => {
     .replace(/{pedido}/g, order.order_number)
     .replace(/{total}/g, order.total.toFixed(2).replace(".", ","))
     .replace(/{link}/g, trackingUrl)
-    .replace(/{link_rastreio}/g, linkRastreio);
+    .replace(/{link_rastreio}/g, linkRastreio)
+    .replace(/{marca}/g, branding?.brand_name || "Dieta Já");
 };
 
 // Send simple text message (for messages within 24h window)
@@ -209,10 +212,14 @@ const sendWhatsAppTemplate = async (
   }
 };
 
-const sendEmailNotification = async (email: string, order: OrderData, subject: string, bodyHtml: string, statusColor: string) => {
+const sendEmailNotification = async (email: string, order: OrderData, subject: string, bodyHtml: string, statusColor: string, branding?: TenantBranding) => {
   const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
   const firstName = order.customer_name.split(" ")[0];
-  const trackingUrl = `https://dietajavca.com.br/pedido/${order.order_number}`;
+  const baseUrl = branding ? getTenantBaseUrl(branding) : "https://dietajavca.com.br";
+  const trackingUrl = `${baseUrl}/pedido/${order.order_number}`;
+  const brandName = branding?.brand_name || "Dieta Já";
+  const whatsappNum = branding?.whatsapp || "5577991001658";
+  const whatsappFmt = branding?.whatsapp_formatted || "(77) 99100-1658";
 
   const itemsHtml = order.items.map((item: any) => `
     <tr>
@@ -222,7 +229,7 @@ const sendEmailNotification = async (email: string, order: OrderData, subject: s
   `).join("");
 
   // Replace variables in custom body
-  const processedBody = replaceVariables(bodyHtml, order);
+  const processedBody = replaceVariables(bodyHtml, order, branding);
 
   const html = `
     <!DOCTYPE html>
@@ -300,11 +307,11 @@ const sendEmailNotification = async (email: string, order: OrderData, subject: s
           <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">
             Dúvidas? Fale conosco pelo WhatsApp
           </p>
-          <a href="https://wa.me/5577991001658" style="color: ${statusColor}; text-decoration: none; font-weight: bold;">
-            📱 (77) 99100-1658
+          <a href="https://wa.me/${whatsappNum}" style="color: ${statusColor}; text-decoration: none; font-weight: bold;">
+            📱 ${whatsappFmt}
           </a>
           <p style="margin: 15px 0 0 0; color: #999; font-size: 12px;">
-            © ${new Date().getFullYear()} Dieta Já - Alimentação Saudável
+            © ${new Date().getFullYear()} ${brandName} - Alimentação Saudável
           </p>
         </div>
       </div>
@@ -314,9 +321,9 @@ const sendEmailNotification = async (email: string, order: OrderData, subject: s
 
   try {
     const response = await resend.emails.send({
-      from: "Dieta Já <pedidos@dietajavca.com.br>",
+      from: `${brandName} <pedidos@dietajavca.com.br>`,
       to: [email],
-      subject: replaceVariables(subject, order),
+      subject: replaceVariables(subject, order, branding),
       html,
     });
     console.log(`Email sent for order ${order.order_number}:`, response);
@@ -441,7 +448,7 @@ serve(async (req: Request) => {
     // Fetch order data with tracking_link
     const { data: order, error } = await supabase
       .from("orders")
-      .select("order_number, customer_name, customer_email, customer_phone, delivery_option, total, items, tracking_link")
+      .select("order_number, customer_name, customer_email, customer_phone, delivery_option, total, items, tracking_link, tenant_id")
       .eq("id", order_id)
       .single();
 
@@ -471,10 +478,13 @@ serve(async (req: Request) => {
       );
     }
 
+    // Fetch tenant branding
+    const branding = await getTenantBranding(supabase, order.tenant_id);
+
     const whatsappMessage = template?.is_active 
-      ? replaceVariables(template.whatsapp_template, order as OrderData)
+      ? replaceVariables(template.whatsapp_template, order as OrderData, branding)
       : fallback 
-        ? replaceVariables(fallback.whatsapp, order as OrderData)
+        ? replaceVariables(fallback.whatsapp, order as OrderData, branding)
         : null;
 
     const emailSubject = template?.is_active 
@@ -501,7 +511,8 @@ serve(async (req: Request) => {
       order as OrderData, 
       emailSubject, 
       emailBody, 
-      statusColor
+      statusColor,
+      branding
     ));
 
     await Promise.all(promises);
