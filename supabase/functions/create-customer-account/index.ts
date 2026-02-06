@@ -12,6 +12,7 @@ interface RequestBody {
   phone?: string;
   deliveryOption?: string;
   address?: string;
+  tenant_id?: string;
 }
 
 serve(async (req: Request) => {
@@ -32,7 +33,8 @@ serve(async (req: Request) => {
       },
     });
 
-    const { email, name, phone, deliveryOption, address }: RequestBody = await req.json();
+    const { email, name, phone, deliveryOption, address, tenant_id }: RequestBody = await req.json();
+    const effectiveTenantId = tenant_id || '00000000-0000-0000-0000-000000000001';
 
     console.log("Creating account for:", email);
 
@@ -129,6 +131,7 @@ serve(async (req: Request) => {
         phone: phone || null,
         preferred_delivery_option: deliveryOption || null,
         preferred_address: address || null,
+        tenant_id: effectiveTenantId,
       });
 
     if (profileError) {

@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ClubPlan } from "@/hooks/useClubPlans";
 import { useNavigate } from "react-router-dom";
 import { formatCPF, validateCPF } from "@/lib/cpf";
+import { useTenantId } from "@/hooks/useTenantId";
 
 const formatPhoneInput = (value: string): string => {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -26,6 +27,7 @@ interface ClubSubscriptionModalProps {
 
 const ClubSubscriptionModal = ({ open, onOpenChange, plan }: ClubSubscriptionModalProps) => {
   const navigate = useNavigate();
+  const tenantId = useTenantId();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -80,6 +82,7 @@ const ClubSubscriptionModal = ({ open, onOpenChange, plan }: ClubSubscriptionMod
             option: form.deliveryOption,
             address: form.deliveryOption === "delivery" ? form.address.trim() : null,
           },
+          tenant_id: tenantId,
         },
       });
 

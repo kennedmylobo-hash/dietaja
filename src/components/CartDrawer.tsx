@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { siteConfig, getWhatsAppLink } from "@/config/site";
 import { validateCPF, formatCPF } from "@/lib/cpf";
 import { sanitizeCustomerName } from "@/lib/name-sanitizer";
+import { useTenantId } from "@/hooks/useTenantId";
 
 // Phone mask function: (XX) XXXXX-XXXX
 const formatPhone = (value: string): string => {
@@ -99,6 +100,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const [editingMarmita, setEditingMarmita] = useState<CartItem | null>(null);
   const [editingKit, setEditingKit] = useState<CartItem | null>(null);
   const navigate = useNavigate();
+  const tenantId = useTenantId();
 
   // Fetch menu data from database
   const { data: flavorsData } = useMarmitaFlavors();
@@ -202,6 +204,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           phone: data.phone,
           deliveryOption: data.deliveryOption,
           address: data.address,
+          tenant_id: tenantId,
         },
       });
 
@@ -284,6 +287,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           code: couponCode,
           customer_email: email,
           subtotal: subtotal,
+          tenant_id: tenantId,
         },
       });
 
@@ -511,6 +515,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           utm_data: getUTMParams(),
           coupon_code: appliedCoupon || null,
           discount_amount: couponDiscount,
+          tenant_id: tenantId,
         },
       });
 

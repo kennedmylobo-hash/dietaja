@@ -42,6 +42,7 @@ interface RequestBody {
   coupon_code?: string;
   discount_amount?: number;
   order_id?: string;
+  tenant_id?: string;
 }
 
 // Asaas API base URL (production)
@@ -63,7 +64,8 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body: RequestBody = await req.json();
-    const { items, customer, delivery, utm_data, coupon_code, discount_amount, cashback, order_id } = body;
+    const { items, customer, delivery, utm_data, coupon_code, discount_amount, cashback, order_id, tenant_id } = body;
+    const effectiveTenantId = tenant_id || '00000000-0000-0000-0000-000000000001';
 
     console.log('Creating Asaas PIX payment for:', { 
       customer: customer.name, 
@@ -146,6 +148,7 @@ serve(async (req) => {
           utm_data: utm_data || null,
           coupon_code: coupon_code || null,
           discount_amount: discountValue + cashbackValue,
+          tenant_id: effectiveTenantId,
         })
         .select('id, order_number')
         .single();
@@ -263,6 +266,7 @@ serve(async (req) => {
           response_payload: JSON.parse(errorText || '{}'),
           customer_phone: customer.phone,
           customer_email: customer.email,
+          tenant_id: effectiveTenantId,
         });
 
         throw new Error('Erro ao criar cliente no Asaas');
@@ -306,6 +310,7 @@ serve(async (req) => {
           response_payload: updateErrorResponse,
           customer_phone: customer.phone,
           customer_email: customer.email,
+          tenant_id: effectiveTenantId,
         });
 
         throw new Error(`Erro ao atualizar CPF do cliente no Asaas. Verifique os dados e tente novamente.`);
@@ -363,6 +368,7 @@ serve(async (req) => {
         response_payload: errorResponse,
         customer_phone: customer.phone,
         customer_email: customer.email,
+        tenant_id: effectiveTenantId,
       });
 
       // Mark order as failed
