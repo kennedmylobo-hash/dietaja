@@ -1,158 +1,102 @@
 
 
-# Painel Admin: Editor de Landing Page por Tenant
+# Checklist para Testar a Revenda do Software (Ponta a Ponta)
 
-## Objetivo
+## O que ja esta pronto
 
-Permitir que cada restaurante (tenant) personalize completamente sua landing page pelo painel admin, editando textos, imagens, depoimentos e secoes -- sem precisar mexer em codigo.
+- Tabela `tenant_landing_content` com RLS
+- Bucket `tenant-assets` para imagens
+- Onboarding via Super Admin (`/super-admin`) com clonagem de cardapio e seed de conteudo
+- Edge Function `create-tenant` com seed automatico de landing content
+- Painel Admin com "Minha Loja" (Dados do Restaurante + Editor de Landing)
+- Hook `useLandingContent` com fallback hardcoded
+- ~10 componentes da landing renderizando conteudo dinamico
+- Isolamento multi-tenant via RLS e `tenant_id` em queries/edge functions
 
 ---
 
-## Arquitetura
+## O que falta para um teste completo de revenda
 
-Criar uma tabela `tenant_landing_content` que armazena blocos de conteudo editavel por secao, e um novo modulo "Minha Loja" no admin para gerenciar tudo.
+### 1. Teste End-to-End do Onboarding
+
+Criar um restaurante ficticio pelo `/super-admin` e validar:
+- Tenant criado no banco com todos os campos
+- Usuario admin criado e com role `admin`
+- Categorias de cardapio clonadas (se checkbox marcada)
+- Registros de `tenant_landing_content` seedados (10 secoes)
+- Admin consegue logar em `/admin` e ver o painel
+
+Isso e um teste manual -- basta acessar `/super-admin`, preencher o formulario e verificar.
 
 ---
 
-## Parte 1 -- Tabela de conteudo da landing page
+### 2. Deteccao de Tenant por Dominio (critico para producao)
 
-Criar a tabela `tenant_landing_content` com a seguinte estrutura:
+Hoje o `TenantContext` usa fallback do "Dieta Ja" em localhost/lovable.app. Para testar um segundo tenant, precisamos de uma forma de simular outro dominio ou usar query param.
 
-| Coluna | Tipo | Descricao |
+**Proposta**: Adicionar suporte a query param `?tenant=slug` no `TenantContext` para testes. Isso permite acessar `/?tenant=meu-restaurante` e ver a landing do novo tenant sem precisar de dominio customizado.
+
+Em producao, a deteccao por hostname ja funciona.
+
+---
+
+### 3. Resolver o Prefixo do Numero de Pedido
+
+A funcao `generate_order_number()` usa prefixo fixo `DJA-`. Para multi-tenant, cada restaurante precisa do seu proprio prefixo.
+
+**Proposta**: Adicionar coluna `order_prefix` na tabela `tenants` (ex: "MFT" para "Marmitas Fitness"). Alterar o trigger para gerar numeros como `MFT-0001` baseado no tenant do pedido.
+
+---
+
+### 4. Personalizar Notificacoes por Tenant
+
+As edge functions de notificacao (WhatsApp, email) provavelmente usam textos/branding do "Dieta Ja". Cada tenant precisa que suas notificacoes usem:
+- Nome da marca do tenant
+- WhatsApp do tenant
+- Logo do tenant (nos emails)
+
+**Proposta**: Atualizar as edge functions `send-order-confirmation`, `send-order-approved`, `send-status-notification` etc. para buscar dados do tenant (`brand_name`, `whatsapp`, `logo_url`) a partir do `tenant_id` do pedido.
+
+---
+
+### 5. Rotas de Landing Pages de Categoria (/detox, /fit, /fitness)
+
+Essas paginas sao especificas do "Dieta Ja" e possuem conteudo hardcoded. Para outros tenants, elas precisam ser dinamicas ou desabilitadas.
+
+**Proposta**: Criar uma tabela `tenant_landing_pages` ou usar a propria `tenant_landing_content` com section_keys como `page_detox`, `page_fit` para permitir que cada tenant configure suas paginas de categoria.
+
+Alternativa mais simples: manter essas rotas apenas para o Dieta Ja por enquanto e focar na landing principal (`/`).
+
+---
+
+## Secao Tecnica -- Resumo das Mudancas
+
+### Prioridade Alta (necessario para testar)
+
+| Tarefa | Tipo | Descricao |
 |--------|------|-----------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| section_key | text | Identificador da secao (ex: `hero`, `testimonials`, `banners`) |
-| content | jsonb | Conteudo editavel da secao |
-| is_visible | boolean | Se a secao esta ativa |
-| sort_order | integer | Ordem de exibicao |
-| created_at / updated_at | timestamptz | |
+| Query param `?tenant=slug` | Frontend | Adicionar deteccao por query param no `TenantContext.tsx` para testes |
+| Teste manual de onboarding | Manual | Criar tenant ficticio e validar todo o fluxo |
 
-Unique constraint em `(tenant_id, section_key)`.
+### Prioridade Media (necessario para producao)
 
-### Secoes editaveis (section_key)
+| Tarefa | Tipo | Descricao |
+|--------|------|-----------|
+| Prefixo de pedido por tenant | SQL + Trigger | Coluna `order_prefix` + alterar `generate_order_number()` |
+| Notificacoes com branding | Edge Functions | ~6 edge functions buscam dados do tenant para personalizar mensagens |
+| Landing pages de categoria | Frontend | Tornar `/detox`, `/fit`, `/fitness` dinamicas ou desabilitar para outros tenants |
 
-1. **`hero`** -- Titulo principal, subtitulo, badges (ex: "Retirada gratis"), social proof ("200+ kits"), video/imagem de fundo (URL)
-2. **`identification`** -- Texto emocional principal e subtexto
-3. **`testimonials`** -- Array de depoimentos (nome, cargo, frase, iniciais)
-4. **`solution`** -- Texto principal e lista de features
-5. **`before_after`** -- Items do "antes" e "depois"
-6. **`product_gallery`** -- Titulo, badges, video/imagem URL
-7. **`banners`** -- Array de banners promocionais (titulo, subtitulo, descricao)
-8. **`guarantee`** -- Array de garantias (titulo, descricao, icone)
-9. **`faq`** -- Array de perguntas e respostas
-10. **`custom_diet`** -- Textos da secao dieta personalizada
+### Prioridade Baixa (melhorias futuras)
 
-### RLS
-
-- SELECT publico (qualquer um pode ler para renderizar a landing)
-- INSERT/UPDATE/DELETE apenas admin do tenant
+| Tarefa | Tipo | Descricao |
+|--------|------|-----------|
+| Preview da landing no editor | Admin | Botao "Visualizar" que abre a landing em nova aba |
+| Tema de cores dinamico | Frontend | Aplicar `primary_color` do tenant via CSS variables |
+| Dominio customizado | Infra | Configuracao de DNS para cada tenant |
 
 ---
 
-## Parte 2 -- Seed do conteudo padrao
+## Recomendacao
 
-Ao criar um novo tenant (edge function `create-tenant`), inserir automaticamente os registros de `tenant_landing_content` com o conteudo padrao (mesmo conteudo hardcoded atual do Dieta Ja). Isso permite que o novo restaurante tenha uma landing funcional imediatamente e edite conforme desejar.
-
----
-
-## Parte 3 -- Modulo Admin: "Minha Loja"
-
-Adicionar uma nova secao no `AdminSidebar` chamada **"Minha Loja"** (icone Store/Palette) com sub-secoes:
-
-### 3.1 -- Dados do Restaurante
-Editor para campos da tabela `tenants`:
-- Nome da marca, slogan
-- Logo (upload para Storage)
-- Cor primaria (color picker)
-- Cidade, estado, bairro de retirada
-- WhatsApp, taxa de entrega
-- Facebook Pixel ID, Google Analytics ID
-
-### 3.2 -- Editor de Secoes da Landing
-Interface visual para cada secao editavel:
-
-- **Hero**: Campos para titulo, subtitulo, badges (adicionar/remover), texto de social proof, upload de video/imagem de fundo
-- **Depoimentos**: Lista editavel (adicionar, editar, remover depoimentos) com campos nome, cargo, frase
-- **Banners Promo**: Lista editavel de banners com titulo, subtitulo, descricao
-- **FAQ**: Lista editavel de perguntas e respostas
-- **Secoes On/Off**: Toggle para mostrar/esconder cada secao (ex: desativar "Antes/Depois" se nao aplicavel)
-
-Cada secao tera um formulario com "Salvar" que faz upsert na `tenant_landing_content`.
-
-### 3.3 -- Imagens e Midias
-- Upload de logo, hero background, imagens de galeria
-- Utilizara Lovable Cloud Storage (bucket `tenant-assets`)
-- URLs salvas no `content` JSONB ou na tabela `tenants`
-
----
-
-## Parte 4 -- Frontend: Renderizar conteudo dinamico
-
-Criar um hook `useLandingContent(sectionKey)` que busca o conteudo de `tenant_landing_content` para o tenant atual. Os componentes da landing serao atualizados para:
-
-1. Tentar carregar conteudo do banco (via hook)
-2. Usar fallback hardcoded se nao houver registro (compatibilidade retroativa com Dieta Ja)
-
-Exemplo de fluxo:
-
-```text
-HeroSection
-  |
-  +-- useLandingContent('hero')
-  |     |
-  |     +-- Dados do banco? --> Renderiza dinamico
-  |     +-- Sem dados? -------> Usa conteudo hardcoded atual
-```
-
-### Componentes a atualizar:
-- `HeroSection.tsx` -- titulo, subtitulo, badges, social proof, video URL
-- `IdentificationSection.tsx` -- textos emocionais
-- `TestimonialsSection.tsx` -- lista de depoimentos
-- `SolutionSection.tsx` -- textos e features
-- `BeforeAfterSection.tsx` -- items antes/depois
-- `ProductGallerySection.tsx` -- titulo, badges, video
-- `PromoBannersSection.tsx` -- banners
-- `GuaranteeSection.tsx` -- garantias
-- `FAQSection.tsx` -- perguntas
-- `ValueSection.tsx` -- beneficios
-
----
-
-## Parte 5 -- Storage para imagens
-
-Criar um bucket `tenant-assets` no Lovable Cloud Storage com:
-- Politica publica de leitura
-- Upload restrito ao admin do tenant
-- Organizacao: `tenant-assets/{tenant_id}/hero.jpg`, `tenant-assets/{tenant_id}/logo.png`, etc.
-
----
-
-## Secao Tecnica -- Resumo de Mudancas
-
-### Migracao SQL
-- Criar tabela `tenant_landing_content` com RLS
-- Criar bucket de storage `tenant-assets`
-- Seed do conteudo padrao para tenant Dieta Ja
-
-### Novos componentes admin (~3 arquivos)
-- `src/components/admin/LandingEditor.tsx` -- Editor principal com abas por secao
-- `src/components/admin/TenantSettingsEditor.tsx` -- Editor de dados do restaurante (tabela tenants)
-- `src/components/admin/SectionEditor.tsx` -- Componente reutilizavel para editar arrays (depoimentos, FAQ, banners)
-
-### Hook novo
-- `src/hooks/useLandingContent.ts` -- Busca conteudo da landing por section_key e tenant_id
-
-### Arquivos editados
-- `AdminSidebar.tsx` -- Adicionar grupo "Minha Loja"
-- `Admin.tsx` -- Renderizar novos componentes
-- ~10 componentes da landing -- Usar hook `useLandingContent` com fallback
-
-### Edge function
-- `create-tenant` -- Adicionar seed de `tenant_landing_content` no onboarding
-
-### Impacto
-- Zero breaking change: Dieta Ja continua funcionando com fallback hardcoded
-- Novos tenants recebem conteudo editavel desde o primeiro dia
-- Admins podem personalizar tudo sem suporte tecnico
+Comecar implementando o **item 2 (query param para teste)** e fazer o **item 1 (teste manual de onboarding)**. Isso permite validar todo o fluxo sem precisar de dominio customizado. Os demais itens podem ser feitos incrementalmente.
 
