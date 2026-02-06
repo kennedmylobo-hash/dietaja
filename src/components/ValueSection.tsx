@@ -1,10 +1,14 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Package, Smile, Sparkles } from "lucide-react";
+import { useLandingContent } from "@/hooks/useLandingContent";
+
+const iconMap: Record<string, any> = { Package, Smile, Sparkles };
 
 const ValueSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const { isVisible } = useLandingContent("custom_diet"); // reuse visibility from a related section
 
   const values = [
     { icon: Package, text: "Menos cansaço mental" },

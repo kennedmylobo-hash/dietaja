@@ -61,6 +61,8 @@ import CustomersManager from "@/components/admin/CustomersManager";
 import KPIDashboard from "@/components/admin/KPIDashboard";
 import ReviewsManager from "@/components/admin/ReviewsManager";
 import RecurringCustomers from "@/components/admin/RecurringCustomers";
+import TenantSettingsEditor from "@/components/admin/TenantSettingsEditor";
+import LandingEditor from "@/components/admin/LandingEditor";
 
 interface Lead {
   id: string;
@@ -1186,6 +1188,12 @@ const Admin = () => {
 
       case "payment-errors":
         return <PaymentErrorLogs />;
+
+      case "tenant-settings":
+        return <TenantSettingsEditor />;
+
+      case "landing-editor":
+        return <LandingEditor />;
 
       default:
         return <div className="text-muted-foreground">Selecione uma seção no menu</div>;

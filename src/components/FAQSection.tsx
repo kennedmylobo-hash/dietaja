@@ -2,41 +2,16 @@ import { motion, useInView } from "framer-motion";
 import { useRef, useState } from "react";
 import { ChevronDown, MessageCircle } from "lucide-react";
 import { siteConfig, formatCurrency } from "@/config/site";
+import { useLandingContent } from "@/hooks/useLandingContent";
 
-interface FAQItem {
-  question: string;
-  answer: string;
-}
-
-const getFaqItems = (): FAQItem[] => [
-  {
-    question: "Preciso seguir alguma dieta específica?",
-    answer: "Não. Os kits e marmitas foram pensados para simplificar, não para complicar. É só seguir e cuidar de você.",
-  },
-  {
-    question: "Vou passar fome?",
-    answer: "Não. A ideia não é sofrimento, é equilíbrio e constância.",
-  },
-  {
-    question: "Isso é só para emagrecer?",
-    answer: "Não. O foco é organizar a alimentação, reduzir inchaço e trazer leveza. O resultado vem como consequência.",
-  },
-  {
-    question: "Nunca fiz detox, posso começar?",
-    answer: "Sim! O Kit Detox 5 Dias é o mais escolhido por quem está começando. E se preferir só as marmitas, o Pacote Quinzenal é o favorito das clientes.",
-  },
-  {
-    question: "Como recebo meu pedido?",
-    answer: `Tudo é entregue congelado e pronto para consumo. Você pode retirar grátis no bairro ${siteConfig.location.pickupNeighborhood} ou receber em casa por ${formatCurrency(siteConfig.location.deliveryFee)} de taxa de entrega. Os kits detox vêm com sucos e sopas, e as marmitas são só aquecer no micro-ondas (3 minutinhos!).`,
-  },
-  {
-    question: "Posso pedir só as marmitas, sem o kit detox?",
-    answer: "Claro! Você pode montar seu pedido como preferir: só kits, só marmitas, ou os dois juntos para uma semana completa de praticidade.",
-  },
-  {
-    question: `Vocês atendem ${siteConfig.location.city}?`,
-    answer: `Sim 😊 Retirada grátis no bairro ${siteConfig.location.pickupNeighborhood} ou entrega em toda a cidade por ${formatCurrency(siteConfig.location.deliveryFee)}.`,
-  },
+const getDefaultFaqItems = () => [
+  { question: "Preciso seguir alguma dieta específica?", answer: "Não. Os kits e marmitas foram pensados para simplificar, não para complicar. É só seguir e cuidar de você." },
+  { question: "Vou passar fome?", answer: "Não. A ideia não é sofrimento, é equilíbrio e constância." },
+  { question: "Isso é só para emagrecer?", answer: "Não. O foco é organizar a alimentação, reduzir inchaço e trazer leveza. O resultado vem como consequência." },
+  { question: "Nunca fiz detox, posso começar?", answer: "Sim! O Kit Detox 5 Dias é o mais escolhido por quem está começando." },
+  { question: "Como recebo meu pedido?", answer: `Tudo é entregue congelado e pronto para consumo. Retirada grátis no bairro ${siteConfig.location.pickupNeighborhood} ou entrega por ${formatCurrency(siteConfig.location.deliveryFee)}.` },
+  { question: "Posso pedir só as marmitas, sem o kit detox?", answer: "Claro! Você pode montar seu pedido como preferir." },
+  { question: `Vocês atendem ${siteConfig.location.city}?`, answer: `Sim 😊 Retirada grátis no bairro ${siteConfig.location.pickupNeighborhood} ou entrega por ${formatCurrency(siteConfig.location.deliveryFee)}.` },
 ];
 
 interface FAQSectionProps {
@@ -47,7 +22,11 @@ const FAQSection = ({ onContactClick }: FAQSectionProps) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const faqItems = getFaqItems();
+  const { content, isVisible } = useLandingContent("faq");
+
+  if (!isVisible) return null;
+
+  const faqItems = content?.items ?? getDefaultFaqItems();
 
   return (
     <section ref={ref} className="py-20 md:py-28 bg-background">
@@ -62,13 +41,11 @@ const FAQSection = ({ onContactClick }: FAQSectionProps) => {
             <span className="inline-block px-4 py-1.5 bg-sage-light text-sage-dark text-sm font-medium rounded-full mb-4">
               ❓ Dúvidas frequentes
             </span>
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground">
-              Perguntas e Respostas
-            </h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Perguntas e Respostas</h2>
           </div>
 
           <div className="space-y-3">
-            {faqItems.map((item, index) => (
+            {faqItems.map((item: any, index: number) => (
               <motion.div
                 key={index}
                 className="bg-card rounded-xl border border-border overflow-hidden"
@@ -81,43 +58,28 @@ const FAQSection = ({ onContactClick }: FAQSectionProps) => {
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
                 >
                   <span className="font-medium text-foreground pr-4">{item.question}</span>
-                  <ChevronDown 
-                    className={`w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform duration-200 ${
-                      openIndex === index ? "rotate-180" : ""
-                    }`} 
-                  />
+                  <ChevronDown className={`w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform duration-200 ${openIndex === index ? "rotate-180" : ""}`} />
                 </button>
                 <motion.div
                   initial={false}
-                  animate={{ 
-                    height: openIndex === index ? "auto" : 0,
-                    opacity: openIndex === index ? 1 : 0 
-                  }}
+                  animate={{ height: openIndex === index ? "auto" : 0, opacity: openIndex === index ? 1 : 0 }}
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <p className="px-5 pb-5 text-muted-foreground leading-relaxed">
-                    {item.answer}
-                  </p>
+                  <p className="px-5 pb-5 text-muted-foreground leading-relaxed">{item.answer}</p>
                 </motion.div>
               </motion.div>
             ))}
           </div>
 
-          {/* Extra question */}
           <motion.div
             className="mt-8 p-6 rounded-xl bg-sage-light/30 border border-primary/20 text-center"
             initial={{ opacity: 0, y: 10 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.3, delay: 0.4 }}
           >
-            <p className="text-foreground mb-4">
-              Tem outras dúvidas? Sem problema 💚
-            </p>
-            <button
-              onClick={onContactClick}
-              className="inline-flex items-center gap-2 text-primary font-semibold hover:underline"
-            >
+            <p className="text-foreground mb-4">Tem outras dúvidas? Sem problema 💚</p>
+            <button onClick={onContactClick} className="inline-flex items-center gap-2 text-primary font-semibold hover:underline">
               <MessageCircle className="w-4 h-4" />
               Fale com a gente no WhatsApp
             </button>
