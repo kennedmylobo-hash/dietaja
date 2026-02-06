@@ -1,17 +1,21 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Crown, Loader2 } from "lucide-react";
 import { ClubPlan } from "@/hooks/useClubPlans";
 import detoxVideo from "@/assets/produtos-detox-video.mp4";
+import detoxPhoto from "@/assets/produtos-detox.jpg";
 import marmita1 from "@/assets/marmita-1.png";
+import marmita2 from "@/assets/marmita-2.png";
+import marmita3 from "@/assets/marmita-3.png";
 
-const kitMediaMap: Record<string, { type: "video" | "image"; src: string }> = {
-  suco_detox: { type: "video", src: detoxVideo },
-  marmitas: { type: "image", src: marmita1 },
-  sopas: { type: "video", src: detoxVideo },
-  almoco_janta: { type: "image", src: marmita1 },
-  almoco_suco: { type: "image", src: marmita1 },
+const kitMediaMap: Record<string, { video: string; image: string }> = {
+  suco_detox: { video: detoxVideo, image: detoxPhoto },
+  marmitas: { video: detoxVideo, image: marmita1 },
+  sopas: { video: detoxVideo, image: marmita2 },
+  almoco_janta: { video: detoxVideo, image: marmita3 },
+  almoco_suco: { video: detoxVideo, image: marmita1 },
 };
 
 interface ClubPlanCardsProps {
@@ -21,6 +25,17 @@ interface ClubPlanCardsProps {
 }
 
 const ClubPlanCards = ({ plans, onSelect, loadingId }: ClubPlanCardsProps) => {
+  const [showVideo, setShowVideo] = useState(true);
+
+  useEffect(() => {
+    const cycle = () => {
+      setShowVideo((prev) => !prev);
+    };
+    // Video 5s, photo 3s
+    const timeout = setTimeout(cycle, showVideo ? 5000 : 3000);
+    return () => clearTimeout(timeout);
+  }, [showVideo]);
+
   return (
     <section className="py-12">
       <div className="container mx-auto px-4">
@@ -60,27 +75,28 @@ const ClubPlanCards = ({ plans, onSelect, loadingId }: ClubPlanCardsProps) => {
                     </div>
                   )}
 
-                  {/* Media */}
+                  {/* Media with video/photo alternation */}
                   {media && (
-                    <div className="aspect-[16/10] overflow-hidden">
-                      {media.type === "video" ? (
-                        <video
-                          src={media.src}
-                          autoPlay
-                          loop
-                          muted
-                          playsInline
-                          preload="metadata"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <img
-                          src={media.src}
-                          alt={plan.name}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      )}
+                    <div className="aspect-[16/10] overflow-hidden relative">
+                      <video
+                        src={media.video}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+                          showVideo ? "opacity-100" : "opacity-0"
+                        }`}
+                      />
+                      <img
+                        src={media.image}
+                        alt={plan.name}
+                        loading="lazy"
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+                          showVideo ? "opacity-0" : "opacity-100"
+                        }`}
+                      />
                     </div>
                   )}
 
