@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Droplets, Zap, Scale, ShieldCheck } from "lucide-react";
 import detoxVideo from "@/assets/produtos-detox-video.mp4";
@@ -14,8 +14,12 @@ import PackageCards, { PackageOption } from "@/components/landing/PackageCards";
 import DetoxFlavorMenu from "@/components/landing/DetoxFlavorMenu";
 import HowItWorks from "@/components/landing/HowItWorks";
 import FloatingCTA from "@/components/landing/FloatingCTA";
+import TestimonialsSection from "@/components/TestimonialsSection";
+import UrgencySection from "@/components/UrgencySection";
+import DetoxFAQSection from "@/components/DetoxFAQSection";
 import { useKitPackages, useKitSoups, useKitJuices } from "@/hooks/useMenuData";
 import { FlavorSelection } from "@/components/CartContext";
+import { siteConfig } from "@/config/site";
 
 const DetoxContent = () => {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -41,6 +45,20 @@ const DetoxContent = () => {
     description: kit.description || `${kit.days} dias de detox`,
   }));
 
+  // Track ViewContent when page loads with packages data
+  useEffect(() => {
+    if (packages.length > 0 && typeof window !== 'undefined' && window.fbq) {
+      const avgPrice = packages.reduce((sum, p) => sum + p.price, 0) / packages.length;
+      window.fbq('track', 'ViewContent', {
+        content_type: 'product_group',
+        content_name: 'Kit Detox',
+        content_category: 'Detox',
+        value: avgPrice,
+        currency: 'BRL',
+      });
+    }
+  }, [packages.length]);
+
   const scrollToPackages = useCallback(() => {
     if (packagesRef.current) {
       packagesRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -54,6 +72,17 @@ const DetoxContent = () => {
   }, []);
 
   const handlePackageSelect = (pkg: PackageOption) => {
+    // Track AddToCart for Meta Pixel optimization
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'AddToCart', {
+        content_name: pkg.name,
+        content_type: 'product',
+        content_ids: [pkg.id],
+        value: pkg.price,
+        currency: 'BRL',
+      });
+    }
+
     setLoadingId(pkg.id);
     setSelectedKit(pkg);
     setTimeout(() => {
@@ -131,8 +160,27 @@ const DetoxContent = () => {
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
       <Helmet>
-        <title>Kit Detox | Dieta Já - Sucos e Sopas Funcionais</title>
-        <meta name="description" content="Desintoxique seu corpo com nossos kits de sucos e sopas funcionais. Reduza inchaço, aumente energia e renove sua disposição." />
+        <title>Kit Detox 3-7 Dias | {siteConfig.brand.name} - Sucos Funcionais</title>
+        <meta name="description" content="Desintoxique seu corpo em até 7 dias com sucos e sopas funcionais. Reduza inchaço, aumente energia e prepare-se para uma nova rotina alimentar." />
+        <meta name="keywords" content="detox, sucos funcionais, sopas detox, limpeza do corpo, reduzir inchaço, Vitória da Conquista" />
+        <link rel="canonical" href={`${siteConfig.urls.canonical}/detox`} />
+        
+        {/* Open Graph para WhatsApp/Facebook */}
+        <meta property="og:type" content="product" />
+        <meta property="og:title" content="Kit Detox Funcional - Reduza Inchaço em 3 Dias 🍃" />
+        <meta property="og:description" content="Sucos e sopas funcionais para renovar sua energia. 4 sucos + 2 sopas por dia. Entrega em Vitória da Conquista." />
+        <meta property="og:url" content={`${siteConfig.urls.canonical}/detox`} />
+        <meta property="og:image" content={`${siteConfig.urls.canonical}/og-image-detox.jpg`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content={siteConfig.brand.name} />
+        <meta property="og:locale" content="pt_BR" />
+        
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Kit Detox Funcional - Reduza Inchaço em 3 Dias" />
+        <meta name="twitter:description" content="Sucos e sopas funcionais para renovar sua energia. Entrega em Vitória da Conquista." />
+        <meta name="twitter:image" content={`${siteConfig.urls.canonical}/og-image-detox.jpg`} />
       </Helmet>
 
       <LandingHeader />
@@ -160,6 +208,8 @@ const DetoxContent = () => {
         accentColor="primary"
       />
 
+      <TestimonialsSection />
+
       <div ref={menuRef}>
         <DetoxFlavorMenu />
       </div>
@@ -176,7 +226,11 @@ const DetoxContent = () => {
         />
       </div>
 
+      <UrgencySection />
+
       <HowItWorks accentColor="primary" />
+
+      <DetoxFAQSection />
 
       {/* Guarantee Section */}
       <section className="py-12 bg-primary/5">
