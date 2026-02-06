@@ -3,6 +3,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Crown, Loader2 } from "lucide-react";
 import { ClubPlan } from "@/hooks/useClubPlans";
+import detoxVideo from "@/assets/produtos-detox-video.mp4";
+import marmita1 from "@/assets/marmita-1.png";
+
+const kitMediaMap: Record<string, { type: "video" | "image"; src: string }> = {
+  suco_detox: { type: "video", src: detoxVideo },
+  marmitas: { type: "image", src: marmita1 },
+  sopas: { type: "video", src: detoxVideo },
+  almoco_janta: { type: "image", src: marmita1 },
+  almoco_suco: { type: "image", src: marmita1 },
+};
 
 interface ClubPlanCardsProps {
   plans: ClubPlan[];
@@ -26,6 +36,7 @@ const ClubPlanCards = ({ plans, onSelect, loadingId }: ClubPlanCardsProps) => {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">
           {plans.map((plan, index) => {
             const isLoading = loadingId === plan.id;
+            const media = kitMediaMap[plan.kit_type];
 
             return (
               <motion.div
@@ -43,16 +54,38 @@ const ClubPlanCards = ({ plans, onSelect, loadingId }: ClubPlanCardsProps) => {
                   }`}
                 >
                   {plan.popular && (
-                    <div className="absolute top-0 right-0 bg-amber-500 text-white px-3 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1">
+                    <div className="absolute top-0 right-0 bg-amber-500 text-white px-3 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1 z-10">
                       <Crown className="w-3 h-3" />
                       Popular
                     </div>
                   )}
 
-                  <CardContent className="p-6 pt-8">
-                    <div className="text-center space-y-4">
-                      <div className="text-4xl">{plan.icon_emoji}</div>
+                  {/* Media */}
+                  {media && (
+                    <div className="aspect-[16/10] overflow-hidden">
+                      {media.type === "video" ? (
+                        <video
+                          src={media.src}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          preload="metadata"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={media.src}
+                          alt={plan.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                    </div>
+                  )}
 
+                  <CardContent className="p-5 pt-4">
+                    <div className="text-center space-y-3">
                       <h3 className="font-bold text-lg text-foreground">
                         {plan.name}
                       </h3>
@@ -61,7 +94,7 @@ const ClubPlanCards = ({ plans, onSelect, loadingId }: ClubPlanCardsProps) => {
                         {plan.items_description}
                       </p>
 
-                      <div className="py-2">
+                      <div className="py-1">
                         <div className="flex items-baseline justify-center gap-1">
                           <span className="text-sm text-muted-foreground">R$</span>
                           <span className="text-3xl font-bold text-foreground">
