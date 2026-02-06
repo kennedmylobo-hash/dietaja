@@ -1,163 +1,141 @@
 
-# Plano: Otimizar Página /detox para Tráfego Pago e Conversão no WhatsApp
+# Plano: Otimizar Landing Pages /fit e /fitness para Conversao
 
 ## Objetivo
-Transformar a página `/detox` em uma landing page profissional otimizada para anúncios pagos (Meta Ads) e compartilhamento no WhatsApp com máxima conversão.
+Adicionar as mesmas secoes de conversao da pagina `/detox` nas paginas `/fit` e `/fitness`, mantendo o contexto e objetivo de cada linha de produto.
 
-## Análise da Situação Atual
+## O que falta em cada pagina (comparado com /detox)
 
-### ✅ Já Implementado
-- **Analytics:** Meta Pixel (ID: 901477464237603) e GA4 ativados
-- **CTAs:** Botão flutuante do WhatsApp com animação e tracking
-- **Cart Flow:** Integração completa com carrinho e checkout
-- **Seleção de Sabores:** Modal KitFlavorSelectionModal funcional
-- **Layout:** Componentes reutilizáveis (Hero, Benefits, PackageCards)
+| Secao | /detox | /fit | /fitness |
+|-------|--------|------|----------|
+| Helmet com OG completo | Sim | Apenas titulo basico | Apenas titulo basico |
+| Meta Pixel ViewContent | Sim | Nao | Nao |
+| Meta Pixel AddToCart | Sim | Nao | Nao |
+| TestimonialsSection | Sim | Nao | Nao |
+| UrgencySection | Sim | Nao | Nao |
+| FAQ especifico | Sim (DetoxFAQSection) | Nao | Nao |
 
-### ❌ Lacunas Críticas para Conversão
+## Arquivos a criar
 
-1. **Open Graph Incompleto**
-   - `index.html` define OG genérico para todo o site
-   - Quando o usuário compartilha `/detox` no WhatsApp, não mostra "Kit Detox 3 Dias" e benefícios específicos
-   - Falta imagem dedicada (og-image-detox.jpg)
+### 1. `src/components/FitFAQSection.tsx`
+FAQ especifico para emagrecimento:
+- "Quantas calorias tem cada marmita?"
+- "Posso comer so marmita fit e emagrecer?"
+- "Preciso fazer dieta alem da marmita?"
+- "Qual a diferenca entre Fit (300g) e Fitness (450g)?"
+- "Posso escolher marmitas sem carboidrato?"
+- "Com que frequencia devo pedir?"
 
-2. **Prova Social Ausente**
-   - HomePage tem `TestimonialsSection` com 3 depoimentos reais
-   - Página `/detox` não inclui nenhum depoimento
-   - Clientes reduzem sua confiança sem validação social
+### 2. `src/components/FitnessFAQSection.tsx`
+FAQ especifico para hipertrofia:
+- "Quanta proteina tem em cada marmita?"
+- "A marmita substitui o whey pos-treino?"
+- "Posso comer antes ou depois do treino?"
+- "Qual a diferenca entre Fitness (450g) e Fit (300g)?"
+- "Tem opcao com mais carboidrato?"
+- "Com que frequencia devo pedir?"
 
-3. **FAQ Específico Inexistente**
-   - HomePage tem FAQ genérica
-   - Falta FAQ específica sobre detox (dúvidas: "Vou sentir fraqueza? Posso fazer durante o trabalho?")
+## Arquivos a modificar
 
-4. **Urgência Fraca**
-   - HomePage tem `UrgencySection` com countdown e local
-   - Página `/detox` tem apenas o HowItWorks (sem countdown)
-   - Perdem-se 30-50% das conversões sem urgência explícita
+### 3. `src/pages/Fit.tsx`
+Adicionar:
+- `useEffect` import
+- `siteConfig` import
+- Imports: `TestimonialsSection`, `UrgencySection`, `FitFAQSection`
+- **Helmet completo** com OG tags (titulo: "Marmitas Fit 300g - Emagreca com Sabor", imagem: og-image.jpg)
+- **ViewContent** pixel event no `useEffect` com `content_name: 'Marmita Fit 300g'`
+- **AddToCart** pixel event no `handlePackageSelect`
+- **TestimonialsSection** apos BenefitsSection
+- **UrgencySection** apos PackageCards
+- **FitFAQSection** apos HowItWorks (antes da garantia)
 
-5. **Tracking de Pixel Granular**
-   - `MarmitasSection` rastreia `ViewContent`
-   - `KitsSection` rastreia `ViewContent`
-   - Página `/detox` **não rastreia** quando o usuário **visualiza o Hero** ou **clica em "Escolher Kit"**
+### 4. `src/pages/Fitness.tsx`
+Adicionar:
+- `useEffect` import
+- `siteConfig` import
+- Imports: `TestimonialsSection`, `UrgencySection`, `FitnessFAQSection`
+- **Helmet completo** com OG tags (titulo: "Marmitas Fitness 450g - Combustivel para Treinos", imagem: og-image.jpg, cor terracotta)
+- **ViewContent** pixel event no `useEffect` com `content_name: 'Marmita Fitness 450g'`
+- **AddToCart** pixel event no `handlePackageSelect`
+- **TestimonialsSection** apos BenefitsSection
+- **UrgencySection** apos PackageCards
+- **FitnessFAQSection** apos HowItWorks (antes da garantia)
 
-6. **Metadados Faltantes**
-   - Sem `<meta name="keywords">` específica para "detox"
-   - Sem `<link rel="canonical">` específica para `/detox`
-   - Sem `<meta name="og:url">` para WhatsApp/Facebook
+## Estrutura final das paginas (ordem das secoes)
 
-## Solução Estruturada
+```text
+1. Helmet (SEO + OG)
+2. LandingHeader
+3. LandingHero
+4. BenefitsSection
+5. TestimonialsSection       <-- NOVO
+6. FlavorMenu
+7. PackageCards
+8. UrgencySection            <-- NOVO
+9. HowItWorks
+10. FAQ Section              <-- NOVO (FitFAQSection ou FitnessFAQSection)
+11. Garantia de Satisfacao
+12. FloatingCTA + Cart + Modais
+```
 
-### 1. **Adicionar Open Graph Dinâmico (Helmet)**
-**Arquivo:** `src/pages/Detox.tsx`  
-**Mudança:**
+## Detalhes Tecnicos
+
+### Helmet OG para /fit
 ```typescript
-// Adicionar dentro de DetoxContent:
 <Helmet>
-  <title>Kit Detox 3-7 Dias | Dieta Já - Sucos Funcionais</title>
-  <meta name="description" content="Desintoxique seu corpo em até 7 dias com sucos e sopas funcionais. Reduza inchaço, aumente energia e prepare-se para uma nova rotina alimentar." />
-  <meta name="keywords" content="detox, sucos funcionais, sopas detox, limpeza do corpo, reduzir inchaço" />
-  <link rel="canonical" href="https://dietajavca.com.br/detox" />
-  
-  {/* Open Graph para WhatsApp */}
-  <meta property="og:title" content="Kit Detox Funcional - Reduza Inchaço em 3 Dias" />
-  <meta property="og:description" content="Sucos e sopas funcionais para renovar sua energia. 4 sucos + 2 sopas por dia. Entrega em Vitória da Conquista." />
-  <meta property="og:url" content="https://dietajavca.com.br/detox" />
-  <meta property="og:image" content="https://dietajavca.com.br/og-image-detox.jpg" />
-  <meta name="twitter:card" content="summary_large_image" />
+  <title>Marmitas Fit 300g | Dieta Ja - Emagrecimento</title>
+  <meta name="description" content="Marmitas de 300g balanceadas para emagrecimento. Porcoes controladas, +30 sabores e praticidade." />
+  <meta name="keywords" content="marmita fit, emagrecimento, dieta, marmita 300g, alimentacao saudavel" />
+  <link rel="canonical" href="https://dietajavca.com.br/fit" />
+  <meta property="og:type" content="product" />
+  <meta property="og:title" content="Marmitas Fit 300g - Emagreca com Sabor" />
+  <meta property="og:description" content="Porcoes controladas de 300g com +30 sabores. Praticidade para sua dieta em Vitoria da Conquista." />
+  <meta property="og:url" content="https://dietajavca.com.br/fit" />
+  <meta property="og:image" content="https://dietajavca.com.br/og-image.jpg" />
+  ...
 </Helmet>
 ```
 
-### 2. **Criar Imagem OG Específica**
-**Ação:** Criar `public/og-image-detox.jpg` (1200x630px)
-- Visuals: Kit Detox + Verde (cor primária #22c55e)
-- Texto: "🍃 Kit Detox | Desintoxique em 3-7 dias"
-- Estilo: Flat, moderno, alinhado com marca Dieta Já
-
-### 3. **Adicionar Testimonials Detox-Specific**
-**Arquivo:** `src/pages/Detox.tsx`  
-**Mudança:** Incluir seção de `TestimonialsSection` customizada após `BenefitsSection`
+### Helmet OG para /fitness
 ```typescript
-// Depoimentos específicos de clientes que fizeram detox:
-- "Perdi 2kg em 3 dias e o inchaço sumiu" - Maria P.
-- "Voltei com disposição e energia" - Rafael T.
-- "Melhor coisa que fiz para minha saúde" - Juliana M.
+<Helmet>
+  <title>Marmitas Fitness 450g | Dieta Ja - Hipertrofia</title>
+  <meta name="description" content="Marmitas de 450g para quem treina pesado. 150g de proteina, alto valor calorico e praticidade." />
+  <meta name="keywords" content="marmita fitness, hipertrofia, ganho de massa, marmita 450g, proteina" />
+  <link rel="canonical" href="https://dietajavca.com.br/fitness" />
+  <meta property="og:type" content="product" />
+  <meta property="og:title" content="Marmitas Fitness 450g - Combustivel para Treinos" />
+  <meta property="og:description" content="Porcao generosa com 150g de proteina. Ideal para ganho de massa em Vitoria da Conquista." />
+  <meta property="og:url" content="https://dietajavca.com.br/fitness" />
+  <meta property="og:image" content="https://dietajavca.com.br/og-image.jpg" />
+  ...
+</Helmet>
 ```
 
-### 4. **Adicionar FAQ Detox-Specific**
-**Novo componente:** `src/components/DetoxFAQSection.tsx`  
-**Conteúdo específico:**
-```
-- "Vou sentir fraqueza durante o detox?"
-- "Posso trabalhar enquanto faço detox?"
-- "O detox dói o estômago?"
-- "Quando devo fazer o detox? Antes de quais períodos?"
-- "Qual kit é melhor: 3 dias ou 7 dias?"
-```
-
-### 5. **Adicionar Countdown/Urgência**
-**Arquivo:** `src/pages/Detox.tsx`  
-**Mudança:** Incluir `UrgencySection` após `PackageCards`
+### Pixel Tracking (mesmo padrao do Detox)
 ```typescript
-<UrgencySection />
-```
-
-### 6. **Rastreamento Granular de Pixel**
-**Arquivo:** `src/pages/Detox.tsx`  
-**Mudanças:**
-
-a) Rastrear quando o Hero Detox é visualizado:
-```typescript
+// ViewContent on load
 useEffect(() => {
-  if (typeof window !== 'undefined' && window.fbq) {
+  if (packages.length > 0 && window.fbq) {
     window.fbq('track', 'ViewContent', {
       content_type: 'product_group',
-      content_name: 'Kit Detox',
-      value: packages.reduce((sum, p) => sum + p.price, 0) / packages.length,
+      content_name: 'Marmita Fit 300g', // ou 'Marmita Fitness 450g'
+      content_category: 'Emagrecimento', // ou 'Hipertrofia'
+      value: avgPrice,
       currency: 'BRL',
     });
   }
-}, [packages]);
+}, [packages.length]);
+
+// AddToCart on select
+window.fbq('track', 'AddToCart', {
+  content_name: pkg.name,
+  content_type: 'product',
+  content_ids: [pkg.id],
+  value: pkg.price,
+  currency: 'BRL',
+});
 ```
 
-b) Rastrear clique em "Escolher Kit":
-```typescript
-const handlePackageSelect = (pkg: PackageOption) => {
-  // Track AddToCart (indicativo de interesse)
-  if (typeof window !== 'undefined' && window.fbq) {
-    window.fbq('track', 'AddToCart', {
-      content_name: pkg.name,
-      content_type: 'package',
-      value: pkg.price,
-      currency: 'BRL',
-    });
-  }
-  // ... resto da lógica
-};
-```
-
-## Arquivos a Serem Modificados
-
-| Arquivo | Ação | Complexidade |
-|---------|------|-------------|
-| `src/pages/Detox.tsx` | Adicionar Helmet, UrgencySection, Testimonials, Pixel tracking | Média |
-| `src/components/DetoxFAQSection.tsx` | Novo componente com FAQ específica | Baixa |
-| `public/og-image-detox.jpg` | Nova imagem (design/ferramentas) | Baixa |
-| `src/assets/` | Nenhuma (reutiliza assets existentes) | N/A |
-
-## Benefícios Esperados
-
-| Métrica | Antes | Depois |
-|---------|-------|--------|
-| **CTR em Anúncios Meta** | ~2-3% | ~4-6% (preview atrativo no WhatsApp) |
-| **Taxa de Conversão** | ~8-10% | ~12-15% (prova social + urgência) |
-| **Tempo Médio na Página** | ~60s | ~120s (FAQ + depoimentos) |
-| **Pixel Tracking** | Incompleto | 100% (otimização de anúncios) |
-| **Compartilhamentos** | Genéricos | Com visual detox (og-image) |
-
-## Sequência de Implementação
-
-1. Modificar `src/pages/Detox.tsx` (adicionar Helmet, Pixel, UrgencySection)
-2. Criar `src/components/DetoxFAQSection.tsx` 
-3. Criar `public/og-image-detox.jpg`
-4. Testar fluxo completo no navegador e no simulador de compartilhamento do Meta
-5. Validar que os eventos de Pixel aparecem na conta do Meta Ads
-
+## Nota sobre imagens OG
+As paginas /fit e /fitness utilizarao a imagem OG generica do site (`og-image.jpg`) por enquanto. Imagens OG dedicadas podem ser criadas posteriormente para melhorar ainda mais os previews no WhatsApp.
