@@ -156,6 +156,9 @@ serve(async (req) => {
       }
     }
 
+    // 7. Seed default landing content
+    await seedLandingContent(supabase, tenant.id, brand_name, clone_menu_from);
+
     console.log(`Onboarding complete for ${brand_name}`);
 
     return new Response(
@@ -199,36 +202,65 @@ async function cloneMenuFromTenant(supabase: any, sourceTenantId: string, newTen
         .select("*")
         .eq("tenant_id", sourceTenantId);
 
-      if (fetchError) {
-        console.error(`Error fetching ${table.name}:`, fetchError);
-        continue;
-      }
+      if (fetchError) { console.error(`Error fetching ${table.name}:`, fetchError); continue; }
+      if (!sourceRows || sourceRows.length === 0) { console.log(`No rows to clone for ${table.name}`); continue; }
 
-      if (!sourceRows || sourceRows.length === 0) {
-        console.log(`No rows to clone for ${table.name}`);
-        continue;
-      }
-
-      // Clone rows with new tenant_id, removing excluded fields
       const clonedRows = sourceRows.map((row: any) => {
         const cloned = { ...row, tenant_id: newTenantId };
-        for (const field of table.exclude) {
-          delete cloned[field];
-        }
+        for (const field of table.exclude) { delete cloned[field]; }
         return cloned;
       });
 
-      const { error: insertError } = await supabase
-        .from(table.name)
-        .insert(clonedRows);
-
-      if (insertError) {
-        console.error(`Error cloning ${table.name}:`, insertError);
-      } else {
-        console.log(`Cloned ${clonedRows.length} rows for ${table.name}`);
-      }
+      const { error: insertError } = await supabase.from(table.name).insert(clonedRows);
+      if (insertError) { console.error(`Error cloning ${table.name}:`, insertError); }
+      else { console.log(`Cloned ${clonedRows.length} rows for ${table.name}`); }
     } catch (err) {
       console.error(`Unexpected error cloning ${table.name}:`, err);
     }
+  }
+}
+
+/**
+ * Seed default landing page content for a new tenant.
+ * If cloning from a source, copy its landing content too.
+ */
+async function seedLandingContent(supabase: any, tenantId: string, brandName: string, cloneFrom?: string) {
+  if (cloneFrom) {
+    const { data: sourceContent } = await supabase
+      .from("tenant_landing_content")
+      .select("*")
+      .eq("tenant_id", cloneFrom);
+
+    if (sourceContent && sourceContent.length > 0) {
+      const cloned = sourceContent.map((row: any) => ({
+        tenant_id: tenantId,
+        section_key: row.section_key,
+        content: row.content,
+        is_visible: row.is_visible,
+        sort_order: row.sort_order,
+      }));
+      const { error } = await supabase.from("tenant_landing_content").insert(cloned);
+      if (error) console.error("Error cloning landing content:", error);
+      else console.log(`Cloned ${cloned.length} landing sections`);
+      return;
+    }
+  }
+
+  // Default seed
+  const defaults = [
+    { section_key: "hero", sort_order: 1, content: { title: `${brandName} — Alimentação saudável sem esforço`, subtitle: "Marmitas, kits detox e dietas personalizadas", badges: ["Retirada grátis", "Produção semanal"], social_proof: "200+ kits vendidos" } },
+    { section_key: "identification", sort_order: 2, content: { title: "Você não come mal porque quer.", items: ["Você come mal porque carrega muita coisa nas costas.", "Aqui, a alimentação deixa de ser mais uma preocupação."] } },
+    { section_key: "before_after", sort_order: 4, content: { title: "Como muda a sua rotina", subtitle: "Veja a diferença que ter alimentação saudável pronta faz no seu dia a dia", before: [{ icon: "Clock", text: "Sem tempo pra cozinhar" }, { icon: "Pizza", text: "Delivery todo dia" }, { icon: "BatteryLow", text: "Cansada e sem energia" }, { icon: "CircleDollarSign", text: "Gastando demais com comida" }, { icon: "Frown", text: "Culpa por não cuidar de si" }], after: [{ icon: "Clock", text: "Refeições prontas esperando" }, { icon: "Salad", text: "Comida saudável e saborosa" }, { icon: "BatteryFull", text: "Energia pro dia todo" }, { icon: "PiggyBank", text: "Economia no fim do mês" }, { icon: "Smile", text: "Orgulho do autocuidado" }] } },
+    { section_key: "product_gallery", sort_order: 5, content: { title: "O que você recebe", badge: "🌿 Produto Real", badges: [{ icon: "Droplet", label: "Sucos detox" }, { icon: "Flame", label: "Sopas funcionais" }, { icon: "UtensilsCrossed", label: "Marmitas congeladas" }, { icon: "MapPin", label: "Produção local" }], footer: "Produção semanal" } },
+    { section_key: "banners", sort_order: 3, content: { title: "O que você deseja? 🤔", subtitle: "Escolha uma opção abaixo", items: [{ id: "kit-detox", title: "Kit Detox", subtitle: "Comece sua transformação", description: "Sucos + sopas", icon: "Droplets", gradient: "from-primary/90 to-primary", targetSection: "kits" }, { id: "marmitas", title: "Marmitas Saudáveis", subtitle: "Combos com desconto", description: "7 a 28 marmitas", icon: "UtensilsCrossed", gradient: "from-terracotta/90 to-terracotta", targetSection: "marmitas" }, { id: "dieta", title: "Dieta Personalizada", subtitle: "Montamos para você", description: "Sua dieta, nossa mão de obra", icon: "Salad", gradient: "from-sage-dark/90 to-sage-dark", targetSection: "dieta-personalizada" }] } },
+    { section_key: "faq", sort_order: 8, content: { items: [{ question: "Como funciona a entrega?", answer: "Entregamos semanalmente na sua região." }, { question: "Posso cancelar a qualquer momento?", answer: "Sim, sem compromisso." }] } },
+    { section_key: "custom_diet", sort_order: 9, content: { title: "Quer algo ainda mais personalizado?", subtitle: "Montamos sua dieta sob medida.", button_text: "Montar minha dieta personalizada", benefits: [{ icon: "ClipboardList", text: "Siga sua dieta médica ou nutricional" }, { icon: "Heart", text: "Adapte para suas restrições alimentares" }, { icon: "ChefHat", text: "Escolha exatamente os ingredientes" }] } },
+  ];
+
+  const rows = defaults.map((d) => ({ tenant_id: tenantId, ...d }));
+  const { error } = await supabase.from("tenant_landing_content").insert(rows);
+  if (error) console.error("Error seeding landing content:", error);
+  else console.log(`Seeded ${rows.length} landing sections for ${brandName}`);
+}
   }
 }

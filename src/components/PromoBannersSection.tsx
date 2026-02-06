@@ -1,14 +1,15 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Droplets, UtensilsCrossed, Salad, ChevronRight } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
+import { useLandingContent } from "@/hooks/useLandingContent";
 
-const banners = [
+const defaultBanners = [
   {
     id: "kit-detox",
     title: "Kit Detox 3 Dias",
     subtitle: "Comece sua transformação",
     description: "12 sucos + 6 sopas",
-    icon: Droplets,
+    icon: "Droplets",
     gradient: "from-primary/90 to-primary",
     targetSection: "kits",
   },
@@ -17,7 +18,7 @@ const banners = [
     title: "Marmitas Saudáveis",
     subtitle: "Ganhe até 23% OFF",
     description: "Combos de 7 a 28 marmitas",
-    icon: UtensilsCrossed,
+    icon: "UtensilsCrossed",
     gradient: "from-terracotta/90 to-terracotta",
     targetSection: "marmitas",
   },
@@ -26,11 +27,13 @@ const banners = [
     title: "Dieta Personalizada",
     subtitle: "Montamos para você",
     description: "Sua dieta, nossa mão de obra",
-    icon: Salad,
+    icon: "Salad",
     gradient: "from-sage-dark/90 to-sage-dark",
     targetSection: "dieta-personalizada",
   },
 ];
+
+const iconMap: Record<string, any> = { Droplets, UtensilsCrossed, Salad };
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -51,14 +54,25 @@ const itemVariants = {
   },
 };
 
-interface BannerCardProps {
-  banner: typeof banners[0];
-  onClick: () => void;
+interface BannerData {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  icon: string;
+  gradient: string;
+  targetSection: string;
 }
 
-const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps & { shouldPulse: boolean }) => {
+interface BannerCardProps {
+  banner: BannerData;
+  onClick: () => void;
+  shouldPulse: boolean;
+}
+
+const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps) => {
   const ref = useRef<HTMLButtonElement>(null);
-  const Icon = banner.icon;
+  const Icon = iconMap[banner.icon] || Droplets;
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -116,36 +130,26 @@ const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps & { should
       } : {}}
       className={`group relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 lg:p-8 text-left transition-all duration-300 shadow-xl hover:shadow-2xl ring-2 ring-white/30 hover:ring-white/50 bg-gradient-to-br ${banner.gradient} cursor-pointer border-2 border-white/10`}
     >
-      {/* Background glow effect */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-      {/* Content with parallax */}
       <motion.div
         style={{ x: contentX, y: contentY, transformStyle: "preserve-3d" }}
         className="relative z-10 flex flex-col h-full min-h-[70px] sm:min-h-[110px] md:min-h-[160px] lg:min-h-[180px]"
       >
         <Icon className="w-5 h-5 sm:w-7 sm:h-7 md:w-10 md:h-10 lg:w-12 lg:h-12 text-white/90 mb-1.5 sm:mb-2 md:mb-3" />
-        
         <h3 className="text-[11px] sm:text-base md:text-lg lg:text-xl font-bold text-white leading-tight">
           {banner.title}
         </h3>
-        
         <p className="hidden sm:block text-sm md:text-base text-white/80 font-medium mt-1.5">
           {banner.subtitle}
         </p>
-        
         <p className="hidden sm:block text-xs md:text-sm text-white/70 mt-auto pt-3">
           {banner.description}
         </p>
       </motion.div>
-
-      {/* Click indicator - More visible */}
       <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-2 py-1 sm:px-3 sm:py-1.5 text-white group-hover:bg-white/30 transition-all duration-300">
         <span className="text-[9px] sm:text-xs font-semibold">Clique</span>
         <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" />
       </div>
-
-      {/* Decorative circle with parallax */}
       <motion.div
         style={{ 
           x: useTransform(xSpring, [-0.5, 0.5], ["8px", "-8px"]),
@@ -159,15 +163,21 @@ const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps & { should
 
 const PromoBannersSection = () => {
   const [shouldPulse, setShouldPulse] = useState(false);
+  const { content, isVisible } = useLandingContent("banners");
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setShouldPulse(true);
-      // Stop pulsing after animation completes
       setTimeout(() => setShouldPulse(false), 3500);
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  if (!isVisible) return null;
+
+  const banners = content?.items ?? defaultBanners;
+  const title = content?.title ?? "O que você deseja? 🤔";
+  const subtitle = content?.subtitle ?? "Escolha uma opção abaixo";
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -179,7 +189,6 @@ const PromoBannersSection = () => {
   return (
     <section className="py-6 sm:py-8 md:py-12 bg-gradient-to-b from-muted/30 to-background">
       <div className="container px-3 md:px-6">
-        {/* Section header - More prominent */}
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -187,10 +196,10 @@ const PromoBannersSection = () => {
           className="text-center mb-6 sm:mb-8 md:mb-10"
         >
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-foreground mb-2 sm:mb-3">
-            O que você deseja? 🤔
+            {title}
           </h2>
           <p className="text-base sm:text-lg text-muted-foreground flex items-center justify-center gap-2">
-            <span>Escolha uma opção abaixo</span>
+            <span>{subtitle}</span>
             <motion.span 
               animate={{ y: [0, 6, 0] }}
               transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
@@ -208,7 +217,7 @@ const PromoBannersSection = () => {
           className="grid grid-cols-3 gap-2 sm:gap-5 lg:gap-6"
           style={{ perspective: "1000px" }}
         >
-          {banners.map((banner) => (
+          {banners.map((banner: any) => (
             <BannerCard
               key={banner.id}
               banner={banner}

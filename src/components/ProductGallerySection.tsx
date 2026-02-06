@@ -2,17 +2,32 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Droplet, Flame, UtensilsCrossed, MapPin } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
+import { useLandingContent } from "@/hooks/useLandingContent";
 
-const badges = [
-  { icon: Droplet, label: "Sucos detox" },
-  { icon: Flame, label: "Sopas funcionais" },
-  { icon: UtensilsCrossed, label: "Marmitas congeladas" },
-  { icon: MapPin, label: "Produção local" },
+const defaultBadges = [
+  { icon: "Droplet", label: "Sucos detox" },
+  { icon: "Flame", label: "Sopas funcionais" },
+  { icon: "UtensilsCrossed", label: "Marmitas congeladas" },
+  { icon: "MapPin", label: "Produção local" },
 ];
+
+const iconMap: Record<string, any> = { Droplet, Flame, UtensilsCrossed, MapPin };
 
 const ProductGallerySection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const { content, isVisible } = useLandingContent("product_gallery");
+
+  if (!isVisible) return null;
+
+  const title = content?.title ?? "O que você recebe";
+  const badgeLabel = content?.badge ?? "🌿 Produto Real";
+  const videoUrl = content?.video_url ?? null;
+  const badges = (content?.badges ?? defaultBadges).map((b: any) => ({
+    icon: iconMap[b.icon] || Droplet,
+    label: b.label,
+  }));
+  const footerText = content?.footer ?? "Produção semanal em Vitória da Conquista";
 
   return (
     <section ref={ref} className="py-12 md:py-16 lg:py-24 bg-background">
@@ -24,10 +39,10 @@ const ProductGallerySection = () => {
           transition={{ duration: 0.5 }}
         >
           <span className="inline-block px-3 sm:px-4 py-1.5 bg-sage-light text-sage-dark text-xs sm:text-sm font-medium rounded-full mb-4">
-            🌿 Produto Real
+            {badgeLabel}
           </span>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">
-            O que você recebe
+            {title}
           </h2>
         </motion.div>
 
@@ -39,7 +54,7 @@ const ProductGallerySection = () => {
         >
           <div className="relative rounded-2xl overflow-hidden shadow-card aspect-video">
             <video
-              src={produtosVideo}
+              src={videoUrl || produtosVideo}
               autoPlay
               loop
               muted
@@ -57,7 +72,7 @@ const ProductGallerySection = () => {
             animate={isInView ? { opacity: 1 } : {}}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            {badges.map(({ icon: Icon, label }) => (
+            {badges.map(({ icon: Icon, label }: any) => (
               <span
                 key={label}
                 className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-card border border-border rounded-full text-xs sm:text-sm text-foreground"
@@ -74,7 +89,7 @@ const ProductGallerySection = () => {
             animate={isInView ? { opacity: 1 } : {}}
             transition={{ duration: 0.5, delay: 0.5 }}
           >
-            Produção semanal em Vitória da Conquista
+            {footerText}
           </motion.p>
         </motion.div>
       </div>

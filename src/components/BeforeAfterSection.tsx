@@ -15,26 +15,48 @@ import {
   ArrowRight
 } from "lucide-react";
 import { siteConfig } from "@/config/site";
+import { useLandingContent } from "@/hooks/useLandingContent";
 
-const beforeItems = [
-  { icon: Clock, text: "Sem tempo pra cozinhar" },
-  { icon: Pizza, text: "Delivery todo dia" },
-  { icon: BatteryLow, text: "Cansada e sem energia" },
-  { icon: CircleDollarSign, text: "Gastando demais com comida" },
-  { icon: Frown, text: "Culpa por não cuidar de si" },
+const defaultBeforeItems = [
+  { icon: "Clock", text: "Sem tempo pra cozinhar" },
+  { icon: "Pizza", text: "Delivery todo dia" },
+  { icon: "BatteryLow", text: "Cansada e sem energia" },
+  { icon: "CircleDollarSign", text: "Gastando demais com comida" },
+  { icon: "Frown", text: "Culpa por não cuidar de si" },
 ];
 
-const afterItems = [
-  { icon: Clock, text: "Refeições prontas esperando" },
-  { icon: Salad, text: "Comida saudável e saborosa" },
-  { icon: BatteryFull, text: "Energia pro dia todo" },
-  { icon: PiggyBank, text: "Economia no fim do mês" },
-  { icon: Smile, text: "Orgulho do autocuidado" },
+const defaultAfterItems = [
+  { icon: "Clock", text: "Refeições prontas esperando" },
+  { icon: "Salad", text: "Comida saudável e saborosa" },
+  { icon: "BatteryFull", text: "Energia pro dia todo" },
+  { icon: "PiggyBank", text: "Economia no fim do mês" },
+  { icon: "Smile", text: "Orgulho do autocuidado" },
 ];
+
+const iconMap: Record<string, any> = {
+  Clock, Pizza, BatteryLow, CircleDollarSign, Frown,
+  Salad, BatteryFull, PiggyBank, Smile,
+};
 
 const BeforeAfterSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const { content, isVisible } = useLandingContent("before_after");
+
+  if (!isVisible) return null;
+
+  const beforeItems = (content?.before ?? defaultBeforeItems).map((item: any) => ({
+    icon: iconMap[item.icon] || Clock,
+    text: item.text,
+  }));
+
+  const afterItems = (content?.after ?? defaultAfterItems).map((item: any) => ({
+    icon: iconMap[item.icon] || Salad,
+    text: item.text,
+  }));
+
+  const title = content?.title ?? "Como muda a sua rotina";
+  const subtitle = content?.subtitle ?? "Veja a diferença que ter alimentação saudável pronta faz no seu dia a dia";
 
   return (
     <section ref={ref} className="py-12 md:py-16 lg:py-24 bg-gradient-to-b from-background to-muted/30">
@@ -50,10 +72,10 @@ const BeforeAfterSection = () => {
             Transformação Real
           </span>
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4">
-            Como muda a sua rotina
+            {title}
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Veja a diferença que ter alimentação saudável pronta faz no seu dia a dia
+            {subtitle}
           </p>
         </motion.div>
 
@@ -67,7 +89,6 @@ const BeforeAfterSection = () => {
             className="relative"
           >
             <div className="bg-card border border-destructive/20 rounded-2xl p-4 sm:p-6 md:p-8 h-full">
-              {/* Header */}
               <div className="flex items-center gap-3 mb-4 sm:mb-6">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-destructive/10 flex items-center justify-center">
                   <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-destructive" />
@@ -77,10 +98,8 @@ const BeforeAfterSection = () => {
                   <p className="text-sm text-muted-foreground">Sua rotina hoje</p>
                 </div>
               </div>
-
-              {/* Items */}
               <ul className="space-y-3 sm:space-y-4">
-                {beforeItems.map((item, index) => (
+                {beforeItems.map((item: any, index: number) => (
                   <motion.li
                     key={index}
                     initial={{ opacity: 0, x: -20 }}
@@ -93,8 +112,6 @@ const BeforeAfterSection = () => {
                   </motion.li>
                 ))}
               </ul>
-
-              {/* Emoji */}
               <div className="mt-4 sm:mt-6 text-center">
                 <span className="text-3xl sm:text-4xl">😓</span>
               </div>
@@ -121,14 +138,11 @@ const BeforeAfterSection = () => {
             className="relative"
           >
             <div className="bg-card border-2 border-primary/30 rounded-2xl p-4 sm:p-6 md:p-8 h-full shadow-lg shadow-primary/5">
-              {/* Destaque badge */}
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="px-3 sm:px-4 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full whitespace-nowrap">
                   ✨ Com a {siteConfig.brand.name}
                 </span>
               </div>
-
-              {/* Header */}
               <div className="flex items-center gap-3 mb-4 sm:mb-6 mt-2">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center">
                   <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
@@ -138,10 +152,8 @@ const BeforeAfterSection = () => {
                   <p className="text-sm text-muted-foreground">Sua nova rotina</p>
                 </div>
               </div>
-
-              {/* Items */}
               <ul className="space-y-3 sm:space-y-4">
-                {afterItems.map((item, index) => (
+                {afterItems.map((item: any, index: number) => (
                   <motion.li
                     key={index}
                     initial={{ opacity: 0, x: 20 }}
@@ -154,8 +166,6 @@ const BeforeAfterSection = () => {
                   </motion.li>
                 ))}
               </ul>
-
-              {/* Emoji */}
               <div className="mt-4 sm:mt-6 text-center">
                 <span className="text-3xl sm:text-4xl">😊</span>
               </div>
