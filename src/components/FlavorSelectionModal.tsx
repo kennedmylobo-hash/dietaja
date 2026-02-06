@@ -6,6 +6,7 @@ import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, 
 import { motion, AnimatePresence } from "framer-motion";
 import { celebrateCheckout } from "@/lib/confetti";
 import { hapticFeedback } from "@/lib/haptics";
+import { getFlavorDescription, mapLineTypeToKey } from "@/lib/flavor-description";
 
 interface FlavorSelection {
   name: string;
@@ -24,6 +25,7 @@ interface FlavorData {
   stock_quantity: number | null;
   show_stock: boolean;
   low_stock_threshold: number | null;
+  sides?: any;
 }
 
 interface FlavorSelectionModalProps {
@@ -33,6 +35,7 @@ interface FlavorSelectionModalProps {
   packageName: string;
   packageQuantity: number;
   packageWeight?: number;
+  lineType?: string;
   isLoading?: boolean;
   flavorsByCategory?: FlavorCategory[];
   flavorStockData?: FlavorData[];
@@ -104,10 +107,12 @@ const FlavorSelectionModal = ({
   packageName,
   packageQuantity,
   packageWeight = 300,
+  lineType = 'emagrecimento',
   isLoading = false,
   flavorsByCategory,
   flavorStockData = [],
 }: FlavorSelectionModalProps) => {
+  const lineKey = mapLineTypeToKey(lineType);
   const [selections, setSelections] = useState<Record<string, number>>({});
   const [leaveToUs, setLeaveToUs] = useState(false);
 
@@ -436,6 +441,15 @@ const FlavorSelectionModal = ({
                                 </span>
                               )}
                             </span>
+                            {(() => {
+                              const flavorStock = getFlavorStock(flavor);
+                              const desc = flavorStock?.sides ? getFlavorDescription(flavorStock.sides, lineKey) : null;
+                              return desc ? (
+                                <span className="text-xs text-muted-foreground leading-tight">
+                                  {desc}
+                                </span>
+                              ) : null;
+                            })()}
                             {hasLowStock && !isOutOfStock && (
                               <span className="text-xs text-destructive font-medium animate-pulse">
                                 🔥 Apenas {stockData.stock_quantity} disponíveis

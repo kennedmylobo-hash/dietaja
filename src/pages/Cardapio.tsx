@@ -25,6 +25,7 @@ interface PendingProduct {
   quantity?: number;
   type: "kit" | "marmita";
   days?: number;
+  lineType?: string;
 }
 
 const CardapioContent = () => {
@@ -88,6 +89,7 @@ const CardapioContent = () => {
       popular: pkg.popular,
       type: "marmita" as const,
       category: "marmitas",
+      lineType: pkg.line_type,
     }));
 
     return { kits, marmitas };
@@ -168,6 +170,7 @@ const CardapioContent = () => {
       totalPrice: totalPrice,
       flavors: selections,
       fishAdditional: fishAdditional,
+      lineType: pendingProduct.lineType,
     });
 
     setFlavorModalOpen(false);
@@ -226,6 +229,7 @@ const CardapioContent = () => {
       stock_quantity: f.stock_quantity,
       show_stock: f.show_stock,
       low_stock_threshold: f.low_stock_threshold,
+      sides: f.sides,
     }));
   }, [marmitaFlavors]);
 
@@ -360,7 +364,7 @@ const CardapioContent = () => {
                       title={categoryNames[categorySlug] || categorySlug}
                       icon={categoryIcons[categorySlug]}
                       products={filteredProducts.marmitas[categorySlug] || []}
-                      onAddProduct={(p) => handleAddProduct({ ...p, type: "marmita" })}
+                      onAddProduct={(p) => handleAddProduct({ ...p, type: "marmita", lineType: (p as any).lineType })}
                     />
                   ))}
                 </>
@@ -394,6 +398,7 @@ const CardapioContent = () => {
         packageQuantity={pendingProduct?.quantity || 7}
         flavorsByCategory={flavorsByCategory}
         flavorStockData={flavorStockData}
+        lineType={pendingProduct?.lineType}
       />
 
       {/* Flavor Selection Modal - Kits */}

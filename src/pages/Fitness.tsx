@@ -72,6 +72,7 @@ const FitnessContent = () => {
     stock_quantity: f.stock_quantity,
     show_stock: f.show_stock,
     low_stock_threshold: f.low_stock_threshold,
+    sides: f.sides,
   }));
 
   const scrollToPackages = useCallback(() => {
@@ -120,6 +121,7 @@ const FitnessContent = () => {
       description: `${pkg.quantity}x Marmita 450g`,
       flavors,
       fishAdditional,
+      lineType: 'hipertrofia',
     });
 
     setFlavorModalOpen(false);
@@ -253,6 +255,7 @@ const FitnessContent = () => {
         packageName={selectedPackage?.name || ""}
         packageQuantity={selectedPackage?.quantity || 0}
         packageWeight={450}
+        lineType="hipertrofia"
         flavorsByCategory={flavorsByCategory}
         flavorStockData={flavorStockData}
       />

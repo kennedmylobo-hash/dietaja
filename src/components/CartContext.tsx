@@ -19,6 +19,7 @@ export interface CartItem {
   description?: string;
   flavors?: FlavorSelection[];
   fishAdditional?: number;
+  lineType?: string;
 }
 
 export interface CustomerInfo {
