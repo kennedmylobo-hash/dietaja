@@ -1,108 +1,106 @@
 
-# Corrigir: Campo CPF obrigatorio no CartDrawer para PIX funcionar
 
-## Problema Identificado
+# Filtro de Nomes Ofensivos
 
-O cliente "cacetinho" tentou pagar via PIX pelo **CartDrawer** (carrinho lateral usado no Cardapio e landing pages). O CPF nao foi pedido porque o campo foi **removido intencionalmente** no CartDrawer com o comentario "CPF field removed - testing without it for better conversion" (linha 1267).
-
-Porem, a API do Asaas **exige CPF** para gerar cobranças PIX. O resultado:
-
-1. Cliente clica "Gerar PIX" sem CPF
-2. Edge function envia CPF vazio ao Asaas
-3. Asaas rejeita com erro `invalid_customer.cpfCnpj`
-4. O sistema tenta automaticamente 3 vezes (retries silenciosos)
-5. Apos todas as tentativas, mostra apenas "Ops! Tente novamente" -- sem pedir o CPF
-6. Cliente clicou repetidamente (17 tentativas em 2 minutos), todas falharam
-
-O **CheckoutForm** (pagina principal) tem o campo CPF implementado corretamente. O **CartDrawer** nao.
+## Problema
+Um cliente digitou "piroquinha" como nome e isso foi salvo no pedido e usado em mensagens automaticas (WhatsApp, e-mail). Nao ha nenhuma validacao de conteudo ofensivo nos campos de nome.
 
 ## Solucao
 
-### 1. Restaurar campo CPF no CartDrawer
-**Arquivo:** `src/components/CartDrawer.tsx`
+Criar uma funcao utilitaria centralizada que sanitiza nomes, e aplica-la em todos os pontos onde o nome do cliente e capturado.
 
-- Remover o comentario "CPF field removed" (linha 1267)
-- Adicionar campo de CPF visivel quando o metodo de pagamento for PIX
-- Usar o mesmo padrao do CheckoutForm: campo com mascara `000.000.000-00`, inputMode numeric
-- Validar CPF antes de chamar a edge function (se vazio ou invalido, mostrar erro inline)
+### 1. Criar `src/lib/name-sanitizer.ts`
 
-### 2. Bloquear envio sem CPF valido
-**Arquivo:** `src/components/CartDrawer.tsx`
+Funcao `sanitizeCustomerName(input: string): string` que:
 
-Na funcao `handlePixPayment`:
-- Remover o comentario "CPF is optional now" (linha 478)
-- Adicionar validacao: se CPF vazio ou invalido, setar `cpfError` e retornar sem chamar a API
-- Usar a mesma funcao `validateCPF` do `src/lib/cpf.ts` (algoritmo completo com digitos verificadores) em vez da validacao simplificada local
+- Remove acentos e normaliza o texto para comparacao (sem alterar o nome final se for valido)
+- Substitui caracteres comuns de "leet speak" (0→o, 1→i, 4→a, 3→e, @→a, !→i, etc.)
+- Compara contra uma lista de termos proibidos em portugues (palavroes, termos sexuais, ofensivos)
+- Se qualquer termo proibido for encontrado no nome normalizado, retorna "Cliente"
+- Se o nome estiver vazio, conter apenas simbolos/numeros, ou tiver menos de 2 letras, retorna "Cliente"
+- Permite apenas letras (incluindo acentos), espacos e hifens no nome final
 
-### 3. Melhorar feedback de erro
-**Arquivo:** `src/components/CartDrawer.tsx`
+Lista de termos incluira categorias:
+- Termos sexuais/anatomicos (piroca, pinto, rola, buceta, etc.)
+- Palavroes gerais (porra, merda, caralho, foda, etc.)
+- Xingamentos (viado, puta, corno, etc.)
+- Variantes parciais para capturar derivados (piroquinha, putinha, etc.)
 
-Apos os retries falharem, verificar se o erro e de CPF e mostrar mensagem especifica:
-- "CPF e obrigatorio para pagamento PIX. Preencha o campo acima."
+A funcao tambem exportara `getOriginalNameForLog(sanitized, original)` que retorna o nome original apenas para uso em logs administrativos.
 
-## Detalhes Tecnicos
+### 2. Aplicar nos 3 pontos de entrada de nome
 
-### Campo CPF no CartDrawer (onde inserir)
-Antes do botao "Gerar PIX" (linha 1267), adicionar:
+**`src/components/CartDrawer.tsx`** - Na funcao `handleGoToConfirmation`:
+- Sanitizar `data.name` antes de setar no `formData`
 
-```typescript
-{/* CPF - obrigatorio para PIX */}
-<div className="space-y-1">
-  <Label htmlFor="cpf-drawer" className="text-sm font-medium">
-    CPF <span className="text-muted-foreground text-xs">(exigido pelo PIX)</span>
-  </Label>
-  <Input
-    id="cpf-drawer"
-    inputMode="numeric"
-    placeholder="000.000.000-00"
-    value={formatCpf(cpfValue)}
-    onChange={(e) => {
-      setCpfValue(formatCpf(e.target.value));
-      setCpfError("");
-    }}
-    className={cpfError ? 'border-destructive' : ''}
-  />
-  {cpfError && <p className="text-xs text-destructive">{cpfError}</p>}
-</div>
-```
+**`src/components/CheckoutForm.tsx`** - Na funcao `onSubmit`:
+- Sanitizar `data.name` antes de usar
 
-### Validacao no handlePixPayment
-```typescript
-const handlePixPayment = async (retryCount = 0) => {
-  if (!formData) return;
-  
-  const cleanedCpf = cpfValue.replace(/\D/g, '');
-  
-  // CPF e obrigatorio para PIX
-  if (!cleanedCpf || cleanedCpf.length !== 11) {
-    setCpfError('CPF e obrigatorio para pagamento PIX');
-    return;
-  }
-  
-  if (!validateCPF(cleanedCpf)) {
-    setCpfError('CPF invalido. Verifique os numeros.');
-    return;
-  }
-  
-  setCpfError("");
-  // ... resto da logica
-};
-```
+**`src/components/SoftIdentificationModal.tsx`** - Na funcao `validateAndSubmit`:
+- Sanitizar `name` antes de chamar `onConfirm`
 
-### Import necessario
-```typescript
-import { validateCPF, formatCPF } from "@/lib/cpf";
-```
-E remover as funcoes locais `formatCpf` e `validateCpf` duplicadas (linhas 460-472).
+### 3. Comportamento
+- Substituicao silenciosa, sem erro visivel ao usuario
+- O nome "Cliente" e usado em todas as automacoes (WhatsApp, e-mail, Asaas)
+- Log do nome original fica disponivel apenas no console para auditoria admin
 
-## Arquivos a modificar
+## Arquivos
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/components/CartDrawer.tsx` | Restaurar campo CPF, validacao obrigatoria, importar de `lib/cpf` |
+| `src/lib/name-sanitizer.ts` | **Novo** - Funcao de sanitizacao com lista de termos |
+| `src/components/CartDrawer.tsx` | Importar e aplicar `sanitizeCustomerName` |
+| `src/components/CheckoutForm.tsx` | Importar e aplicar `sanitizeCustomerName` |
+| `src/components/SoftIdentificationModal.tsx` | Importar e aplicar `sanitizeCustomerName` |
 
-## Resultado esperado
-- Cliente ve campo CPF ao selecionar PIX no CartDrawer
-- Se nao preencher, ve erro claro "CPF e obrigatorio"
-- CPF validado com algoritmo completo antes de enviar
-- PIX gerado com sucesso na primeira tentativa
+## Exemplo da funcao
+
+```typescript
+const LEET_MAP: Record<string, string> = {
+  '0': 'o', '1': 'i', '3': 'e', '4': 'a',
+  '5': 's', '7': 't', '@': 'a', '!': 'i',
+  '$': 's',
+};
+
+const BLOCKED_TERMS = [
+  'piroc', 'pirok', 'pint', 'rola', 'bucet', 'buset',
+  'caralh', 'porra', 'merda', 'fod', 'viado',
+  'viada', 'puta', 'corno', 'cacet', 'cu ',
+  'arromb', 'desgraç', 'bagulh', // etc.
+];
+
+export function sanitizeCustomerName(input: string): string {
+  if (!input || !input.trim()) return 'Cliente';
+
+  const cleaned = input.trim();
+  // Remove accents + apply leet map for comparison only
+  const normalized = removeDiacritics(cleaned)
+    .toLowerCase()
+    .split('')
+    .map(c => LEET_MAP[c] || c)
+    .join('')
+    .replace(/[^a-z]/g, '');
+
+  if (normalized.length < 2) return 'Cliente';
+
+  for (const term of BLOCKED_TERMS) {
+    if (normalized.includes(term)) {
+      console.warn('[name-sanitizer] Blocked:', cleaned);
+      return 'Cliente';
+    }
+  }
+
+  // Only allow letters, spaces, hyphens, accents
+  if (!/^[\p{L}\s'-]+$/u.test(cleaned)) return 'Cliente';
+
+  return cleaned;
+}
+```
+
+## Resultado
+- "piroquinha" → "Cliente"
+- "cacetinho" → "Cliente"
+- "p1r0c4" → "Cliente"
+- "Carlos Silva" → "Carlos Silva"
+- "" → "Cliente"
+- "!!@@##" → "Cliente"
