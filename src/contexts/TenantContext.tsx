@@ -59,6 +59,28 @@ const fallbackTenant: TenantConfig = {
   is_active: true,
 };
 
+const mapTenantRow = (row: any): TenantConfig => ({
+  id: row.id,
+  slug: row.slug,
+  domain: row.domain,
+  brand_name: row.brand_name,
+  brand_slogan: row.brand_slogan,
+  logo_url: row.logo_url,
+  primary_color: row.primary_color,
+  city: row.city,
+  state: row.state,
+  whatsapp: row.whatsapp,
+  whatsapp_formatted: row.whatsapp_formatted,
+  delivery_fee: Number(row.delivery_fee),
+  pickup_neighborhood: row.pickup_neighborhood,
+  facebook_pixel_id: row.facebook_pixel_id,
+  google_analytics_id: row.google_analytics_id,
+  og_image_url: row.og_image_url,
+  plan_type: row.plan_type,
+  plan_status: row.plan_status,
+  is_active: row.is_active,
+});
+
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,6 +89,28 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     const detectTenant = async () => {
       try {
+        const params = new URLSearchParams(window.location.search);
+        const tenantSlug = params.get('tenant');
+
+        // If ?tenant=slug is present, resolve by slug (for testing)
+        if (tenantSlug) {
+          const { data: slugData, error: slugErr } = await supabase
+            .from('tenants')
+            .select('*')
+            .eq('slug', tenantSlug)
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (!slugErr && slugData) {
+            setTenant(mapTenantRow(slugData));
+          } else {
+            console.warn(`Tenant slug "${tenantSlug}" not found, using fallback`);
+            setTenant(fallbackTenant);
+          }
+          setLoading(false);
+          return;
+        }
+
         const hostname = window.location.hostname;
 
         // In development / preview, use fallback
@@ -88,27 +132,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           console.error('Error fetching tenant:', fetchError);
           setTenant(fallbackTenant);
         } else if (data) {
-          setTenant({
-            id: data.id,
-            slug: data.slug,
-            domain: data.domain,
-            brand_name: data.brand_name,
-            brand_slogan: data.brand_slogan,
-            logo_url: data.logo_url,
-            primary_color: data.primary_color,
-            city: data.city,
-            state: data.state,
-            whatsapp: data.whatsapp,
-            whatsapp_formatted: data.whatsapp_formatted,
-            delivery_fee: Number(data.delivery_fee),
-            pickup_neighborhood: data.pickup_neighborhood,
-            facebook_pixel_id: data.facebook_pixel_id,
-            google_analytics_id: data.google_analytics_id,
-            og_image_url: data.og_image_url,
-            plan_type: data.plan_type,
-            plan_status: data.plan_status,
-            is_active: data.is_active,
-          });
+          setTenant(mapTenantRow(data));
         } else {
           setError('Restaurante não encontrado');
           setTenant(fallbackTenant);
