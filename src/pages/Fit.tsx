@@ -72,6 +72,7 @@ const FitContent = () => {
     stock_quantity: f.stock_quantity,
     show_stock: f.show_stock,
     low_stock_threshold: f.low_stock_threshold,
+    sides: f.sides,
   }));
 
   const scrollToPackages = useCallback(() => {
@@ -120,6 +121,7 @@ const FitContent = () => {
       description: `${pkg.quantity}x Marmita 300g`,
       flavors,
       fishAdditional,
+      lineType: 'emagrecimento',
     });
 
     setFlavorModalOpen(false);
@@ -253,6 +255,7 @@ const FitContent = () => {
         packageName={selectedPackage?.name || ""}
         packageQuantity={selectedPackage?.quantity || 0}
         packageWeight={300}
+        lineType="emagrecimento"
         flavorsByCategory={flavorsByCategory}
         flavorStockData={flavorStockData}
       />

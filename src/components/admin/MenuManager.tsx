@@ -17,9 +17,11 @@ import {
   Trash2,
   GripVertical,
   Star,
-  LayoutGrid
+  LayoutGrid,
+  ListChecks
 } from "lucide-react";
 import CategoryManager from "./CategoryManager";
+import FlavorCompositionModal from "./FlavorCompositionModal";
 import {
   Table,
   TableBody,
@@ -59,6 +61,14 @@ interface MarmitaFlavor {
   stock_quantity: number | null;
   show_stock: boolean;
   low_stock_threshold: number | null;
+  sides: any;
+}
+
+interface CompositionModalState {
+  isOpen: boolean;
+  flavorId: string;
+  flavorName: string;
+  sides: any;
 }
 
 interface KitPackage {
@@ -108,7 +118,9 @@ const MenuManager = () => {
   const [marmitaFlavors, setMarmitaFlavors] = useState<MarmitaFlavor[]>([]);
   const [newFlavorName, setNewFlavorName] = useState("");
   const [newFlavorCategory, setNewFlavorCategory] = useState("carnes");
-  
+  const [compositionModal, setCompositionModal] = useState<CompositionModalState>({
+    isOpen: false, flavorId: '', flavorName: '', sides: null,
+  });
   // Kits state
   const [kitPackages, setKitPackages] = useState<KitPackage[]>([]);
   const [kitSoups, setKitSoups] = useState<KitSoup[]>([]);
@@ -247,6 +259,7 @@ const MenuManager = () => {
             active: flavor.active,
             stock_quantity: flavor.stock_quantity,
             show_stock: flavor.show_stock,
+            sides: flavor.sides,
           })
           .eq('id', flavor.id);
         
@@ -682,6 +695,23 @@ const MenuManager = () => {
                               </Badge>
                             )}
                           </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs gap-1 shrink-0"
+                            onClick={() => setCompositionModal({
+                              isOpen: true,
+                              flavorId: flavor.id,
+                              flavorName: flavor.name,
+                              sides: flavor.sides,
+                            })}
+                            title="Editar composição Fit/Fitness"
+                          >
+                            <ListChecks className="w-3.5 h-3.5" />
+                            {flavor.sides && typeof flavor.sides === 'object' && !Array.isArray(flavor.sides) && (Object.keys(flavor.sides).length > 0) ? (
+                              <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">✓</Badge>
+                            ) : null}
+                          </Button>
                           <Switch
                             checked={flavor.active}
                             onCheckedChange={(checked) => updateMarmitaFlavor(flavor.id, 'active', checked)}
@@ -938,6 +968,19 @@ const MenuManager = () => {
           <CategoryManager />
         </TabsContent>
       </Tabs>
+
+      <FlavorCompositionModal
+        isOpen={compositionModal.isOpen}
+        onClose={() => setCompositionModal(prev => ({ ...prev, isOpen: false }))}
+        flavorId={compositionModal.flavorId}
+        flavorName={compositionModal.flavorName}
+        sides={compositionModal.sides}
+        onSaved={(flavorId, newSides) => {
+          setMarmitaFlavors(prev => prev.map(f =>
+            f.id === flavorId ? { ...f, sides: newSides } : f
+          ));
+        }}
+      />
     </div>
   );
 };

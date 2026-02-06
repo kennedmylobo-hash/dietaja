@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getFlavorSidesForLine, mapLineTypeToKey, FlavorSideItem } from "@/lib/flavor-description";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,7 @@ interface OrderItem {
   totalPrice: number;
   type: string;
   flavors?: FlavorItem[];
+  lineType?: string;
 }
 
 interface Order {
@@ -181,13 +183,21 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
     return orders.filter(o => o.status === statusFilter);
   }, [orders, statusFilter]);
 
-  // Get sides config for a flavor
-  const getFlavorSides = (flavorName: string) => {
+  // Get sides config for a flavor, considering line_type
+  const getFlavorSides = (flavorName: string, lineType?: string) => {
     const flavor = marmitaFlavors.find(f => 
       f.name.toLowerCase() === flavorName.toLowerCase()
     );
-    if (flavor?.sides && Array.isArray(flavor.sides) && flavor.sides.length > 0) {
-      return flavor.sides;
+    if (flavor?.sides) {
+      // Try new structured format { fit: [...], fitness: [...] }
+      const lineKey = lineType ? mapLineTypeToKey(lineType) : 'fit';
+      const lineSides = getFlavorSidesForLine(flavor.sides as any, lineKey);
+      if (lineSides) return lineSides;
+      
+      // Fallback: old flat array format
+      if (Array.isArray(flavor.sides) && (flavor.sides as any[]).length > 0) {
+        return flavor.sides as unknown as FlavorSideItem[];
+      }
     }
     // Default sides if not configured
     return [
@@ -250,7 +260,10 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
             }
             
             // === Normal marmita processing ===
-            const flavorSides = getFlavorSides(flavor.name);
+            // Determine line_type: from item data, infer from name, or default to fit
+            const itemLineType = item.lineType || 
+              (item.name.toLowerCase().includes('fitness') || item.name.toLowerCase().includes('hipertrofia') ? 'hipertrofia' : 'emagrecimento');
+            const flavorSides = getFlavorSides(flavor.name, itemLineType);
             
             // === KITCHEN LIST: Aggregate protein ===
             const proteinKey = flavor.name.toLowerCase();

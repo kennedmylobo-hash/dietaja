@@ -244,6 +244,7 @@ const MarmitasSection = () => {
       stock_quantity: f.stock_quantity,
       show_stock: f.show_stock,
       low_stock_threshold: f.low_stock_threshold,
+      sides: f.sides,
     }));
   }, [flavorsData]);
 
@@ -291,6 +292,7 @@ const MarmitasSection = () => {
       description: `${selectedMarmita.quantity} marmitas de ${selectedMarmita.weight}g`,
       flavors: flavors,
       fishAdditional: fishAdditional,
+      lineType: selectedMarmita.lineType,
     });
 
     // Haptic feedback on mobile
@@ -518,6 +520,7 @@ const MarmitasSection = () => {
         packageName={selectedMarmita?.name || ""}
         packageQuantity={selectedMarmita?.quantity || 7}
         packageWeight={selectedMarmita?.weight || 300}
+        lineType={selectedMarmita?.lineType}
         isLoading={loadingMarmita !== null}
         flavorsByCategory={flavorsByCategory}
         flavorStockData={flavorStockData}
