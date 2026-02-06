@@ -1,141 +1,108 @@
 
-# Plano: Otimizar Landing Pages /fit e /fitness para Conversao
+# Corrigir: Campo CPF obrigatorio no CartDrawer para PIX funcionar
 
-## Objetivo
-Adicionar as mesmas secoes de conversao da pagina `/detox` nas paginas `/fit` e `/fitness`, mantendo o contexto e objetivo de cada linha de produto.
+## Problema Identificado
 
-## O que falta em cada pagina (comparado com /detox)
+O cliente "cacetinho" tentou pagar via PIX pelo **CartDrawer** (carrinho lateral usado no Cardapio e landing pages). O CPF nao foi pedido porque o campo foi **removido intencionalmente** no CartDrawer com o comentario "CPF field removed - testing without it for better conversion" (linha 1267).
 
-| Secao | /detox | /fit | /fitness |
-|-------|--------|------|----------|
-| Helmet com OG completo | Sim | Apenas titulo basico | Apenas titulo basico |
-| Meta Pixel ViewContent | Sim | Nao | Nao |
-| Meta Pixel AddToCart | Sim | Nao | Nao |
-| TestimonialsSection | Sim | Nao | Nao |
-| UrgencySection | Sim | Nao | Nao |
-| FAQ especifico | Sim (DetoxFAQSection) | Nao | Nao |
+Porem, a API do Asaas **exige CPF** para gerar cobranças PIX. O resultado:
 
-## Arquivos a criar
+1. Cliente clica "Gerar PIX" sem CPF
+2. Edge function envia CPF vazio ao Asaas
+3. Asaas rejeita com erro `invalid_customer.cpfCnpj`
+4. O sistema tenta automaticamente 3 vezes (retries silenciosos)
+5. Apos todas as tentativas, mostra apenas "Ops! Tente novamente" -- sem pedir o CPF
+6. Cliente clicou repetidamente (17 tentativas em 2 minutos), todas falharam
 
-### 1. `src/components/FitFAQSection.tsx`
-FAQ especifico para emagrecimento:
-- "Quantas calorias tem cada marmita?"
-- "Posso comer so marmita fit e emagrecer?"
-- "Preciso fazer dieta alem da marmita?"
-- "Qual a diferenca entre Fit (300g) e Fitness (450g)?"
-- "Posso escolher marmitas sem carboidrato?"
-- "Com que frequencia devo pedir?"
+O **CheckoutForm** (pagina principal) tem o campo CPF implementado corretamente. O **CartDrawer** nao.
 
-### 2. `src/components/FitnessFAQSection.tsx`
-FAQ especifico para hipertrofia:
-- "Quanta proteina tem em cada marmita?"
-- "A marmita substitui o whey pos-treino?"
-- "Posso comer antes ou depois do treino?"
-- "Qual a diferenca entre Fitness (450g) e Fit (300g)?"
-- "Tem opcao com mais carboidrato?"
-- "Com que frequencia devo pedir?"
+## Solucao
 
-## Arquivos a modificar
+### 1. Restaurar campo CPF no CartDrawer
+**Arquivo:** `src/components/CartDrawer.tsx`
 
-### 3. `src/pages/Fit.tsx`
-Adicionar:
-- `useEffect` import
-- `siteConfig` import
-- Imports: `TestimonialsSection`, `UrgencySection`, `FitFAQSection`
-- **Helmet completo** com OG tags (titulo: "Marmitas Fit 300g - Emagreca com Sabor", imagem: og-image.jpg)
-- **ViewContent** pixel event no `useEffect` com `content_name: 'Marmita Fit 300g'`
-- **AddToCart** pixel event no `handlePackageSelect`
-- **TestimonialsSection** apos BenefitsSection
-- **UrgencySection** apos PackageCards
-- **FitFAQSection** apos HowItWorks (antes da garantia)
+- Remover o comentario "CPF field removed" (linha 1267)
+- Adicionar campo de CPF visivel quando o metodo de pagamento for PIX
+- Usar o mesmo padrao do CheckoutForm: campo com mascara `000.000.000-00`, inputMode numeric
+- Validar CPF antes de chamar a edge function (se vazio ou invalido, mostrar erro inline)
 
-### 4. `src/pages/Fitness.tsx`
-Adicionar:
-- `useEffect` import
-- `siteConfig` import
-- Imports: `TestimonialsSection`, `UrgencySection`, `FitnessFAQSection`
-- **Helmet completo** com OG tags (titulo: "Marmitas Fitness 450g - Combustivel para Treinos", imagem: og-image.jpg, cor terracotta)
-- **ViewContent** pixel event no `useEffect` com `content_name: 'Marmita Fitness 450g'`
-- **AddToCart** pixel event no `handlePackageSelect`
-- **TestimonialsSection** apos BenefitsSection
-- **UrgencySection** apos PackageCards
-- **FitnessFAQSection** apos HowItWorks (antes da garantia)
+### 2. Bloquear envio sem CPF valido
+**Arquivo:** `src/components/CartDrawer.tsx`
 
-## Estrutura final das paginas (ordem das secoes)
+Na funcao `handlePixPayment`:
+- Remover o comentario "CPF is optional now" (linha 478)
+- Adicionar validacao: se CPF vazio ou invalido, setar `cpfError` e retornar sem chamar a API
+- Usar a mesma funcao `validateCPF` do `src/lib/cpf.ts` (algoritmo completo com digitos verificadores) em vez da validacao simplificada local
 
-```text
-1. Helmet (SEO + OG)
-2. LandingHeader
-3. LandingHero
-4. BenefitsSection
-5. TestimonialsSection       <-- NOVO
-6. FlavorMenu
-7. PackageCards
-8. UrgencySection            <-- NOVO
-9. HowItWorks
-10. FAQ Section              <-- NOVO (FitFAQSection ou FitnessFAQSection)
-11. Garantia de Satisfacao
-12. FloatingCTA + Cart + Modais
-```
+### 3. Melhorar feedback de erro
+**Arquivo:** `src/components/CartDrawer.tsx`
+
+Apos os retries falharem, verificar se o erro e de CPF e mostrar mensagem especifica:
+- "CPF e obrigatorio para pagamento PIX. Preencha o campo acima."
 
 ## Detalhes Tecnicos
 
-### Helmet OG para /fit
+### Campo CPF no CartDrawer (onde inserir)
+Antes do botao "Gerar PIX" (linha 1267), adicionar:
+
 ```typescript
-<Helmet>
-  <title>Marmitas Fit 300g | Dieta Ja - Emagrecimento</title>
-  <meta name="description" content="Marmitas de 300g balanceadas para emagrecimento. Porcoes controladas, +30 sabores e praticidade." />
-  <meta name="keywords" content="marmita fit, emagrecimento, dieta, marmita 300g, alimentacao saudavel" />
-  <link rel="canonical" href="https://dietajavca.com.br/fit" />
-  <meta property="og:type" content="product" />
-  <meta property="og:title" content="Marmitas Fit 300g - Emagreca com Sabor" />
-  <meta property="og:description" content="Porcoes controladas de 300g com +30 sabores. Praticidade para sua dieta em Vitoria da Conquista." />
-  <meta property="og:url" content="https://dietajavca.com.br/fit" />
-  <meta property="og:image" content="https://dietajavca.com.br/og-image.jpg" />
-  ...
-</Helmet>
+{/* CPF - obrigatorio para PIX */}
+<div className="space-y-1">
+  <Label htmlFor="cpf-drawer" className="text-sm font-medium">
+    CPF <span className="text-muted-foreground text-xs">(exigido pelo PIX)</span>
+  </Label>
+  <Input
+    id="cpf-drawer"
+    inputMode="numeric"
+    placeholder="000.000.000-00"
+    value={formatCpf(cpfValue)}
+    onChange={(e) => {
+      setCpfValue(formatCpf(e.target.value));
+      setCpfError("");
+    }}
+    className={cpfError ? 'border-destructive' : ''}
+  />
+  {cpfError && <p className="text-xs text-destructive">{cpfError}</p>}
+</div>
 ```
 
-### Helmet OG para /fitness
+### Validacao no handlePixPayment
 ```typescript
-<Helmet>
-  <title>Marmitas Fitness 450g | Dieta Ja - Hipertrofia</title>
-  <meta name="description" content="Marmitas de 450g para quem treina pesado. 150g de proteina, alto valor calorico e praticidade." />
-  <meta name="keywords" content="marmita fitness, hipertrofia, ganho de massa, marmita 450g, proteina" />
-  <link rel="canonical" href="https://dietajavca.com.br/fitness" />
-  <meta property="og:type" content="product" />
-  <meta property="og:title" content="Marmitas Fitness 450g - Combustivel para Treinos" />
-  <meta property="og:description" content="Porcao generosa com 150g de proteina. Ideal para ganho de massa em Vitoria da Conquista." />
-  <meta property="og:url" content="https://dietajavca.com.br/fitness" />
-  <meta property="og:image" content="https://dietajavca.com.br/og-image.jpg" />
-  ...
-</Helmet>
-```
-
-### Pixel Tracking (mesmo padrao do Detox)
-```typescript
-// ViewContent on load
-useEffect(() => {
-  if (packages.length > 0 && window.fbq) {
-    window.fbq('track', 'ViewContent', {
-      content_type: 'product_group',
-      content_name: 'Marmita Fit 300g', // ou 'Marmita Fitness 450g'
-      content_category: 'Emagrecimento', // ou 'Hipertrofia'
-      value: avgPrice,
-      currency: 'BRL',
-    });
+const handlePixPayment = async (retryCount = 0) => {
+  if (!formData) return;
+  
+  const cleanedCpf = cpfValue.replace(/\D/g, '');
+  
+  // CPF e obrigatorio para PIX
+  if (!cleanedCpf || cleanedCpf.length !== 11) {
+    setCpfError('CPF e obrigatorio para pagamento PIX');
+    return;
   }
-}, [packages.length]);
-
-// AddToCart on select
-window.fbq('track', 'AddToCart', {
-  content_name: pkg.name,
-  content_type: 'product',
-  content_ids: [pkg.id],
-  value: pkg.price,
-  currency: 'BRL',
-});
+  
+  if (!validateCPF(cleanedCpf)) {
+    setCpfError('CPF invalido. Verifique os numeros.');
+    return;
+  }
+  
+  setCpfError("");
+  // ... resto da logica
+};
 ```
 
-## Nota sobre imagens OG
-As paginas /fit e /fitness utilizarao a imagem OG generica do site (`og-image.jpg`) por enquanto. Imagens OG dedicadas podem ser criadas posteriormente para melhorar ainda mais os previews no WhatsApp.
+### Import necessario
+```typescript
+import { validateCPF, formatCPF } from "@/lib/cpf";
+```
+E remover as funcoes locais `formatCpf` e `validateCpf` duplicadas (linhas 460-472).
+
+## Arquivos a modificar
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/components/CartDrawer.tsx` | Restaurar campo CPF, validacao obrigatoria, importar de `lib/cpf` |
+
+## Resultado esperado
+- Cliente ve campo CPF ao selecionar PIX no CartDrawer
+- Se nao preencher, ve erro claro "CPF e obrigatorio"
+- CPF validado com algoritmo completo antes de enviar
+- PIX gerado com sucesso na primeira tentativa
