@@ -45,23 +45,28 @@ function normalizeName(input: string): string {
     .replace(/[^a-z]/g, '');
 }
 
+function generateClienteId(): string {
+  const id = Math.floor(1000 + Math.random() * 9000);
+  return `Cliente #${id}`;
+}
+
 export function sanitizeCustomerName(input: string): string {
-  if (!input || !input.trim()) return 'Cliente';
+  if (!input || !input.trim()) return generateClienteId();
 
   const cleaned = input.trim();
   const normalized = normalizeName(cleaned);
 
-  if (normalized.length < 2) return 'Cliente';
+  if (normalized.length < 2) return generateClienteId();
 
   for (const term of BLOCKED_TERMS) {
     if (normalized.includes(removeDiacritics(term))) {
       console.warn('[name-sanitizer] Nome bloqueado');
-      return 'Cliente';
+      return generateClienteId();
     }
   }
 
   // Only allow letters (including accents), spaces, hyphens, apostrophes
-  if (!/^[\p{L}\s'-]+$/u.test(cleaned)) return 'Cliente';
+  if (!/^[\p{L}\s'-]+$/u.test(cleaned)) return generateClienteId();
 
   return cleaned;
 }
