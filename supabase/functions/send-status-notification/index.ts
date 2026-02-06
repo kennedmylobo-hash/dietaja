@@ -325,6 +325,15 @@ const sendEmailNotification = async (email: string, order: OrderData, subject: s
   }
 };
 
+// Statuses that should BYPASS debounce and send immediately
+const IMMEDIATE_STATUSES = ["cancelled"];
+
+// Statuses that should be debounced (queued)
+const DEBOUNCE_STATUSES = ["preparing", "ready", "delivering", "delivered"];
+
+// Debounce delay in milliseconds (30 seconds)
+const DEBOUNCE_DELAY_MS = 30000;
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -341,13 +350,22 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log(`Processing notification for order ${order_id}, status: ${new_status}`);
+    console.log(`[STATUS] Processing notification for order ${order_id}, status: ${new_status}`);
 
     // Skip notification for pending status (handled by other functions)
     if (new_status === "pending" || new_status === "whatsapp_pending") {
-      console.log("Skipping notification for pending status");
+      console.log("[STATUS] Skipping notification for pending status");
       return new Response(
         JSON.stringify({ success: true, skipped: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Skip WhatsApp for approved status (handled by send-order-approved)
+    if (new_status === "approved") {
+      console.log("[STATUS] Skipping WhatsApp for approved status - handled by send-order-approved");
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: "handled_by_approved_function" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -356,6 +374,69 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check if this status should be debounced
+    if (DEBOUNCE_STATUSES.includes(new_status)) {
+      console.log(`[DEBOUNCE] Status ${new_status} is debounce-eligible`);
+
+      // Check if there's already a pending notification for this order
+      const { data: existingPending, error: checkError } = await supabase
+        .from("pending_notifications")
+        .select("id, status")
+        .eq("order_id", order_id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("[DEBOUNCE] Error checking pending notifications:", checkError);
+      }
+
+      const scheduledFor = new Date(Date.now() + DEBOUNCE_DELAY_MS).toISOString();
+
+      if (existingPending) {
+        // Update existing pending notification with new status and reset timer
+        const { error: updateError } = await supabase
+          .from("pending_notifications")
+          .update({ 
+            status: new_status, 
+            scheduled_for: scheduledFor 
+          })
+          .eq("order_id", order_id);
+
+        if (updateError) {
+          console.error("[DEBOUNCE] Error updating pending notification:", updateError);
+        } else {
+          console.log(`[DEBOUNCE] Updated pending notification for ${order_id}: ${existingPending.status} → ${new_status}, timer reset to ${scheduledFor}`);
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, debounced: true, updated: true, previous_status: existingPending.status }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Create new pending notification
+      const { error: insertError } = await supabase
+        .from("pending_notifications")
+        .insert({ 
+          order_id, 
+          status: new_status,
+          scheduled_for: scheduledFor
+        });
+
+      if (insertError) {
+        console.error("[DEBOUNCE] Error inserting pending notification:", insertError);
+        // Fall through to send immediately if debounce fails
+      } else {
+        console.log(`[DEBOUNCE] Queued notification for ${order_id}: ${new_status}, scheduled for ${scheduledFor}`);
+        return new Response(
+          JSON.stringify({ success: true, debounced: true, queued: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // For IMMEDIATE_STATUSES or if debounce failed, send immediately
+    console.log(`[STATUS] Sending immediate notification for ${order_id}, status: ${new_status}`);
 
     // Fetch order data with tracking_link
     const { data: order, error } = await supabase
@@ -406,25 +487,12 @@ serve(async (req: Request) => {
 
     const statusColor = fallback?.color || "#22c55e";
 
-    console.log(`Found order: ${order.order_number}, sending notifications...`);
-
-    // Update delivered_at if status is delivered
-    if (new_status === "delivered") {
-      await supabase
-        .from("orders")
-        .update({ delivered_at: new Date().toISOString() })
-        .eq("id", order_id);
-    }
+    console.log(`[STATUS] Found order: ${order.order_number}, sending notifications...`);
 
     // Send notifications in parallel
     const promises: Promise<void>[] = [];
     
-    // For approved status, SKIP WhatsApp - handled exclusively by send-order-approved to prevent duplicates
-    if (new_status === "approved") {
-      console.log("[STATUS] Skipping WhatsApp for approved status - handled by send-order-approved");
-      // Email will still be sent below as backup
-    } else if (whatsappMessage) {
-      // For other statuses, use text message
+    if (whatsappMessage) {
       promises.push(sendWhatsAppText(order.customer_phone, whatsappMessage, order.order_number));
     }
     
@@ -439,7 +507,7 @@ serve(async (req: Request) => {
     await Promise.all(promises);
 
     return new Response(
-      JSON.stringify({ success: true, order_number: order.order_number }),
+      JSON.stringify({ success: true, order_number: order.order_number, immediate: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

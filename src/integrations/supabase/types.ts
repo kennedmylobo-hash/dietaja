@@ -971,6 +971,38 @@ export type Database = {
           },
         ]
       }
+      pending_notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          order_id: string
+          scheduled_for: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          order_id: string
+          scheduled_for?: string
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          order_id?: string
+          scheduled_for?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
