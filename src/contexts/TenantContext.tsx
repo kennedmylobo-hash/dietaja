@@ -120,11 +120,30 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return;
         }
 
-        // Try to find tenant by domain
+        // Extract slug from subdomain (e.g., "pratinhofitness.suaplataforma.com.br" → "pratinhofitness")
+        const platformDomains = ['suaplataforma.com.br']; // Add your platform domains here
+        let extractedSlug: string | null = null;
+        for (const pd of platformDomains) {
+          if (hostname.endsWith(`.${pd}`)) {
+            extractedSlug = hostname.replace(`.${pd}`, '');
+            break;
+          }
+        }
+
+        // Build query: try domain match OR slug from subdomain
+        const orConditions = [`domain.eq.${hostname}`];
+        if (extractedSlug) {
+          orConditions.push(`slug.eq.${extractedSlug}`);
+        } else {
+          // Fallback: try first part of hostname as slug
+          orConditions.push(`slug.eq.${hostname.split('.')[0]}`);
+        }
+
+        // Try to find tenant by domain or slug
         const { data, error: fetchError } = await supabase
           .from('tenants')
           .select('*')
-          .or(`domain.eq.${hostname},slug.eq.${hostname.split('.')[0]}`)
+          .or(orConditions.join(','))
           .eq('is_active', true)
           .maybeSingle();
 
