@@ -262,5 +262,3 @@ async function seedLandingContent(supabase: any, tenantId: string, brandName: st
   if (error) console.error("Error seeding landing content:", error);
   else console.log(`Seeded ${rows.length} landing sections for ${brandName}`);
 }
-  }
-}
