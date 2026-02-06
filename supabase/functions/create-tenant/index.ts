@@ -49,7 +49,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { brand_name, slug, city, state, whatsapp, admin_email, admin_password, plan_type, primary_color } = body;
+    const { brand_name, slug, city, state, whatsapp, admin_email, admin_password, plan_type, primary_color, clone_menu_from } = body;
 
     if (!brand_name || !slug || !admin_email || !admin_password) {
       return new Response(JSON.stringify({ error: "Campos obrigatórios faltando" }), {
@@ -103,7 +103,6 @@ serve(async (req) => {
 
     if (tenantError) {
       console.error("Error creating tenant:", tenantError);
-      // Cleanup: delete the user we just created
       await supabase.auth.admin.deleteUser(newUser.user.id);
       return new Response(JSON.stringify({ error: `Erro ao criar tenant: ${tenantError.message}` }), {
         status: 400,
@@ -139,16 +138,22 @@ serve(async (req) => {
       console.error("Error assigning role:", roleError);
     }
 
-    // 6. Seed default menu categories for the new tenant
-    const defaultCategories = [
-      { name: "Marmitas Emagrecimento", short_name: "Emagrecimento", slug: "emagrecimento", type: "marmita", icon: "🥗", sort_order: 1, tenant_id: tenant.id },
-      { name: "Marmitas Ganho de Massa", short_name: "Ganho Massa", slug: "ganho-massa", type: "marmita", icon: "💪", sort_order: 2, tenant_id: tenant.id },
-      { name: "Kits Detox", short_name: "Detox", slug: "detox", type: "kit", icon: "🥤", sort_order: 3, tenant_id: tenant.id },
-    ];
+    // 6. Clone menu from source tenant OR seed defaults
+    if (clone_menu_from) {
+      console.log(`Cloning menu from tenant: ${clone_menu_from}`);
+      await cloneMenuFromTenant(supabase, clone_menu_from, tenant.id);
+    } else {
+      // Seed default menu categories
+      const defaultCategories = [
+        { name: "Marmitas Emagrecimento", short_name: "Emagrecimento", slug: "emagrecimento", type: "marmita", icon: "🥗", sort_order: 1, tenant_id: tenant.id },
+        { name: "Marmitas Ganho de Massa", short_name: "Ganho Massa", slug: "ganho-massa", type: "marmita", icon: "💪", sort_order: 2, tenant_id: tenant.id },
+        { name: "Kits Detox", short_name: "Detox", slug: "detox", type: "kit", icon: "🥤", sort_order: 3, tenant_id: tenant.id },
+      ];
 
-    const { error: catError } = await supabase.from("menu_categories").insert(defaultCategories);
-    if (catError) {
-      console.error("Error seeding categories:", catError);
+      const { error: catError } = await supabase.from("menu_categories").insert(defaultCategories);
+      if (catError) {
+        console.error("Error seeding categories:", catError);
+      }
     }
 
     console.log(`Onboarding complete for ${brand_name}`);
@@ -170,3 +175,60 @@ serve(async (req) => {
     });
   }
 });
+
+/**
+ * Clone all menu data from a source tenant to a new tenant.
+ */
+async function cloneMenuFromTenant(supabase: any, sourceTenantId: string, newTenantId: string) {
+  const tables = [
+    { name: "menu_categories", exclude: ["id", "created_at", "updated_at"] },
+    { name: "marmita_packages", exclude: ["id", "created_at", "updated_at"] },
+    { name: "marmita_flavors", exclude: ["id", "created_at"] },
+    { name: "marmita_sides", exclude: ["id", "created_at"] },
+    { name: "kit_packages", exclude: ["id", "created_at", "updated_at"] },
+    { name: "kit_soups", exclude: ["id", "created_at"] },
+    { name: "kit_juices", exclude: ["id", "created_at"] },
+    { name: "loyalty_levels", exclude: ["id", "created_at", "updated_at"] },
+    { name: "club_plans", exclude: ["id", "created_at", "updated_at"] },
+  ];
+
+  for (const table of tables) {
+    try {
+      const { data: sourceRows, error: fetchError } = await supabase
+        .from(table.name)
+        .select("*")
+        .eq("tenant_id", sourceTenantId);
+
+      if (fetchError) {
+        console.error(`Error fetching ${table.name}:`, fetchError);
+        continue;
+      }
+
+      if (!sourceRows || sourceRows.length === 0) {
+        console.log(`No rows to clone for ${table.name}`);
+        continue;
+      }
+
+      // Clone rows with new tenant_id, removing excluded fields
+      const clonedRows = sourceRows.map((row: any) => {
+        const cloned = { ...row, tenant_id: newTenantId };
+        for (const field of table.exclude) {
+          delete cloned[field];
+        }
+        return cloned;
+      });
+
+      const { error: insertError } = await supabase
+        .from(table.name)
+        .insert(clonedRows);
+
+      if (insertError) {
+        console.error(`Error cloning ${table.name}:`, insertError);
+      } else {
+        console.log(`Cloned ${clonedRows.length} rows for ${table.name}`);
+      }
+    } catch (err) {
+      console.error(`Unexpected error cloning ${table.name}:`, err);
+    }
+  }
+}

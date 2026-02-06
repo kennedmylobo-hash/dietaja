@@ -16,6 +16,7 @@ import { EmailAutocomplete } from "@/components/EmailAutocomplete";
 import PixPaymentModal from "@/components/PixPaymentModal";
 import { useNavigate } from "react-router-dom";
 import CashbackUsage from "@/components/checkout/CashbackUsage";
+import { useTenantId } from "@/hooks/useTenantId";
 
 import { validateCPF, formatCPF } from "@/lib/cpf";
 import { sanitizeCustomerName } from "@/lib/name-sanitizer";
@@ -47,6 +48,7 @@ interface CheckoutFormProps {
 const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   const { items, getTotal, clearCart } = useCart();
   const navigate = useNavigate();
+  const tenantId = useTenantId();
   const [isLoading, setIsLoading] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
@@ -202,6 +204,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             amount: cashbackAmount,
           },
           utm_data: getUTMParams(),
+          tenant_id: tenantId,
         },
       });
 

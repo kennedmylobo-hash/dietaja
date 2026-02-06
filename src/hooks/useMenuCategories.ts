@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantId } from "./useTenantId";
 
 export interface MenuCategory {
   id: string;
@@ -15,29 +16,33 @@ export interface MenuCategory {
 }
 
 export function useMenuCategories() {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ["menu-categories"],
+    queryKey: ["menu-categories", tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("menu_categories")
         .select("*")
         .eq("active", true)
+        .eq("tenant_id", tenantId)
         .order("sort_order");
 
       if (error) throw error;
       return data as MenuCategory[];
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 }
 
 export function useAllMenuCategories() {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ["menu-categories-all"],
+    queryKey: ["menu-categories-all", tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("menu_categories")
         .select("*")
+        .eq("tenant_id", tenantId)
         .order("sort_order");
 
       if (error) throw error;

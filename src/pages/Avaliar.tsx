@@ -7,6 +7,7 @@
  import { toast } from "@/hooks/use-toast";
  import { Star, CheckCircle, ArrowLeft, Loader2 } from "lucide-react";
  import Logo from "@/components/Logo";
+ import { useTenantId } from "@/hooks/useTenantId";
  
  interface OrderInfo {
    order_number: string;
@@ -15,6 +16,7 @@
  }
  
  const Avaliar = () => {
+   const tenantId = useTenantId();
    const { orderToken } = useParams<{ orderToken: string }>();
    const [loading, setLoading] = useState(true);
    const [submitting, setSubmitting] = useState(false);
@@ -109,6 +111,7 @@
          customer_name: orderInfo.customer_name,
          rating,
          comment: comment.trim() || null,
+         tenant_id: tenantId,
        });
  
        if (error) throw error;

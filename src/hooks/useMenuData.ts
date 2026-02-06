@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantId } from "./useTenantId";
 import type { Json } from "@/integrations/supabase/types";
 
 export interface MarmitaPackage {
@@ -67,37 +68,15 @@ export interface KitJuice {
 }
 
 export const useMarmitaPackages = () => {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['marmita-packages'],
+    queryKey: ['marmita-packages', tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('marmita_packages')
         .select('*')
         .eq('active', true)
-        .order('sort_order');
-      
-      if (error) throw error;
-      return (data || []).map(pkg => ({
-        ...pkg,
-        line_type: pkg.line_type || 'emagrecimento',
-        weight: pkg.weight || 300,
-        description: pkg.description || null,
-      })) as MarmitaPackage[];
-    },
-    staleTime: 1000 * 60 * 5, // 5 minutes cache
-  });
-};
-
-// Hook for Emagrecimento packages only
-export const useMarmitaEmagrecimento = () => {
-  return useQuery({
-    queryKey: ['marmita-emagrecimento'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('marmita_packages')
-        .select('*')
-        .eq('active', true)
-        .eq('line_type', 'emagrecimento')
+        .eq('tenant_id', tenantId)
         .order('sort_order');
       
       if (error) throw error;
@@ -112,16 +91,42 @@ export const useMarmitaEmagrecimento = () => {
   });
 };
 
-// Hook for Hipertrofia packages only
-export const useMarmitaHipertrofia = () => {
+export const useMarmitaEmagrecimento = () => {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['marmita-hipertrofia'],
+    queryKey: ['marmita-emagrecimento', tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('marmita_packages')
+        .select('*')
+        .eq('active', true)
+        .eq('line_type', 'emagrecimento')
+        .eq('tenant_id', tenantId)
+        .order('sort_order');
+      
+      if (error) throw error;
+      return (data || []).map(pkg => ({
+        ...pkg,
+        line_type: pkg.line_type || 'emagrecimento',
+        weight: pkg.weight || 300,
+        description: pkg.description || null,
+      })) as MarmitaPackage[];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useMarmitaHipertrofia = () => {
+  const tenantId = useTenantId();
+  return useQuery({
+    queryKey: ['marmita-hipertrofia', tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('marmita_packages')
         .select('*')
         .eq('active', true)
         .eq('line_type', 'hipertrofia')
+        .eq('tenant_id', tenantId)
         .order('sort_order');
       
       if (error) throw error;
@@ -137,13 +142,15 @@ export const useMarmitaHipertrofia = () => {
 };
 
 export const useMarmitaFlavors = () => {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['marmita-flavors'],
+    queryKey: ['marmita-flavors', tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('marmita_flavors')
         .select('*')
         .eq('active', true)
+        .eq('tenant_id', tenantId)
         .order('category')
         .order('sort_order');
       
@@ -155,13 +162,15 @@ export const useMarmitaFlavors = () => {
 };
 
 export const useKitPackages = () => {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['kit-packages'],
+    queryKey: ['kit-packages', tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kit_packages')
         .select('*')
         .eq('active', true)
+        .eq('tenant_id', tenantId)
         .order('sort_order');
       
       if (error) throw error;
@@ -176,13 +185,15 @@ export const useKitPackages = () => {
 };
 
 export const useKitSoups = () => {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['kit-soups'],
+    queryKey: ['kit-soups', tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kit_soups')
         .select('*')
         .eq('active', true)
+        .eq('tenant_id', tenantId)
         .order('sort_order');
       
       if (error) throw error;
@@ -193,13 +204,15 @@ export const useKitSoups = () => {
 };
 
 export const useKitJuices = () => {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['kit-juices'],
+    queryKey: ['kit-juices', tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kit_juices')
         .select('*')
         .eq('active', true)
+        .eq('tenant_id', tenantId)
         .order('sort_order');
       
       if (error) throw error;
