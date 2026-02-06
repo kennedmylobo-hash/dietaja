@@ -25,6 +25,7 @@ const Detox = lazy(() => import("./pages/Detox"));
 const Fit = lazy(() => import("./pages/Fit"));
 const Fitness = lazy(() => import("./pages/Fitness"));
 const Avaliar = lazy(() => import("./pages/Avaliar"));
+const ClubeDietaJa = lazy(() => import("./pages/ClubeDietaJa"));
 
 // Simple loading fallback
 const PageLoader = () => (
@@ -62,6 +63,7 @@ const App = () => (
                 <Route path="/fit" element={<Fit />} />
                 <Route path="/fitness" element={<Fitness />} />
                 <Route path="/avaliar/:orderToken" element={<Avaliar />} />
+                <Route path="/clubedietaja" element={<ClubeDietaJa />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

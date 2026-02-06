@@ -222,6 +222,108 @@ export type Database = {
           },
         ]
       }
+      club_plans: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          icon_emoji: string
+          id: string
+          items_description: string
+          kit_type: string
+          name: string
+          popular: boolean
+          price: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          icon_emoji?: string
+          id?: string
+          items_description?: string
+          kit_type: string
+          name: string
+          popular?: boolean
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          icon_emoji?: string
+          id?: string
+          items_description?: string
+          kit_type?: string
+          name?: string
+          popular?: boolean
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      club_subscriptions: {
+        Row: {
+          asaas_customer_id: string | null
+          asaas_subscription_id: string | null
+          created_at: string
+          customer_cpf: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string | null
+          delivery_option: string
+          id: string
+          kit_name: string
+          kit_type: string
+          next_due_date: string | null
+          price: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
+          created_at?: string
+          customer_cpf: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          delivery_address?: string | null
+          delivery_option?: string
+          id?: string
+          kit_name: string
+          kit_type: string
+          next_due_date?: string | null
+          price: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
+          created_at?: string
+          customer_cpf?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string
+          delivery_address?: string | null
+          delivery_option?: string
+          id?: string
+          kit_name?: string
+          kit_type?: string
+          next_due_date?: string | null
+          price?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       coupon_usage: {
         Row: {
           coupon_code: string
