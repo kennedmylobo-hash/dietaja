@@ -24,6 +24,7 @@ import { useMarmitaFlavors, useKitJuices, useKitSoups } from "@/hooks/useMenuDat
 import { motion, AnimatePresence } from "framer-motion";
 import { siteConfig, getWhatsAppLink } from "@/config/site";
 import { validateCPF, formatCPF } from "@/lib/cpf";
+import { sanitizeCustomerName } from "@/lib/name-sanitizer";
 
 // Phone mask function: (XX) XXXXX-XXXX
 const formatPhone = (value: string): string => {
@@ -339,7 +340,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
 
   // NEW: Go to confirmation step
   const handleGoToConfirmation = (data: FormData) => {
-    setFormData(data);
+    const sanitizedData = { ...data, name: sanitizeCustomerName(data.name) };
+    setFormData(sanitizedData);
     setStep('confirmation');
   };
 

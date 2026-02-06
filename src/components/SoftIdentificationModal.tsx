@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sparkles, MessageCircle, ArrowRight, Lock, CheckCircle2, Mail } from "lucide-react";
 import { EmailAutocomplete } from "@/components/EmailAutocomplete";
+import { sanitizeCustomerName } from "@/lib/name-sanitizer";
 
 interface SoftIdentificationModalProps {
   open: boolean;
@@ -76,7 +77,7 @@ export const SoftIdentificationModal = ({
     
     // Após delay, confirmar
     setTimeout(() => {
-      onConfirm(name.trim(), phoneDigits, email.trim());
+      onConfirm(sanitizeCustomerName(name.trim()), phoneDigits, email.trim());
     }, 800);
   };
 
