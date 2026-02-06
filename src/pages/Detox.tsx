@@ -83,14 +83,11 @@ const DetoxContent = () => {
     setIsCartOpen(true);
   };
 
-  // Calculate juice and soup quantities per kit
-  const getKitQuantities = (days: number) => {
-    // 3 days = 6 juices + 3 soups, 5 days = 10 juices + 5 soups, 7 days = 14 juices + 7 soups
-    return {
-      juices: days * 2,
-      soups: days,
-    };
-  };
+  // Calculate juice and soup quantities per kit (4 sucos + 2 sopas por dia)
+  const getKitQuantities = (days: number) => ({
+    juices: days * 4,
+    soups: days * 2,
+  });
 
   const kitQuantities = selectedKit ? getKitQuantities(selectedKit.quantity) : { juices: 0, soups: 0 };
 
