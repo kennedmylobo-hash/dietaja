@@ -1,84 +1,29 @@
 
 
-# Plano: Corrigir Mensagens Duplicadas e Exibir Link de Rastreio
+# Plano: Sistema de Debounce para Notificações de Status
 
-## Problema 1: Mensagens WhatsApp Duplicadas (DJA-0112)
+## Problema Identificado
 
-### Diagnóstico
+Quando o atendente muda o status de um pedido várias vezes rapidamente (ex: `preparing` → `ready` → `delivering` → `delivered`), o cliente recebe **todas as mensagens** de cada etapa.
 
-Analisando os logs da tabela `notification_events`, identifiquei **3 envios** do template `compraa_confrimadaa` para o pedido DJA-0112:
+**Exemplo da imagem:** Bianca recebeu 5 mensagens em sequência para o pedido DJA-0108:
+- "Suas marmitas estão sendo preparadas!" (preparing)
+- "Pedido Pronto!" (ready)
+- "Pedido a Caminho!" (delivering) - 2x
+- "Pedido Entregue!" (delivered)
 
-| Hora | Message ID | Origem |
-|------|------------|--------|
-| 21:33:14 | `1718a7fc-...` | Primeira aprovação manual |
-| 23:12:25 | `901e3346-...` | Segunda notificação duplicada |
-| 23:12:31 | `f8c70705-...` | Terceira notificação duplicada |
-
-**Causa raiz:** Há **duas fontes** disparando notificações de aprovação simultaneamente:
-
-1. **`send-order-approved`** - Chamada pelo `OrdersManager.tsx` quando admin confirma manualmente (linha 689)
-2. **`send-status-notification`** - Chamada por `updateOrderStatus` após qualquer mudança de status (linha 813)
-
-Quando o status muda para `approved`, **ambas as funções** enviam o template `compraa_confrimadaa`, causando duplicação.
-
-### Solução
-
-Modificar a função `send-status-notification` para **excluir** o status `approved` dos envios de WhatsApp, já que ele é tratado exclusivamente pela função `send-order-approved`.
-
-**Arquivo:** `supabase/functions/send-status-notification/index.ts`
-
-**Alteração (linhas 422-430):**
-
-```typescript
-// For approved status, SKIP WhatsApp since it's handled by send-order-approved
-if (new_status === "approved") {
-  console.log("[STATUS] Skipping WhatsApp for approved - handled by send-order-approved");
-  // Only send email for approved status here (email still needed as backup)
-} else if (whatsappMessage) {
-  // For other statuses, use text message
-  promises.push(sendWhatsAppText(order.customer_phone, whatsappMessage, order.order_number));
-}
-```
+**Comportamento desejado:** Se múltiplas mudanças de status ocorrerem em menos de 30 segundos, enviar apenas a **última** (mais importante).
 
 ---
 
-## Problema 2: Link de Rastreio do iFood Não Aparece (DJA-0108)
+## Solução: Debounce com Tabela de Fila
 
-### Diagnóstico
+A estratégia é criar uma **fila de notificações pendentes** no banco de dados. Quando uma notificação é solicitada:
 
-O pedido DJA-0108 **tem** o link de rastreio no banco de dados:
-```
-tracking_link: https://meupedido.ifood.com.br/ad751108-fdde-480b-adf0-161d06bc0b7e?utm_source=copy_link
-```
-
-Porém, a página `/pedido/:orderNumber` **não está recebendo** o campo `tracking_link`:
-
-**Edge Function `get-order-status`** - Linha 53:
-```typescript
-.select("order_number, status, customer_name, created_at, items, total, delivery_option, paid_at")
-// ❌ FALTA: tracking_link
-```
-
-**Interface `OrderStatusResponse`** (linha 14):
-```typescript
-interface OrderStatusResponse {
-  // ❌ FALTA: tracking_link?: string;
-}
-```
-
-**Página `StatusPedido.tsx`** - Interface `OrderStatus` (linha 27):
-```typescript
-interface OrderStatus {
-  // ❌ FALTA: tracking_link?: string;
-}
-```
-
-E não há renderização do link de rastreio na página.
-
-### Solução
-
-1. **Atualizar a Edge Function `get-order-status`** para incluir `tracking_link` na query
-2. **Atualizar a página `StatusPedido.tsx`** para exibir o link de rastreio quando disponível
+1. **Verificar se já existe** uma notificação pendente para aquele pedido
+2. **Se existir:** Atualizar o status para o novo (mais recente), resetar o timer
+3. **Se não existir:** Criar nova entrada na fila
+4. **Background job:** Processar notificações após 30 segundos de "silêncio"
 
 ---
 
@@ -86,96 +31,156 @@ E não há renderização do link de rastreio na página.
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `supabase/functions/send-status-notification/index.ts` | Excluir status `approved` do envio de WhatsApp |
-| `supabase/functions/get-order-status/index.ts` | Adicionar `tracking_link` na query SQL |
-| `src/pages/StatusPedido.tsx` | Adicionar `tracking_link` na interface e renderizar link na UI |
+| **Nova tabela** `pending_notifications` | Armazenar notificações aguardando envio |
+| `supabase/functions/send-status-notification/index.ts` | Adicionar lógica de debounce |
+| **Nova Edge Function** `process-pending-notifications` | Processar fila após delay |
 
 ---
 
 ## Detalhes Técnicos
 
-### 1. send-status-notification/index.ts
+### 1. Criar Tabela `pending_notifications`
 
-Alterar o bloco de envio de WhatsApp (linhas 422-434):
+```sql
+CREATE TABLE public.pending_notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+  status TEXT NOT NULL,
+  scheduled_for TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 seconds'),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(order_id) -- Apenas uma notificação pendente por pedido
+);
+
+-- Habilitar realtime para trigger
+ALTER PUBLICATION supabase_realtime ADD TABLE pending_notifications;
+
+-- RLS: apenas serviço pode acessar
+ALTER TABLE pending_notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service role only" ON pending_notifications FOR ALL USING (false);
+```
+
+### 2. Modificar `send-status-notification/index.ts`
+
+Ao receber uma solicitação de notificação:
 
 ```typescript
-// ANTES:
-if (new_status === "approved") {
-  const templateFields = {...};
-  promises.push(sendWhatsAppTemplate(...));
-} else if (whatsappMessage) {
-  promises.push(sendWhatsAppText(...));
+// Verificar se já existe notificação pendente para este pedido
+const { data: existingPending } = await supabase
+  .from('pending_notifications')
+  .select('id')
+  .eq('order_id', order_id)
+  .single();
+
+if (existingPending) {
+  // Atualizar status e resetar timer
+  await supabase
+    .from('pending_notifications')
+    .update({ 
+      status: new_status, 
+      scheduled_for: new Date(Date.now() + 30000).toISOString() 
+    })
+    .eq('order_id', order_id);
+  
+  console.log(`[DEBOUNCE] Updated pending notification for ${order_id} to ${new_status}`);
+  return { success: true, debounced: true };
 }
 
-// DEPOIS:
-if (new_status === "approved") {
-  // Skip WhatsApp - handled exclusively by send-order-approved to prevent duplicates
-  console.log("[STATUS] Skipping WhatsApp for approved status - handled by send-order-approved");
-} else if (whatsappMessage) {
-  promises.push(sendWhatsAppText(order.customer_phone, whatsappMessage, order.order_number));
+// Criar nova notificação pendente
+await supabase
+  .from('pending_notifications')
+  .insert({ 
+    order_id, 
+    status: new_status,
+    scheduled_for: new Date(Date.now() + 30000).toISOString()
+  });
+
+console.log(`[DEBOUNCE] Queued notification for ${order_id}: ${new_status}`);
+return { success: true, queued: true };
+```
+
+### 3. Nova Edge Function `process-pending-notifications`
+
+Processador que roda via cron (a cada 10 segundos):
+
+```typescript
+// Buscar notificações que já passaram do tempo de espera
+const { data: pendingNotifications } = await supabase
+  .from('pending_notifications')
+  .select('*')
+  .lte('scheduled_for', new Date().toISOString());
+
+for (const notification of pendingNotifications) {
+  // Processar a notificação (enviar WhatsApp/Email)
+  await sendActualNotification(notification.order_id, notification.status);
+  
+  // Remover da fila
+  await supabase
+    .from('pending_notifications')
+    .delete()
+    .eq('id', notification.id);
 }
 ```
 
-### 2. get-order-status/index.ts
+### 4. Configurar Cron no config.toml
 
-Adicionar `tracking_link` na query (linha 53):
-
-```typescript
-.select("order_number, status, customer_name, created_at, items, total, delivery_option, paid_at, tracking_link")
+```toml
+[functions.process-pending-notifications]
+verify_jwt = false
+schedule = "*/10 * * * * *"  # A cada 10 segundos
 ```
 
-Adicionar na interface (linha 22):
+---
 
-```typescript
-interface OrderStatusResponse {
-  // ... campos existentes ...
-  tracking_link: string | null;
-}
-```
+## Fluxo Visual
 
-Adicionar no objeto de resposta (linha 85):
-
-```typescript
-const response: OrderStatusResponse = {
-  // ... campos existentes ...
-  tracking_link: order.tracking_link,
-};
-```
-
-### 3. StatusPedido.tsx
-
-Adicionar na interface `OrderStatus`:
-
-```typescript
-interface OrderStatus {
-  // ... campos existentes ...
-  tracking_link?: string | null;
-}
-```
-
-Adicionar seção de rastreio na UI (após o resumo do pedido):
-
-```tsx
-{/* Tracking Link Section */}
-{order.tracking_link && order.status === 'delivering' && (
-  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-    <p className="text-amber-800 font-medium mb-2">
-      Acompanhe sua entrega em tempo real
-    </p>
-    <Button asChild className="bg-amber-600 hover:bg-amber-700">
-      <a href={order.tracking_link} target="_blank" rel="noopener noreferrer">
-        <Truck className="w-4 h-4 mr-2" />
-        Rastrear Entrega
-      </a>
-    </Button>
-  </div>
-)}
+```text
+┌─────────────────┐
+│ Admin clica     │
+│ "Em Produção"   │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐     ┌─────────────────────┐
+│ Fila pendente   │────▶│ Timer: 30 segundos  │
+│ status=preparing│     └─────────────────────┘
+└────────┬────────┘
+         │ (Admin clica novamente em 5s)
+         ▼
+┌─────────────────┐     ┌─────────────────────┐
+│ Atualiza fila   │────▶│ Timer RESET: 30s    │
+│ status=ready    │     └─────────────────────┘
+└────────┬────────┘
+         │ (Admin clica novamente em 3s)
+         ▼
+┌─────────────────┐     ┌─────────────────────┐
+│ Atualiza fila   │────▶│ Timer RESET: 30s    │
+│ status=delivered│     └─────────────────────┘
+└─────────────────┘
+         │
+         │ (30 segundos sem mudança)
+         ▼
+┌─────────────────┐
+│ Envia apenas:   │
+│ "Pedido Entregue"│
+└─────────────────┘
 ```
 
 ---
 
 ## Resultado Esperado
 
-1. **Mensagens duplicadas:** Cliente receberá apenas **1 mensagem** de confirmação de pedido aprovado
-2. **Link de rastreio:** Ao acessar `/pedido/DJA-0108`, o cliente verá um botão destacado para abrir o rastreio do iFood/99/Uber
+- **Antes:** Admin muda 4 status em 2 minutos → Cliente recebe 4 mensagens
+- **Depois:** Admin muda 4 status em 2 minutos → Cliente recebe apenas 1 mensagem (a última)
+
+**O delay de 30 segundos é configurável e pode ser ajustado conforme necessário.**
+
+---
+
+## Casos Especiais
+
+1. **Status `delivered`:** Sempre envia imediatamente (é o status final)
+2. **Status `cancelled`:** Sempre envia imediatamente (crítico)
+3. **Email:** Continua enviando normalmente (só WhatsApp tem debounce)
+
+Isso garante que o cliente sempre receba confirmação de entrega/cancelamento sem delay.
 
