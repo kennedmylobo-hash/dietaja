@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Dumbbell, Flame, ShieldCheck, Clock } from "lucide-react";
 import marmitaImage from "@/assets/marmita-2.png";
@@ -14,6 +14,9 @@ import PackageCards, { PackageOption } from "@/components/landing/PackageCards";
 import FlavorMenu from "@/components/landing/FlavorMenu";
 import HowItWorks from "@/components/landing/HowItWorks";
 import FloatingCTA from "@/components/landing/FloatingCTA";
+import TestimonialsSection from "@/components/TestimonialsSection";
+import UrgencySection from "@/components/UrgencySection";
+import FitnessFAQSection from "@/components/FitnessFAQSection";
 import { useMarmitaHipertrofia, useGroupedMarmitaFlavors, useMarmitaFlavors } from "@/hooks/useMenuData";
 import { FlavorSelection } from "@/components/CartContext";
 
@@ -40,6 +43,20 @@ const FitnessContent = () => {
     popular: pkg.popular,
     description: `${pkg.quantity} marmitas de 450g`,
   }));
+
+  // Meta Pixel: ViewContent
+  useEffect(() => {
+    if (packages.length > 0 && typeof window !== 'undefined' && (window as any).fbq) {
+      const avgPrice = packages.reduce((sum, p) => sum + p.price, 0) / packages.length;
+      (window as any).fbq('track', 'ViewContent', {
+        content_type: 'product_group',
+        content_name: 'Marmita Fitness 450g',
+        content_category: 'Hipertrofia',
+        value: avgPrice,
+        currency: 'BRL',
+      });
+    }
+  }, [packages.length]);
 
   // Transform flavors for modal
   const flavorsByCategory = [
@@ -70,6 +87,17 @@ const FitnessContent = () => {
   }, []);
 
   const handlePackageSelect = (pkg: PackageOption) => {
+    // Meta Pixel: AddToCart
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('track', 'AddToCart', {
+        content_name: pkg.name,
+        content_type: 'product',
+        content_ids: [pkg.id],
+        value: pkg.price,
+        currency: 'BRL',
+      });
+    }
+
     setLoadingId(pkg.id);
     setSelectedPackage(pkg);
     setTimeout(() => {
@@ -80,7 +108,6 @@ const FitnessContent = () => {
 
   const handleFlavorConfirm = (flavors: FlavorSelection[], fishAdditional: number) => {
     if (!selectedPackage) return;
-
     const pkg = marmitaPackages.find(p => p.id === selectedPackage.id);
     if (!pkg) return;
 
@@ -123,6 +150,15 @@ const FitnessContent = () => {
       <Helmet>
         <title>Marmitas Fitness 450g | Dieta Já - Hipertrofia</title>
         <meta name="description" content="Marmitas de 450g para quem treina pesado. 150g de proteína, alto valor calórico e praticidade para ganho de massa." />
+        <meta name="keywords" content="marmita fitness, hipertrofia, ganho de massa, marmita 450g, proteína" />
+        <link rel="canonical" href="https://dietajavca.com.br/fitness" />
+        <meta property="og:type" content="product" />
+        <meta property="og:title" content="Marmitas Fitness 450g - Combustível para Treinos" />
+        <meta property="og:description" content="Porção generosa com 150g de proteína. Ideal para ganho de massa em Vitória da Conquista." />
+        <meta property="og:url" content="https://dietajavca.com.br/fitness" />
+        <meta property="og:image" content="https://dietajavca.com.br/og-image.jpg" />
+        <meta property="og:site_name" content="Dieta Já" />
+        <meta name="twitter:card" content="summary_large_image" />
       </Helmet>
 
       <LandingHeader />
@@ -150,6 +186,8 @@ const FitnessContent = () => {
         accentColor="terracotta"
       />
 
+      <TestimonialsSection />
+
       <div ref={menuRef}>
         <FlavorMenu
           title="🍽️ Nosso Cardápio"
@@ -170,7 +208,11 @@ const FitnessContent = () => {
         />
       </div>
 
+      <UrgencySection />
+
       <HowItWorks accentColor="terracotta" />
+
+      <FitnessFAQSection />
 
       {/* Guarantee Section */}
       <section className="py-12 bg-terracotta/5">
