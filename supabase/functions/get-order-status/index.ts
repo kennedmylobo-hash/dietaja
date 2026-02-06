@@ -20,6 +20,7 @@ interface OrderStatusResponse {
   total: number;
   delivery_option: string;
   paid_at: string | null;
+  tracking_link: string | null;
 }
 
 serve(async (req: Request) => {
@@ -50,7 +51,7 @@ serve(async (req: Request) => {
     // Fetch order by order_number
     const { data: order, error } = await supabase
       .from("orders")
-      .select("order_number, status, customer_name, created_at, items, total, delivery_option, paid_at")
+      .select("order_number, status, customer_name, created_at, items, total, delivery_option, paid_at, tracking_link")
       .eq("order_number", orderNumber.toUpperCase())
       .single();
 
@@ -82,6 +83,7 @@ serve(async (req: Request) => {
       total: order.total,
       delivery_option: order.delivery_option,
       paid_at: order.paid_at,
+      tracking_link: order.tracking_link,
     };
 
     return new Response(

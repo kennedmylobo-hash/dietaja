@@ -33,6 +33,7 @@ interface OrderStatus {
   total: number;
   delivery_option: string;
   paid_at: string | null;
+  tracking_link?: string | null;
 }
 
 type StatusStep = {
@@ -190,7 +191,7 @@ const StatusPedido = () => {
         },
         (payload) => {
           console.log("Order updated:", payload);
-          setOrder((prev) => prev ? { ...prev, status: payload.new.status, paid_at: payload.new.paid_at } : null);
+          setOrder((prev) => prev ? { ...prev, status: payload.new.status, paid_at: payload.new.paid_at, tracking_link: payload.new.tracking_link } : null);
         }
       )
       .subscribe();
@@ -446,6 +447,21 @@ const StatusPedido = () => {
                   📍 {order.delivery_option === "pickup" ? "Retirada no local" : "Entrega"}
                 </div>
               </div>
+
+              {/* Tracking Link Section */}
+              {order.tracking_link && order.status === 'delivering' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+                  <p className="text-amber-800 font-medium mb-3">
+                    📍 Acompanhe sua entrega em tempo real
+                  </p>
+                  <Button className="bg-amber-600 hover:bg-amber-700" asChild>
+                    <a href={order.tracking_link} target="_blank" rel="noopener noreferrer">
+                      <Truck className="w-4 h-4 mr-2" />
+                      Rastrear Entrega
+                    </a>
+                  </Button>
+                </div>
+              )}
 
               {/* Payment Actions (if pending) */}
               {isPaymentPending && (

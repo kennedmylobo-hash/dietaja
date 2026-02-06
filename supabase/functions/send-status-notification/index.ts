@@ -419,15 +419,10 @@ serve(async (req: Request) => {
     // Send notifications in parallel
     const promises: Promise<void>[] = [];
     
-    // For approved status, use the Meta-approved template
+    // For approved status, SKIP WhatsApp - handled exclusively by send-order-approved to prevent duplicates
     if (new_status === "approved") {
-      const templateFields = {
-        "1": order.customer_name.split(" ")[0] || "cliente",
-        "2": order.order_number || "",
-        "3": order.items.map((i: any) => `${i.quantity}x ${i.name}`).join(", ").substring(0, 500),
-        "4": `R$ ${order.total.toFixed(2).replace(".", ",")}`
-      };
-      promises.push(sendWhatsAppTemplate(order.customer_phone, "compraa_confrimadaa", templateFields, order.order_number));
+      console.log("[STATUS] Skipping WhatsApp for approved status - handled by send-order-approved");
+      // Email will still be sent below as backup
     } else if (whatsappMessage) {
       // For other statuses, use text message
       promises.push(sendWhatsAppText(order.customer_phone, whatsappMessage, order.order_number));
