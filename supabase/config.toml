@@ -74,3 +74,9 @@ verify_jwt = false
 
 [functions.create-club-subscription]
 verify_jwt = false
+
+[functions.send-password-reset]
+verify_jwt = false
+
+[functions.create-tenant]
+verify_jwt = false
