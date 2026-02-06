@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { toast } from "@/hooks/use-toast";
 import { 
   XAxis, 
@@ -1192,15 +1192,16 @@ const Admin = () => {
     }
   };
 
-  // Dashboard with horizontal tabs
+  // Dashboard with sidebar
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-20">
-        <div className="container max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-            <h1 className="text-xl font-bold">Painel Dieta Já</h1>
-            
+      <AdminSidebar activeSection={activeSection} onSectionChange={setActiveSection} />
+
+      {/* Main Content */}
+      <main className="md:ml-60 pt-16 md:pt-0">
+        {/* Top toolbar */}
+        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-16 md:top-0 z-20">
+          <div className="px-4 md:px-6 py-3 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2 flex-wrap">
               {/* Source Filter */}
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
@@ -1276,28 +1277,12 @@ const Admin = () => {
               </Button>
             </div>
           </div>
+        </header>
 
-          {/* Horizontal Tabs */}
-          <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
-            <Tabs value={activeSection} onValueChange={setActiveSection}>
-              <TabsList className="inline-flex h-10 items-center justify-start rounded-lg bg-muted p-1 text-muted-foreground w-auto min-w-full md:min-w-0">
-                <TabsTrigger value="analytics" className="text-xs md:text-sm whitespace-nowrap">Analytics</TabsTrigger>
-                <TabsTrigger value="funnel" className="text-xs md:text-sm whitespace-nowrap">Funil</TabsTrigger>
-                <TabsTrigger value="orders" className="text-xs md:text-sm whitespace-nowrap">Pedidos</TabsTrigger>
-                <TabsTrigger value="recovery" className="text-xs md:text-sm whitespace-nowrap">Recuperar</TabsTrigger>
-                <TabsTrigger value="marketing" className="text-xs md:text-sm whitespace-nowrap">Marketing</TabsTrigger>
-                <TabsTrigger value="stock" className="text-xs md:text-sm whitespace-nowrap">Estoque</TabsTrigger>
-                <TabsTrigger value="history" className="text-xs md:text-sm whitespace-nowrap">Histórico</TabsTrigger>
-                <TabsTrigger value="menu" className="text-xs md:text-sm whitespace-nowrap">Cardápio</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+        {/* Content Area */}
+        <div className="p-4 md:p-6">
+          {renderSectionContent()}
         </div>
-      </header>
-
-      {/* Content Area */}
-      <main className="container max-w-7xl mx-auto p-4 md:p-6">
-        {renderSectionContent()}
       </main>
     </div>
   );
