@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { TenantProvider } from "./contexts/TenantContext";
 import { lazy, Suspense } from "react";
 
 // Eager load critical pages
@@ -41,35 +42,37 @@ const App = () => (
   <ErrorBoundary>
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/cardapio" element={<Cardapio />} />
-                <Route path="/minha-conta" element={<MinhaConta />} />
-                <Route path="/obrigado" element={<Obrigado />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/admin/reset-password" element={<AdminResetPassword />} />
-                <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />
-                <Route path="/pagamento/erro" element={<PagamentoErro />} />
-                <Route path="/pix/:paymentId" element={<PixPayment />} />
-                <Route path="/pedido/:orderNumber" element={<StatusPedido />} />
-                <Route path="/pedido" element={<StatusPedido />} />
-                {/* Landing pages de categoria */}
-                <Route path="/detox" element={<Detox />} />
-                <Route path="/fit" element={<Fit />} />
-                <Route path="/fitness" element={<Fitness />} />
-                <Route path="/avaliar/:orderToken" element={<Avaliar />} />
-                <Route path="/clubedietaja" element={<ClubeDietaJa />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
+        <TenantProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/cardapio" element={<Cardapio />} />
+                  <Route path="/minha-conta" element={<MinhaConta />} />
+                  <Route path="/obrigado" element={<Obrigado />} />
+                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/admin/reset-password" element={<AdminResetPassword />} />
+                  <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />
+                  <Route path="/pagamento/erro" element={<PagamentoErro />} />
+                  <Route path="/pix/:paymentId" element={<PixPayment />} />
+                  <Route path="/pedido/:orderNumber" element={<StatusPedido />} />
+                  <Route path="/pedido" element={<StatusPedido />} />
+                  {/* Landing pages de categoria */}
+                  <Route path="/detox" element={<Detox />} />
+                  <Route path="/fit" element={<Fit />} />
+                  <Route path="/fitness" element={<Fitness />} />
+                  <Route path="/avaliar/:orderToken" element={<Avaliar />} />
+                  <Route path="/clubedietaja" element={<ClubeDietaJa />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </TooltipProvider>
+        </TenantProvider>
       </QueryClientProvider>
     </HelmetProvider>
   </ErrorBoundary>
