@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { 
   XAxis, 
@@ -56,11 +57,10 @@ import PaymentErrorLogs from "@/components/admin/PaymentErrorLogs";
 import ProductionPanel from "@/components/admin/ProductionPanel";
 import WhatsAppOrderImporter from "@/components/admin/WhatsAppOrderImporter";
 import SidesManager from "@/components/admin/SidesManager";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
- import CustomersManager from "@/components/admin/CustomersManager";
- import KPIDashboard from "@/components/admin/KPIDashboard";
- import ReviewsManager from "@/components/admin/ReviewsManager";
- import RecurringCustomers from "@/components/admin/RecurringCustomers";
+import CustomersManager from "@/components/admin/CustomersManager";
+import KPIDashboard from "@/components/admin/KPIDashboard";
+import ReviewsManager from "@/components/admin/ReviewsManager";
+import RecurringCustomers from "@/components/admin/RecurringCustomers";
 
 interface Lead {
   id: string;
@@ -1192,29 +1192,24 @@ const Admin = () => {
     }
   };
 
-  // Dashboard with Sidebar
+  // Dashboard with horizontal tabs
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
-      <AdminSidebar 
-        activeSection={activeSection} 
-        onSectionChange={setActiveSection} 
-      />
-      
-      {/* Main Content */}
-      <div className="flex-1 md:ml-60">
-        {/* Header */}
-        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-20 mt-14 md:mt-0">
-          <div className="px-4 md:px-6 py-4 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2 md:gap-4 flex-wrap">
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-20">
+        <div className="container max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+            <h1 className="text-xl font-bold">Painel Dieta Já</h1>
+            
+            <div className="flex items-center gap-2 flex-wrap">
               {/* Source Filter */}
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="w-[140px] h-9">
+                <SelectTrigger className="w-[130px] h-9">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Origem" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas origens</SelectItem>
+                  <SelectItem value="all">Todas...</SelectItem>
                   <SelectItem value="direct">Direto</SelectItem>
                   {availableSources.map(source => (
                     <SelectItem key={source} value={source}>
@@ -1226,13 +1221,13 @@ const Admin = () => {
 
               {/* Location Filter */}
               <Select value={locationFilter} onValueChange={setLocationFilter}>
-                <SelectTrigger className="w-[160px] h-9">
+                <SelectTrigger className="w-[130px] h-9">
                   <MapPin className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Localização" />
+                  <SelectValue placeholder="Local" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas localizações</SelectItem>
-                  <SelectItem value="sem-local">Sem localização</SelectItem>
+                  <SelectItem value="all">Todas...</SelectItem>
+                  <SelectItem value="sem-local">Sem local</SelectItem>
                   {availableLocations.map(location => (
                     <SelectItem key={location} value={location}>
                       {location}
@@ -1281,13 +1276,29 @@ const Admin = () => {
               </Button>
             </div>
           </div>
-        </header>
 
-        {/* Content Area */}
-        <main className="p-4 md:p-6">
-          {renderSectionContent()}
-        </main>
-      </div>
+          {/* Horizontal Tabs */}
+          <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+            <Tabs value={activeSection} onValueChange={setActiveSection}>
+              <TabsList className="inline-flex h-10 items-center justify-start rounded-lg bg-muted p-1 text-muted-foreground w-auto min-w-full md:min-w-0">
+                <TabsTrigger value="analytics" className="text-xs md:text-sm whitespace-nowrap">Analytics</TabsTrigger>
+                <TabsTrigger value="funnel" className="text-xs md:text-sm whitespace-nowrap">Funil</TabsTrigger>
+                <TabsTrigger value="orders" className="text-xs md:text-sm whitespace-nowrap">Pedidos</TabsTrigger>
+                <TabsTrigger value="recovery" className="text-xs md:text-sm whitespace-nowrap">Recuperar</TabsTrigger>
+                <TabsTrigger value="marketing" className="text-xs md:text-sm whitespace-nowrap">Marketing</TabsTrigger>
+                <TabsTrigger value="stock" className="text-xs md:text-sm whitespace-nowrap">Estoque</TabsTrigger>
+                <TabsTrigger value="history" className="text-xs md:text-sm whitespace-nowrap">Histórico</TabsTrigger>
+                <TabsTrigger value="menu" className="text-xs md:text-sm whitespace-nowrap">Cardápio</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
+      </header>
+
+      {/* Content Area */}
+      <main className="container max-w-7xl mx-auto p-4 md:p-6">
+        {renderSectionContent()}
+      </main>
     </div>
   );
 };
