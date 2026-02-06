@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import CashbackUsage from "@/components/checkout/CashbackUsage";
 
 import { validateCPF, formatCPF } from "@/lib/cpf";
+import { sanitizeCustomerName } from "@/lib/name-sanitizer";
 
 const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
@@ -186,7 +187,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             type: item.type,
           })),
           customer: {
-            name: data.name,
+            name: sanitizeCustomerName(data.name),
             email: data.email,
             phone: data.phone,
             cpf: cpfValue,
@@ -245,7 +246,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     await createCustomerAccount(data);
     
     onWhatsAppClick({
-      name: data.name,
+      name: sanitizeCustomerName(data.name),
       phone: data.phone,
       deliveryOption: data.deliveryOption,
       address: data.address,
