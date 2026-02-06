@@ -19,6 +19,8 @@ import {
    TrendingUp,
    Star,
    CalendarClock,
+   Store,
+   Palette,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -72,6 +74,13 @@ const menuGroups: AdminMenuGroup[] = [
       { id: "marketing", label: "Campanhas", icon: Megaphone },
       { id: "notifications", label: "Notificações", icon: Bell },
       { id: "recovery", label: "Recuperar", icon: RefreshCw },
+    ],
+  },
+  {
+    title: "Minha Loja",
+    items: [
+      { id: "tenant-settings", label: "Dados", icon: Store },
+      { id: "landing-editor", label: "Landing Page", icon: Palette },
     ],
   },
   {

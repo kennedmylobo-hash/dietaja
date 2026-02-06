@@ -1,15 +1,18 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Sparkles, Clock, Heart } from "lucide-react";
-
+import { useLandingContent } from "@/hooks/useLandingContent";
 const SolutionSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const { content, isVisible } = useLandingContent("solution");
 
-  const features = [
-    { icon: Sparkles, text: "Sem precisar pensar" },
-    { icon: Clock, text: "Praticidade total" },
-    { icon: Heart, text: "Constância no cuidado" },
+  if (!isVisible) return null;
+
+  const features = content?.features ?? [
+    { icon: "Sparkles", title: "Sem precisar pensar", description: "" },
+    { icon: "Clock", title: "Praticidade total", description: "" },
+    { icon: "Heart", title: "Constância no cuidado", description: "" },
   ];
 
   return (
@@ -23,16 +26,15 @@ const SolutionSection = () => {
         >
           <div className="text-center mb-8 md:mb-12">
             <p className="text-lg sm:text-xl md:text-2xl text-foreground leading-relaxed mb-4">
-              A solução não é força de vontade.
+              {content?.title ?? "A solução não é força de vontade."}
               <br />
-              <span className="text-primary font-semibold">É praticidade.</span>
+              <span className="text-primary font-semibold">{content?.subtitle ?? "É praticidade."}</span>
             </p>
           </div>
 
           <div className="bg-sage-light/50 rounded-2xl p-5 sm:p-8 md:p-10 border border-primary/10">
             <p className="text-base sm:text-lg text-foreground leading-relaxed mb-6 sm:mb-8 text-center">
-              Criamos kits prontos para que você{" "}
-              <strong>não precise pensar</strong>, apenas seguir.
+              {content?.description ?? <>Criamos kits prontos para que você <strong>não precise pensar</strong>, apenas seguir.</>}
             </p>
 
             <p className="text-sm sm:text-base text-muted-foreground text-center leading-relaxed">
@@ -41,18 +43,22 @@ const SolutionSection = () => {
             </p>
 
             <div className="flex flex-wrap justify-center gap-2.5 sm:gap-4 mt-6 sm:mt-8">
-              {features.map((feature, index) => (
-                <motion.div
-                  key={feature.text}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-card rounded-full border border-border"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={isInView ? { opacity: 1, scale: 1 } : {}}
-                  transition={{ duration: 0.4, delay: 0.2 + index * 0.1 }}
-                >
-                  <feature.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-                  <span className="text-xs sm:text-sm font-medium text-foreground">{feature.text}</span>
-                </motion.div>
-              ))}
+              {features.map((feature: any, index: number) => {
+                const iconMap: Record<string, any> = { Sparkles, Clock, Heart };
+                const FeatureIcon = iconMap[feature.icon] || Sparkles;
+                return (
+                  <motion.div
+                    key={feature.title}
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-card rounded-full border border-border"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={isInView ? { opacity: 1, scale: 1 } : {}}
+                    transition={{ duration: 0.4, delay: 0.2 + index * 0.1 }}
+                  >
+                    <FeatureIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+                    <span className="text-xs sm:text-sm font-medium text-foreground">{feature.title || feature.text}</span>
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         </motion.div>
