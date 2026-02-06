@@ -23,6 +23,7 @@ import { toast } from "@/hooks/use-toast";
 import { useMarmitaFlavors, useKitJuices, useKitSoups } from "@/hooks/useMenuData";
 import { motion, AnimatePresence } from "framer-motion";
 import { siteConfig, getWhatsAppLink } from "@/config/site";
+import { validateCPF, formatCPF } from "@/lib/cpf";
 
 // Phone mask function: (XX) XXXXX-XXXX
 const formatPhone = (value: string): string => {
@@ -457,29 +458,25 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     }
   };
 
-  const formatCpf = (value: string): string => {
-    const digits = value.replace(/\D/g, "").slice(0, 11);
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
-    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-  };
-
-  const validateCpf = (cpf: string): boolean => {
-    const cleaned = cpf.replace(/\D/g, '');
-    if (cleaned.length !== 11) return false;
-    if (/^(\d)\1+$/.test(cleaned)) return false;
-    return true;
-  };
+  // Local formatCpf and validateCpf removed - using shared lib/cpf
 
   const handlePixPayment = async (retryCount = 0) => {
     if (!formData) return;
     
-    // CPF is optional now - just clean it if provided
+    // CPF é obrigatório para PIX (Asaas exige)
     const cleanedCpf = cpfValue.replace(/\D/g, '');
     
-    setIsLoading(true);
+    if (!cleanedCpf || cleanedCpf.length !== 11) {
+      setCpfError('CPF é obrigatório para pagamento PIX');
+      return;
+    }
     
+    if (!validateCPF(cleanedCpf)) {
+      setCpfError('CPF inválido. Verifique os números.');
+      return;
+    }
+    
+    setCpfError("");
     setIsLoading(true);
     hapticFeedback('medium');
 
@@ -544,10 +541,14 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         return handlePixPayment(retryCount + 1);
       }
       
-      // After all retries failed, show friendly message without technical details
+      // After all retries failed, check if CPF-related
+      const errorMsg = String(error);
+      const isCpfError = errorMsg.includes('cpf') || errorMsg.includes('CPF');
       toast({
-        title: "Ops! Tente novamente",
-        description: "Clique no botão PIX para tentar novamente ou fale com um atendente.",
+        title: isCpfError ? "CPF inválido" : "Ops! Tente novamente",
+        description: isCpfError 
+          ? "Verifique o CPF informado e tente novamente." 
+          : "Clique no botão PIX para tentar novamente ou fale com um atendente.",
       });
     } finally {
       setIsLoading(false);
@@ -1264,7 +1265,24 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                   transition={{ delay: 0.5 }}
                   className="w-full space-y-3"
                 >
-                  {/* CPF field removed - testing without it for better conversion */}
+                  {/* CPF - obrigatório para PIX */}
+                  <div className="space-y-1">
+                    <Label htmlFor="cpf-drawer" className="text-sm font-medium">
+                      CPF <span className="text-muted-foreground text-xs">(exigido pelo PIX)</span>
+                    </Label>
+                    <Input
+                      id="cpf-drawer"
+                      inputMode="numeric"
+                      placeholder="000.000.000-00"
+                      value={formatCPF(cpfValue)}
+                      onChange={(e) => {
+                        setCpfValue(e.target.value);
+                        setCpfError("");
+                      }}
+                      className={cpfError ? 'border-destructive' : ''}
+                    />
+                    {cpfError && <p className="text-xs text-destructive">{cpfError}</p>}
+                  </div>
 
                   <Button
                     variant="cta"
