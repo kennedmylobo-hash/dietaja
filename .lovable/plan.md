@@ -1,232 +1,187 @@
 
 
-# Plataforma SaaS Multi-Tenant para Restaurantes
+# Fase 3 -- Isolamento Multi-tenant (RLS + Queries Frontend + Edge Functions)
 
-## Visao Geral
+## Objetivo
 
-Transformar o sistema atual em uma plataforma white-label onde multiplos restaurantes operam dentro de uma unica infraestrutura. Cada restaurante tera seu proprio dominio, marca, cardapio e painel admin completo. Voce (Super Admin) gerencia tudo por um painel master.
+Garantir que cada restaurante (tenant) veja **somente** seus dados em todas as camadas: banco de dados (RLS), frontend (queries) e backend (edge functions). Adicionalmente, ao onboarding de novos tenants, o cardapio do Dieta Ja sera oferecido como modelo opcional para clonagem.
 
-## Arquitetura Multi-Tenant
+---
 
-```text
-Requisicao do navegador
-        |
-        v
-Detecta hostname (ex: restaurante1.com.br)
-        |
-        v
-Busca tenant_id pela tabela "tenants" (coluna domain)
-        |
-        v
-Carrega configuracoes do tenant (nome, cores, logo, contato)
-        |
-        v
-Renderiza o site com a identidade do restaurante
-        |
-        v
-Todas as queries filtram por tenant_id automaticamente
+## Parte A -- RLS Policies (Migracao SQL)
+
+Atualizar as politicas RLS das ~20 tabelas que possuem `tenant_id` para filtrar por tenant. A estrategia sera:
+
+- **Tabelas publicas (leitura anonima)**: Adicionar `tenant_id = current_setting('app.current_tenant_id')::uuid` ou manter filtro via query frontend (mais simples e sem exigir configuracao de settings no client). **Decisao: filtrar pelo frontend**, ja que o client envia o `tenant_id` nas queries e o RLS garante que admins so vejam dados do seu tenant.
+
+- **Tabelas de admin**: Trocar `has_role(auth.uid(), 'admin')` por `has_role(auth.uid(), 'admin') AND tenant_id = get_current_tenant_id()` para SELECT/UPDATE/DELETE/ALL.
+
+- **Tabelas de INSERT publico** (orders, leads, carts, analytics_events, reviews): Manter INSERT aberto mas adicionar `tenant_id` default no insert.
+
+### Tabelas e mudancas de RLS
+
+| Tabela | Politica atual | Mudanca |
+|--------|---------------|---------|
+| `orders` | Admin vee tudo | Admin filtra por `tenant_id = get_current_tenant_id()` |
+| `marmita_packages` | Admin ALL, Anyone SELECT | Admin ALL com tenant_id, Anyone SELECT com tenant_id (via query) |
+| `marmita_flavors` | Admin ALL, Anyone SELECT | Idem |
+| `marmita_sides` | Admin ALL, Anyone SELECT | Idem |
+| `kit_packages` | Admin ALL, Anyone SELECT | Idem |
+| `kit_soups` | Admin ALL, Anyone SELECT | Idem |
+| `kit_juices` | Admin ALL, Anyone SELECT | Idem |
+| `menu_categories` | Admin ALL, Anyone SELECT | Idem |
+| `carts` | Admin SELECT/UPDATE | Admin filtra por tenant_id |
+| `leads` | Admin SELECT | Admin filtra por tenant_id |
+| `analytics_events` | Admin SELECT | Admin filtra por tenant_id |
+| `reviews` | Admin ALL, Anyone SELECT approved | Admin com tenant_id |
+| `coupons` | Admin ALL, Anyone SELECT active | Admin com tenant_id |
+| `coupon_usage` | Admin SELECT | Admin com tenant_id |
+| `cashback_balances` | Admin SELECT | Admin com tenant_id |
+| `cashback_transactions` | Admin SELECT | Admin com tenant_id |
+| `club_plans` | Admin ALL, Anyone SELECT | Admin com tenant_id |
+| `club_subscriptions` | Admin SELECT | Admin com tenant_id |
+| `marketing_messages` | Admin ALL | Admin com tenant_id |
+| `recurring_customers` | Admin ALL | Admin com tenant_id |
+| `reminder_settings` | Admin ALL | Admin com tenant_id |
+| `order_status_history` | Admin SELECT/INSERT | Admin com tenant_id |
+| `stock_movements` | Admin SELECT/INSERT | Admin com tenant_id |
+| `notification_events` | Admin SELECT | Admin com tenant_id |
+| `payment_error_logs` | Admin SELECT | Admin com tenant_id |
+| `loyalty_levels` | Admin ALL, Anyone SELECT | Admin com tenant_id |
+| `recompra_campaigns` | Admin SELECT | Admin com tenant_id |
+| `pending_notifications` | Service role ALL | Sem mudanca (service role) |
+| `profiles` | Admin SELECT, Users own | Admin com tenant_id |
+
+A migracao SQL ira:
+1. Dropar as policies antigas de admin
+2. Recriar com filtro `tenant_id = get_current_tenant_id()` usando a funcao ja existente
+3. Para tabelas de leitura publica, manter as policies atuais (o filtro sera feito na query)
+
+---
+
+## Parte B -- Frontend: Queries com tenant_id
+
+Adaptar todos os hooks e componentes que fazem queries ao Supabase para incluir `.eq('tenant_id', tenant.id)` usando o contexto do `useTenant()`.
+
+### Arquivos afetados
+
+**Hooks de dados publicos (cardapio):**
+- `src/hooks/useMenuData.ts` -- Adicionar `tenant_id` filter em todos os 7 hooks (useMarmitaPackages, useMarmitaFlavors, useKitPackages, etc.)
+- `src/hooks/useMenuCategories.ts` -- Adicionar `tenant_id` filter
+- `src/hooks/useClubPlans.ts` -- Adicionar `tenant_id` filter
+
+**Hooks de analytics/tracking:**
+- `src/hooks/useAnalytics.ts` -- Inserir `tenant_id` nos inserts de analytics_events
+- `src/hooks/useSectionTracking.ts` -- Inserir `tenant_id` nos inserts
+
+**Hooks de cashback:**
+- `src/hooks/useCashback.ts` -- Queries de loyalty_levels, cashback_balances, cashback_transactions (tenant_id filter para leitura publica)
+
+**Cart e Checkout:**
+- `src/components/CartContext.tsx` -- Adicionar `tenant_id` nos inserts/updates de carts
+- `src/components/CartDrawer.tsx` -- Adicionar `tenant_id` nos inserts de orders
+- `src/components/CheckoutForm.tsx` -- Passa tenant_id para edge functions
+
+**Componentes Admin (todos precisam de tenant_id filter):**
+- `src/components/admin/OrdersManager.tsx`
+- `src/components/admin/KPIDashboard.tsx`
+- `src/components/admin/LiveCarts.tsx`
+- `src/components/admin/LiveVisitors.tsx`
+- `src/components/admin/ProductionPanel.tsx`
+- `src/components/admin/MenuManager.tsx`
+- `src/components/admin/CategoryManager.tsx`
+- `src/components/admin/SidesManager.tsx`
+- `src/components/admin/ReviewsManager.tsx`
+- `src/components/admin/CustomersManager.tsx`
+- `src/components/admin/MarketingManager.tsx`
+- `src/components/admin/StockReport.tsx`
+- `src/components/admin/StockHistory.tsx`
+- `src/components/admin/RecurringCustomers.tsx`
+- `src/components/admin/AbandonedCartsRecovery.tsx`
+- `src/components/admin/PendingOrdersRecovery.tsx`
+- `src/components/admin/NotificationStats.tsx`
+- `src/components/admin/FunnelReport.tsx`
+- `src/components/admin/WhatsAppOrderImporter.tsx`
+- `src/components/admin/PaymentErrorLogs.tsx`
+
+**Paginas:**
+- `src/pages/Admin.tsx` -- Queries de leads e analytics_events com tenant_id
+- `src/pages/Avaliar.tsx` -- Insert de reviews com tenant_id
+- `src/pages/StatusPedido.tsx` -- Query de orders com tenant_id
+
+### Estrategia de implementacao
+
+Criar um hook utilitario `useTenantId()` que retorna o `tenant.id` do contexto, simplificando o uso:
+
+```typescript
+// Nos hooks de dados
+const { tenant } = useTenant();
+// Nas queries
+.eq('tenant_id', tenant?.id)
 ```
 
-## Estrutura de Dominios
+Para os hooks que usam `useQuery`, o `tenant_id` sera parte da `queryKey` para cache correto por tenant.
 
-Cada restaurante pode ter:
-- **Subdominio gratuito**: restaurante.suaplataforma.com.br (automatico)
-- **Dominio proprio**: restaurante.com.br (cliente configura DNS apontando A record para 185.158.133.1)
+---
 
-A deteccao do tenant usa `window.location.hostname` para buscar o registro correspondente na tabela `tenants`.
+## Parte C -- Edge Functions com tenant_id
 
-## Papeis de Usuario
+Todas as edge functions que leem/escrevem no banco precisam receber e/ou resolver o `tenant_id`. A estrategia:
 
-| Papel | Acesso |
-|-------|--------|
-| **super_admin** | Painel master, gerencia todos os tenants, planos e cobrancas |
-| **admin** | Painel admin do restaurante (pedidos, cardapio, estoque, marketing, analytics) |
-| **customer** | Area do cliente (minha conta, historico de pedidos) |
+1. **Edge functions chamadas pelo frontend** (create-asaas-pix, validate-coupon, create-club-subscription, etc.): Receber `tenant_id` no body da requisicao
+2. **Edge functions de webhook** (asaas-webhook, notificame-webhook, resend-webhook): Resolver tenant_id a partir do order_id
+3. **Edge functions de cron/batch** (send-cart-reminders, send-recompra-campaigns, etc.): Iterar por tenant ou resolver tenant_id do registro
 
-## Modulo de Monetizacao
+### Edge functions a atualizar (~20)
 
-- Cada restaurante tem um `plan_type` (basico, pro, premium) com mensalidade fixa
-- Super Admin define os planos e precos
-- Controle de status: ativo, inadimplente, cancelado
-- Cobranca pode ser manual inicialmente, com automacao via Asaas futuramente
+Cada uma precisara incluir `tenant_id` nos INSERTs e filtrar por `tenant_id` nos SELECTs:
+- `create-asaas-pix` -- Recebe tenant_id, passa para insert de orders
+- `asaas-webhook` -- Resolve tenant_id do order
+- `validate-coupon` -- Filtra cupons por tenant_id
+- `create-club-subscription` -- Insere com tenant_id
+- `create-customer-account` -- Insere profile com tenant_id
+- `decrement-stock` -- Filtra por tenant_id
+- `process-cashback` -- Filtra por tenant_id
+- `send-order-confirmation`, `send-order-approved`, `send-order-whatsapp`, `send-order-pending-email`, `send-status-notification` -- Resolve do order
+- `send-cart-reminders`, `send-pending-reminders` -- Resolve do cart/order
+- `send-recompra-campaigns`, `send-review-request` -- Resolve do order
+- `generate-pix-admin` -- Recebe tenant_id
+- `check-payment-status`, `cancel-asaas-payment`, `get-pix-details`, `get-order-status` -- Resolve do order
 
-## Secao Tecnica
+---
 
-### 1. Novas Tabelas no Banco de Dados
+## Parte D -- Clonagem de Cardapio (Sugestao do Dieta Ja)
 
-**Tabela `tenants`** (cada restaurante e um tenant):
-- `id` (uuid, PK)
-- `slug` (text, unique) -- para subdominios
-- `domain` (text, unique, nullable) -- dominio proprio
-- `brand_name` (text)
-- `brand_slogan` (text)
-- `logo_url` (text, nullable)
-- `primary_color` (text, default '#22c55e')
-- `city`, `state` (text)
-- `whatsapp`, `whatsapp_formatted` (text)
-- `delivery_fee` (numeric)
-- `pickup_neighborhood` (text)
-- `facebook_pixel_id` (text, nullable)
-- `google_analytics_id` (text, nullable)
-- `og_image_url` (text, nullable)
-- `plan_type` (text -- free, basic, pro, premium)
-- `plan_price` (numeric)
-- `plan_status` (text -- active, overdue, cancelled, trial)
-- `plan_due_date` (date, nullable)
-- `is_active` (boolean, default true)
-- `owner_user_id` (uuid, referencia auth.users)
-- `created_at`, `updated_at` (timestamptz)
+Atualizar a edge function `create-tenant` para aceitar um parametro opcional `clone_menu_from` (tenant_id de origem). Quando informado:
 
-**Tabela `platform_plans`** (planos da plataforma):
-- `id` (uuid, PK)
-- `name` (text) -- "Basico", "Pro", "Premium"
-- `slug` (text, unique)
-- `price` (numeric)
-- `features` (jsonb) -- lista de funcionalidades incluidas
-- `max_products` (integer, nullable)
-- `max_orders_month` (integer, nullable)
-- `active` (boolean)
-- `sort_order` (integer)
+1. Copiar todos os `marmita_packages` do tenant origem para o novo (com novo tenant_id)
+2. Copiar `marmita_flavors` e `marmita_sides`
+3. Copiar `kit_packages`, `kit_soups`, `kit_juices`
+4. Copiar `menu_categories`
+5. Copiar `loyalty_levels` e `club_plans`
 
-**Modificacao em TODAS as tabelas existentes:**
-- Adicionar coluna `tenant_id` (uuid, FK para tenants, NOT NULL com default)
-- Atualizar RLS para filtrar por `tenant_id`
-- Dados existentes recebem o tenant_id do "Dieta Ja" (primeiro tenant)
+Atualizar o formulario de onboarding em `SAOnboarding.tsx` com um checkbox "Clonar cardapio do Dieta Ja como modelo" (pre-marcado).
 
-Tabelas afetadas:
-- `orders`, `carts`, `leads`, `analytics_events`
-- `marmita_flavors`, `marmita_packages`, `marmita_sides`
-- `kit_juices`, `kit_soups`, `kit_packages`
-- `menu_categories`, `reviews`, `coupons`, `coupon_usage`
-- `stock_movements`, `marketing_messages`, `notification_events`
-- `recurring_customers`, `payment_error_logs`
-- `reminder_settings`, `recompra_campaigns`, `pending_notifications`
-- `order_status_history`, `profiles`
-- `cashback_balances`, `cashback_transactions`, `loyalty_levels`
-- `club_plans`, `club_subscriptions`
+---
 
-### 2. Atualizacao do Enum de Roles
+## Secao Tecnica -- Resumo de Mudancas
 
-Adicionar `super_admin` ao enum `app_role`:
+### Migracao SQL (1 grande migracao)
+- DROP + CREATE de ~50 RLS policies para ~27 tabelas
+- Todas as policies de admin passam a incluir `tenant_id = get_current_tenant_id()`
 
-```text
-ALTER TYPE app_role ADD VALUE 'super_admin';
-```
+### Arquivos frontend (~30 arquivos)
+- Todos os hooks de dados: adicionar `.eq('tenant_id', tenant?.id)` e `tenant_id` na queryKey
+- Todos os inserts: incluir `tenant_id` no payload
+- Componentes admin: filtrar queries pelo tenant do admin logado
 
-### 3. RLS Atualizado (Exemplo)
+### Edge functions (~20 funcoes)
+- Adicionar `tenant_id` nos inserts
+- Filtrar reads por `tenant_id`
+- Edge function `create-tenant`: adicionar logica de clonagem de cardapio
 
-Todas as tabelas passam a incluir filtro por tenant:
-
-```text
--- Exemplo para orders:
-CREATE POLICY "Tenant isolation" ON orders
-FOR ALL USING (
-  tenant_id = get_current_tenant_id()
-);
-```
-
-Uma funcao `get_current_tenant_id()` busca o tenant do usuario autenticado via tabela `profiles` (que tera `tenant_id`).
-
-Super Admins bypassam o filtro de tenant.
-
-### 4. Contexto de Tenant no Frontend
-
-**Novo provider: `TenantProvider`** (`src/contexts/TenantContext.tsx`):
-- Detecta hostname ao inicializar
-- Busca configuracoes do tenant na tabela `tenants`
-- Disponibiliza via React Context para todo o app
-- Substitui o `siteConfig` estatico por dados dinamicos
-
-```text
-App
- └── TenantProvider (detecta tenant pelo dominio)
-      └── CartProvider
-           └── Routes
-                ├── / (Index -- site do restaurante)
-                ├── /cardapio
-                ├── /admin (painel do restaurante)
-                └── /super-admin (painel master -- so voce)
-```
-
-### 5. Paginas do Super Admin
-
-Nova rota `/super-admin` com:
-
-- **Dashboard**: Total de restaurantes, receita da plataforma, restaurantes ativos/inativos
-- **Gerenciar Restaurantes**: CRUD completo de tenants (nome, cores, dominio, logo, plano)
-- **Planos**: Gerenciar planos da plataforma (precos, limites, funcionalidades)
-- **Cobrancas**: Status de pagamento de cada restaurante, marcar como pago/inadimplente
-- **Onboarding**: Formulario para cadastrar novo restaurante (cria tenant + usuario admin)
-
-### 6. Fluxo de Onboarding de Novo Restaurante
-
-```text
-Super Admin preenche formulario
-  (nome, dominio, email do dono, plano)
-        |
-        v
-Edge Function "create-tenant"
-  1. Cria registro na tabela tenants
-  2. Cria usuario admin via Supabase Auth
-  3. Atribui role "admin" + tenant_id no profile
-  4. Seed de dados iniciais (categorias padrao, configs)
-  5. Envia email de boas-vindas com credenciais
-        |
-        v
-Restaurante pronto para usar
-```
-
-### 7. Adaptacao do Admin Existente
-
-O painel `/admin` atual continuara funcionando, mas:
-- Filtra dados automaticamente pelo `tenant_id` do usuario logado
-- Usa cores e marca do tenant
-- O menu lateral mostra o nome do restaurante
-
-### 8. Edge Functions Atualizadas
-
-Todas as edge functions passam a receber/detectar `tenant_id`:
-- `create-asaas-pix`: usa chave Asaas do tenant (ou da plataforma)
-- `asaas-webhook`: identifica tenant pelo pedido
-- `send-order-confirmation`: usa marca do tenant no template
-- Nova: `create-tenant` -- onboarding de restaurante
-
-### 9. Armazenamento de Secrets por Tenant
-
-Cada restaurante pode ter suas proprias chaves (Asaas, WhatsApp, etc):
-- Nova tabela `tenant_secrets` (criptografada)
-- Ou: todos usam a mesma chave da plataforma (voce cobra taxa sobre transacoes)
-
-### 10. Prioridade de Implementacao
-
-A migracao sera feita em fases para nao quebrar o sistema atual:
-
-**Fase 1 - Infraestrutura** (primeiro):
-- Criar tabelas `tenants` e `platform_plans`
-- Adicionar `tenant_id` em todas as tabelas existentes
-- Migrar dados existentes para tenant "Dieta Ja"
-- Atualizar enum `app_role` com `super_admin`
-- Criar `TenantProvider` no frontend
-
-**Fase 2 - Super Admin**:
-- Pagina `/super-admin` com dashboard e CRUD de tenants
-- Edge function `create-tenant` para onboarding
-- Gerenciamento de planos
-
-**Fase 3 - Isolamento**:
-- Atualizar todas as RLS policies com filtro de tenant
-- Atualizar todas as queries do frontend para incluir tenant_id
-- Adaptar o `/admin` para contexto multi-tenant
-
-**Fase 4 - Polimento**:
-- Sistema de cobranca de mensalidade
-- Templates de email com marca do tenant
-- Pagina de onboarding self-service (opcional)
-
-### Riscos e Cuidados
-
-- A migracao de `tenant_id` em tabelas existentes precisa de DEFAULT para nao quebrar inserts atuais
-- O tenant "Dieta Ja" sera o primeiro e continuara funcionando normalmente durante a migracao
-- As edge functions precisam ser atualizadas gradualmente para suportar multi-tenant
-- O `siteConfig` estatico sera mantido como fallback enquanto o `TenantProvider` nao carregar
+### Impacto
+- Zero breaking change para o tenant "Dieta Ja" (tenant_id default ja existe em todos os registros)
+- Novos tenants terao isolamento completo
+- Admins de cada tenant verao apenas seus dados
 
