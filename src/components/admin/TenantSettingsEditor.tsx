@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Save, Store, Upload } from "lucide-react";
+import { Save, Store, Upload, Link2, Copy, Check } from "lucide-react";
 
 export default function TenantSettingsEditor() {
   const tenantId = useTenantId();
   const queryClient = useQueryClient();
+  const [copied, setCopied] = useState(false);
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant-settings", tenantId],
@@ -104,6 +105,34 @@ export default function TenantSettingsEditor() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {tenant && (() => {
+            const publicUrl = tenant.domain
+              ? `https://${tenant.domain}`
+              : `https://diet-on-demand.lovable.app?tenant=${tenant.slug}`;
+            return (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 rounded-lg bg-primary/10 border border-primary/20">
+                <Link2 className="w-5 h-5 text-primary shrink-0 mt-0.5 sm:mt-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Link da sua loja</p>
+                  <p className="text-sm text-primary font-mono truncate">{publicUrl}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Compartilhe este link com seus clientes</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(publicUrl);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className="shrink-0"
+                >
+                  {copied ? <><Check className="w-4 h-4 mr-1" /> Copiado!</> : <><Copy className="w-4 h-4 mr-1" /> Copiar</>}
+                </Button>
+              </div>
+            );
+          })()}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Nome da Marca</Label>
