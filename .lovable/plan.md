@@ -1,102 +1,103 @@
 
 
-# Checklist para Testar a Revenda do Software (Ponta a Ponta)
+## Fluxo de Convite por Email para Donos de Restaurante
 
-## O que ja esta pronto
+### Resumo
+Quando um novo restaurante for cadastrado no Super Admin, em vez de definir uma senha temporaria, o sistema enviara um email de convite ao dono do restaurante com um link para ele criar sua propria senha e acessar o painel `/admin`.
 
-- Tabela `tenant_landing_content` com RLS
-- Bucket `tenant-assets` para imagens
-- Onboarding via Super Admin (`/super-admin`) com clonagem de cardapio e seed de conteudo
-- Edge Function `create-tenant` com seed automatico de landing content
-- Painel Admin com "Minha Loja" (Dados do Restaurante + Editor de Landing)
-- Hook `useLandingContent` com fallback hardcoded
-- ~10 componentes da landing renderizando conteudo dinamico
-- Isolamento multi-tenant via RLS e `tenant_id` em queries/edge functions
+### O que muda para o usuario
 
----
+1. No formulario de onboarding do Super Admin, o campo "Senha Temporaria" sera removido -- basta informar o email do dono
+2. O dono recebe um email bonito e personalizado com um botao "Criar minha senha"
+3. Ao clicar, ele e levado a uma pagina onde define sua senha
+4. Apos definir, e redirecionado automaticamente ao painel `/admin` do seu restaurante
 
-## O que falta para um teste completo de revenda
+### Etapas de Implementacao
 
-### 1. Teste End-to-End do Onboarding
+**1. Adicionar `tenant_id` a tabela `user_roles`**
 
-Criar um restaurante ficticio pelo `/super-admin` e validar:
-- Tenant criado no banco com todos os campos
-- Usuario admin criado e com role `admin`
-- Categorias de cardapio clonadas (se checkbox marcada)
-- Registros de `tenant_landing_content` seedados (10 secoes)
-- Admin consegue logar em `/admin` e ver o painel
+Migracao SQL para:
+- Adicionar coluna `tenant_id` (UUID, referencia `tenants.id`) na tabela `user_roles`
+- Atualizar os registros existentes de admin para vincular ao tenant correto (via `profiles.tenant_id`)
+- Criar indice para consultas rapidas
 
-Isso e um teste manual -- basta acessar `/super-admin`, preencher o formulario e verificar.
+**2. Criar Edge Function `send-tenant-invite`**
 
----
+Nova funcao backend que:
+- Recebe `email`, `tenant_id`, `brand_name`
+- Gera um link de convite via `supabase.auth.admin.generateLink({ type: "invite" })`
+- Envia email estilizado via Resend com branding do restaurante (nome, cor)
+- O link redireciona para `/admin/reset-password` (pagina ja existente para definir senha)
 
-### 2. Deteccao de Tenant por Dominio (critico para producao)
+**3. Atualizar Edge Function `create-tenant`**
 
-Hoje o `TenantContext` usa fallback do "Dieta Ja" em localhost/lovable.app. Para testar um segundo tenant, precisamos de uma forma de simular outro dominio ou usar query param.
+Modificacoes:
+- Remover o parametro `admin_password` (nao sera mais necessario)
+- Criar o usuario com senha aleatoria (usuario nunca a usa)
+- Inserir `tenant_id` na tabela `user_roles` junto com o role `admin`
+- Chamar internamente a logica de envio de convite por email
 
-**Proposta**: Adicionar suporte a query param `?tenant=slug` no `TenantContext` para testes. Isso permite acessar `/?tenant=meu-restaurante` e ver a landing do novo tenant sem precisar de dominio customizado.
+**4. Atualizar Formulario de Onboarding (SAOnboarding.tsx)**
 
-Em producao, a deteccao por hostname ja funciona.
+- Remover campo "Senha Temporaria"
+- Atualizar mensagem de sucesso: "Convite enviado para o email do admin"
+- Ajustar validacao do formulario
 
----
+**5. Atualizar Verificacao de Login no `/admin` (Admin.tsx)**
 
-### 3. Resolver o Prefixo do Numero de Pedido
+- Ao verificar o role `admin`, tambem carregar o `tenant_id` do `user_roles`
+- Armazenar o `tenant_id` no contexto para filtrar dados corretamente
+- Isso garante que cada admin so veja dados do seu restaurante
 
-A funcao `generate_order_number()` usa prefixo fixo `DJA-`. Para multi-tenant, cada restaurante precisa do seu proprio prefixo.
+### Detalhes Tecnicos
 
-**Proposta**: Adicionar coluna `order_prefix` na tabela `tenants` (ex: "MFT" para "Marmitas Fitness"). Alterar o trigger para gerar numeros como `MFT-0001` baseado no tenant do pedido.
+```text
+Fluxo do Convite:
 
----
+Super Admin preenche formulario
+        |
+        v
+create-tenant (Edge Function)
+  - Cria usuario (senha aleatoria)
+  - Cria tenant
+  - Insere user_roles com tenant_id
+  - Gera link de convite
+  - Envia email via Resend
+        |
+        v
+Dono recebe email com link
+        |
+        v
+/admin/reset-password (pagina existente)
+  - Define senha
+  - Redireciona para /admin
+        |
+        v
+/admin (login normal com email + senha)
+  - Valida role admin + tenant_id
+  - Filtra dados pelo tenant_id
+```
 
-### 4. Personalizar Notificacoes por Tenant
+**Migracao SQL:**
+```sql
+ALTER TABLE public.user_roles
+  ADD COLUMN tenant_id UUID REFERENCES public.tenants(id);
 
-As edge functions de notificacao (WhatsApp, email) provavelmente usam textos/branding do "Dieta Ja". Cada tenant precisa que suas notificacoes usem:
-- Nome da marca do tenant
-- WhatsApp do tenant
-- Logo do tenant (nos emails)
+-- Vincular admins existentes ao tenant correto
+UPDATE public.user_roles ur
+SET tenant_id = p.tenant_id
+FROM public.profiles p
+WHERE ur.user_id = p.user_id
+  AND ur.role = 'admin'
+  AND ur.tenant_id IS NULL;
 
-**Proposta**: Atualizar as edge functions `send-order-confirmation`, `send-order-approved`, `send-status-notification` etc. para buscar dados do tenant (`brand_name`, `whatsapp`, `logo_url`) a partir do `tenant_id` do pedido.
+CREATE INDEX idx_user_roles_tenant ON public.user_roles(tenant_id);
+```
 
----
-
-### 5. Rotas de Landing Pages de Categoria (/detox, /fit, /fitness)
-
-Essas paginas sao especificas do "Dieta Ja" e possuem conteudo hardcoded. Para outros tenants, elas precisam ser dinamicas ou desabilitadas.
-
-**Proposta**: Criar uma tabela `tenant_landing_pages` ou usar a propria `tenant_landing_content` com section_keys como `page_detox`, `page_fit` para permitir que cada tenant configure suas paginas de categoria.
-
-Alternativa mais simples: manter essas rotas apenas para o Dieta Ja por enquanto e focar na landing principal (`/`).
-
----
-
-## Secao Tecnica -- Resumo das Mudancas
-
-### Prioridade Alta (necessario para testar)
-
-| Tarefa | Tipo | Descricao |
-|--------|------|-----------|
-| Query param `?tenant=slug` | Frontend | Adicionar deteccao por query param no `TenantContext.tsx` para testes |
-| Teste manual de onboarding | Manual | Criar tenant ficticio e validar todo o fluxo |
-
-### Prioridade Media (necessario para producao)
-
-| Tarefa | Tipo | Descricao |
-|--------|------|-----------|
-| Prefixo de pedido por tenant | SQL + Trigger | Coluna `order_prefix` + alterar `generate_order_number()` |
-| Notificacoes com branding | Edge Functions | ~6 edge functions buscam dados do tenant para personalizar mensagens |
-| Landing pages de categoria | Frontend | Tornar `/detox`, `/fit`, `/fitness` dinamicas ou desabilitar para outros tenants |
-
-### Prioridade Baixa (melhorias futuras)
-
-| Tarefa | Tipo | Descricao |
-|--------|------|-----------|
-| Preview da landing no editor | Admin | Botao "Visualizar" que abre a landing em nova aba |
-| Tema de cores dinamico | Frontend | Aplicar `primary_color` do tenant via CSS variables |
-| Dominio customizado | Infra | Configuracao de DNS para cada tenant |
-
----
-
-## Recomendacao
-
-Comecar implementando o **item 2 (query param para teste)** e fazer o **item 1 (teste manual de onboarding)**. Isso permite validar todo o fluxo sem precisar de dominio customizado. Os demais itens podem ser feitos incrementalmente.
+**Arquivos modificados:**
+- `supabase/functions/create-tenant/index.ts` -- remover senha, adicionar tenant_id ao role, enviar convite
+- `supabase/functions/send-tenant-invite/index.ts` -- nova funcao para email de convite
+- `src/components/super-admin/SAOnboarding.tsx` -- remover campo senha
+- `src/pages/Admin.tsx` -- carregar tenant_id do user_roles apos login
+- Migracao SQL para `user_roles.tenant_id`
 
