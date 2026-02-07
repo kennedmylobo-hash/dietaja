@@ -34,8 +34,9 @@ serve(async (req) => {
 
     const redirectTo = "https://pedidos.dietajavca.com.br/admin/reset-password";
 
+    // Use "recovery" type since user was already created by create-tenant
     const { data, error: linkError } = await supabase.auth.admin.generateLink({
-      type: "invite",
+      type: "recovery",
       email,
       options: { redirectTo },
     });
