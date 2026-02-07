@@ -49,9 +49,9 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { brand_name, slug, city, state, whatsapp, admin_email, admin_password, plan_type, primary_color, clone_menu_from, order_prefix } = body;
+    const { brand_name, slug, city, state, whatsapp, admin_email, plan_type, primary_color, clone_menu_from, order_prefix } = body;
 
-    if (!brand_name || !slug || !admin_email || !admin_password) {
+    if (!brand_name || !slug || !admin_email) {
       return new Response(JSON.stringify({ error: "Campos obrigatórios faltando" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -64,10 +64,11 @@ serve(async (req) => {
     const planPrices: Record<string, number> = { basico: 99, pro: 199, premium: 299, free: 0 };
     const planPrice = planPrices[plan_type] || 99;
 
-    // 2. Create admin user
+    // 2. Create admin user with random password (user will set their own via invite)
+    const randomPassword = crypto.randomUUID() + "!Aa1";
     const { data: newUser, error: userError } = await supabase.auth.admin.createUser({
       email: admin_email,
-      password: admin_password,
+      password: randomPassword,
       email_confirm: true,
     });
 
@@ -127,12 +128,13 @@ serve(async (req) => {
       console.error("Error creating profile:", profileError);
     }
 
-    // 5. Assign admin role
+    // 5. Assign admin role with tenant_id
     const { error: roleError } = await supabase
       .from("user_roles")
       .insert({
         user_id: newUser.user.id,
         role: "admin",
+        tenant_id: tenant.id,
       });
 
     if (roleError) {
@@ -160,6 +162,33 @@ serve(async (req) => {
     // 7. Seed default landing content
     await seedLandingContent(supabase, tenant.id, brand_name, clone_menu_from);
 
+    // 8. Send invite email to admin
+    console.log(`Sending invite email to ${admin_email}...`);
+    try {
+      const inviteResponse = await fetch(`${supabaseUrl}/functions/v1/send-tenant-invite`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({
+          email: admin_email,
+          tenant_id: tenant.id,
+          brand_name,
+          primary_color: primary_color || "#22c55e",
+        }),
+      });
+
+      if (!inviteResponse.ok) {
+        const errText = await inviteResponse.text();
+        console.error("Error sending invite:", errText);
+      } else {
+        console.log("Invite email sent successfully");
+      }
+    } catch (inviteErr) {
+      console.error("Error calling send-tenant-invite:", inviteErr);
+    }
+
     console.log(`Onboarding complete for ${brand_name}`);
 
     return new Response(
@@ -167,7 +196,7 @@ serve(async (req) => {
         success: true,
         tenant_id: tenant.id,
         admin_user_id: newUser.user.id,
-        message: `Restaurante ${brand_name} criado com sucesso!`,
+        message: `Restaurante ${brand_name} criado! Convite enviado para ${admin_email}.`,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

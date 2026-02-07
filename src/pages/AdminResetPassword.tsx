@@ -44,7 +44,7 @@ const AdminResetPassword = () => {
           const refreshToken = hashParams.get('refresh_token');
           const type = hashParams.get('type');
           
-          if (type === 'recovery' && accessToken) {
+          if ((type === 'recovery' || type === 'invite') && accessToken) {
             const { error: setSessionError } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken || '',
@@ -52,12 +52,12 @@ const AdminResetPassword = () => {
             
             if (setSessionError) {
               console.error("Set session error:", setSessionError);
-              setError("Link inválido ou expirado. Por favor, solicite um novo link de recuperação.");
+              setError("Link inválido ou expirado. Por favor, solicite um novo link.");
             } else {
               setIsValidSession(true);
             }
           } else {
-            setError("Link inválido ou expirado. Por favor, solicite um novo link de recuperação.");
+            setError("Link inválido ou expirado. Por favor, solicite um novo link.");
           }
         }
       } catch (err) {
