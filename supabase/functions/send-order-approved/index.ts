@@ -2,8 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -163,17 +162,21 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
-    // Fetch tenant branding
     const branding = await getTenantBranding(supabase, data.tenant_id);
     const baseUrl = getTenantBaseUrl(branding);
 
+    // Resolve tenant-specific credentials
+    const whatsappCreds = await getWhatsAppCredentials(supabase, data.tenant_id);
+    const emailCreds = await getEmailCredentials(supabase, data.tenant_id);
+
     const results = { email: { success: false, error: null as string | null }, whatsapp: { success: false, error: null as string | null } };
 
-    // Send Email
+    // Send Email with tenant-specific Resend key
     try {
+      const resend = new Resend(emailCreds.apiKey);
       const html = generateEmailHtml(data, branding.brand_name, branding.whatsapp, branding.whatsapp_formatted, baseUrl);
       const { data: emailResponse, error } = await resend.emails.send({
-        from: `${branding.brand_name} <pedidos@dietajavca.com.br>`,
+        from: `${branding.brand_name} <${emailCreds.fromEmail}>`,
         to: [data.customer_email],
         subject: `Pedido #${data.order_number} Confirmado! ✅ - ${branding.brand_name}`,
         html,
@@ -190,11 +193,8 @@ const handler = async (req: Request): Promise<Response> => {
       results.email.error = emailError.message;
     }
 
-    // Send WhatsApp
-    const notificameApiToken = Deno.env.get("NOTIFICAME_API_TOKEN");
-    const notificameChannelToken = Deno.env.get("NOTIFICAME_WHATSAPP_CHANNEL_TOKEN");
-
-    if (notificameApiToken && notificameChannelToken && data.customer_phone) {
+    // Send WhatsApp with tenant-specific tokens
+    if (whatsappCreds && data.customer_phone) {
       try {
         const templateFields = {
           "1": data.customer_name?.split(' ')[0] || 'cliente',
@@ -205,7 +205,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         const whatsappResult = await sendWhatsAppTemplate(
           data.customer_phone, 'compraa_confrimadaa', templateFields,
-          notificameApiToken, notificameChannelToken, data.order_number,
+          whatsappCreds.apiToken, whatsappCreds.channelToken, data.order_number,
           supabase, undefined, data.tenant_id
         );
 
