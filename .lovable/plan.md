@@ -1,102 +1,144 @@
 
 
-## Plano Completo: Remover TODAS as referencias hardcoded ao "Dieta Ja"
+## Bloco 4: Migrar Edge Functions + Residuos Frontend para Branding Dinamico
 
-### Escopo Total
+### Resumo
 
-43 arquivos com referencias hardcoded identificados. O plano esta dividido em 4 blocos independentes para facilitar a implementacao.
+Migrar 10 Edge Functions e 2 arquivos frontend para usar dados dinamicos do tenant, removendo todas as referencias hardcoded a "Dieta Ja", "dietajavca.com.br" e "Vitoria da Conquista".
 
 ---
 
-### BLOCO 1 — Frontend: Componentes da Loja (useTenantConfig)
+### Estrategia
 
-Substituir `siteConfig` por `useTenantConfig()` em todos os componentes que ainda usam valores estaticos.
+Todas as Edge Functions que enviam notificacoes (email/WhatsApp) precisam:
+1. Resolver o `tenant_id` a partir do pedido (`orders.tenant_id`)
+2. Chamar `getTenantBranding(supabase, tenantId)` para obter nome, whatsapp, dominio
+3. Usar `getTenantBaseUrl(branding)` para gerar URLs dinamicas
+4. Substituir strings hardcoded pelo branding dinamico
 
-| Arquivo | Referencia hardcoded | Correcao |
-|---|---|---|
-| `src/components/GuaranteeSection.tsx` | `siteConfig.location.city` | Usar `useTenantConfig().location.city` |
-| `src/components/FAQSection.tsx` | `siteConfig.location.*`, `siteConfig.location.deliveryFee` | Usar `useTenantConfig()` para city, pickupNeighborhood, deliveryFee |
-| `src/components/BeforeAfterSection.tsx` | `siteConfig.brand.name` ("Com a Dieta Ja") | Usar `useTenantConfig().brand.name` |
-| `src/components/SalesNotification.tsx` | "Vitoria da Conquista" hardcoded nas locations | Usar `useTenantConfig().location.city` dinamicamente |
-| `src/components/TestimonialsSection.tsx` | "Historias reais de Vitoria da Conquista" | Usar `useTenantConfig().location.city` |
-| `src/components/ProductGallerySection.tsx` | "Producao semanal em Vitoria da Conquista" | Usar `useTenantConfig().location.city` |
-| `src/components/SalesQuizModal.tsx` | `siteConfig.contact.whatsapp` (2 ocorrencias) | Usar `useTenantConfig().contact.whatsapp` |
-| `src/components/CartDrawer.tsx` | `siteConfig` + `getWhatsAppLink` | Usar `useTenantConfig()` |
-| `src/components/FlavorSelectionModal.tsx` | "Deixar a cargo da Dieta Ja" | Usar `useTenantConfig().brand.name` |
-| `src/components/KitFlavorSelectionModal.tsx` | "Deixar a cargo da Dieta Ja" (3 ocorrencias) | Usar `useTenantConfig().brand.name` |
-| `src/components/SoftIdentificationModal.tsx` | `localStorage 'dietaja_customer'` | Usar chave com tenant slug: `cart_customer_{tenantId}` |
-| `src/components/CartContext.tsx` | `STORAGE_KEY = 'dietaja_customer'` | Chave dinamica baseada no tenant |
-| `src/components/clube/ClubHero.tsx` | "Clube Dieta Ja" hardcoded | Usar `useTenantConfig().brand.name` |
-| `src/components/admin/AbandonedCartsRecovery.tsx` | "carrinho da Dieta Ja" na msg WhatsApp | Usar tenant brand name |
-| `src/components/admin/CustomersManager.tsx` | "Aqui e da Dieta Ja" na msg WhatsApp | Usar tenant brand name |
-| `src/components/admin/AdminSidebar.tsx` | Fallback "Dieta Ja" | Ja usa tenant com fallback — OK, manter como fallback seguro |
+O `from` do email mantera o dominio `pedidos@dietajavca.com.br` (unico verificado no Resend), mas com o **nome** dinamico: `"NomeDaMarca <pedidos@dietajavca.com.br>"`.
 
-### BLOCO 2 — Frontend: Paginas (SEO e Meta Tags)
+---
 
-Todas as paginas com `<Helmet>` hardcoded precisam usar `useTenantConfig()`.
+### Edge Functions a Modificar
 
-| Arquivo | Referencia hardcoded | Correcao |
-|---|---|---|
-| `src/pages/Cardapio.tsx` | `title: "Cardapio Digital \| Dieta Ja"` | Usar `brand.name` |
-| `src/pages/Detox.tsx` | Title, meta keywords "Vitoria da Conquista", canonical `dietajavca.com.br`, og:site_name | Tudo via `useTenantConfig()` |
-| `src/pages/Fit.tsx` | Title, canonical, og:description "Vitoria da Conquista", og:site_name "Dieta Ja" | Tudo via `useTenantConfig()` |
-| `src/pages/Fitness.tsx` | Idem ao Fit | Tudo via `useTenantConfig()` |
-| `src/pages/Obrigado.tsx` | Title "Pedido Enviado - Dieta Ja", canonical `dietajavca.com.br` | Usar `useTenantConfig()` |
-| `src/pages/PixPayment.tsx` | `siteConfig.brand.name` | Trocar por `useTenantConfig()` |
-| `src/pages/PagamentoSucesso.tsx` | `siteConfig.brand.name`, `getWhatsAppLink` | Trocar por `useTenantConfig()` |
-| `src/pages/PagamentoErro.tsx` | `siteConfig.brand.name`, `getWhatsAppLink` | Trocar por `useTenantConfig()` |
-| `src/pages/ClubeDietaJa.tsx` | Title "Clube Dieta Ja", canonical, og:title | Tudo via `useTenantConfig()` |
+#### 1. `send-order-whatsapp/index.ts`
+- Importar `getTenantBranding` e `getTenantBaseUrl`
+- Buscar `tenant_id` do pedido (ja faz `select('*')` no order)
+- Substituir `"DIETA JA"` nos 3 FALLBACK_TEMPLATES por `branding.brand_name`
+- Substituir `dietajavca.com.br/pedido/...` e `dietajavca.com.br/pix/...` por `getTenantBaseUrl(branding)`
+- **Linhas afetadas:** 234 (fallback templates), 391 (link variable), 418 (pixPageLink)
 
-### BLOCO 3 — Utilitarios e Logica
+#### 2. `send-cart-reminders/index.ts`
+- Importar branding utils
+- Buscar `tenant_id` do carrinho (precisa adicionar ao select ou usar default)
+- Na funcao `generateCartReminderMessage`: substituir "Dieta Ja", "dietajavca.com.br" e "Vitoria da Conquista" por dados do branding
+- **Linhas afetadas:** corpo das 2 mensagens de lembrete (primeira e segunda)
 
-| Arquivo | Referencia hardcoded | Correcao |
-|---|---|---|
-| `src/lib/label-utils.ts` | "DIETA JA" no header do PDF (2 ocorrencias) | Receber `brandName` como parametro das funcoes `generateLabelsA7` e `generateLabelsThermal` |
-| `src/lib/quiz-logic.ts` | `QUIZ_STORAGE_KEY = 'dietaja_quiz_data'`, `INCOMPLETE_LEADS_KEY = 'dietaja_incomplete_leads'` | Manter as chaves fixas (sao internas e nao visíveis ao usuario) ou parametrizar com tenant slug |
-| `vite.config.ts` | PWA manifest: "Dieta Ja", "Vitoria da Conquista" | Usar valores genericos ("Sua Loja", "Alimentacao Saudavel") — o PWA manifest e estatico no build, entao nao pode ser dinamico por tenant |
+#### 3. `send-order-pending-email/index.ts`
+- Importar branding utils
+- Receber `tenant_id` no body da requisicao (ou buscar do pedido)
+- Em `generateEmailHtml`: substituir header "Dieta Ja", subtitulo "Vitoria da Conquista", WhatsApp hardcoded, footer "Dieta Ja"
+- No `resend.emails.send`: trocar `from: "Dieta Ja <pedidos@...>"` por `"${branding.brand_name} <pedidos@dietajavca.com.br>"`
+- **Linhas afetadas:** 69, 70, 131-132, 136-137, 153-154, 157, 203
 
-### BLOCO 4 — Edge Functions (Backend)
+#### 4. `send-pending-reminders/index.ts`
+- Importar branding utils
+- Para cada pedido processado, buscar `tenant_id` e resolver branding
+- Em `generateWhatsAppMessage` (linha 214-231): substituir "Equipe Dieta Ja" por `branding.brand_name`
+- Em `generateReminderEmail` (linha 539-650): substituir WhatsApp link hardcoded `5577991001658`, footer "Dieta Ja"
+- No `resend.emails.send` (linha 356): trocar `from: "Dieta Ja <pedidos@...>"`
+- **Linhas afetadas:** 231, 356, 556, 638
 
-Funcoes que **ja usam** `getTenantBranding` e estao OK:
-- `send-order-approved`
-- `send-order-confirmation`  
-- `send-status-notification`
-- `send-password-reset`
+#### 5. `process-pending-notifications/index.ts`
+- Importar branding utils
+- Buscar `tenant_id` do pedido (adicionar ao select)
+- Em `replaceVariables` (linha 60-74): substituir `dietajavca.com.br` por URL dinamica
+- Em `sendEmailNotification` (linha 114-187): substituir WhatsApp link `5577991001658`, `from: "Dieta Ja"`, footer
+- **Linhas afetadas:** 62, 123, 169, 178
 
-Funcoes que **ainda tem referencias hardcoded** e precisam migrar para `getTenantBranding`:
+#### 6. `send-review-request/index.ts`
+- Importar branding utils
+- Buscar `tenant_id` dos pedidos
+- Em `replaceVariables` (linha 20-29): substituir `dietajavca.com.br`
+- Em `sendEmailNotification` (linha 75-150): substituir WhatsApp `5577991001658`, footer "Dieta Ja", `from: "Dieta Ja"`
+- **Linhas afetadas:** 22, 119, 131, 141
 
-| Edge Function | Referencia hardcoded | Correcao |
-|---|---|---|
-| `send-review-request` | `from: "Dieta Ja <pedidos@dietajavca.com.br>"`, tracking URL hardcoded | Importar `getTenantBranding`, buscar branding do pedido, usar `branding.brand_name` e `getTenantBaseUrl` |
-| `send-recompra-campaigns` | `from: "Dieta Ja"`, siteUrl hardcoded, footer "Dieta Ja" | Idem |
-| `send-cart-reminders` | "Dieta Ja" no corpo, URL `dietajavca.com.br`, "Vitoria da Conquista" | Idem |
-| `send-order-pending-email` | Header "Dieta Ja", "Vitoria da Conquista", `from: pedidos@dietajavca.com.br` | Idem |
-| `send-pending-reminders` | `from: "Dieta Ja"`, tracking URL hardcoded | Idem |
-| `process-pending-notifications` | tracking URL, `from: "Dieta Ja"` | Idem |
-| `send-order-whatsapp` | Fallback templates "DIETA JA" (3 templates) | Usar branding no fallback |
-| `generate-pix-admin` | Description "Dieta Ja" | Usar `getTenantBranding` |
-| `test-whatsapp-connection` | "Teste de conexao Dieta Ja" | Usar branding |
-| `send-tenant-invite` | `from: "PedidoJa <pedidos@dietajavca.com.br>"` | Manter "PedidoJa" (e a marca da plataforma SaaS, nao do tenant) — OK |
+#### 7. `send-recompra-campaigns/index.ts`
+- Importar branding utils
+- Buscar `tenant_id` dos pedidos
+- Em `replaceVariables` (linha 33-45): substituir `siteUrl = "https://dietajavca.com.br"`
+- Em `sendEmailNotification` (linha 100-183): substituir WhatsApp `5577991001658`, footer "Dieta Ja", `from: "Dieta Ja"`
+- **Linhas afetadas:** 35, 110, 160-161, 164, 174
 
-**Nota sobre o `from` do e-mail**: O dominio `pedidos@dietajavca.com.br` e o unico verificado no Resend. Para multi-tenant real com dominios proprios, cada tenant precisara verificar seu dominio no Resend. Por enquanto, manter `pedidos@dietajavca.com.br` como remetente padrao mas com o **nome** dinamico: `"NomeDaMarca <pedidos@dietajavca.com.br>"`.
+#### 8. `generate-pix-admin/index.ts`
+- Importar branding utils
+- Buscar `tenant_id` do pedido
+- Substituir descricao "Dieta Ja" na cobranca Asaas (linha 155)
+- **Linhas afetadas:** 155
 
-### Resumo de Impacto
+#### 9. `create-asaas-pix/index.ts`
+- Importar branding utils
+- Buscar branding com `effectiveTenantId` ja disponivel
+- Substituir descricao "Pedido Dieta Ja" (linha 334) por `branding.brand_name`
+- **Linhas afetadas:** 334
 
-| Bloco | Arquivos | Tipo |
-|---|---|---|
-| Bloco 1 - Componentes | 16 arquivos | Frontend (React) |
-| Bloco 2 - Paginas | 9 arquivos | Frontend (React) |
-| Bloco 3 - Utilitarios | 3 arquivos | Frontend (TS) |
-| Bloco 4 - Edge Functions | 9 funcoes | Backend (Deno) |
-| **Total** | **~37 arquivos** | |
+#### 10. `test-whatsapp-connection/index.ts`
+- Nao precisa de branding do banco (e funcao de teste)
+- Substituir "Teste de conexao Dieta Ja" por "Teste de conexao" generico
+- **Linhas afetadas:** mensagem de teste na linha ~90
+
+---
+
+### Frontend Residuos
+
+#### 11. `src/pages/StatusPedido.tsx`
+- Importar `useTenantConfig`
+- Substituir `<title>Acompanhar Pedido | Dieta Ja</title>` (linha 233) por titulo dinamico
+- Substituir WhatsApp `5577991001658` (linhas 477, 488, 503) por `contact.whatsapp`
+- **Linhas afetadas:** 233, 477, 488, 503
+
+#### 12. `src/lib/print-utils.ts`
+- A funcao `generateOrderTicketHTML` precisa receber `brandName` como parametro
+- Substituir `<h1>DIETA JA</h1>` (linha 189) por parametro dinamico
+- Atualizar chamadores (`printOrderTicket` e componentes admin que chamam)
+- **Linhas afetadas:** 82 (assinatura), 189 (header), 240 (printOrderTicket)
+
+---
+
+### Padrao de Implementacao nas Edge Functions
+
+Para cada funcao, o padrao sera:
+
+```text
+// No topo do arquivo:
+import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
+
+// Dentro do handler, apos buscar o pedido:
+const branding = await getTenantBranding(supabase, order.tenant_id);
+const baseUrl = getTenantBaseUrl(branding);
+
+// Substituicoes:
+// "Dieta Ja" -> branding.brand_name
+// "dietajavca.com.br" -> baseUrl (sem https://)
+// "5577991001658" -> branding.whatsapp
+// "(77) 99100-1658" -> branding.whatsapp_formatted
+// "Vitoria da Conquista" -> branding.city
+```
+
+---
+
+### Nota sobre Emails
+
+O `from` do Resend continuara usando `pedidos@dietajavca.com.br` como dominio (unico verificado). O que muda e o **display name**: de `"Dieta Ja"` para `branding.brand_name`. Exemplo: `"Pratinho Fitness <pedidos@dietajavca.com.br>"`.
+
+---
 
 ### Ordem de Implementacao
 
-1. Bloco 1 + 2 juntos (todos usam `useTenantConfig` que ja existe)
-2. Bloco 3 (`label-utils` recebe parametro, `vite.config` texto generico)
-3. Bloco 4 (Edge Functions migram para `getTenantBranding`)
-
-### Resultado
-
-Apos a implementacao, **nenhum componente, pagina ou funcao backend tera referencia fixa ao "Dieta Ja" ou "Vitoria da Conquista"**. Cada restaurante vera exclusivamente seus proprios dados em todo o sistema — do checkout ao e-mail, da etiqueta ao WhatsApp.
+1. Edge Functions de notificacao de pedido (send-order-whatsapp, send-order-pending-email)
+2. Edge Functions de lembrete (send-pending-reminders, send-cart-reminders, process-pending-notifications)
+3. Edge Functions de marketing (send-review-request, send-recompra-campaigns)
+4. Edge Functions de pagamento (create-asaas-pix, generate-pix-admin, test-whatsapp-connection)
+5. Frontend residuos (StatusPedido.tsx, print-utils.ts)
 
