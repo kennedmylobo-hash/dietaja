@@ -26,6 +26,7 @@ import {
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useTenant } from "@/contexts/TenantContext";
 
 interface AdminMenuItem {
   id: string;
@@ -98,12 +99,13 @@ function SidebarContent({
   activeSection,
   onSectionChange,
   onItemClick,
-}: AdminSidebarProps & { onItemClick?: () => void }) {
+  brandName,
+}: AdminSidebarProps & { onItemClick?: () => void; brandName?: string }) {
   return (
     <div className="flex flex-col h-full py-4">
       <div className="px-4 mb-6">
         <h2 className="text-lg font-bold text-foreground">Painel Admin</h2>
-        <p className="text-xs text-muted-foreground">Dieta Já</p>
+        <p className="text-xs text-muted-foreground">{brandName || "Dieta Já"}</p>
       </div>
 
       <nav className="flex-1 px-2 space-y-6 overflow-y-auto">
@@ -161,6 +163,8 @@ export function AdminSidebar({
   onSectionChange,
 }: AdminSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { tenant } = useTenant();
+  const brandName = tenant?.brand_name || "Dieta Já";
 
   return (
     <>
@@ -169,6 +173,7 @@ export function AdminSidebar({
         <SidebarContent
           activeSection={activeSection}
           onSectionChange={onSectionChange}
+          brandName={brandName}
         />
       </aside>
 
@@ -176,7 +181,7 @@ export function AdminSidebar({
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
         <div>
           <h2 className="text-base font-bold text-foreground">Painel Admin</h2>
-          <p className="text-xs text-muted-foreground">Dieta Já</p>
+          <p className="text-xs text-muted-foreground">{brandName}</p>
         </div>
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
@@ -189,6 +194,7 @@ export function AdminSidebar({
               activeSection={activeSection}
               onSectionChange={onSectionChange}
               onItemClick={() => setMobileOpen(false)}
+              brandName={brandName}
             />
           </SheetContent>
         </Sheet>
