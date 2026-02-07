@@ -1,5 +1,5 @@
 import { useTenant } from '@/contexts/TenantContext';
-import { siteConfig } from '@/config/site';
+import { siteConfig, formatCurrency } from '@/config/site';
 
 /**
  * Hook that returns tenant-aware config with the same shape as siteConfig.
@@ -31,6 +31,15 @@ export const useTenantConfig = () => {
     googleAnalyticsId: tenant?.google_analytics_id || null,
   };
 
+  const domain = tenant?.domain || siteConfig.urls.domain;
+  const canonical = domain ? `https://${domain}` : siteConfig.urls.canonical;
+
+  const urls = {
+    domain,
+    canonical,
+    ogImage: tenant?.og_image_url || `${canonical}/og-image.jpg`,
+  };
+
   const seo = {
     title: `${brand.name} | ${brand.slogan} em ${location.city}`,
     description: `Kits detox e marmitas saudáveis prontas para quem tem rotina corrida em ${location.city}. Coma melhor sem precisar cozinhar.`,
@@ -53,8 +62,10 @@ export const useTenantConfig = () => {
     location,
     contact,
     analytics,
+    urls,
     seo,
     theme,
+    formatCurrency,
     getWhatsAppLink,
     getDefaultWhatsAppMessage,
   };

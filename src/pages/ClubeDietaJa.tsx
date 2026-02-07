@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { ShieldCheck } from "lucide-react";
 import { useClubPlans, ClubPlan } from "@/hooks/useClubPlans";
-import { siteConfig } from "@/config/site";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 import ClubHero from "@/components/clube/ClubHero";
 import ClubBenefits from "@/components/clube/ClubBenefits";
 import ClubPlanCards from "@/components/clube/ClubPlanCards";
@@ -11,6 +11,7 @@ import ClubFAQ from "@/components/clube/ClubFAQ";
 import ClubSubscriptionModal from "@/components/clube/ClubSubscriptionModal";
 
 const ClubeDietaJa = () => {
+  const { brand, urls } = useTenantConfig();
   const plansRef = useRef<HTMLDivElement>(null);
   const [selectedPlan, setSelectedPlan] = useState<ClubPlan | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -33,20 +34,20 @@ const ClubeDietaJa = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Helmet>
-        <title>Clube Dieta Já | Assinatura Mensal de Alimentação Saudável</title>
-        <meta
-          name="description"
-          content="Assine o Clube Dieta Já e receba todo mês kits de alimentação saudável com sabores sortidos. Marmitas, sucos detox e sopas. Sem fidelidade."
-        />
-        <link rel="canonical" href={`${siteConfig.urls.canonical}/clubedietaja`} />
-        <meta property="og:title" content="Clube Dieta Já - Assinatura Mensal" />
-        <meta
-          property="og:description"
-          content="Receba todo mês kits de alimentação saudável com sabores sortidos. Praticidade e economia."
-        />
-        <meta property="og:url" content={`${siteConfig.urls.canonical}/clubedietaja`} />
-        <meta property="og:type" content="product" />
+       <Helmet>
+         <title>Clube {brand.name} | Assinatura Mensal de Alimentação Saudável</title>
+         <meta
+           name="description"
+           content={`Assine o Clube ${brand.name} e receba todo mês kits de alimentação saudável com sabores sortidos. Marmitas, sucos detox e sopas. Sem fidelidade.`}
+         />
+         <link rel="canonical" href={`${urls.canonical}/clubedietaja`} />
+         <meta property="og:title" content={`Clube ${brand.name} - Assinatura Mensal`} />
+         <meta
+           property="og:description"
+           content="Receba todo mês kits de alimentação saudável com sabores sortidos. Praticidade e economia."
+         />
+         <meta property="og:url" content={`${urls.canonical}/clubedietaja`} />
+         <meta property="og:type" content="product" />
       </Helmet>
 
       <ClubHero onScrollToPlans={scrollToPlans} />

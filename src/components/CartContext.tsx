@@ -52,7 +52,7 @@ interface CartContextType {
   markCartAsConverted: () => Promise<void>;
 }
 
-const STORAGE_KEY = 'dietaja_customer';
+const STORAGE_KEY = 'tenant_customer';
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
 import { Helmet } from "react-helmet-async";
-import { siteConfig, getWhatsAppLink } from "@/config/site";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 interface OrderData {
   id: string;
@@ -18,6 +18,7 @@ interface OrderData {
 }
 
 const PagamentoSucesso = () => {
+  const { brand, getWhatsAppLink } = useTenantConfig();
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get("order_id");
   const urlStatus = searchParams.get("status");
@@ -132,7 +133,7 @@ const PagamentoSucesso = () => {
     return (
       <>
         <Helmet>
-          <title>Verificando Pagamento | {siteConfig.brand.name}</title>
+          <title>Verificando Pagamento | {brand.name}</title>
           <meta name="robots" content="noindex" />
         </Helmet>
         <div className="min-h-screen bg-gradient-to-b from-sage-light/30 to-background flex flex-col items-center justify-center gap-3">
@@ -146,7 +147,7 @@ const PagamentoSucesso = () => {
   return (
     <>
       <Helmet>
-        <title>Pagamento Confirmado | {siteConfig.brand.name}</title>
+        <title>Pagamento Confirmado | {brand.name}</title>
         <meta name="robots" content="noindex" />
       </Helmet>
 

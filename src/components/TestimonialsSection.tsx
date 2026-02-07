@@ -2,6 +2,7 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Quote, Star } from "lucide-react";
 import { useLandingContent } from "@/hooks/useLandingContent";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const avatarColors = ["bg-rose-500", "bg-emerald-500", "bg-blue-500"];
 
@@ -15,6 +16,7 @@ const TestimonialsSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { content, isVisible } = useLandingContent("testimonials");
+  const { location } = useTenantConfig();
 
   if (!isVisible) return null;
 
@@ -32,7 +34,7 @@ const TestimonialsSection = () => {
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-2">
             O que nossos clientes dizem
           </h2>
-          <p className="text-sm sm:text-base text-muted-foreground">Histórias reais de Vitória da Conquista</p>
+          <p className="text-sm sm:text-base text-muted-foreground">Histórias reais de {location.city}</p>
         </motion.div>
 
         <div className="max-w-4xl mx-auto grid gap-4 sm:gap-6 md:grid-cols-3">

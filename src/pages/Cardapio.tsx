@@ -17,6 +17,7 @@ import FlavorSelectionModal from "@/components/FlavorSelectionModal";
 import KitFlavorSelectionModal from "@/components/KitFlavorSelectionModal";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 interface PendingProduct {
   id: string;
@@ -29,6 +30,7 @@ interface PendingProduct {
 }
 
 const CardapioContent = () => {
+  const tenantConfig = useTenantConfig();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("kits");
   const [cartOpen, setCartOpen] = useState(false);
@@ -292,10 +294,10 @@ const CardapioContent = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Cardápio Digital | Dieta Já</title>
-        <meta name="description" content="Explore nosso cardápio de marmitas saudáveis e kits detox. Refeições prontas e congeladas para sua dieta." />
-      </Helmet>
+       <Helmet>
+         <title>Cardápio Digital | {tenantConfig.brand.name}</title>
+         <meta name="description" content="Explore nosso cardápio de marmitas saudáveis e kits detox. Refeições prontas e congeladas para sua dieta." />
+       </Helmet>
 
       <div className="min-h-screen flex">
         {/* Sidebar fixa - Desktop */}

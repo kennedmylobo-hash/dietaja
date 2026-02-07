@@ -20,7 +20,7 @@
  const A7_HEIGHT = 105;
  const MARGIN = 5;
  
- export const generateLabelsA7 = (orders: OrderForLabel[]) => {
+ export const generateLabelsA7 = (orders: OrderForLabel[], brandName: string = "DIETA JÁ") => {
    const doc = new jsPDF({
      format: [A7_WIDTH, A7_HEIGHT],
      orientation: "portrait",
@@ -38,7 +38,7 @@
      doc.setTextColor(255, 255, 255);
      doc.setFontSize(14);
      doc.setFont("helvetica", "bold");
-     doc.text("DIETA JÁ", A7_WIDTH / 2, 8, { align: "center" });
+     doc.text(brandName, A7_WIDTH / 2, 8, { align: "center" });
  
      y = 18;
  
@@ -93,7 +93,7 @@
  const THERMAL_WIDTH = 80;
  const THERMAL_HEIGHT = 60;
  
- export const generateLabelsThermal = (orders: OrderForLabel[]) => {
+ export const generateLabelsThermal = (orders: OrderForLabel[], brandName: string = "DIETA JÁ") => {
    const doc = new jsPDF({
      format: [THERMAL_WIDTH, THERMAL_HEIGHT],
      orientation: "portrait",
@@ -108,7 +108,7 @@
      // Header
      doc.setFontSize(12);
      doc.setFont("helvetica", "bold");
-     doc.text("DIETA JÁ", THERMAL_WIDTH / 2, y, { align: "center" });
+     doc.text(brandName, THERMAL_WIDTH / 2, y, { align: "center" });
      y += 5;
  
      // Divider

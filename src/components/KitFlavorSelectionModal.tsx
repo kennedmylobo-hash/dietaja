@@ -159,8 +159,8 @@ const KitFlavorSelectionModal = ({
     if (leaveToUs) {
       // Send special markers for both
       onConfirm(
-        [{ name: "Deixar a cargo da Dieta Já", quantity: juiceQuantity, category: "Suco" }],
-        [{ name: "Deixar a cargo da Dieta Já", quantity: soupQuantity, category: "Sopa" }]
+        [{ name: "Deixar a cargo da casa", quantity: juiceQuantity, category: "Suco" }],
+        [{ name: "Deixar a cargo da casa", quantity: soupQuantity, category: "Sopa" }]
       );
     } else {
       // Build flavor arrays
@@ -288,7 +288,7 @@ const KitFlavorSelectionModal = ({
                 <div className="flex items-center gap-2">
                   <Sparkles className={`w-4 h-4 ${leaveToUs ? "text-primary" : "text-muted-foreground"}`} />
                   <span className={`font-medium ${leaveToUs ? "text-primary" : "text-foreground"}`}>
-                    Deixar a cargo da Dieta Já
+                    Deixar a cargo da casa
                   </span>
                   <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
                     Recomendado

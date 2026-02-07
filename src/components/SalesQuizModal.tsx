@@ -40,7 +40,7 @@ import {
   type Recommendation,
   type CrossSellItem
 } from "@/lib/quiz-logic";
-import { siteConfig } from "@/config/site";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 interface SalesQuizModalProps {
   open: boolean;
@@ -98,6 +98,7 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
   const [currentLeadId, setCurrentLeadId] = useState<string | null>(null);
   const [quizStartTime, setQuizStartTime] = useState<string | null>(null);
   const { addItem, items } = useCart();
+  const { contact } = useTenantConfig();
 
   // Reset state when modal opens and create incomplete lead
   useEffect(() => {
@@ -366,7 +367,7 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
     const message = formatQuizDataForWhatsApp(answers as QuizAnswers, recommendation, utmSummary);
     
     const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/${siteConfig.contact.whatsapp}?text=${encodedMessage}`, "_blank");
+    window.open(`https://wa.me/${contact.whatsapp}?text=${encodedMessage}`, "_blank");
     onOpenChange(false);
   };
 
@@ -736,7 +737,7 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
                           message += `\n\n${utmSummary}`;
                         }
                         
-                        window.open(`https://wa.me/${siteConfig.contact.whatsapp}?text=${encodeURIComponent(message)}`, "_blank");
+                        window.open(`https://wa.me/${contact.whatsapp}?text=${encodeURIComponent(message)}`, "_blank");
                         onOpenChange(false);
                       }}
                     >

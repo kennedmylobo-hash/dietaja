@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { hapticFeedback } from "@/lib/haptics";
 import { celebrateCheckout } from "@/lib/confetti";
-import { siteConfig } from "@/config/site";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 interface PixData {
   qr_code: string;
@@ -21,6 +21,7 @@ interface PixData {
 }
 
 const PixPayment = () => {
+  const { brand } = useTenantConfig();
   const { paymentId } = useParams<{ paymentId: string }>();
   const navigate = useNavigate();
   const [pixData, setPixData] = useState<PixData | null>(null);
@@ -179,7 +180,7 @@ const PixPayment = () => {
   return (
     <>
       <Helmet>
-        <title>Pagar PIX - {siteConfig.brand.name}</title>
+        <title>Pagar PIX - {brand.name}</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
