@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
+import { getWhatsAppCredentials } from "../_shared/tenant-credentials.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,9 +28,7 @@ function formatCurrency(value: number): string {
 
 function formatPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('55')) {
-    return digits;
-  }
+  if (digits.startsWith('55')) return digits;
   return `55${digits}`;
 }
 
@@ -52,123 +51,50 @@ function replaceVariables(template: string, variables: Record<string, string>): 
   return result;
 }
 
-async function sendWhatsAppText(phone: string, message: string, orderNumber: string): Promise<void> {
-  const apiToken = Deno.env.get('NOTIFICAME_API_TOKEN');
-  const channelToken = Deno.env.get('NOTIFICAME_WHATSAPP_CHANNEL_TOKEN');
-
-  if (!apiToken || !channelToken) {
-    console.warn('NotificaMe tokens not configured, skipping WhatsApp');
-    return;
-  }
-
+async function sendWhatsAppText(phone: string, message: string, orderNumber: string, apiToken: string, channelToken: string): Promise<void> {
   const formattedPhone = formatPhone(phone);
-
   try {
     console.log(`[TEXT] Sending WhatsApp to ${formattedPhone} for order ${orderNumber}`);
-
     const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
       method: 'POST',
-      headers: {
-        'X-Api-Token': apiToken,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: channelToken,
-        to: formattedPhone,
-        contents: [{ type: 'text', text: message }],
-      }),
+      headers: { 'X-Api-Token': apiToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: channelToken, to: formattedPhone, contents: [{ type: 'text', text: message }] }),
     });
-
     const responseData = await response.text();
     console.log(`[TEXT] NotificaMe response for ${orderNumber}: ${response.status} - ${responseData}`);
-
-    if (!response.ok) {
-      console.error('[TEXT] NotificaMe API error:', response.status, responseData);
-    }
+    if (!response.ok) console.error('[TEXT] NotificaMe API error:', response.status, responseData);
   } catch (error) {
     console.error('[TEXT] Error sending WhatsApp:', error);
   }
 }
 
 async function sendWhatsAppTemplate(
-  phone: string, 
-  templateName: string, 
-  fields: Record<string, string>, 
-  orderNumber: string,
-  supabaseClient: any,
+  phone: string, templateName: string, fields: Record<string, string>,
+  orderNumber: string, supabaseClient: any, apiToken: string, channelToken: string,
   orderId?: string
 ): Promise<{ success: boolean; error?: string; response?: any; messageId?: string }> {
-  const apiToken = Deno.env.get('NOTIFICAME_API_TOKEN');
-  const channelToken = Deno.env.get('NOTIFICAME_WHATSAPP_CHANNEL_TOKEN');
-
-  console.log(`[TEMPLATE] Token validation:`, {
-    hasApiToken: !!apiToken,
-    apiTokenLength: apiToken?.length || 0,
-    hasChannelToken: !!channelToken,
-    channelTokenLength: channelToken?.length || 0,
-  });
-
-  if (!apiToken || !channelToken) {
-    const error = 'NotificaMe tokens not configured';
-    console.error(`[TEMPLATE] ${error}`, { apiToken: !!apiToken, channelToken: !!channelToken });
-    return { success: false, error };
-  }
-
   const formattedPhone = formatPhone(phone);
-
   try {
-    console.log(`[TEMPLATE] ========== SENDING WHATSAPP ==========`);
-    console.log(`[TEMPLATE] Template: "${templateName}"`);
-    console.log(`[TEMPLATE] Phone: ${formattedPhone}`);
-    console.log(`[TEMPLATE] Order: ${orderNumber}`);
-    console.log(`[TEMPLATE] Fields:`, JSON.stringify(fields, null, 2));
-
+    console.log(`[TEMPLATE] Sending "${templateName}" to ${formattedPhone} for order ${orderNumber}`);
     const fieldKeys = Object.keys(fields).sort((a, b) => Number(a) - Number(b));
-    const parameters = fieldKeys.map(key => ({
-      type: "text",
-      text: fields[key]
-    }));
+    const parameters = fieldKeys.map(key => ({ type: "text", text: fields[key] }));
 
     const payload = {
-      from: channelToken,
-      to: formattedPhone,
-      contents: [{
-        type: 'template',
-        template: {
-          name: templateName,
-          language: { code: 'pt_BR' },
-          components: [{ type: 'body', parameters }]
-        }
-      }],
+      from: channelToken, to: formattedPhone,
+      contents: [{ type: 'template', template: { name: templateName, language: { code: 'pt_BR' }, components: [{ type: 'body', parameters }] } }],
     };
-
-    console.log(`[TEMPLATE] Full payload:`, JSON.stringify(payload, null, 2));
 
     const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
       method: 'POST',
-      headers: {
-        'X-Api-Token': apiToken,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'X-Api-Token': apiToken, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
     const responseData = await response.text();
     let responseJson = null;
     try { responseJson = JSON.parse(responseData); } catch (e) {}
-
-    const fullResponse = {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok,
-      body: responseJson || responseData,
-      headers: Object.fromEntries(response.headers.entries())
-    };
-
-    console.log(`[TEMPLATE] Status: ${response.status} ${response.statusText}`);
-    console.log(`[TEMPLATE] Body:`, JSON.stringify(fullResponse.body, null, 2));
-
     const messageId = responseJson?.id || responseJson?.messageId;
+    const fullResponse = { status: response.status, ok: response.ok, body: responseJson || responseData };
 
     if (!response.ok) {
       console.error(`[TEMPLATE] ❌ API ERROR for order ${orderNumber}`);
@@ -195,66 +121,11 @@ async function sendWhatsAppTemplate(
   }
 }
 
-// Fallback templates - brand name injected dynamically
 function getFallbackTemplates(brandName: string): Record<string, string> {
   return {
-    order_pix_pending: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*
-
-Olá {nome}! Seu pedido foi registrado.
-
-📋 *ITENS:*
-{itens}
-
-💵 *TOTAL:* {total}
-
-{entrega}
-
-⏳ *STATUS:* Aguardando Pagamento
-
-────────────────
-💳 *PAGUE VIA PIX:*
-
-Copie o código abaixo:
-
-\`\`\`{pix_code}\`\`\`
-
-⚠️ Válido por 30 minutos
-────────────────
-
-Dúvidas? Responda esta mensagem! 💚`,
-
-    order_whatsapp_pending: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*
-
-Olá {nome}! Seu pedido foi registrado.
-
-📋 *ITENS:*
-{itens}
-
-💵 *TOTAL:* {total}
-
-{entrega}
-
-⏳ *STATUS:* Reservado - Aguardando Pagamento
-
-Responda esta mensagem para combinar o pagamento! 💚`,
-
-    order_confirmed: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*
-
-Olá {nome}! 🎉
-
-✅ *PAGAMENTO CONFIRMADO!*
-
-📋 *ITENS:*
-{itens}
-
-💵 *TOTAL PAGO:* {total}
-
-{entrega}
-📦 Entrega prevista em até 3 dias úteis
-
-Seu pedido já está sendo preparado! 👨‍🍳
-
-Obrigado pela preferência! 💚`,
+    order_pix_pending: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*\n\nOlá {nome}! Seu pedido foi registrado.\n\n📋 *ITENS:*\n{itens}\n\n💵 *TOTAL:* {total}\n\n{entrega}\n\n⏳ *STATUS:* Aguardando Pagamento\n\n────────────────\n💳 *PAGUE VIA PIX:*\n\nCopie o código abaixo:\n\n\`\`\`{pix_code}\`\`\`\n\n⚠️ Válido por 30 minutos\n────────────────\n\nDúvidas? Responda esta mensagem! 💚`,
+    order_whatsapp_pending: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*\n\nOlá {nome}! Seu pedido foi registrado.\n\n📋 *ITENS:*\n{itens}\n\n💵 *TOTAL:* {total}\n\n{entrega}\n\n⏳ *STATUS:* Reservado - Aguardando Pagamento\n\nResponda esta mensagem para combinar o pagamento! 💚`,
+    order_confirmed: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*\n\nOlá {nome}! 🎉\n\n✅ *PAGAMENTO CONFIRMADO!*\n\n📋 *ITENS:*\n{itens}\n\n💵 *TOTAL PAGO:* {total}\n\n{entrega}\n📦 Entrega prevista em até 3 dias úteis\n\nSeu pedido já está sendo preparado! 👨‍🍳\n\nObrigado pela preferência! 💚`,
   };
 }
 
@@ -264,10 +135,8 @@ serve(async (req) => {
   }
 
   try {
-    console.log(`
-========================================`);
+    console.log(`\n========================================`);
     console.log(`[START] send-order-whatsapp invoked at ${new Date().toISOString()}`);
-    console.log(`========================================\n`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -276,67 +145,48 @@ serve(async (req) => {
     const body: RequestBody = await req.json();
     const { order_id, status, pix_code } = body;
 
-    console.log('[INPUT] Request body:', JSON.stringify({ order_id, status, has_pix_code: !!pix_code, pix_code_length: pix_code?.length || 0 }));
-
     if (!order_id) {
-      return new Response(
-        JSON.stringify({ error: 'order_id required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'order_id required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Fetch order details
     const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', order_id)
-      .single();
+      .from('orders').select('*').eq('id', order_id).single();
 
     if (orderError || !order) {
-      console.error('Error fetching order:', orderError);
-      return new Response(
-        JSON.stringify({ error: 'Order not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Order not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Resolve tenant branding
+    // Resolve tenant branding & credentials
     const branding = await getTenantBranding(supabase, order.tenant_id);
     const baseUrl = getTenantBaseUrl(branding);
+    const whatsappCreds = await getWhatsAppCredentials(supabase, order.tenant_id);
 
-    // Determine message type based on status
+    if (!whatsappCreds) {
+      console.warn('WhatsApp credentials not configured, skipping');
+      return new Response(JSON.stringify({ success: false, error: 'WhatsApp not configured' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     let messageType = '';
-    if (status === 'pending') {
-      messageType = 'order_pix_pending';
-    } else if (status === 'whatsapp_pending') {
-      messageType = 'order_whatsapp_pending';
-    } else if (status === 'approved') {
-      messageType = 'order_confirmed';
-    } else {
-      console.log('Invalid status:', status);
-      return new Response(
-        JSON.stringify({ error: 'Invalid status' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (status === 'pending') messageType = 'order_pix_pending';
+    else if (status === 'whatsapp_pending') messageType = 'order_whatsapp_pending';
+    else if (status === 'approved') messageType = 'order_confirmed';
+    else {
+      return new Response(JSON.stringify({ error: 'Invalid status' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (status === 'pending' && !pix_code) {
-      return new Response(
-        JSON.stringify({ error: 'pix_code required for pending status' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'pix_code required for pending status' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Fetch template from database
-    const { data: templateData, error: templateError } = await supabase
-      .from('marketing_messages')
-      .select('whatsapp_template, is_active')
-      .eq('message_type', messageType)
-      .single();
-
-    if (templateError) {
-      console.warn('Template not found in DB, using fallback:', messageType);
-    }
+    const { data: templateData } = await supabase
+      .from('marketing_messages').select('whatsapp_template, is_active')
+      .eq('message_type', messageType).single();
 
     const FALLBACK_TEMPLATES = getFallbackTemplates(branding.brand_name);
     let template = FALLBACK_TEMPLATES[messageType];
@@ -345,7 +195,7 @@ serve(async (req) => {
     }
 
     const items = order.items as OrderItem[];
-    const deliveryInfo = order.delivery_option === 'delivery' 
+    const deliveryInfo = order.delivery_option === 'delivery'
       ? `🚚 *Entrega:* ${order.delivery_address || 'Endereço informado'}`
       : '🏪 *Retirada:* No local';
 
@@ -363,7 +213,6 @@ serve(async (req) => {
     };
 
     if (status === 'approved') {
-      console.log('Using template compraa_confrimadaa for approved order');
       const itemsList = items.map(i => `${i.quantity}x ${i.name}`).join(', ').substring(0, 200);
       const templateFields = {
         "1": order.customer_name?.split(' ')[0] || 'cliente',
@@ -371,41 +220,29 @@ serve(async (req) => {
         "3": itemsList,
         "4": formatCurrency(order.total)
       };
-      await sendWhatsAppTemplate(order.customer_phone, 'compraa_confrimadaa', templateFields, order.order_number, supabase, order_id);
+      await sendWhatsAppTemplate(order.customer_phone, 'compraa_confrimadaa', templateFields,
+        order.order_number, supabase, whatsappCreds.apiToken, whatsappCreds.channelToken, order_id);
     } else if (status === 'pending' && pix_code) {
-      const PIX_PENDING_TEMPLATE_ENABLED = true;
-      
-      if (PIX_PENDING_TEMPLATE_ENABLED) {
-        console.log('Using template pix_pendente_dietaja for pending PIX order');
-        const pixPageLink = `${baseUrl}/pix/${order_id}`;
-        
-        const templateFields = {
-          "1": order.customer_name?.split(' ')[0] || 'cliente',
-          "2": order.order_number || '',
-          "3": formatCurrency(order.total),
-          "4": `Acesse para pagar: ${pixPageLink}`
-        };
-        await sendWhatsAppTemplate(order.customer_phone, 'pix_pendente_dietaja', templateFields, order.order_number, supabase, order_id);
-      } else {
-        console.log('[SKIP] pix_pendente_dietaja template disabled - awaiting Meta approval');
-      }
+      const pixPageLink = `${baseUrl}/pix/${order_id}`;
+      const templateFields = {
+        "1": order.customer_name?.split(' ')[0] || 'cliente',
+        "2": order.order_number || '',
+        "3": formatCurrency(order.total),
+        "4": `Acesse para pagar: ${pixPageLink}`
+      };
+      await sendWhatsAppTemplate(order.customer_phone, 'pix_pendente_dietaja', templateFields,
+        order.order_number, supabase, whatsappCreds.apiToken, whatsappCreds.channelToken, order_id);
     } else {
-      console.log('Using text message for order (customer-initiated contact expected)');
       const message = replaceVariables(template, variables);
-      await sendWhatsAppText(order.customer_phone, message, order.order_number);
+      await sendWhatsAppText(order.customer_phone, message, order.order_number, whatsappCreds.apiToken, whatsappCreds.channelToken);
     }
 
-    return new Response(
-      JSON.stringify({ success: true, message: 'WhatsApp sent' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-
-    );
+    return new Response(JSON.stringify({ success: true, message: 'WhatsApp sent' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     console.error('Error in send-order-whatsapp:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
