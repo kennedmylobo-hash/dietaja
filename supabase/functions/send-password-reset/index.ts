@@ -2,8 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTenantBranding } from "../_shared/tenant-branding.ts";
 import { getPlatformUrl } from "../_shared/platform-config.ts";
-
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+import { getEmailCredentials } from "../_shared/tenant-credentials.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,6 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Fetch tenant branding for dynamic email content
     const branding = await getTenantBranding(supabaseAdmin, resolvedTenantId);
+    const emailCreds = await getEmailCredentials(supabaseAdmin, resolvedTenantId);
     console.log(`Using branding: ${branding.brand_name} (slug: ${branding.slug})`);
 
     // Always redirect to the platform domain with ?tenant=slug
@@ -168,10 +168,10 @@ const handler = async (req: Request): Promise<Response> => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${RESEND_API_KEY}`,
+          Authorization: `Bearer ${emailCreds.apiKey}`,
         },
         body: JSON.stringify({
-          from: `PedidoJá <pedidos@dietajavca.com.br>`,
+          from: `${branding.brand_name} <${emailCreds.fromEmail}>`,
           to: [email],
           subject: `Redefinir sua senha - ${branding.brand_name}`,
           html: emailHtml,
