@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,42 +24,29 @@ interface AbandonedCart {
   reminder_sent_at: string | null;
   whatsapp_sent_at: string | null;
   whatsapp_2_sent_at: string | null;
+  tenant_id: string | null;
 }
 
 async function sendWhatsAppMessage(phone: string, message: string, apiToken: string, channelToken: string): Promise<boolean> {
   try {
-    // Format phone number (remove non-digits, add country code if needed)
     let formattedPhone = phone.replace(/\D/g, '');
-    if (formattedPhone.startsWith('0')) {
-      formattedPhone = formattedPhone.substring(1);
-    }
-    if (!formattedPhone.startsWith('55')) {
-      formattedPhone = '55' + formattedPhone;
-    }
+    if (formattedPhone.startsWith('0')) formattedPhone = formattedPhone.substring(1);
+    if (!formattedPhone.startsWith('55')) formattedPhone = '55' + formattedPhone;
 
     console.log(`Sending WhatsApp cart reminder to ${formattedPhone}`);
 
     const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
       method: 'POST',
-      headers: {
-        'X-Api-Token': apiToken,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'X-Api-Token': apiToken, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: channelToken,
         to: formattedPhone,
-        contents: [
-          {
-            type: 'text',
-            text: message,
-          }
-        ],
+        contents: [{ type: 'text', text: message }],
       }),
     });
 
     const responseData = await response.text();
     console.log(`NotificaMe cart reminder response: ${response.status} - ${responseData}`);
-
     return response.ok;
   } catch (error) {
     console.error('Error sending WhatsApp message:', error);
@@ -66,18 +54,16 @@ async function sendWhatsAppMessage(phone: string, message: string, apiToken: str
   }
 }
 
-function generateCartReminderMessage(cart: AbandonedCart, isSecondReminder: boolean = false): string {
+function generateCartReminderMessage(
+  cart: AbandonedCart, 
+  brandName: string, 
+  baseUrl: string, 
+  city: string,
+  isSecondReminder: boolean = false
+): string {
   const firstName = cart.name?.split(' ')[0] || 'Cliente';
-  
-  // Format items list
-  const itemsList = cart.items
-    .map(item => `• ${item.quantity}x ${item.name}`)
-    .join('\n');
-
-  const subtotalFormatted = cart.subtotal.toLocaleString('pt-BR', { 
-    style: 'currency', 
-    currency: 'BRL' 
-  });
+  const itemsList = cart.items.map(item => `• ${item.quantity}x ${item.name}`).join('\n');
+  const subtotalFormatted = cart.subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   if (isSecondReminder) {
     return `⏰ *Última chance, ${firstName}!*
@@ -90,14 +76,14 @@ ${itemsList}
 
 🎁 Não perca essa oportunidade! Finalize agora e garanta sua alimentação saudável da semana.
 
-👉 Acesse: https://dietajavca.com.br
+👉 Acesse: ${baseUrl}
 
-_Dieta Já - Alimentação saudável em Vitória da Conquista_ 🥗`;
+_${brandName} - Alimentação saudável em ${city}_ 🥗`;
   }
 
   return `Oi, ${firstName}! 👋
 
-Vi que você deixou alguns itens no carrinho da *Dieta Já*:
+Vi que você deixou alguns itens no carrinho da *${brandName}*:
 
 ${itemsList}
 
@@ -105,15 +91,14 @@ ${itemsList}
 
 Falta pouco para finalizar! 🛒
 
-👉 Acesse: https://dietajavca.com.br
+👉 Acesse: ${baseUrl}
 
 Qualquer dúvida, é só responder essa mensagem! 😊
 
-_Dieta Já - Alimentação saudável em Vitória da Conquista_ 🥗`;
+_${brandName} - Alimentação saudável em ${city}_ 🥗`;
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -132,7 +117,6 @@ Deno.serve(async (req) => {
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
 
-    // Fetch carts that need first reminder (active, last activity > 1 hour, no reminder sent)
     const { data: firstReminderCarts, error: firstError } = await supabase
       .from('carts')
       .select('*')
@@ -141,12 +125,8 @@ Deno.serve(async (req) => {
       .is('whatsapp_sent_at', null)
       .not('items', 'eq', '[]');
 
-    if (firstError) {
-      console.error('Error fetching first reminder carts:', firstError);
-      throw firstError;
-    }
+    if (firstError) { console.error('Error fetching first reminder carts:', firstError); throw firstError; }
 
-    // Fetch carts that need second reminder (active, last activity > 3 hours, first reminder sent, no second reminder)
     const { data: secondReminderCarts, error: secondError } = await supabase
       .from('carts')
       .select('*')
@@ -156,10 +136,7 @@ Deno.serve(async (req) => {
       .is('whatsapp_2_sent_at', null)
       .not('items', 'eq', '[]');
 
-    if (secondError) {
-      console.error('Error fetching second reminder carts:', secondError);
-      throw secondError;
-    }
+    if (secondError) { console.error('Error fetching second reminder carts:', secondError); throw secondError; }
 
     console.log(`Found ${firstReminderCarts?.length || 0} carts for first reminder`);
     console.log(`Found ${secondReminderCarts?.length || 0} carts for second reminder`);
@@ -168,60 +145,60 @@ Deno.serve(async (req) => {
     let whatsapp2Sent = 0;
     const errors: string[] = [];
 
-    // Process first reminders
+    // Cache branding per tenant_id
+    const brandingCache: Record<string, { brandName: string; baseUrl: string; city: string }> = {};
+
+    async function resolveBranding(tenantId: string | null) {
+      const key = tenantId || '__default__';
+      if (!brandingCache[key]) {
+        const branding = await getTenantBranding(supabase, tenantId);
+        brandingCache[key] = {
+          brandName: branding.brand_name,
+          baseUrl: getTenantBaseUrl(branding),
+          city: branding.city,
+        };
+      }
+      return brandingCache[key];
+    }
+
     if (notificameApiToken && notificameChannelToken && firstReminderCarts) {
       for (const cart of firstReminderCarts as AbandonedCart[]) {
         if (!cart.phone || !cart.items || cart.items.length === 0) continue;
 
-        const message = generateCartReminderMessage(cart, false);
+        const b = await resolveBranding(cart.tenant_id);
+        const message = generateCartReminderMessage(cart, b.brandName, b.baseUrl, b.city, false);
         const sent = await sendWhatsAppMessage(cart.phone, message, notificameApiToken, notificameChannelToken);
 
         if (sent) {
-          // Update cart with reminder timestamp and mark as abandoned
           const { error: updateError } = await supabase
             .from('carts')
-            .update({
-              whatsapp_sent_at: now.toISOString(),
-              status: 'abandoned',
-            })
+            .update({ whatsapp_sent_at: now.toISOString(), status: 'abandoned' })
             .eq('id', cart.id);
 
-          if (updateError) {
-            console.error(`Error updating cart ${cart.id}:`, updateError);
-            errors.push(`Failed to update cart ${cart.id}`);
-          } else {
-            whatsappSent++;
-            console.log(`First reminder sent for cart ${cart.id} - ${cart.name}`);
-          }
+          if (updateError) { errors.push(`Failed to update cart ${cart.id}`); }
+          else { whatsappSent++; console.log(`First reminder sent for cart ${cart.id} - ${cart.name}`); }
         } else {
           errors.push(`Failed to send WhatsApp to ${cart.phone}`);
         }
       }
     }
 
-    // Process second reminders
     if (notificameApiToken && notificameChannelToken && secondReminderCarts) {
       for (const cart of secondReminderCarts as AbandonedCart[]) {
         if (!cart.phone || !cart.items || cart.items.length === 0) continue;
 
-        const message = generateCartReminderMessage(cart, true);
+        const b = await resolveBranding(cart.tenant_id);
+        const message = generateCartReminderMessage(cart, b.brandName, b.baseUrl, b.city, true);
         const sent = await sendWhatsAppMessage(cart.phone, message, notificameApiToken, notificameChannelToken);
 
         if (sent) {
           const { error: updateError } = await supabase
             .from('carts')
-            .update({
-              whatsapp_2_sent_at: now.toISOString(),
-            })
+            .update({ whatsapp_2_sent_at: now.toISOString() })
             .eq('id', cart.id);
 
-          if (updateError) {
-            console.error(`Error updating cart ${cart.id}:`, updateError);
-            errors.push(`Failed to update cart ${cart.id}`);
-          } else {
-            whatsapp2Sent++;
-            console.log(`Second reminder sent for cart ${cart.id} - ${cart.name}`);
-          }
+          if (updateError) { errors.push(`Failed to update cart ${cart.id}`); }
+          else { whatsapp2Sent++; console.log(`Second reminder sent for cart ${cart.id} - ${cart.name}`); }
         } else {
           errors.push(`Failed to send second WhatsApp to ${cart.phone}`);
         }

@@ -115,7 +115,7 @@ serve(async (req) => {
       };
     } else {
       // Simple text message
-      const testMessage = message || `✅ Teste de conexão Dieta Já\n\n📱 WhatsApp funcionando!\n🕐 ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+      const testMessage = message || `✅ Teste de conexão WhatsApp\n\n📱 WhatsApp funcionando!\n🕐 ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
       
       payload = {
         from: channelToken,

@@ -1,6 +1,7 @@
-// Edge function para envio de email de pedido pendente - v2.0 (forçar deploy)
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -27,9 +28,11 @@ interface OrderPendingRequest {
   total: number;
   delivery_option: string;
   delivery_address?: string;
+  order_id?: string;
+  tenant_id?: string;
 }
 
-function generateEmailHtml(data: OrderPendingRequest): string {
+function generateEmailHtml(data: OrderPendingRequest, brandName: string, city: string, whatsapp: string, whatsappFormatted: string): string {
   const itemsHtml = data.items.map(item => {
     let flavorsHtml = '';
     if (item.flavors && item.flavors.length > 0) {
@@ -66,8 +69,8 @@ function generateEmailHtml(data: OrderPendingRequest): string {
     
     <!-- Header -->
     <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 30px 20px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 28px;">🥗 Dieta Já</h1>
-      <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">Alimentação saudável em Vitória da Conquista</p>
+      <h1 style="color: white; margin: 0; font-size: 28px;">🥗 ${brandName}</h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">Alimentação saudável em ${city}</p>
     </div>
 
     <!-- Badge -->
@@ -128,12 +131,12 @@ function generateEmailHtml(data: OrderPendingRequest): string {
           Escolha como deseja efetuar o pagamento:
         </p>
         
-        <a href="https://wa.me/5577991539798?text=${encodeURIComponent(`Olá! Quero pagar o pedido #${data.order_number} via PIX.`)}" 
+        <a href="https://wa.me/${whatsapp}?text=${encodeURIComponent(`Olá! Quero pagar o pedido #${data.order_number} via PIX.`)}" 
            style="display: inline-block; background-color: #16a34a; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin: 5px;">
           💳 Pagar via PIX
         </a>
         
-        <a href="https://wa.me/5577991539798?text=${encodeURIComponent(`Olá! Meu pedido #${data.order_number} foi separado. Gostaria de falar com um atendente.`)}" 
+        <a href="https://wa.me/${whatsapp}?text=${encodeURIComponent(`Olá! Meu pedido #${data.order_number} foi separado. Gostaria de falar com um atendente.`)}" 
            style="display: inline-block; background-color: #25D366; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin: 5px;">
           💬 Falar no WhatsApp
         </a>
@@ -150,11 +153,11 @@ function generateEmailHtml(data: OrderPendingRequest): string {
     <!-- Footer -->
     <div style="background-color: #1f2937; padding: 25px 20px; text-align: center;">
       <p style="color: #9ca3af; margin: 0; font-size: 14px;">
-        Dieta Já - Alimentação Saudável<br>
-        Vitória da Conquista - BA
+        ${brandName} - Alimentação Saudável<br>
+        ${city}
       </p>
       <p style="color: #6b7280; margin: 15px 0 0 0; font-size: 12px;">
-        Dúvidas? Fale conosco: (77) 99153-9798
+        Dúvidas? Fale conosco: ${whatsappFormatted}
       </p>
     </div>
 
@@ -167,67 +170,59 @@ function generateEmailHtml(data: OrderPendingRequest): string {
 const handler = async (req: Request): Promise<Response> => {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] send-order-pending-email function STARTED`);
-  console.log(`[${timestamp}] Request method: ${req.method}`);
-  
-  // Check if RESEND_API_KEY is configured
-  const apiKey = Deno.env.get("RESEND_API_KEY");
-  console.log(`[${timestamp}] RESEND_API_KEY configured: ${apiKey ? 'YES' : 'NO'}`);
 
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const rawBody = await req.text();
-    console.log(`[${timestamp}] Raw request body length: ${rawBody.length}`);
-    
     const data: OrderPendingRequest = JSON.parse(rawBody);
-    console.log(`[${timestamp}] Parsed order data:`, JSON.stringify(data, null, 2));
+    console.log(`[${timestamp}] Parsed order data for ${data.order_number}`);
 
-    // Validate required fields
     if (!data.order_number || !data.customer_email || !data.customer_name) {
-      console.error("Missing required fields");
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const html = generateEmailHtml(data);
+    // Resolve tenant branding
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log(`[${timestamp}] Attempting to send email to: ${data.customer_email}`);
-    console.log(`[${timestamp}] Email subject: Pedido #${data.order_number} Separado - Aguardando Pagamento`);
+    // Try to get tenant_id from the request body or from the order
+    let tenantId = data.tenant_id;
+    if (!tenantId && data.order_id) {
+      const { data: orderData } = await supabase.from('orders').select('tenant_id').eq('id', data.order_id).maybeSingle();
+      tenantId = orderData?.tenant_id;
+    }
+
+    const branding = await getTenantBranding(supabase, tenantId);
+
+    const html = generateEmailHtml(data, branding.brand_name, branding.city, branding.whatsapp, branding.whatsapp_formatted);
+
+    console.log(`[${timestamp}] Sending email to: ${data.customer_email}`);
 
     const emailResponse = await resend.emails.send({
-      from: "Dieta Já <pedidos@dietajavca.com.br>",
+      from: `${branding.brand_name} <pedidos@dietajavca.com.br>`,
       to: [data.customer_email],
       subject: `Pedido #${data.order_number} Separado - Aguardando Pagamento`,
       html: html,
     });
 
-    console.log(`[${timestamp}] Resend API response:`, JSON.stringify(emailResponse, null, 2));
     console.log(`[${timestamp}] Email sent successfully to ${data.customer_email}`);
 
     return new Response(
       JSON.stringify({ success: true, data: emailResponse }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
-    const timestamp = new Date().toISOString();
-    console.error(`[${timestamp}] ERROR in send-order-pending-email:`, error);
-    console.error(`[${timestamp}] Error name: ${error.name}`);
-    console.error(`[${timestamp}] Error message: ${error.message}`);
-    console.error(`[${timestamp}] Error stack: ${error.stack}`);
+    console.error(`Error in send-order-pending-email:`, error);
     return new Response(
-      JSON.stringify({ error: error.message, details: error.stack }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 };
