@@ -114,20 +114,6 @@ const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps) => {
       }}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.97 }}
-      animate={shouldPulse ? { 
-        scale: [1, 1.03, 1],
-        boxShadow: [
-          "0 10px 15px -3px rgba(0,0,0,0.1)",
-          "0 20px 25px -5px rgba(0,0,0,0.2)",
-          "0 10px 15px -3px rgba(0,0,0,0.1)"
-        ]
-      } : {}}
-      transition={shouldPulse ? { 
-        duration: 0.8, 
-        ease: "easeInOut",
-        repeat: 2,
-        repeatDelay: 0.3
-      } : {}}
       className={`group relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 lg:p-8 text-left transition-all duration-300 shadow-xl hover:shadow-2xl ring-2 ring-white/30 hover:ring-white/50 bg-gradient-to-br ${banner.gradient} cursor-pointer border-2 border-white/10`}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
