@@ -2,7 +2,6 @@ import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { CartProvider, useCart } from "@/components/CartContext";
 import { useMarmitaPackages, useMarmitaFlavors, useKitPackages, useKitSoups, useKitJuices } from "@/hooks/useMenuData";
-import { useMenuCategories } from "@/hooks/useMenuCategories";
 import { useActiveSection } from "@/hooks/useActiveSection";
 import CardapioHeader from "@/components/cardapio/CardapioHeader";
 import CardapioSidebar from "@/components/cardapio/CardapioSidebar";
@@ -27,6 +26,7 @@ interface PendingProduct {
   type: "kit" | "marmita";
   days?: number;
   lineType?: string;
+  weight?: number;
 }
 
 const CardapioContent = () => {
@@ -55,9 +55,8 @@ const CardapioContent = () => {
   const { data: kitPackages, isLoading: loadingKits } = useKitPackages();
   const { data: kitSoups } = useKitSoups();
   const { data: kitJuices } = useKitJuices();
-  const { data: menuCategories, isLoading: loadingCategories } = useMenuCategories();
 
-  const isLoading = loadingMarmitas || loadingKits || loadingCategories;
+  const isLoading = loadingMarmitas || loadingKits;
 
   // Track page view
   useEffect(() => {
@@ -92,29 +91,23 @@ const CardapioContent = () => {
       type: "marmita" as const,
       category: "marmitas",
       lineType: pkg.line_type,
+      weight: pkg.weight,
     }));
 
     return { kits, marmitas };
   }, [kitPackages, marmitaPackages]);
 
-  // Group marmitas by categories dynamically from database
-  const marmitasByCategory = useMemo(() => {
-    if (!menuCategories) return {};
-    
-    const marmitaCategories = menuCategories.filter(c => c.type === "marmita");
-    const grouped: Record<string, typeof products.marmitas> = {};
-    
-    marmitaCategories.forEach(category => {
-      grouped[category.slug] = products.marmitas;
-    });
-    
-    return grouped;
-  }, [products.marmitas, menuCategories]);
+  // Group marmitas by line type (fit / fitness)
+  const marmitaLineGroups = useMemo(() => {
+    const fit = products.marmitas.filter(m => m.lineType === 'emagrecimento');
+    const fitness = products.marmitas.filter(m => m.lineType === 'hipertrofia');
+    return { fit, fitness };
+  }, [products.marmitas]);
 
   // Filter products by search
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) {
-      return { kits: products.kits, marmitas: marmitasByCategory };
+      return { kits: products.kits, fit: marmitaLineGroups.fit, fitness: marmitaLineGroups.fitness };
     }
 
     const query = searchQuery.toLowerCase();
@@ -124,17 +117,16 @@ const CardapioContent = () => {
         p.name.toLowerCase().includes(query) || 
         p.description?.toLowerCase().includes(query)
       ),
-      marmitas: Object.fromEntries(
-        Object.entries(marmitasByCategory).map(([category, items]) => [
-          category,
-          items.filter((p) => 
-            p.name.toLowerCase().includes(query) ||
-            p.description?.toLowerCase().includes(query)
-          ),
-        ])
-      ) as Record<string, typeof products.marmitas>,
+      fit: marmitaLineGroups.fit.filter((p) =>
+        p.name.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query)
+      ),
+      fitness: marmitaLineGroups.fitness.filter((p) =>
+        p.name.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query)
+      ),
     };
-  }, [products, marmitasByCategory, searchQuery]);
+  }, [products, marmitaLineGroups, searchQuery]);
 
   // Handle category click
   const handleCategoryClick = useCallback((categoryId: string) => {
@@ -257,27 +249,15 @@ const CardapioContent = () => {
     }));
   }, [kitSoups]);
 
-  // Dynamic category icons and names from database
-  const categoryIcons = useMemo(() => {
-    if (!menuCategories) return {};
-    return Object.fromEntries(menuCategories.map(c => [c.slug, c.icon || "📦"]));
-  }, [menuCategories]);
+  // Fixed line-based categories (no longer from database)
 
-  const categoryNames = useMemo(() => {
-    if (!menuCategories) return {};
-    return Object.fromEntries(menuCategories.map(c => [c.slug, c.name]));
-  }, [menuCategories]);
-
-  // Get marmita category slugs
-  const marmitaCategorySlugs = useMemo(() => {
-    if (!menuCategories) return [];
-    return menuCategories.filter(c => c.type === "marmita").map(c => c.slug);
-  }, [menuCategories]);
+  // Fixed line-based section IDs
+  const lineSectionIds = ["fit", "fitness"];
 
   // Build section IDs for scroll spy
   const sectionIds = useMemo(() => {
-    return ["kits", ...marmitaCategorySlugs];
-  }, [marmitaCategorySlugs]);
+    return ["kits", ...lineSectionIds];
+  }, []);
 
   // Scroll spy - detect active section
   const scrollActiveSection = useActiveSection({ 
@@ -350,25 +330,32 @@ const CardapioContent = () => {
                   <CategorySection
                     ref={(el) => { sectionRefs.current.kits = el; }}
                     id="kits"
-                    title={categoryNames.kits || "Kits Detox"}
-                    icon={categoryIcons.kits || "🥤"}
+                    title="Kits Detox"
+                    icon="🥤"
                     products={filteredProducts.kits}
                     onAddProduct={(p) => handleAddProduct({ ...p, type: "kit", days: p.quantity })}
                     useCarousel={true}
                   />
 
-                  {/* Marmitas Sections - dynamic from database */}
-                  {marmitaCategorySlugs.map((categorySlug) => (
-                    <CategorySection
-                      key={categorySlug}
-                      ref={(el) => { sectionRefs.current[categorySlug] = el; }}
-                      id={categorySlug}
-                      title={categoryNames[categorySlug] || categorySlug}
-                      icon={categoryIcons[categorySlug]}
-                      products={filteredProducts.marmitas[categorySlug] || []}
-                      onAddProduct={(p) => handleAddProduct({ ...p, type: "marmita", lineType: (p as any).lineType })}
-                    />
-                  ))}
+                  {/* Marmitas Fit - Emagrecimento */}
+                  <CategorySection
+                    ref={(el) => { sectionRefs.current.fit = el; }}
+                    id="fit"
+                    title="Marmitas Fit - Emagrecimento (300g)"
+                    icon="🥗"
+                    products={filteredProducts.fit}
+                    onAddProduct={(p) => handleAddProduct({ ...p, type: "marmita", lineType: "emagrecimento", weight: 300 })}
+                  />
+
+                  {/* Marmitas Fitness - Hipertrofia */}
+                  <CategorySection
+                    ref={(el) => { sectionRefs.current.fitness = el; }}
+                    id="fitness"
+                    title="Marmitas FITNESS - Hipertrofia (450g)"
+                    icon="💪"
+                    products={filteredProducts.fitness}
+                    onAddProduct={(p) => handleAddProduct({ ...p, type: "marmita", lineType: "hipertrofia", weight: 450 })}
+                  />
                 </>
               )}
             </main>
@@ -398,6 +385,7 @@ const CardapioContent = () => {
         onConfirm={handleFlavorConfirm}
         packageName={pendingProduct?.name || ""}
         packageQuantity={pendingProduct?.quantity || 7}
+        packageWeight={pendingProduct?.lineType === 'hipertrofia' ? 450 : 300}
         flavorsByCategory={flavorsByCategory}
         flavorStockData={flavorStockData}
         lineType={pendingProduct?.lineType}

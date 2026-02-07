@@ -16,6 +16,7 @@ interface Product {
   imageUrl?: string | null;
   popular?: boolean;
   type: "kit" | "marmita";
+  weight?: number;
 }
 
 interface CategorySectionProps {
@@ -55,18 +56,19 @@ const CategorySection = forwardRef<HTMLElement, CategorySectionProps>(
           >
             <CarouselContent className="-ml-3">
               {products.map((product) => (
-                <CarouselItem key={product.id} className="pl-3 basis-[85%]">
-                  <ProductCard
-                    id={product.id}
-                    name={product.name}
-                    description={product.description}
-                    price={product.price}
-                    quantity={product.quantity}
-                    imageUrl={product.imageUrl}
-                    popular={product.popular}
-                    type={product.type}
-                    onAdd={() => onAddProduct(product)}
-                  />
+                  <CarouselItem key={product.id} className="pl-3 basis-[85%]">
+                    <ProductCard
+                      id={product.id}
+                      name={product.name}
+                      description={product.description}
+                      price={product.price}
+                      quantity={product.quantity}
+                      imageUrl={product.imageUrl}
+                      popular={product.popular}
+                      type={product.type}
+                      weight={product.weight}
+                      onAdd={() => onAddProduct(product)}
+                    />
                 </CarouselItem>
               ))}
             </CarouselContent>
@@ -84,6 +86,7 @@ const CategorySection = forwardRef<HTMLElement, CategorySectionProps>(
                 imageUrl={product.imageUrl}
                 popular={product.popular}
                 type={product.type}
+                weight={product.weight}
                 onAdd={() => onAddProduct(product)}
               />
             ))}

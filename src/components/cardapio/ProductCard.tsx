@@ -12,6 +12,7 @@ interface ProductCardProps {
   popular?: boolean;
   onAdd: () => void;
   type: "kit" | "marmita";
+  weight?: number;
 }
 
 const ProductCard = ({
@@ -23,6 +24,7 @@ const ProductCard = ({
   popular,
   onAdd,
   type,
+  weight,
 }: ProductCardProps) => {
   const totalPrice = quantity ? price * quantity : price;
   const unitLabel = type === "marmita" ? `${quantity} unidades` : `${quantity} dias`;
@@ -67,6 +69,13 @@ const ProductCard = ({
         <Badge className="absolute top-3 left-3 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold">
           {typeLabel}
         </Badge>
+
+        {/* Weight Badge */}
+        {weight && (
+          <Badge className="absolute top-10 left-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">
+            {weight}g
+          </Badge>
+        )}
 
         {/* Popular Badge */}
         {popular && (
