@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAsaasCredentials } from "../_shared/tenant-credentials.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,11 +15,6 @@ serve(async (req) => {
   }
 
   try {
-    const asaasApiKey = Deno.env.get('ASAAS_API_KEY');
-    if (!asaasApiKey) {
-      throw new Error('ASAAS_API_KEY not configured');
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -33,12 +29,13 @@ serve(async (req) => {
     }
 
     let paymentIdToCheck = payment_id;
+    let orderTenantId: string | null = null;
 
     // If only order_id provided, get payment_id from database
     if (!paymentIdToCheck && order_id) {
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .select('mp_payment_id, status, order_number')
+        .select('mp_payment_id, status, order_number, tenant_id')
         .eq('id', order_id)
         .maybeSingle();
 
@@ -54,13 +51,11 @@ serve(async (req) => {
         );
       }
 
-      // If order already approved in DB, return immediately
+      orderTenantId = order.tenant_id;
+
       if (order.status === 'approved') {
         return new Response(
-          JSON.stringify({ 
-            status: 'approved',
-            order_number: order.order_number,
-          }),
+          JSON.stringify({ status: 'approved', order_number: order.order_number }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -75,7 +70,10 @@ serve(async (req) => {
       );
     }
 
-    // Check payment status with Asaas
+    // Resolve tenant-specific Asaas credentials
+    const asaasCredentials = await getAsaasCredentials(supabase, orderTenantId);
+    const asaasApiKey = asaasCredentials.apiKey;
+
     console.log('[check-payment-status] Checking Asaas payment:', paymentIdToCheck);
     
     const asaasResponse = await fetch(`${ASAAS_API_URL}/payments/${paymentIdToCheck}`, {
@@ -98,8 +96,6 @@ serve(async (req) => {
     const asaasData = await asaasResponse.json();
     console.log('[check-payment-status] Asaas payment status:', asaasData.status);
 
-    // Map Asaas status to our status
-    // Asaas statuses: PENDING, RECEIVED, CONFIRMED, OVERDUE, REFUNDED, RECEIVED_IN_CASH, REFUND_REQUESTED, REFUND_IN_PROGRESS, CHARGEBACK_REQUESTED, CHARGEBACK_DISPUTE, AWAITING_CHARGEBACK_REVERSAL, DUNNING_REQUESTED, DUNNING_RECEIVED, AWAITING_RISK_ANALYSIS
     let status = 'pending';
     if (asaasData.status === 'RECEIVED' || asaasData.status === 'CONFIRMED' || asaasData.status === 'RECEIVED_IN_CASH') {
       status = 'approved';
@@ -109,12 +105,10 @@ serve(async (req) => {
       status = 'pending';
     }
 
-    // Get order number and handle approved payments
     let orderNumber = null;
     const orderId = asaasData.externalReference || order_id;
     
     if (status === 'approved' && orderId) {
-      // Fetch complete order
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .select('*')
@@ -128,11 +122,9 @@ serve(async (req) => {
       if (order) {
         orderNumber = order.order_number;
 
-        // Only process if order is not yet approved (avoid duplicates)
         if (order.status !== 'approved') {
           console.log('[check-payment-status] Updating order to approved:', orderId);
           
-          // Update order status
           const { error: updateError } = await supabase
             .from('orders')
             .update({ 
@@ -146,67 +138,42 @@ serve(async (req) => {
           if (updateError) {
             console.error('Error updating order:', updateError);
           } else {
-            // Cancel orphan orders from same customer
-            console.log('[check-payment-status] Cancelling orphan orders for customer:', order.customer_email);
+            // Cancel orphan orders
             const { data: cancelledOrders, error: cancelError } = await supabase
               .from('orders')
-              .update({ 
-                status: 'cancelled',
-                cancellation_type: 'auto_orphan'
-              })
+              .update({ status: 'cancelled', cancellation_type: 'auto_orphan' })
               .eq('customer_email', order.customer_email)
               .in('status', ['pending', 'awaiting_payment'])
               .neq('id', orderId)
               .select('id, order_number, status');
             
-            if (cancelError) {
-              console.error('[check-payment-status] Error cancelling orphan orders:', cancelError);
-            } else {
-              console.log('[check-payment-status] Orphan orders cancelled:', cancelledOrders?.length || 0);
-              
-              // Record cancellation in history
-              if (cancelledOrders && cancelledOrders.length > 0) {
-                for (const cancelled of cancelledOrders) {
-                  await supabase.from('order_status_history').insert({
-                    order_id: cancelled.id,
-                    previous_status: 'awaiting_payment',
-                    new_status: 'cancelled',
-                    changed_by_name: 'Sistema',
-                    notes: `Cancelado automaticamente - Pedido #${order.order_number} foi pago`,
-                    tenant_id: order.tenant_id || '00000000-0000-0000-0000-000000000001',
-                  });
-                }
+            if (!cancelError && cancelledOrders?.length) {
+              console.log('[check-payment-status] Orphan orders cancelled:', cancelledOrders.length);
+              for (const cancelled of cancelledOrders) {
+                await supabase.from('order_status_history').insert({
+                  order_id: cancelled.id,
+                  previous_status: 'awaiting_payment',
+                  new_status: 'cancelled',
+                  changed_by_name: 'Sistema',
+                  notes: `Cancelado automaticamente - Pedido #${order.order_number} foi pago`,
+                  tenant_id: order.tenant_id || '00000000-0000-0000-0000-000000000001',
+                });
               }
             }
 
-            // Mark associated cart as converted
+            // Mark cart as converted
             if (order.customer_phone) {
-              console.log('[check-payment-status] Marking cart as converted for phone:', order.customer_phone);
               const normalizedPhone = order.customer_phone.replace(/\D/g, '');
               const phoneSuffix = normalizedPhone.slice(-10);
-              
-              const { error: cartError } = await supabase
-                .from('carts')
-                .update({ status: 'converted' })
-                .ilike('phone', `%${phoneSuffix}`)
-                .in('status', ['active', 'abandoned']);
-                
-              if (cartError) {
-                console.error('[check-payment-status] Error marking cart as converted:', cartError);
-              } else {
-                console.log('[check-payment-status] Cart marked as converted');
-              }
+              await supabase.from('carts').update({ status: 'converted' })
+                .ilike('phone', `%${phoneSuffix}`).in('status', ['active', 'abandoned']);
             }
 
             // Send confirmation email
-            console.log('[check-payment-status] Sending approved email...');
             try {
-              const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-order-approved`, {
+              await fetch(`${supabaseUrl}/functions/v1/send-order-approved`, {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${supabaseKey}`,
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
                 body: JSON.stringify({
                   order_number: order.order_number,
                   customer_email: order.customer_email,
@@ -218,63 +185,44 @@ serve(async (req) => {
                   total: order.total,
                   delivery_option: order.delivery_option,
                   delivery_address: order.delivery_address,
-                  payment_method: 'pix'
+                  payment_method: 'pix',
+                  tenant_id: order.tenant_id,
                 }),
               });
-              console.log('[check-payment-status] Email response:', emailResponse.status);
             } catch (emailError) {
               console.error('[check-payment-status] Error sending email:', emailError);
             }
 
-            // Decrement stock if not already done
+            // Decrement stock
             if (!order.stock_decremented) {
-              console.log('[check-payment-status] Decrementing stock...');
               try {
                 await fetch(`${supabaseUrl}/functions/v1/decrement-stock`, {
                   method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${supabaseKey}`,
-                  },
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
                   body: JSON.stringify({ order_id: orderId }),
                 });
-                console.log('[check-payment-status] Stock decremented');
               } catch (stockError) {
                 console.error('[check-payment-status] Error decrementing stock:', stockError);
               }
             }
 
             // Send WhatsApp confirmation
-            console.log('[check-payment-status] Sending WhatsApp confirmation...');
             try {
               await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${supabaseKey}`,
-                },
-                body: JSON.stringify({
-                  order_id: orderId,
-                  status: 'approved',
-                }),
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+                body: JSON.stringify({ order_id: orderId, status: 'approved' }),
               });
-              console.log('[check-payment-status] WhatsApp confirmation sent');
             } catch (whatsappError) {
               console.error('[check-payment-status] Error sending WhatsApp:', whatsappError);
             }
           }
-        } else {
-          console.log('[check-payment-status] Order already approved, skipping notifications');
         }
       }
     }
 
     return new Response(
-      JSON.stringify({ 
-        status,
-        order_number: orderNumber,
-        asaas_status: asaasData.status,
-      }),
+      JSON.stringify({ status, order_number: orderNumber, asaas_status: asaasData.status }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

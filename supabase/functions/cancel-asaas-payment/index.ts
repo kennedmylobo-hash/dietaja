@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAsaasCredentials } from "../_shared/tenant-credentials.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,11 +15,6 @@ serve(async (req) => {
   }
 
   try {
-    const asaasApiKey = Deno.env.get('ASAAS_API_KEY');
-    if (!asaasApiKey) {
-      throw new Error('ASAAS_API_KEY not configured');
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -34,10 +30,10 @@ serve(async (req) => {
 
     console.log('Cancelling Asaas payment for order:', order_id);
 
-    // Get order with payment ID
+    // Get order with payment ID and tenant_id
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('mp_payment_id, order_number, status')
+      .select('mp_payment_id, order_number, status, tenant_id')
       .eq('id', order_id)
       .single();
 
@@ -49,40 +45,29 @@ serve(async (req) => {
       );
     }
 
-    // Check if there's an Asaas payment ID
     if (!order.mp_payment_id) {
       console.log('No Asaas payment ID found for order, skipping cancellation');
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Pedido não tinha cobrança Asaas associada',
-          cancelled: false 
-        }),
+        JSON.stringify({ success: true, message: 'Pedido não tinha cobrança Asaas associada', cancelled: false }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Resolve tenant-specific Asaas credentials
+    const asaasCredentials = await getAsaasCredentials(supabase, order.tenant_id);
+    const asaasApiKey = asaasCredentials.apiKey;
+
     const paymentId = order.mp_payment_id;
     console.log('Cancelling Asaas payment:', paymentId);
 
-    // First, check the payment status
+    // Check payment status
     const statusResponse = await fetch(`${ASAAS_API_URL}/payments/${paymentId}`, {
-      headers: {
-        'access_token': asaasApiKey,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
     });
 
     if (!statusResponse.ok) {
-      const errorText = await statusResponse.text();
-      console.error('Error checking payment status:', statusResponse.status, errorText);
-      // Payment might already be deleted or not found
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Cobrança não encontrada no Asaas (pode já ter sido cancelada)',
-          cancelled: false 
-        }),
+        JSON.stringify({ success: true, message: 'Cobrança não encontrada no Asaas (pode já ter sido cancelada)', cancelled: false }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -90,53 +75,29 @@ serve(async (req) => {
     const paymentData = await statusResponse.json();
     console.log('Current payment status:', paymentData.status);
 
-    // Only cancel if payment is pending or overdue
     if (['PENDING', 'OVERDUE'].includes(paymentData.status)) {
-      // Cancel the payment in Asaas
       const cancelResponse = await fetch(`${ASAAS_API_URL}/payments/${paymentId}`, {
         method: 'DELETE',
-        headers: {
-          'access_token': asaasApiKey,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
       });
 
       if (!cancelResponse.ok) {
         const errorText = await cancelResponse.text();
         console.error('Error cancelling payment:', cancelResponse.status, errorText);
-        
-        // Log the error but don't fail - the order will still be cancelled
         return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: 'Erro ao cancelar no Asaas, mas pedido será cancelado',
-            cancelled: false,
-            error: errorText 
-          }),
+          JSON.stringify({ success: true, message: 'Erro ao cancelar no Asaas, mas pedido será cancelado', cancelled: false, error: errorText }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       console.log('Payment cancelled successfully in Asaas');
-      
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Cobrança cancelada no Asaas',
-          cancelled: true,
-          previous_status: paymentData.status
-        }),
+        JSON.stringify({ success: true, message: 'Cobrança cancelada no Asaas', cancelled: true, previous_status: paymentData.status }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
-      console.log('Payment not in cancellable state:', paymentData.status);
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: `Cobrança não pode ser cancelada (status: ${paymentData.status})`,
-          cancelled: false,
-          current_status: paymentData.status 
-        }),
+        JSON.stringify({ success: true, message: `Cobrança não pode ser cancelada (status: ${paymentData.status})`, cancelled: false, current_status: paymentData.status }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -144,10 +105,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in cancel-asaas-payment:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Erro ao cancelar cobrança' 
-      }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Erro ao cancelar cobrança' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

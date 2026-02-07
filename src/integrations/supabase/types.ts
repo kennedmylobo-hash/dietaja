@@ -1723,6 +1723,8 @@ export type Database = {
       }
       tenants: {
         Row: {
+          asaas_api_key: string | null
+          asaas_webhook_token: string | null
           brand_name: string
           brand_slogan: string
           city: string
@@ -1734,6 +1736,8 @@ export type Database = {
           id: string
           is_active: boolean
           logo_url: string | null
+          notificame_api_token: string | null
+          notificame_channel_token: string | null
           og_image_url: string | null
           order_prefix: string
           owner_user_id: string | null
@@ -1743,6 +1747,8 @@ export type Database = {
           plan_status: string
           plan_type: string
           primary_color: string
+          resend_api_key: string | null
+          resend_from_email: string | null
           slug: string
           state: string
           updated_at: string
@@ -1750,6 +1756,8 @@ export type Database = {
           whatsapp_formatted: string
         }
         Insert: {
+          asaas_api_key?: string | null
+          asaas_webhook_token?: string | null
           brand_name: string
           brand_slogan?: string
           city?: string
@@ -1761,6 +1769,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           logo_url?: string | null
+          notificame_api_token?: string | null
+          notificame_channel_token?: string | null
           og_image_url?: string | null
           order_prefix?: string
           owner_user_id?: string | null
@@ -1770,6 +1780,8 @@ export type Database = {
           plan_status?: string
           plan_type?: string
           primary_color?: string
+          resend_api_key?: string | null
+          resend_from_email?: string | null
           slug: string
           state?: string
           updated_at?: string
@@ -1777,6 +1789,8 @@ export type Database = {
           whatsapp_formatted?: string
         }
         Update: {
+          asaas_api_key?: string | null
+          asaas_webhook_token?: string | null
           brand_name?: string
           brand_slogan?: string
           city?: string
@@ -1788,6 +1802,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           logo_url?: string | null
+          notificame_api_token?: string | null
+          notificame_channel_token?: string | null
           og_image_url?: string | null
           order_prefix?: string
           owner_user_id?: string | null
@@ -1797,6 +1813,8 @@ export type Database = {
           plan_status?: string
           plan_type?: string
           primary_color?: string
+          resend_api_key?: string | null
+          resend_from_email?: string | null
           slug?: string
           state?: string
           updated_at?: string

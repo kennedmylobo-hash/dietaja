@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTenantBranding } from "../_shared/tenant-branding.ts";
+import { getAsaasCredentials } from "../_shared/tenant-credentials.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,11 +22,6 @@ serve(async (req) => {
   }
 
   try {
-    const asaasApiKey = Deno.env.get('ASAAS_API_KEY');
-    if (!asaasApiKey) {
-      throw new Error('ASAAS_API_KEY not configured');
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -33,264 +29,130 @@ serve(async (req) => {
     const body: RequestBody = await req.json();
     const { order_id, send_whatsapp = true, send_email = true } = body;
 
-    if (!order_id) {
-      throw new Error('order_id is required');
-    }
+    if (!order_id) throw new Error('order_id is required');
 
     console.log('Admin generating PIX for order:', order_id);
 
-    // 1. Fetch order from database
     const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', order_id)
-      .single();
+      .from('orders').select('*').eq('id', order_id).single();
 
     if (orderError || !order) {
       console.error('Order not found:', orderError);
       throw new Error('Pedido não encontrado');
     }
 
+    // Resolve tenant-specific Asaas credentials
+    const asaasCredentials = await getAsaasCredentials(supabase, order.tenant_id);
+    const asaasApiKey = asaasCredentials.apiKey;
+
     console.log('Order found:', order.order_number, 'Status:', order.status, 'Total:', order.total);
 
-    // 2. Check if there's an existing valid PIX
+    // Check existing valid PIX
     if (order.pix_qr_code && order.pix_expiration) {
       const expirationDate = new Date(order.pix_expiration);
       if (expirationDate > new Date()) {
-        console.log('Reusing existing valid PIX, expires:', order.pix_expiration);
-        
-        // Send notifications in background
-        const notificationResults = await sendNotifications(
-          supabaseUrl,
-          supabaseKey,
-          order,
-          order.pix_qr_code,
-          send_whatsapp,
-          send_email
-        );
-
+        console.log('Reusing existing valid PIX');
+        const notificationResults = await sendNotifications(supabaseUrl, supabaseKey, order, order.pix_qr_code, send_whatsapp, send_email);
         return new Response(
-          JSON.stringify({
-            success: true,
-            reused: true,
-            pix_code: order.pix_qr_code,
-            pix_link: `https://diet-on-demand.lovable.app/pix/${order_id}`,
-            qr_code_base64: order.pix_qr_code_base64,
-            expiration: order.pix_expiration,
-            total: order.total,
-            notifications: notificationResults,
-          }),
+          JSON.stringify({ success: true, reused: true, pix_code: order.pix_qr_code, pix_link: `https://diet-on-demand.lovable.app/pix/${order_id}`, qr_code_base64: order.pix_qr_code_base64, expiration: order.pix_expiration, total: order.total, notifications: notificationResults }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
-    // 3. Get or create Asaas customer
+    // Get or create Asaas customer
     const cleanPhone = order.customer_phone.replace(/\D/g, '');
     const formattedPhone = cleanPhone.length === 11 ? cleanPhone : cleanPhone.slice(-11);
 
-    // Search for existing customer
-    console.log('Searching for Asaas customer by email:', order.customer_email);
     const searchResponse = await fetch(
       `${ASAAS_API_URL}/customers?email=${encodeURIComponent(order.customer_email)}`,
-      {
-        headers: {
-          'access_token': asaasApiKey,
-          'Content-Type': 'application/json',
-        },
-      }
+      { headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' } }
     );
 
     let asaasCustomerId: string | null = null;
-
     if (searchResponse.ok) {
       const searchData = await searchResponse.json();
-      if (searchData.data && searchData.data.length > 0) {
-        asaasCustomerId = searchData.data[0].id;
-        console.log('Existing Asaas customer found:', asaasCustomerId);
-      }
+      if (searchData.data?.length > 0) asaasCustomerId = searchData.data[0].id;
     }
 
-    // Create new customer if not found
     if (!asaasCustomerId) {
-      console.log('Creating new Asaas customer...');
-      
-      const customerPayload: Record<string, unknown> = {
-        name: order.customer_name,
-        email: order.customer_email,
-        phone: formattedPhone,
-        mobilePhone: formattedPhone,
-        notificationDisabled: false,
-      };
-
       const customerResponse = await fetch(`${ASAAS_API_URL}/customers`, {
         method: 'POST',
-        headers: {
-          'access_token': asaasApiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(customerPayload),
+        headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: order.customer_name, email: order.customer_email, phone: formattedPhone, mobilePhone: formattedPhone, notificationDisabled: false }),
       });
 
-      if (!customerResponse.ok) {
-        const errorText = await customerResponse.text();
-        console.error('Asaas customer creation error:', customerResponse.status, errorText);
-        throw new Error('Erro ao criar cliente no Asaas');
-      }
-
+      if (!customerResponse.ok) throw new Error('Erro ao criar cliente no Asaas');
       const customerData = await customerResponse.json();
       asaasCustomerId = customerData.id;
-      console.log('Asaas customer created:', asaasCustomerId);
     }
 
-    // 4. Create PIX payment
+    // Create PIX payment
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 1);
-    const dueDateStr = dueDate.toISOString().split('T')[0];
 
     const paymentPayload = {
       customer: asaasCustomerId,
       billingType: 'PIX',
       value: order.total,
-      dueDate: dueDateStr,
+      dueDate: dueDate.toISOString().split('T')[0],
       description: `Pedido ${order.order_number || order.id.slice(0, 8)} - ${(await getTenantBranding(supabase, order.tenant_id)).brand_name}`,
       externalReference: order_id,
     };
 
-    console.log('Creating Asaas PIX payment:', JSON.stringify(paymentPayload));
-
     const paymentResponse = await fetch(`${ASAAS_API_URL}/payments`, {
       method: 'POST',
-      headers: {
-        'access_token': asaasApiKey,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify(paymentPayload),
     });
 
-    if (!paymentResponse.ok) {
-      const errorText = await paymentResponse.text();
-      console.error('Asaas payment error:', paymentResponse.status, errorText);
-      throw new Error('Erro ao criar cobrança PIX no Asaas');
-    }
-
+    if (!paymentResponse.ok) throw new Error('Erro ao criar cobrança PIX no Asaas');
     const paymentData = await paymentResponse.json();
-    console.log('Asaas payment created:', paymentData.id, 'Status:', paymentData.status);
 
-    // 5. Get PIX QR Code
+    // Get PIX QR Code
     const pixResponse = await fetch(`${ASAAS_API_URL}/payments/${paymentData.id}/pixQrCode`, {
-      headers: {
-        'access_token': asaasApiKey,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
     });
 
-    if (!pixResponse.ok) {
-      const errorText = await pixResponse.text();
-      console.error('Asaas PIX QR Code error:', pixResponse.status, errorText);
-      throw new Error('Erro ao gerar QR Code PIX');
-    }
-
+    if (!pixResponse.ok) throw new Error('Erro ao gerar QR Code PIX');
     const pixData = await pixResponse.json();
-    console.log('PIX QR Code generated successfully');
 
-    // Calculate expiration
     const expirationDate = new Date(paymentData.dueDate);
     expirationDate.setHours(23, 59, 59);
 
-    // 6. Update order with PIX data
-    const { error: updateError } = await supabase
-      .from('orders')
-      .update({
-        mp_payment_id: paymentData.id,
-        mp_preference_id: paymentData.id,
-        pix_qr_code: pixData.payload,
-        pix_qr_code_base64: pixData.encodedImage,
-        pix_expiration: expirationDate.toISOString(),
-        payment_method: 'pix',
-      })
-      .eq('id', order_id);
+    await supabase.from('orders').update({
+      mp_payment_id: paymentData.id, mp_preference_id: paymentData.id,
+      pix_qr_code: pixData.payload, pix_qr_code_base64: pixData.encodedImage,
+      pix_expiration: expirationDate.toISOString(), payment_method: 'pix',
+    }).eq('id', order_id);
 
-    if (updateError) {
-      console.error('Error updating order:', updateError);
-    }
-
-    // 7. Send notifications
-    const notificationResults = await sendNotifications(
-      supabaseUrl,
-      supabaseKey,
-      order,
-      pixData.payload,
-      send_whatsapp,
-      send_email
-    );
-
-    console.log('PIX generated and notifications sent:', notificationResults);
+    const notificationResults = await sendNotifications(supabaseUrl, supabaseKey, order, pixData.payload, send_whatsapp, send_email);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        reused: false,
-        pix_code: pixData.payload,
-        pix_link: `https://diet-on-demand.lovable.app/pix/${order_id}`,
-        qr_code_base64: pixData.encodedImage,
-        expiration: expirationDate.toISOString(),
-        total: order.total,
-        notifications: notificationResults,
-      }),
+      JSON.stringify({ success: true, reused: false, pix_code: pixData.payload, pix_link: `https://diet-on-demand.lovable.app/pix/${order_id}`, qr_code_base64: pixData.encodedImage, expiration: expirationDate.toISOString(), total: order.total, notifications: notificationResults }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in generate-pix-admin:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Erro ao gerar PIX' 
-      }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Erro ao gerar PIX' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
 
-async function sendNotifications(
-  supabaseUrl: string,
-  supabaseKey: string,
-  order: Record<string, unknown>,
-  pixCode: string,
-  sendWhatsapp: boolean,
-  sendEmail: boolean
-): Promise<{ whatsapp_sent: boolean; email_sent: boolean }> {
+async function sendNotifications(supabaseUrl: string, supabaseKey: string, order: Record<string, unknown>, pixCode: string, sendWhatsapp: boolean, sendEmail: boolean): Promise<{ whatsapp_sent: boolean; email_sent: boolean }> {
   const results = { whatsapp_sent: false, email_sent: false };
-
   const promises: Promise<void>[] = [];
 
   if (sendWhatsapp) {
     promises.push(
       fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-        body: JSON.stringify({
-          order_id: order.id,
-          status: 'pending',
-          pix_code: pixCode,
-        }),
-      })
-        .then(async (response) => {
-          const text = await response.text();
-          if (response.ok) {
-            results.whatsapp_sent = true;
-            console.log('✅ WhatsApp notification sent');
-          } else {
-            console.error('❌ WhatsApp error:', text);
-          }
-        })
-        .catch((error) => {
-          console.error('❌ WhatsApp exception:', error);
-        })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+        body: JSON.stringify({ order_id: order.id, status: 'pending', pix_code: pixCode }),
+      }).then(async (r) => { if (r.ok) { results.whatsapp_sent = true; } }).catch(() => {})
     );
   }
 
@@ -298,31 +160,9 @@ async function sendNotifications(
     promises.push(
       fetch(`${supabaseUrl}/functions/v1/send-order-pending-email`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-        body: JSON.stringify({
-          order_id: order.id,
-          order_number: order.order_number || (order.id as string).slice(0, 8),
-          customer_email: order.customer_email,
-          customer_name: order.customer_name,
-          total: order.total,
-          pix_code: pixCode,
-        }),
-      })
-        .then(async (response) => {
-          const text = await response.text();
-          if (response.ok) {
-            results.email_sent = true;
-            console.log('✅ Email notification sent');
-          } else {
-            console.error('❌ Email error:', text);
-          }
-        })
-        .catch((error) => {
-          console.error('❌ Email exception:', error);
-        })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+        body: JSON.stringify({ order_id: order.id, order_number: order.order_number || (order.id as string).slice(0, 8), customer_email: order.customer_email, customer_name: order.customer_name, total: order.total, pix_code: pixCode }),
+      }).then(async (r) => { if (r.ok) { results.email_sent = true; } }).catch(() => {})
     );
   }
 

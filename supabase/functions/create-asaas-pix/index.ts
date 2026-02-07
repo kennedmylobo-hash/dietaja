@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTenantBranding } from "../_shared/tenant-branding.ts";
+import { getAsaasCredentials } from "../_shared/tenant-credentials.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -55,11 +56,6 @@ serve(async (req) => {
   }
 
   try {
-    const asaasApiKey = Deno.env.get('ASAAS_API_KEY');
-    if (!asaasApiKey) {
-      throw new Error('ASAAS_API_KEY not configured');
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -67,6 +63,10 @@ serve(async (req) => {
     const body: RequestBody = await req.json();
     const { items, customer, delivery, utm_data, coupon_code, discount_amount, cashback, order_id, tenant_id } = body;
     const effectiveTenantId = tenant_id || '00000000-0000-0000-0000-000000000001';
+
+    // Resolve tenant-specific Asaas credentials
+    const asaasCredentials = await getAsaasCredentials(supabase, effectiveTenantId);
+    const asaasApiKey = asaasCredentials.apiKey;
 
     console.log('Creating Asaas PIX payment for:', { 
       customer: customer.name, 
@@ -108,7 +108,6 @@ serve(async (req) => {
         orderId = existingOrder.id;
         console.log('Reusing existing pending order:', orderId, existingOrder.order_number);
         
-        // Update the existing order with current data
         await supabase
           .from('orders')
           .update({ 
@@ -182,7 +181,6 @@ serve(async (req) => {
           console.log('Cashback deducted successfully');
         } catch (cashbackError) {
           console.error('Error processing cashback:', cashbackError);
-          // Don't fail the order, just log the error
         }
       }
     } else {
@@ -257,7 +255,6 @@ serve(async (req) => {
         const errorText = await customerResponse.text();
         console.error('Asaas customer creation error:', customerResponse.status, errorText);
         
-        // Log error to database
         await supabase.from('payment_error_logs').insert({
           order_id: orderId,
           error_code: customerResponse.status.toString(),
@@ -277,7 +274,6 @@ serve(async (req) => {
       asaasCustomerId = customerData.id;
       console.log('Asaas customer created:', asaasCustomerId);
     } else if (cleanCpf.length === 11 && !/^(\d)\1+$/.test(cleanCpf)) {
-      // Update existing customer with CPF only if valid
       console.log('Updating existing customer with CPF...');
       const updateResponse = await fetch(`${ASAAS_API_URL}/customers/${asaasCustomerId}`, {
         method: 'PUT',
@@ -285,9 +281,7 @@ serve(async (req) => {
           'access_token': asaasApiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          cpfCnpj: cleanCpf,
-        }),
+        body: JSON.stringify({ cpfCnpj: cleanCpf }),
       });
 
       if (!updateResponse.ok) {
@@ -295,13 +289,8 @@ serve(async (req) => {
         console.error('Asaas customer CPF update error:', updateResponse.status, updateErrorText);
         
         let updateErrorResponse = {};
-        try {
-          updateErrorResponse = JSON.parse(updateErrorText || '{}');
-        } catch {
-          updateErrorResponse = { raw_error: updateErrorText };
-        }
+        try { updateErrorResponse = JSON.parse(updateErrorText || '{}'); } catch { updateErrorResponse = { raw_error: updateErrorText }; }
 
-        // Log error to database
         await supabase.from('payment_error_logs').insert({
           order_id: orderId,
           error_code: updateResponse.status.toString(),
@@ -322,10 +311,8 @@ serve(async (req) => {
 
     // Step 2: Create PIX payment (cobrança)
     const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 1); // Due tomorrow
+    dueDate.setDate(dueDate.getDate() + 1);
     const dueDateStr = dueDate.toISOString().split('T')[0];
-
-    const webhookUrl = `${supabaseUrl}/functions/v1/asaas-webhook`;
     
     const paymentPayload = {
       customer: asaasCustomerId,
@@ -334,7 +321,6 @@ serve(async (req) => {
       dueDate: dueDateStr,
       description: `Pedido ${(await getTenantBranding(supabase, effectiveTenantId)).brand_name} - ${items.length} item(s)`,
       externalReference: orderId,
-      // Callback removido - redirect feito via polling no frontend
     };
 
     console.log('Creating Asaas PIX payment:', JSON.stringify(paymentPayload));
@@ -353,13 +339,8 @@ serve(async (req) => {
       console.error('Asaas payment error:', paymentResponse.status, errorText);
       
       let errorResponse = {};
-      try {
-        errorResponse = JSON.parse(errorText);
-      } catch {
-        errorResponse = { raw_error: errorText };
-      }
+      try { errorResponse = JSON.parse(errorText); } catch { errorResponse = { raw_error: errorText }; }
 
-      // Log error to database
       await supabase.from('payment_error_logs').insert({
         order_id: orderId,
         error_code: paymentResponse.status.toString(),
@@ -372,12 +353,7 @@ serve(async (req) => {
         tenant_id: effectiveTenantId,
       });
 
-      // Mark order as failed
-      await supabase
-        .from('orders')
-        .update({ status: 'pix_failed' })
-        .eq('id', orderId);
-
+      await supabase.from('orders').update({ status: 'pix_failed' }).eq('id', orderId);
       throw new Error('Erro ao criar cobrança PIX. Tente novamente ou finalize via WhatsApp.');
     }
 
@@ -401,11 +377,9 @@ serve(async (req) => {
     const pixData = await pixResponse.json();
     console.log('PIX QR Code generated successfully');
 
-    // Calculate expiration (PIX expires at due date midnight)
     const expirationDate = new Date(paymentData.dueDate);
     expirationDate.setHours(23, 59, 59);
 
-    // Prepare response data BEFORE background tasks
     const responseData = {
       success: true,
       order_id: orderId,
@@ -417,10 +391,8 @@ serve(async (req) => {
       total: transactionAmount,
     };
 
-    // Move DB update and WhatsApp to background - don't block the response
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
     EdgeRuntime.waitUntil((async () => {
-      // Update order with Asaas payment ID and PIX data
       try {
         await supabase
           .from('orders')
@@ -437,7 +409,6 @@ serve(async (req) => {
         console.error('❌ Background DB update error:', dbError);
       }
 
-      // Send WhatsApp notification with PIX code
       try {
         await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
           method: 'POST',
@@ -457,7 +428,6 @@ serve(async (req) => {
       }
     })());
 
-    // Return immediately with QR Code data - much faster!
     console.log('Returning PIX data immediately (background tasks running)');
     return new Response(
       JSON.stringify(responseData),
