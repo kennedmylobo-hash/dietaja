@@ -1,61 +1,79 @@
 
 
-## Correção: Banners aparecem e somem (conflito de animação)
+## Otimização Mobile/4G — Preservando TODO o conteúdo visual
 
-### Causa Raiz
+Nenhum botão, imagem, foto, vídeo ou texto será removido. Todas as mudanças são "por baixo dos panos" para carregar mais rápido, sem alterar o que o usuário vê.
 
-O componente `BannerCard` usa **duas fontes de animação conflitantes** no `motion.button`:
+---
 
-1. **`variants={itemVariants}`** - controla a entrada (opacity: 0 -> 1, y: 20 -> 0)
-2. **`animate={shouldPulse ? {...} : {}}`** - controla o pulse
+### O que muda (e o que NÃO muda)
 
-Quando `shouldPulse` muda de `true` para `false`, o `animate={}` (objeto vazio) **sobrescreve** os valores dos variants, resetando `opacity` para o valor default. Os cards desaparecem.
+| Otimização | O que faz | Remove algo visual? |
+|---|---|---|
+| Lazy load de seções | Carrega seções conforme o usuário scrolla (em vez de tudo de uma vez) | Não. Tudo aparece igual, só carrega sob demanda |
+| Vídeo do Hero | Só começa a baixar quando está na tela | Não. O poster (foto) aparece imediatamente enquanto o vídeo carrega |
+| Vídeo da Galeria | Só começa a baixar quando o usuário scrolla até lá | Não. Aparece igual quando chega na seção |
+| Banners sem 3D no mobile | Remove efeito de inclinação 3D (que só funciona com mouse) | Não. Os 3 cards ficam iguais, só sem o efeito de mouse que não existe no celular |
+| Notificações com delay maior | Popup de depoimento aparece após 10s em vez de 5s no mobile | Não. Mesma notificação, só demora um pouco mais pra aparecer |
 
-O mesmo ocorre quando `shouldPulse` e `true`: o objeto de animate nao inclui `opacity: 1`, entao o Framer Motion interpreta como "animar para opacity indefinido", causando flicker.
+---
 
-### Solucao
+### Detalhes Técnicos
 
-Remover o `animate` e `transition` condicionais do `motion.button` e usar uma `motion.div` interna separada para o efeito de pulse, sem interferir na animacao de entrada dos variants.
+**1. Lazy load de seções abaixo do fold**
+Arquivo: `src/pages/Index.tsx`
 
-### Mudancas
+Mover para lazy import (com Suspense + skeleton):
+- IdentificationSection
+- SolutionSection
+- BeforeAfterSection
+- ProductGallerySection
+- KitsSection
+- MarmitasSection
+- ValueSection
 
-**Arquivo: `src/components/PromoBannersSection.tsx`**
+Cada seção aparece normalmente quando o usuário scrolla. Enquanto carrega, mostra um skeleton (placeholder cinza) por frações de segundo.
 
-No componente `BannerCard` (linhas 103-161):
+**2. Vídeo do Hero com Intersection Observer**
+Arquivo: `src/components/HeroSection.tsx`
 
-1. **Remover** as props `animate` e `transition` condicionais do `motion.button` (linhas 117-130)
-2. **Adicionar** uma `motion.div` wrapper interno que aplica o efeito de pulse (scale + shadow) sem interferir nos variants de entrada
+- Manter `preload="none"` e `poster` (já está)
+- Adicionar um ref + IntersectionObserver para chamar `video.play()` só quando visível
+- A foto poster continua aparecendo instantaneamente
+- Nenhuma mudança visual
 
-Antes:
-```tsx
-<motion.button
-  variants={itemVariants}
-  animate={shouldPulse ? { scale: [1, 1.03, 1], ... } : {}}
-  transition={shouldPulse ? { ... } : {}}
-  ...
->
-```
+**3. Vídeo da ProductGallery com lazy play**
+Arquivo: `src/components/ProductGallerySection.tsx`
 
-Depois:
-```tsx
-<motion.button
-  variants={itemVariants}
-  whileHover={{ scale: 1.02 }}
-  whileTap={{ scale: 0.97 }}
-  ...
->
-  {/* Pulse effect via separate animation, no conflict with variants */}
-  <motion.div
-    animate={shouldPulse ? { scale: [1, 1.03, 1] } : { scale: 1 }}
-    transition={shouldPulse ? { duration: 0.8, repeat: 2, repeatDelay: 0.3 } : {}}
-    className="absolute inset-0 rounded-xl sm:rounded-2xl"
-    style={{ pointerEvents: "none" }}
-  />
-  ...conteudo existente...
-</motion.button>
-```
+- Remover `autoPlay` do elemento video
+- Adicionar IntersectionObserver que chama `.play()` quando o usuário scrolla até a seção
+- O vídeo continua aparecendo e tocando normalmente, só não baixa antes da hora
 
-Alternativamente (mais simples e confiavel): remover completamente o efeito de pulse e manter apenas `whileHover` e `whileTap`. O pulse e um detalhe cosmético que esta causando o bug critico de invisibilidade.
+**4. Banners: desativar 3D no touch/mobile**
+Arquivo: `src/components/PromoBannersSection.tsx`
 
-**Abordagem recomendada**: Remover `animate` e `transition` condicionais, manter tudo o mais igual. 1 arquivo, ~4 linhas removidas.
+- Usar o hook `useIsMobile()` existente
+- No mobile: pular os handlers de `onMouseMove` e os transforms 3D (rotateX, rotateY)
+- Manter `whileTap` para feedback ao tocar
+- Os 3 cards continuam com mesmas cores, ícones, textos e botão "Clique"
+
+**5. SalesNotification: delay maior no mobile**
+Arquivo: `src/components/SalesNotification.tsx`
+
+- Usar `useIsMobile()` para detectar mobile
+- Mobile: delay inicial de 10s (em vez de 5s)
+- Desktop: mantém 5s
+- Mesma notificação, mesmo visual
+
+### Arquivos alterados
+
+- `src/pages/Index.tsx` — lazy imports
+- `src/components/HeroSection.tsx` — video IntersectionObserver
+- `src/components/ProductGallerySection.tsx` — video lazy play
+- `src/components/PromoBannersSection.tsx` — desativar 3D no mobile
+- `src/components/SalesNotification.tsx` — delay mobile
+
+### Nenhum arquivo novo necessário
+
+O hook `useIsMobile` já existe em `src/hooks/use-mobile.tsx`.
 
