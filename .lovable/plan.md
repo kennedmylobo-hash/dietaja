@@ -1,60 +1,46 @@
 
 
-## Corrigir Fluxo de Onboarding: Admin ve Painel do Proprio Restaurante
+## Atualizar URLs da Plataforma para "PedidoJá"
 
-### Problema Atual
-Quando um novo dono de restaurante acessa `/admin`, o sistema identifica o tenant pelo dominio (hostname). Como o dominio atual e `pedidos.dietajavca.com.br`, o TenantContext sempre resolve para o Dieta Ja -- mesmo que o admin pertenca a outro restaurante.
-
-### Solucao
-Fazer o TenantContext detectar que o usuario logado e admin de um tenant especifico (via `user_roles.tenant_id`) e usar esse tenant em vez do hostname.
+### Contexto
+O software SaaS terá seu proprio dominio (por enquanto `pedidoja`). Todos os links de acesso ao painel administrativo devem apontar para o dominio da plataforma, nao para o dominio de nenhum restaurante individual. Hoje, 3 Edge Functions tem URLs fixas apontando para `pedidos.dietajavca.com.br`.
 
 ### Mudancas
 
-**1. TenantContext.tsx -- Priorizar tenant do admin logado**
+**1. Criar constante do dominio da plataforma**
 
-Apos a deteccao por hostname, verificar se ha sessao autenticada. Se o usuario tem role `admin` com `tenant_id` na tabela `user_roles`, carregar o tenant correspondente e sobrescrever o que veio do hostname.
+Definir uma variavel `PLATFORM_DOMAIN` nas Edge Functions que precisam gerar links. Por enquanto, como o dominio final ainda nao esta configurado, usar a URL publicada do projeto Lovable (`diet-on-demand.lovable.app`) como valor temporario. Quando o dominio `pedidoja.com.br` (ou outro) for conectado, basta atualizar esse valor.
 
-Fluxo atualizado:
+**2. `send-tenant-invite/index.ts` -- Atualizar redirectTo**
 
-```text
-TenantContext carrega
-  |
-  v
-Detecta tenant por hostname/query param (como hoje)
-  |
-  v
-Verifica se ha sessao autenticada
-  |-- Nao: usa tenant do hostname (comportamento atual para clientes)
-  |-- Sim: busca user_roles do usuario
-       |
-       v
-       Tem role admin com tenant_id?
-         |-- Sim: carrega esse tenant e sobrescreve
-         |-- Nao: mantem tenant do hostname
+Trocar:
+```
+https://pedidos.dietajavca.com.br/admin/reset-password?tenant=...
+```
+Por:
+```
+https://diet-on-demand.lovable.app/admin/reset-password?tenant={slug}
 ```
 
-**2. send-tenant-invite -- Corrigir URL de redirecionamento**
+O link sempre usa o dominio da plataforma + `?tenant=slug` para garantir que o TenantContext resolva corretamente.
 
-O `redirectTo` esta fixo em `pedidos.dietajavca.com.br`. Precisa apontar para o dominio correto do novo tenant (ou usar o dominio da plataforma com `?tenant=slug`).
+**3. `send-password-reset/index.ts` -- Atualizar redirectTo e branding**
 
-Alterar para montar a URL dinamicamente:
-- Se o tenant tem `domain` configurado: usar `https://{domain}/admin/reset-password`
-- Senao: usar `https://{slug}.suaplataforma.com.br/admin/reset-password`
-- Fallback com query param: adicionar `?tenant={slug}` na URL para garantir resolucao correta
+Trocar URL fixa `pedidos.dietajavca.com.br` pelo dominio da plataforma. Tambem tornar o branding dinamico (buscar dados do tenant do admin que solicitou o reset), ao inves de fixo "Dieta Ja".
 
-**3. Admin.tsx -- Limpar redirect apos set password**
+**4. `send-tenant-invite/index.ts` -- Atualizar remetente do email**
 
-Garantir que apos definir a senha, o redirect vai para `/admin` no dominio correto (o TenantContext ja vai resolver corretamente com a mudanca #1).
+Trocar o `from` fixo `pedidos@dietajavca.com.br` por um remetente da plataforma (ex: `noreply@pedidoja.com.br` ou manter `pedidos@dietajavca.com.br` temporariamente enquanto o dominio novo nao esta verificado no Resend).
 
 ### Arquivos Modificados
 
-- `src/contexts/TenantContext.tsx` -- Adicionar logica de override por admin role
-- `supabase/functions/send-tenant-invite/index.ts` -- URL dinamica com slug do tenant
-- `supabase/functions/create-tenant/index.ts` -- Passar slug para o send-tenant-invite
+| Arquivo | O que muda |
+|---|---|
+| `supabase/functions/send-tenant-invite/index.ts` | redirectTo aponta para dominio da plataforma com `?tenant=slug` |
+| `supabase/functions/send-password-reset/index.ts` | redirectTo dinamico, busca tenant do admin, branding personalizado |
 
-### Sobre o Email nao Chegando
+### Notas Tecnicas
 
-O Resend reporta envio com sucesso, mas o email pode estar sendo filtrado. Duas acoes:
-- Verificar se o dominio `dietajavca.com.br` esta verificado no Resend para envio
-- Como workaround imediato, o link de convite sera logado no console do Edge Function para que voce possa copiar e enviar manualmente enquanto resolve a entrega do email
-
+- O `?tenant=slug` no redirect garante que o TenantContext carregue o restaurante correto na tela de reset de senha
+- O dominio da plataforma sera `diet-on-demand.lovable.app` ate que um dominio customizado (ex: `pedidoja.com.br`) seja conectado
+- A logica de override por admin no TenantContext (ja implementada) garante que apos o login, o admin veja apenas o painel do restaurante dele
