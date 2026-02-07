@@ -121,14 +121,14 @@ const Admin = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
-        // Verify admin role
+        // Verify admin role and get tenant_id
         const { data: roles } = await supabase
           .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single();
+          .select('role, tenant_id')
+          .eq('user_id', session.user.id);
         
-        if (roles?.role === 'admin') {
+        const adminRole = roles?.find((r: any) => r.role === 'admin' || r.role === 'super_admin');
+        if (adminRole) {
           setIsAuthenticated(true);
         } else {
           toast({
@@ -415,11 +415,11 @@ const Admin = () => {
       // Check admin role
       const { data: roles } = await supabase
         .from('user_roles')
-        .select('role')
-        .eq('user_id', data.user.id)
-        .single();
+        .select('role, tenant_id')
+        .eq('user_id', data.user.id);
 
-      if (roles?.role !== 'admin') {
+      const adminRole = roles?.find((r: any) => r.role === 'admin' || r.role === 'super_admin');
+      if (!adminRole) {
         await supabase.auth.signOut();
         throw new Error('Você não tem permissão de administrador.');
       }

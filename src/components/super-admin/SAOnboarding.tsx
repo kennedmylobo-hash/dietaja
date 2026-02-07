@@ -22,7 +22,6 @@ export default function SAOnboarding() {
     state: "",
     whatsapp: "",
     admin_email: "",
-    admin_password: "",
     plan_type: "basico",
     primary_color: "#22c55e",
     order_prefix: "",
@@ -45,7 +44,7 @@ export default function SAOnboarding() {
       if (data?.error) throw new Error(data.error);
 
       setSuccess(true);
-      toast({ title: "Restaurante criado!", description: `${form.brand_name} está pronto para usar.` });
+      toast({ title: "Restaurante criado!", description: `Convite enviado para ${form.admin_email}.` });
       setForm({
         brand_name: "",
         slug: "",
@@ -53,7 +52,6 @@ export default function SAOnboarding() {
         state: "",
         whatsapp: "",
         admin_email: "",
-        admin_password: "",
         plan_type: "basico",
         primary_color: "#22c55e",
         order_prefix: "",
@@ -73,7 +71,7 @@ export default function SAOnboarding() {
         <Card className="mb-6 border-green-500">
           <CardContent className="flex items-center gap-3 p-4">
             <CheckCircle className="h-5 w-5 text-green-500" />
-            <p className="font-medium">Restaurante criado com sucesso! O admin já pode fazer login.</p>
+            <p className="font-medium">Restaurante criado! Um convite foi enviado por email para o administrador criar sua senha.</p>
           </CardContent>
         </Card>
       )}
@@ -150,10 +148,7 @@ export default function SAOnboarding() {
                 <div>
                   <Label>Email do Admin *</Label>
                   <Input type="email" value={form.admin_email} onChange={(e) => setForm({ ...form, admin_email: e.target.value })} required />
-                </div>
-                <div>
-                  <Label>Senha Temporária *</Label>
-                  <Input type="password" value={form.admin_password} onChange={(e) => setForm({ ...form, admin_password: e.target.value })} minLength={6} required />
+                  <p className="text-xs text-muted-foreground mt-1">O admin receberá um convite por email para criar sua senha</p>
                 </div>
               </div>
             </div>

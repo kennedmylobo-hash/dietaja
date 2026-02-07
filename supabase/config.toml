@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.create-tenant]
 verify_jwt = false
+
+[functions.send-tenant-invite]
+verify_jwt = false
