@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getTenantBranding } from "../_shared/tenant-branding.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -331,7 +332,7 @@ serve(async (req) => {
       billingType: 'PIX',
       value: transactionAmount,
       dueDate: dueDateStr,
-      description: `Pedido Dieta Já - ${items.length} item(s)`,
+      description: `Pedido ${(await getTenantBranding(supabase, effectiveTenantId)).brand_name} - ${items.length} item(s)`,
       externalReference: orderId,
       // Callback removido - redirect feito via polling no frontend
     };

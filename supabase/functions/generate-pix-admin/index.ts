@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getTenantBranding } from "../_shared/tenant-branding.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -152,7 +153,7 @@ serve(async (req) => {
       billingType: 'PIX',
       value: order.total,
       dueDate: dueDateStr,
-      description: `Pedido ${order.order_number || order.id.slice(0, 8)} - Dieta Já`,
+      description: `Pedido ${order.order_number || order.id.slice(0, 8)} - ${(await getTenantBranding(supabase, order.tenant_id)).brand_name}`,
       externalReference: order_id,
     };
 

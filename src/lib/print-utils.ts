@@ -79,7 +79,7 @@ export const formatDateShort = (dateString: string): string => {
   });
 };
 
-export const generateOrderTicketHTML = (order: Order): string => {
+export const generateOrderTicketHTML = (order: Order, brandName: string = 'DIETA JÁ'): string => {
   const itemsHtml = order.items.map(item => {
     if (item.flavors && item.flavors.length > 0) {
       const flavorsGrouped = item.flavors.reduce((acc, f) => {
@@ -186,7 +186,7 @@ export const generateOrderTicketHTML = (order: Order): string => {
     </head>
     <body>
       <div class="header">
-        <h1>DIETA JÁ</h1>
+        <h1>${brandName.toUpperCase()}</h1>
         <h2>Ficha de Pedido</h2>
       </div>
 
@@ -237,14 +237,14 @@ export const generateOrderTicketHTML = (order: Order): string => {
   `;
 };
 
-export const printOrderTicket = (order: Order): void => {
+export const printOrderTicket = (order: Order, brandName: string = 'DIETA JÁ'): void => {
   const printWindow = window.open('', '_blank', 'width=450,height=600');
   if (!printWindow) {
     alert('Não foi possível abrir a janela de impressão. Verifique se pop-ups estão habilitados.');
     return;
   }
   
-  printWindow.document.write(generateOrderTicketHTML(order));
+  printWindow.document.write(generateOrderTicketHTML(order, brandName));
   printWindow.document.close();
   
   // Wait for content to load before printing

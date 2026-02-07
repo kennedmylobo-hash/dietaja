@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,7 +52,6 @@ function replaceVariables(template: string, variables: Record<string, string>): 
   return result;
 }
 
-// Send simple text message (for messages within 24h window)
 async function sendWhatsAppText(phone: string, message: string, orderNumber: string): Promise<void> {
   const apiToken = Deno.env.get('NOTIFICAME_API_TOKEN');
   const channelToken = Deno.env.get('NOTIFICAME_WHATSAPP_CHANNEL_TOKEN');
@@ -90,8 +90,6 @@ async function sendWhatsAppText(phone: string, message: string, orderNumber: str
   }
 }
 
-// Send template message (for messages outside 24h window - Meta approved templates)
-// Using correct NotificaMe API format per documentation
 async function sendWhatsAppTemplate(
   phone: string, 
   templateName: string, 
@@ -125,14 +123,12 @@ async function sendWhatsAppTemplate(
     console.log(`[TEMPLATE] Order: ${orderNumber}`);
     console.log(`[TEMPLATE] Fields:`, JSON.stringify(fields, null, 2));
 
-    // Convert fields object to ordered parameters array per NotificaMe docs
     const fieldKeys = Object.keys(fields).sort((a, b) => Number(a) - Number(b));
     const parameters = fieldKeys.map(key => ({
       type: "text",
       text: fields[key]
     }));
 
-    // Correct payload format per NotificaMe API documentation
     const payload = {
       from: channelToken,
       to: formattedPhone,
@@ -140,21 +136,13 @@ async function sendWhatsAppTemplate(
         type: 'template',
         template: {
           name: templateName,
-          language: {
-            code: 'pt_BR'
-          },
-          components: [
-            {
-              type: 'body',
-              parameters: parameters
-            }
-          ]
+          language: { code: 'pt_BR' },
+          components: [{ type: 'body', parameters }]
         }
       }],
     };
 
     console.log(`[TEMPLATE] Full payload:`, JSON.stringify(payload, null, 2));
-    console.log(`[TEMPLATE] API URL: https://api.notificame.com.br/v1/channels/whatsapp/messages`);
 
     const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
       method: 'POST',
@@ -167,11 +155,7 @@ async function sendWhatsAppTemplate(
 
     const responseData = await response.text();
     let responseJson = null;
-    try {
-      responseJson = JSON.parse(responseData);
-    } catch (e) {
-      console.log(`[TEMPLATE] Response is not JSON`);
-    }
+    try { responseJson = JSON.parse(responseData); } catch (e) {}
 
     const fullResponse = {
       status: response.status,
@@ -181,46 +165,28 @@ async function sendWhatsAppTemplate(
       headers: Object.fromEntries(response.headers.entries())
     };
 
-    console.log(`[TEMPLATE] ========== NOTIFICAME RESPONSE ==========`);
     console.log(`[TEMPLATE] Status: ${response.status} ${response.statusText}`);
-    console.log(`[TEMPLATE] OK: ${response.ok}`);
     console.log(`[TEMPLATE] Body:`, JSON.stringify(fullResponse.body, null, 2));
-    console.log(`[TEMPLATE] Headers:`, JSON.stringify(fullResponse.headers, null, 2));
 
-    // Extract message ID from response
     const messageId = responseJson?.id || responseJson?.messageId;
 
     if (!response.ok) {
       console.error(`[TEMPLATE] ❌ API ERROR for order ${orderNumber}`);
-      
-      // Log failed event
       await supabaseClient.from('notification_events').insert({
-        channel: 'whatsapp',
-        event_type: 'failed',
-        order_id: orderId,
-        order_number: orderNumber,
-        recipient_phone: formattedPhone,
-        template_name: templateName,
-        message_id: messageId,
+        channel: 'whatsapp', event_type: 'failed', order_id: orderId,
+        order_number: orderNumber, recipient_phone: formattedPhone,
+        template_name: templateName, message_id: messageId,
         metadata: { error: responseData, response: fullResponse }
       });
-      
       return { success: false, error: responseData, response: fullResponse };
     } else {
       console.log(`[TEMPLATE] ✅ WhatsApp sent successfully for order ${orderNumber}`);
-      
-      // Log sent event
       await supabaseClient.from('notification_events').insert({
-        channel: 'whatsapp',
-        event_type: 'sent',
-        order_id: orderId,
-        order_number: orderNumber,
-        recipient_phone: formattedPhone,
-        template_name: templateName,
-        message_id: messageId,
+        channel: 'whatsapp', event_type: 'sent', order_id: orderId,
+        order_number: orderNumber, recipient_phone: formattedPhone,
+        template_name: templateName, message_id: messageId,
         metadata: { response: fullResponse }
       });
-      
       return { success: true, response: fullResponse, messageId };
     }
   } catch (error) {
@@ -229,9 +195,10 @@ async function sendWhatsAppTemplate(
   }
 }
 
-// Fallback templates if not found in database
-const FALLBACK_TEMPLATES: Record<string, string> = {
-  order_pix_pending: `🥗 *DIETA JÁ - PEDIDO #{pedido}*
+// Fallback templates - brand name injected dynamically
+function getFallbackTemplates(brandName: string): Record<string, string> {
+  return {
+    order_pix_pending: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*
 
 Olá {nome}! Seu pedido foi registrado.
 
@@ -256,7 +223,7 @@ Copie o código abaixo:
 
 Dúvidas? Responda esta mensagem! 💚`,
 
-  order_whatsapp_pending: `🥗 *DIETA JÁ - PEDIDO #{pedido}*
+    order_whatsapp_pending: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*
 
 Olá {nome}! Seu pedido foi registrado.
 
@@ -271,7 +238,7 @@ Olá {nome}! Seu pedido foi registrado.
 
 Responda esta mensagem para combinar o pagamento! 💚`,
 
-  order_confirmed: `🥗 *DIETA JÁ - PEDIDO #{pedido}*
+    order_confirmed: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*
 
 Olá {nome}! 🎉
 
@@ -288,7 +255,8 @@ Olá {nome}! 🎉
 Seu pedido já está sendo preparado! 👨‍🍳
 
 Obrigado pela preferência! 💚`,
-};
+  };
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -296,7 +264,8 @@ serve(async (req) => {
   }
 
   try {
-    console.log(`\n========================================`);
+    console.log(`
+========================================`);
     console.log(`[START] send-order-whatsapp invoked at ${new Date().toISOString()}`);
     console.log(`========================================\n`);
 
@@ -331,6 +300,10 @@ serve(async (req) => {
       );
     }
 
+    // Resolve tenant branding
+    const branding = await getTenantBranding(supabase, order.tenant_id);
+    const baseUrl = getTenantBaseUrl(branding);
+
     // Determine message type based on status
     let messageType = '';
     if (status === 'pending') {
@@ -347,7 +320,6 @@ serve(async (req) => {
       );
     }
 
-    // For pending PIX, we need the pix_code
     if (status === 'pending' && !pix_code) {
       return new Response(
         JSON.stringify({ error: 'pix_code required for pending status' }),
@@ -366,7 +338,7 @@ serve(async (req) => {
       console.warn('Template not found in DB, using fallback:', messageType);
     }
 
-    // Use database template if active, otherwise use fallback
+    const FALLBACK_TEMPLATES = getFallbackTemplates(branding.brand_name);
     let template = FALLBACK_TEMPLATES[messageType];
     if (templateData && templateData.is_active && templateData.whatsapp_template) {
       template = templateData.whatsapp_template;
@@ -377,7 +349,6 @@ serve(async (req) => {
       ? `🚚 *Entrega:* ${order.delivery_address || 'Endereço informado'}`
       : '🏪 *Retirada:* No local';
 
-    // Build variables object
     const variables: Record<string, string> = {
       nome: order.customer_name?.split(' ')[0] || 'cliente',
       pedido: order.order_number || '',
@@ -388,14 +359,11 @@ serve(async (req) => {
       taxa_entrega: order.delivery_fee > 0 ? `🚚 *Taxa de entrega:* ${formatCurrency(order.delivery_fee)}` : '',
       desconto: order.discount_amount > 0 ? `🎁 *Desconto:* -${formatCurrency(order.discount_amount)}` : '',
       pix_code: pix_code || '',
-      link: `dietajavca.com.br/pedido/${order.order_number}`,
+      link: `${baseUrl}/pedido/${order.order_number}`,
     };
 
-    // Choose template based on status
     if (status === 'approved') {
-      // Template: compraa_confrimadaa with fields {{1}}, {{2}}, {{3}}, {{4}}
       console.log('Using template compraa_confrimadaa for approved order');
-      // Simplified format for {{3}} - plain text without markdown/newlines
       const itemsList = items.map(i => `${i.quantity}x ${i.name}`).join(', ').substring(0, 200);
       const templateFields = {
         "1": order.customer_name?.split(' ')[0] || 'cliente',
@@ -405,17 +373,11 @@ serve(async (req) => {
       };
       await sendWhatsAppTemplate(order.customer_phone, 'compraa_confrimadaa', templateFields, order.order_number, supabase, order_id);
     } else if (status === 'pending' && pix_code) {
-      // Template pix_pendente_dietaja aprovado pela Meta - ATIVADO
-      // Agora enviamos o LINK da página de pagamento em vez do código PIX completo
-      // Isso facilita a cópia do código pelo cliente
       const PIX_PENDING_TEMPLATE_ENABLED = true;
       
       if (PIX_PENDING_TEMPLATE_ENABLED) {
-        // Template: pix_pendente_dietaja with fields {{1}}, {{2}}, {{3}}, {{4}}
         console.log('Using template pix_pendente_dietaja for pending PIX order');
-        
-        // Gerar link da página de pagamento PIX
-        const pixPageLink = `dietajavca.com.br/pix/${order_id}`;
+        const pixPageLink = `${baseUrl}/pix/${order_id}`;
         
         const templateFields = {
           "1": order.customer_name?.split(' ')[0] || 'cliente',
@@ -426,10 +388,8 @@ serve(async (req) => {
         await sendWhatsAppTemplate(order.customer_phone, 'pix_pendente_dietaja', templateFields, order.order_number, supabase, order_id);
       } else {
         console.log('[SKIP] pix_pendente_dietaja template disabled - awaiting Meta approval');
-        // Não envia WhatsApp para PIX pendente enquanto template não for aprovado
       }
     } else {
-      // For whatsapp_pending or pending without pix, use text message
       console.log('Using text message for order (customer-initiated contact expected)');
       const message = replaceVariables(template, variables);
       await sendWhatsAppText(order.customer_phone, message, order.order_number);
@@ -438,6 +398,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ success: true, message: 'WhatsApp sent' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+
     );
 
   } catch (error) {
