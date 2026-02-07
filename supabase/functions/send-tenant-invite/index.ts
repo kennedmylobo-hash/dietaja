@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getPlatformUrl } from "../_shared/platform-config.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -30,16 +31,12 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Generating invite link for ${email} (tenant: ${brand_name}, slug: ${tenant_slug})`);
+    const slug = tenant_slug || "dietaja";
+    console.log(`Generating invite link for ${email} (tenant: ${brand_name}, slug: ${slug})`);
 
-    // Build dynamic redirect URL based on tenant's domain or slug
-    let redirectTo: string;
-    if (tenant_domain) {
-      redirectTo = `https://${tenant_domain}/admin/reset-password`;
-    } else {
-      // Use the main platform domain with ?tenant= param as fallback
-      redirectTo = `https://pedidos.dietajavca.com.br/admin/reset-password?tenant=${tenant_slug || 'dietaja'}`;
-    }
+    // Always use platform domain with ?tenant=slug for admin access
+    const redirectTo = getPlatformUrl("/admin/reset-password", slug);
+    console.log(`Redirect URL: ${redirectTo}`);
 
     // Use "recovery" type since user was already created by create-tenant
     const { data, error: linkError } = await supabase.auth.admin.generateLink({
@@ -124,7 +121,7 @@ serve(async (req) => {
           <tr>
             <td style="padding: 30px 40px 40px; border-top: 1px solid #eee;">
               <p style="margin: 0; color: #bbb; font-size: 11px; text-align: center;">
-                Plataforma de gestão de restaurantes saudáveis
+                PedidoJá — Plataforma de gestão de restaurantes
               </p>
             </td>
           </tr>
@@ -142,7 +139,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${brand_name} <pedidos@dietajavca.com.br>`,
+        from: `PedidoJá <pedidos@dietajavca.com.br>`,
         to: [email],
         subject: `Bem-vindo ao ${brand_name} — Crie sua senha`,
         html: emailHtml,
