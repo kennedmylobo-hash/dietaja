@@ -227,7 +227,7 @@ const PromoBannersSection = () => {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="grid grid-cols-3 gap-2 sm:gap-5 lg:gap-6"
+          className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5 lg:gap-6"
           style={{ perspective: "1000px" }}
         >
           {banners.map((banner: any) => (
