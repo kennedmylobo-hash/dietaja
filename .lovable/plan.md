@@ -1,37 +1,47 @@
 
+## Correção: Banners "Escolha uma opção abaixo" não aparecem
 
-## Correção: Sabores Duplicados + Peso no Cardápio
+### Causa
 
-### O que sera feito
+Os itens de banner salvos no banco de dados (`tenant_landing_content` com `section_key = 'banners'`) estão incompletos. Cada item tem apenas `title`, `subtitle` e `description`, mas faltam os campos obrigatórios `id`, `icon`, `gradient` e `targetSection` que o componente precisa para renderizar os cards corretamente.
 
-1. **Limpar pacotes duplicados no banco** - Existem 16 registros ativos quando deveriam ser 8 (4 quantidades x 2 linhas). Vamos desativar os duplicados.
+Dados atuais no banco:
+```text
+{ title: "🔥 Kit Emagrecimento", subtitle: "O mais vendido!", description: "5 marmitas balanceadas..." }
+```
 
-2. **Corrigir agrupamento no cardápio** - Hoje o codigo coloca TODOS os pacotes de marmita em TODAS as categorias (carnes, frangos, massas...). O correto e agrupar por linha: "Marmitas Fit (300g)" e "Marmitas Fitness (450g)".
+O componente espera:
+```text
+{ id, title, subtitle, description, icon, gradient, targetSection }
+```
 
-3. **Exibir o peso no card do produto** - Fit = 300g, Fitness = 450g. Badge visual no card.
+Sem `gradient`, os cards ficam sem cor de fundo. Sem `icon`, o ícone fallback (Droplets) aparece mas o card fica praticamente invisível.
 
-4. **Passar o peso correto ao modal de sabores** - O modal ja aceita `packageWeight`, mas o Cardapio nao esta enviando. Vamos passar com base no `line_type`.
+### Solução
 
----
+Tornar o componente `PromoBannersSection.tsx` resiliente a dados incompletos, aplicando valores padrão (defaults) para os campos ausentes.
 
-### Detalhes Tecnicos
+### Mudanças
 
-**Migration SQL**: Desativar (`active = false`) os duplicados, mantendo apenas 1 registro por combinacao `(line_type, quantity)` -- o de menor `id` lexicografico.
+**Arquivo: `src/components/PromoBannersSection.tsx`**
 
-**src/pages/Cardapio.tsx**:
-- Substituir o agrupamento por categorias de sabor (`carnes`, `frangos`, `massas`) por agrupamento por linha (`fit`, `fitness`)
-- Criar duas secoes fixas com nomes descritivos: "Marmitas Fit - Emagrecimento (300g)" e "Marmitas FITNESS - Hipertrofia (450g)"
-- Passar `weight` no objeto do produto
-- Passar `packageWeight` ao `FlavorSelectionModal` baseado no `lineType` do produto (300 para emagrecimento, 450 para hipertrofia)
-- Atualizar `PendingProduct` para incluir `weight`
-- Atualizar sidebar/nav para refletir as duas categorias de linha em vez das categorias de sabor
+Na seção onde `banners` é extraído do content (linha 178), adicionar um mapeamento que preenche campos faltantes com defaults sensatos:
 
-**src/components/cardapio/ProductCard.tsx**:
-- Adicionar prop `weight?: number`
-- Exibir badge com peso (ex: "300g" ou "450g") proximo ao badge de tipo
+```typescript
+const rawBanners = content?.items ?? defaultBanners;
+const banners = rawBanners.map((banner: any, index: number) => ({
+  id: banner.id || `banner-${index}`,
+  icon: banner.icon || ["Droplets", "UtensilsCrossed", "Salad"][index % 3],
+  gradient: banner.gradient || [
+    "from-primary/90 to-primary",
+    "from-terracotta/90 to-terracotta", 
+    "from-sage-dark/90 to-sage-dark"
+  ][index % 3],
+  targetSection: banner.targetSection || ["kits", "marmitas", "dieta-personalizada"][index % 3],
+  title: banner.title,
+  subtitle: banner.subtitle,
+  description: banner.description,
+}));
+```
 
-**src/components/cardapio/CategorySection.tsx**:
-- Propagar prop `weight` para `ProductCard`
-
-**Menu Categories**: As categorias `carnes`, `frangos`, `massas`, `especiais` continuam existindo no banco para uso no modal de selecao de sabores. No cardapio, as secoes de marmita passam a ser agrupadas por linha (fit/fitness) em vez de por categoria de sabor.
-
+Isso garante que mesmo com dados parciais no banco, os cards sempre renderizam com ícones, cores e links de scroll corretos.
