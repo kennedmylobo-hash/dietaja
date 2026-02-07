@@ -21,7 +21,7 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { email, tenant_id, brand_name, primary_color } = await req.json();
+    const { email, tenant_id, brand_name, primary_color, tenant_slug, tenant_domain } = await req.json();
 
     if (!email || !tenant_id || !brand_name) {
       return new Response(JSON.stringify({ error: "Campos obrigatórios faltando" }), {
@@ -30,9 +30,16 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Generating invite link for ${email} (tenant: ${brand_name})`);
+    console.log(`Generating invite link for ${email} (tenant: ${brand_name}, slug: ${tenant_slug})`);
 
-    const redirectTo = "https://pedidos.dietajavca.com.br/admin/reset-password";
+    // Build dynamic redirect URL based on tenant's domain or slug
+    let redirectTo: string;
+    if (tenant_domain) {
+      redirectTo = `https://${tenant_domain}/admin/reset-password`;
+    } else {
+      // Use the main platform domain with ?tenant= param as fallback
+      redirectTo = `https://pedidos.dietajavca.com.br/admin/reset-password?tenant=${tenant_slug || 'dietaja'}`;
+    }
 
     // Use "recovery" type since user was already created by create-tenant
     const { data, error: linkError } = await supabase.auth.admin.generateLink({
@@ -57,6 +64,10 @@ serve(async (req) => {
       });
     }
 
+    // Log invite link to console for manual fallback
+    console.log("=== INVITE LINK (copy if email doesn't arrive) ===");
+    console.log(inviteLink);
+    console.log("=================================================");
     console.log("Invite link generated, sending email...");
 
     const color = primary_color || "#22c55e";

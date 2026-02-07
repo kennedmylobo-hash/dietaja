@@ -176,6 +176,8 @@ serve(async (req) => {
           tenant_id: tenant.id,
           brand_name,
           primary_color: primary_color || "#22c55e",
+          tenant_slug: slug,
+          tenant_domain: null,
         }),
       });
 
