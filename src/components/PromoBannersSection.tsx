@@ -175,7 +175,20 @@ const PromoBannersSection = () => {
 
   if (!isVisible) return null;
 
-  const banners = content?.items ?? defaultBanners;
+  const rawBanners = content?.items ?? defaultBanners;
+  const banners = rawBanners.map((banner: any, index: number) => ({
+    id: banner.id || `banner-${index}`,
+    icon: banner.icon || ["Droplets", "UtensilsCrossed", "Salad"][index % 3],
+    gradient: banner.gradient || [
+      "from-primary/90 to-primary",
+      "from-terracotta/90 to-terracotta",
+      "from-sage-dark/90 to-sage-dark",
+    ][index % 3],
+    targetSection: banner.targetSection || ["kits", "marmitas", "dieta-personalizada"][index % 3],
+    title: banner.title,
+    subtitle: banner.subtitle,
+    description: banner.description,
+  }));
   const title = content?.title ?? "O que você deseja? 🤔";
   const subtitle = content?.subtitle ?? "Escolha uma opção abaixo";
 
