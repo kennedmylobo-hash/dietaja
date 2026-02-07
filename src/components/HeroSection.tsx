@@ -1,10 +1,11 @@
 import { Star, CheckCircle2 } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import produtosPoster from "@/assets/produtos-detox.jpg";
-import { siteConfig } from "@/config/site";
 import { useLandingContent } from "@/hooks/useLandingContent";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const HeroSection = () => {
+  const { location } = useTenantConfig();
   const { content, isVisible } = useLandingContent("hero");
 
   if (!isVisible) return null;
@@ -42,7 +43,7 @@ const HeroSection = () => {
         <div className="max-w-2xl mx-auto text-center">
           <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 mb-3 animate-fade-in">
             <span className="text-xs sm:text-sm font-medium text-white">
-              📍 Entregamos apenas em {siteConfig.location.city} - {siteConfig.location.state}
+              📍 Entregamos apenas em {location.city} - {location.state}
             </span>
           </div>
 
@@ -53,7 +54,7 @@ const HeroSection = () => {
 
           <p className="text-base sm:text-lg md:text-xl text-white/90 mb-8 leading-relaxed animate-fade-in">
             {subtitle}{" "}
-            <strong className="text-white">{siteConfig.location.city}</strong>.
+            <strong className="text-white">{location.city}</strong>.
           </p>
 
           <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-3 md:gap-6 mb-6 animate-fade-in">

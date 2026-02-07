@@ -1,14 +1,15 @@
 import { MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { getUTMSummary } from "@/lib/utm";
-import { siteConfig, getDefaultWhatsAppMessage } from "@/config/site";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 interface WhatsAppFloatingButtonProps {
   phoneNumber?: string;
 }
 
 const WhatsAppFloatingButton = ({ phoneNumber }: WhatsAppFloatingButtonProps) => {
-  const whatsappNumber = phoneNumber || siteConfig.contact.whatsapp;
+  const { contact, getDefaultWhatsAppMessage } = useTenantConfig();
+  const whatsappNumber = phoneNumber || contact.whatsapp;
 
   const handleClick = () => {
     // Track Contact event with Meta Pixel

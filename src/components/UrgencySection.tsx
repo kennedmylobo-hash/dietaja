@@ -2,9 +2,11 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { MapPin } from "lucide-react";
 import CountdownTimer from "@/components/CountdownTimer";
-import { siteConfig, formatCurrency } from "@/config/site";
+import { formatCurrency } from "@/config/site";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const UrgencySection = () => {
+  const { location } = useTenantConfig();
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
@@ -24,10 +26,10 @@ const UrgencySection = () => {
             </div>
             <div>
               <p className="font-semibold text-foreground text-sm sm:text-base">
-                {siteConfig.location.city}
+                {location.city}
               </p>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                📍 Retirada grátis • 🛵 Entrega {formatCurrency(siteConfig.location.deliveryFee)}
+                📍 Retirada grátis • 🛵 Entrega {formatCurrency(location.deliveryFee)}
               </p>
             </div>
           </div>

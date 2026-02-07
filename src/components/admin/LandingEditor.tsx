@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAllLandingContent, useUpsertLandingContent } from "@/hooks/useLandingContent";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SectionEditor } from "./SectionEditor";
 import { toast } from "@/hooks/use-toast";
-import { Save, Eye, EyeOff, LayoutDashboard } from "lucide-react";
+import { Save, Eye, EyeOff, LayoutDashboard, Monitor, PanelLeftClose, PanelLeft, RefreshCw } from "lucide-react";
+import { useTenant } from "@/contexts/TenantContext";
 
 const SECTION_LABELS: Record<string, string> = {
   hero: "🏠 Hero (Topo)",
@@ -29,6 +30,13 @@ export default function LandingEditor() {
   const upsertMutation = useUpsertLandingContent();
   const [editedContent, setEditedContent] = useState<Record<string, any>>({});
   const [visibility, setVisibility] = useState<Record<string, boolean>>({});
+  const [showPreview, setShowPreview] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const { tenant } = useTenant();
+
+  const publicUrl = tenant?.domain
+    ? `https://${tenant.domain}`
+    : `https://diet-on-demand.lovable.app?tenant=${tenant?.slug || 'dietaja'}`;
 
   useEffect(() => {
     if (sections.length > 0) {
@@ -51,6 +59,8 @@ export default function LandingEditor() {
         isVisible: visibility[sectionKey],
       });
       toast({ title: "Seção salva!", description: `${SECTION_LABELS[sectionKey] || sectionKey} atualizada.` });
+      // Refresh preview after save
+      refreshPreview();
     } catch {
       toast({ title: "Erro ao salvar", variant: "destructive" });
     }
@@ -67,6 +77,12 @@ export default function LandingEditor() {
     setVisibility((prev) => ({ ...prev, [sectionKey]: !prev[sectionKey] }));
   };
 
+  const refreshPreview = useCallback(() => {
+    if (iframeRef.current) {
+      iframeRef.current.src = iframeRef.current.src;
+    }
+  }, []);
+
   if (isLoading) return <div className="animate-pulse h-40 bg-muted rounded-lg" />;
 
   if (sections.length === 0) {
@@ -82,51 +98,117 @@ export default function LandingEditor() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Editor da Landing Page</h2>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPreview(!showPreview)}
+            className="hidden lg:flex"
+          >
+            {showPreview ? <PanelLeftClose className="w-4 h-4 mr-1" /> : <PanelLeft className="w-4 h-4 mr-1" />}
+            {showPreview ? "Ocultar Preview" : "Mostrar Preview"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={refreshPreview}>
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue={sections[0]?.section_key || "hero"}>
-        <TabsList className="flex flex-wrap h-auto gap-1">
-          {sections.map((s) => (
-            <TabsTrigger key={s.section_key} value={s.section_key} className="text-xs">
-              {SECTION_LABELS[s.section_key] || s.section_key}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <div className={`flex gap-6 ${showPreview ? 'flex-col lg:flex-row' : ''}`}>
+        {/* Editor Column */}
+        <div className={showPreview ? 'w-full lg:w-1/2' : 'w-full'}>
+          <Tabs defaultValue={sections[0]?.section_key || "hero"}>
+            <TabsList className="flex flex-wrap h-auto gap-1">
+              {sections.map((s) => (
+                <TabsTrigger key={s.section_key} value={s.section_key} className="text-xs">
+                  {SECTION_LABELS[s.section_key] || s.section_key}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-        {sections.map((section) => (
-          <TabsContent key={section.section_key} value={section.section_key}>
-            <Card>
-              <CardHeader>
+            {sections.map((section) => (
+              <TabsContent key={section.section_key} value={section.section_key}>
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{SECTION_LABELS[section.section_key]}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        {visibility[section.section_key] ? (
+                          <Eye className="w-4 h-4 text-primary" />
+                        ) : (
+                          <EyeOff className="w-4 h-4 text-muted-foreground" />
+                        )}
+                        <Switch
+                          checked={visibility[section.section_key] ?? true}
+                          onCheckedChange={() => toggleVisibility(section.section_key)}
+                        />
+                        <Label className="text-sm">{visibility[section.section_key] ? "Visível" : "Oculta"}</Label>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {renderSectionForm(section.section_key, editedContent[section.section_key] || {}, updateField)}
+                    <Button onClick={() => saveSection(section.section_key)} disabled={upsertMutation.isPending}>
+                      <Save className="w-4 h-4 mr-2" />
+                      Salvar {SECTION_LABELS[section.section_key]}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </div>
+
+        {/* Preview Column */}
+        {showPreview && (
+          <div className="w-full lg:w-1/2 lg:sticky lg:top-4 lg:self-start">
+            <Card className="overflow-hidden">
+              <CardHeader className="py-3 px-4 border-b border-border">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{SECTION_LABELS[section.section_key]}</CardTitle>
                   <div className="flex items-center gap-2">
-                    {visibility[section.section_key] ? (
-                      <Eye className="w-4 h-4 text-primary" />
-                    ) : (
-                      <EyeOff className="w-4 h-4 text-muted-foreground" />
-                    )}
-                    <Switch
-                      checked={visibility[section.section_key] ?? true}
-                      onCheckedChange={() => toggleVisibility(section.section_key)}
-                    />
-                    <Label className="text-sm">{visibility[section.section_key] ? "Visível" : "Oculta"}</Label>
+                    <Monitor className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Preview da Loja</span>
                   </div>
+                  <a
+                    href={publicUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Abrir em nova aba ↗
+                  </a>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {renderSectionForm(section.section_key, editedContent[section.section_key] || {}, updateField)}
-                <Button onClick={() => saveSection(section.section_key)} disabled={upsertMutation.isPending}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Salvar {SECTION_LABELS[section.section_key]}
-                </Button>
+              <CardContent className="p-0">
+                <div className="relative w-full" style={{ height: 'calc(100vh - 220px)', minHeight: '500px' }}>
+                  <iframe
+                    ref={iframeRef}
+                    src={publicUrl}
+                    className="w-full h-full border-0"
+                    title="Preview da loja"
+                  />
+                </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        ))}
-      </Tabs>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile preview toggle */}
+      <div className="lg:hidden">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => setShowPreview(!showPreview)}
+        >
+          <Monitor className="w-4 h-4 mr-2" />
+          {showPreview ? "Ocultar Preview" : "Ver Preview da Loja"}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -28,7 +28,8 @@ import {
   GuaranteeSkeleton,
   FAQSkeleton,
 } from "@/components/skeletons/SectionSkeletons";
-import { siteConfig, getWhatsAppLink, formatCurrency } from "@/config/site";
+import { formatCurrency } from "@/config/site";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 // Lazy load below-the-fold sections
 const CustomDietSection = lazy(() => import("@/components/CustomDietSection"));
@@ -39,6 +40,7 @@ const FAQSection = lazy(() => import("@/components/FAQSection"));
 import { SoftIdentificationModal } from "@/components/SoftIdentificationModal";
 
 const IndexContent = () => {
+  const { brand, contact, location, seo } = useTenantConfig();
   const [cartOpen, setCartOpen] = useState(false);
   const { 
     items, 
@@ -113,14 +115,14 @@ const IndexContent = () => {
       });
     }
 
-    let message = `Oi 😊\nVi o site da *${siteConfig.brand.name}* e quero cuidar melhor da minha alimentação.\n\n`;
+    let message = `Oi 😊\nVi o site da *${brand.name}* e quero cuidar melhor da minha alimentação.\n\n`;
     
     // Add customer data if provided
     if (customerData) {
       message += `👤 *DADOS:*\n`;
       message += `Nome: ${customerData.name}\n`;
       message += `WhatsApp: ${customerData.phone}\n`;
-      message += `Opção: ${customerData.deliveryOption === 'pickup' ? `Retirada no ${siteConfig.location.pickupNeighborhood}` : 'Entrega em domicílio'}\n`;
+      message += `Opção: ${customerData.deliveryOption === 'pickup' ? `Retirada no ${location.pickupNeighborhood}` : 'Entrega em domicílio'}\n`;
       if (customerData.address) {
         message += `Endereço: ${customerData.address}\n`;
       }
@@ -137,7 +139,7 @@ const IndexContent = () => {
       }
     });
 
-    const deliveryFee = customerData?.deliveryOption === 'delivery' ? siteConfig.location.deliveryFee : 0;
+    const deliveryFee = customerData?.deliveryOption === 'delivery' ? location.deliveryFee : 0;
     const finalTotal = total + deliveryFee;
 
     message += `\n💰 *SUBTOTAL:* ${formatCurrency(total)}\n`;
@@ -145,12 +147,12 @@ const IndexContent = () => {
       message += `🛵 *ENTREGA:* ${formatCurrency(deliveryFee)}\n`;
     }
     message += `✅ *TOTAL:* ${formatCurrency(finalTotal)}\n`;
-    message += `\n📍 Estou em *${siteConfig.location.city}*${getUTMSummary()}\n\nPode me confirmar o pedido?`;
+    message += `\n📍 Estou em *${location.city}*${getUTMSummary()}\n\nPode me confirmar o pedido?`;
 
     const encodedMessage = encodeURIComponent(message);
     
     // Abrir WhatsApp
-    window.open(`https://wa.me/${siteConfig.contact.whatsapp}?text=${encodedMessage}`, "_blank");
+    window.open(`https://wa.me/${contact.whatsapp}?text=${encodedMessage}`, "_blank");
     
     // Limpar carrinho
     clearCart();
@@ -162,21 +164,20 @@ const IndexContent = () => {
   };
 
   const handleContactClick = () => {
-    const message = `Oi 😊\nVi o site da *${siteConfig.brand.name}* e quero cuidar melhor da minha alimentação.\n\n📍 Estou em *${siteConfig.location.city}*${getUTMSummary()}\n\nPode me passar as informações dos kits e entrega?`;
+    const message = `Oi 😊\nVi o site da *${brand.name}* e quero cuidar melhor da minha alimentação.\n\n📍 Estou em *${location.city}*${getUTMSummary()}\n\nPode me passar as informações dos kits e entrega?`;
     const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/${siteConfig.contact.whatsapp}?text=${encodedMessage}`, "_blank");
+    window.open(`https://wa.me/${contact.whatsapp}?text=${encodedMessage}`, "_blank");
   };
 
   return (
     <>
       <Helmet>
-        <title>{siteConfig.seo.title}</title>
+        <title>{seo.title}</title>
         <meta
           name="description"
-          content={siteConfig.seo.description}
+          content={seo.description}
         />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href={siteConfig.urls.canonical} />
       </Helmet>
 
       <div className="min-h-screen bg-background">
@@ -221,7 +222,7 @@ const IndexContent = () => {
           </div>
           <Suspense fallback={<CustomDietSkeleton />}>
             <div id="dieta-personalizada" ref={customDietRef}>
-              <CustomDietSection whatsappNumber={siteConfig.contact.whatsapp} />
+              <CustomDietSection whatsappNumber={contact.whatsapp} />
             </div>
           </Suspense>
           <div ref={valueRef}>
@@ -277,7 +278,7 @@ const IndexContent = () => {
           <div className="container px-6 flex flex-col items-center text-center">
             <Logo />
             <p className="text-sm text-muted-foreground mt-4">
-              © {new Date().getFullYear()} {siteConfig.brand.name}. {siteConfig.location.city}, {siteConfig.location.state}.
+              © {new Date().getFullYear()} {brand.name}. {location.city}, {location.state}.
             </p>
             <p className="text-xs text-muted-foreground mt-2">
               A solução que cuida de você enquanto você cuida da sua vida.
