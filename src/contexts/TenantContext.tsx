@@ -111,51 +111,78 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return;
         }
 
+        // Detect tenant by hostname first
+        let detectedTenant: TenantConfig | null = null;
+
         const hostname = window.location.hostname;
 
         // In development / preview, use fallback
         if (hostname === 'localhost' || hostname.includes('lovable.app') || hostname.includes('lovable.dev')) {
-          setTenant(fallbackTenant);
-          setLoading(false);
-          return;
-        }
+          detectedTenant = fallbackTenant;
+        } else {
+          // Extract slug from subdomain
+          const platformDomains = ['suaplataforma.com.br'];
+          let extractedSlug: string | null = null;
+          for (const pd of platformDomains) {
+            if (hostname.endsWith(`.${pd}`)) {
+              extractedSlug = hostname.replace(`.${pd}`, '');
+              break;
+            }
+          }
 
-        // Extract slug from subdomain (e.g., "pratinhofitness.suaplataforma.com.br" → "pratinhofitness")
-        const platformDomains = ['suaplataforma.com.br']; // Add your platform domains here
-        let extractedSlug: string | null = null;
-        for (const pd of platformDomains) {
-          if (hostname.endsWith(`.${pd}`)) {
-            extractedSlug = hostname.replace(`.${pd}`, '');
-            break;
+          const orConditions = [`domain.eq.${hostname}`];
+          if (extractedSlug) {
+            orConditions.push(`slug.eq.${extractedSlug}`);
+          } else {
+            orConditions.push(`slug.eq.${hostname.split('.')[0]}`);
+          }
+
+          const { data, error: fetchError } = await supabase
+            .from('tenants')
+            .select('*')
+            .or(orConditions.join(','))
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (fetchError) {
+            console.error('Error fetching tenant:', fetchError);
+            detectedTenant = fallbackTenant;
+          } else if (data) {
+            detectedTenant = mapTenantRow(data);
+          } else {
+            setError('Restaurante não encontrado');
+            detectedTenant = fallbackTenant;
           }
         }
 
-        // Build query: try domain match OR slug from subdomain
-        const orConditions = [`domain.eq.${hostname}`];
-        if (extractedSlug) {
-          orConditions.push(`slug.eq.${extractedSlug}`);
-        } else {
-          // Fallback: try first part of hostname as slug
-          orConditions.push(`slug.eq.${hostname.split('.')[0]}`);
+        // Check if there's an authenticated admin — override tenant if so
+        const isAdminPage = window.location.pathname.startsWith('/admin');
+        if (isAdminPage) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+              const { data: adminTenantId } = await supabase
+                .rpc('get_admin_tenant_id', { _user_id: session.user.id });
+
+              if (adminTenantId) {
+                const { data: adminTenant } = await supabase
+                  .from('tenants')
+                  .select('*')
+                  .eq('id', adminTenantId)
+                  .maybeSingle();
+
+                if (adminTenant) {
+                  console.log(`Admin override: using tenant "${adminTenant.brand_name}" instead of hostname`);
+                  detectedTenant = mapTenantRow(adminTenant);
+                }
+              }
+            }
+          } catch (authErr) {
+            console.error('Error checking admin tenant:', authErr);
+          }
         }
 
-        // Try to find tenant by domain or slug
-        const { data, error: fetchError } = await supabase
-          .from('tenants')
-          .select('*')
-          .or(orConditions.join(','))
-          .eq('is_active', true)
-          .maybeSingle();
-
-        if (fetchError) {
-          console.error('Error fetching tenant:', fetchError);
-          setTenant(fallbackTenant);
-        } else if (data) {
-          setTenant(mapTenantRow(data));
-        } else {
-          setError('Restaurante não encontrado');
-          setTenant(fallbackTenant);
-        }
+        setTenant(detectedTenant);
       } catch (err) {
         console.error('Tenant detection error:', err);
         setTenant(fallbackTenant);
@@ -165,6 +192,15 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     detectTenant();
+
+    // Re-run tenant detection when auth state changes (admin login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        detectTenant();
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const value = useMemo(() => ({ tenant, loading, error }), [tenant, loading, error]);
