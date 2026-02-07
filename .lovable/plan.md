@@ -1,29 +1,61 @@
 
 
-## Correção: Banners "Escolha uma opção abaixo" — Visibilidade no Mobile
+## Correção: Banners aparecem e somem (conflito de animação)
 
-### Diagnóstico
+### Causa Raiz
 
-Verifiquei ao vivo no preview: os 3 cards **estão renderizando** com cores de fundo corretas (verde, terracotta, sage). A correção anterior de defaults está funcionando.
+O componente `BannerCard` usa **duas fontes de animação conflitantes** no `motion.button`:
 
-Porém, no mobile (390px), os cards ficam **extremamente pequenos** por estarem em um grid de 3 colunas, o que faz parecer que não aparecem. O texto fica quase ilegível e os cards parecem invisíveis à primeira vista.
+1. **`variants={itemVariants}`** - controla a entrada (opacity: 0 -> 1, y: 20 -> 0)
+2. **`animate={shouldPulse ? {...} : {}}`** - controla o pulse
 
-Além disso, se você está testando no site de produção (pedidos.dietajavca.com.br), as últimas mudanças **ainda não foram publicadas** — precisa publicar o projeto no Lovable para atualizar.
+Quando `shouldPulse` muda de `true` para `false`, o `animate={}` (objeto vazio) **sobrescreve** os valores dos variants, resetando `opacity` para o valor default. Os cards desaparecem.
 
-### Solução
+O mesmo ocorre quando `shouldPulse` e `true`: o objeto de animate nao inclui `opacity: 1`, entao o Framer Motion interpreta como "animar para opacity indefinido", causando flicker.
 
-1. **Publicar o projeto** para que as alterações cheguem ao site de produção
+### Solucao
 
-2. **Melhorar visibilidade no mobile** — Ajustar o grid para ser mais legível em telas pequenas:
-   - Mobile (< 640px): Grid de **1 coluna** com cards mais altos e legíveis
-   - Tablet (640px+): Grid de 3 colunas como está hoje
+Remover o `animate` e `transition` condicionais do `motion.button` e usar uma `motion.div` interna separada para o efeito de pulse, sem interferir na animacao de entrada dos variants.
 
-### Mudanças Técnicas
+### Mudancas
 
 **Arquivo: `src/components/PromoBannersSection.tsx`**
 
-- Alterar a classe do grid de `grid-cols-3` para `grid-cols-1 sm:grid-cols-3`
-- Isso faz os cards empilharem verticalmente no mobile, ficando maiores e mais legíveis
-- No tablet e desktop, mantém o layout de 3 colunas lado a lado
+No componente `BannerCard` (linhas 103-161):
 
-Apenas **1 linha** de alteração no className do grid container.
+1. **Remover** as props `animate` e `transition` condicionais do `motion.button` (linhas 117-130)
+2. **Adicionar** uma `motion.div` wrapper interno que aplica o efeito de pulse (scale + shadow) sem interferir nos variants de entrada
+
+Antes:
+```tsx
+<motion.button
+  variants={itemVariants}
+  animate={shouldPulse ? { scale: [1, 1.03, 1], ... } : {}}
+  transition={shouldPulse ? { ... } : {}}
+  ...
+>
+```
+
+Depois:
+```tsx
+<motion.button
+  variants={itemVariants}
+  whileHover={{ scale: 1.02 }}
+  whileTap={{ scale: 0.97 }}
+  ...
+>
+  {/* Pulse effect via separate animation, no conflict with variants */}
+  <motion.div
+    animate={shouldPulse ? { scale: [1, 1.03, 1] } : { scale: 1 }}
+    transition={shouldPulse ? { duration: 0.8, repeat: 2, repeatDelay: 0.3 } : {}}
+    className="absolute inset-0 rounded-xl sm:rounded-2xl"
+    style={{ pointerEvents: "none" }}
+  />
+  ...conteudo existente...
+</motion.button>
+```
+
+Alternativamente (mais simples e confiavel): remover completamente o efeito de pulse e manter apenas `whileHover` e `whileTap`. O pulse e um detalhe cosmético que esta causando o bug critico de invisibilidade.
+
+**Abordagem recomendada**: Remover `animate` e `transition` condicionais, manter tudo o mais igual. 1 arquivo, ~4 linhas removidas.
+
