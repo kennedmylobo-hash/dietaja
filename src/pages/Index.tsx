@@ -5,13 +5,14 @@ import Logo from "@/components/Logo";
 import HeroSection from "@/components/HeroSection";
 import PromoBannersSection from "@/components/PromoBannersSection";
 import SideNavigation from "@/components/SideNavigation";
-import IdentificationSection from "@/components/IdentificationSection";
-import SolutionSection from "@/components/SolutionSection";
-import BeforeAfterSection from "@/components/BeforeAfterSection";
-import ProductGallerySection from "@/components/ProductGallerySection";
-import KitsSection from "@/components/KitsSection";
-import MarmitasSection from "@/components/MarmitasSection";
-import ValueSection from "@/components/ValueSection";
+// Lazy load below-fold sections for mobile/4G performance
+const IdentificationSection = lazy(() => import("@/components/IdentificationSection"));
+const SolutionSection = lazy(() => import("@/components/SolutionSection"));
+const BeforeAfterSection = lazy(() => import("@/components/BeforeAfterSection"));
+const ProductGallerySection = lazy(() => import("@/components/ProductGallerySection"));
+const KitsSection = lazy(() => import("@/components/KitsSection"));
+const MarmitasSection = lazy(() => import("@/components/MarmitasSection"));
+const ValueSection = lazy(() => import("@/components/ValueSection"));
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import MobileStickyBar from "@/components/MobileStickyBar";
 import SalesNotification from "@/components/SalesNotification";
@@ -197,37 +198,51 @@ const IndexContent = () => {
             <HeroSection />
           </div>
           <PromoBannersSection />
-          <div ref={identificationRef}>
-            <IdentificationSection />
-          </div>
+          <Suspense fallback={<div className="py-12"><CustomDietSkeleton /></div>}>
+            <div ref={identificationRef}>
+              <IdentificationSection />
+            </div>
+          </Suspense>
           <Suspense fallback={<TestimonialsSkeleton />}>
             <div ref={reviewsRef}>
               <ReviewsSection />
             </div>
           </Suspense>
-          <div ref={solutionRef}>
-            <SolutionSection />
-          </div>
-          <div ref={beforeAfterRef}>
-            <BeforeAfterSection />
-          </div>
-          <div ref={galleryRef}>
-            <ProductGallerySection />
-          </div>
-          <div id="kits" ref={kitsRef}>
-            <KitsSection />
-          </div>
-          <div id="marmitas" ref={marmitasRef}>
-            <MarmitasSection />
-          </div>
+          <Suspense fallback={<div className="py-12"><CustomDietSkeleton /></div>}>
+            <div ref={solutionRef}>
+              <SolutionSection />
+            </div>
+          </Suspense>
+          <Suspense fallback={<div className="py-12"><CustomDietSkeleton /></div>}>
+            <div ref={beforeAfterRef}>
+              <BeforeAfterSection />
+            </div>
+          </Suspense>
+          <Suspense fallback={<div className="py-12"><CustomDietSkeleton /></div>}>
+            <div ref={galleryRef}>
+              <ProductGallerySection />
+            </div>
+          </Suspense>
+          <Suspense fallback={<div className="py-12"><CustomDietSkeleton /></div>}>
+            <div id="kits" ref={kitsRef}>
+              <KitsSection />
+            </div>
+          </Suspense>
+          <Suspense fallback={<div className="py-12"><CustomDietSkeleton /></div>}>
+            <div id="marmitas" ref={marmitasRef}>
+              <MarmitasSection />
+            </div>
+          </Suspense>
           <Suspense fallback={<CustomDietSkeleton />}>
             <div id="dieta-personalizada" ref={customDietRef}>
               <CustomDietSection whatsappNumber={contact.whatsapp} />
             </div>
           </Suspense>
-          <div ref={valueRef}>
-            <ValueSection />
-          </div>
+          <Suspense fallback={<div className="py-12"><CustomDietSkeleton /></div>}>
+            <div ref={valueRef}>
+              <ValueSection />
+            </div>
+          </Suspense>
           <Suspense fallback={<GuaranteeSkeleton />}>
             <div ref={guaranteeRef}>
               <GuaranteeSection />

@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import { Star, CheckCircle2 } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import produtosPoster from "@/assets/produtos-detox.jpg";
@@ -6,7 +7,26 @@ import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const HeroSection = () => {
   const { location } = useTenantConfig();
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { content, isVisible } = useLandingContent("hero");
+
+  // Only play video when visible in viewport
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: 0.25 }
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
 
   if (!isVisible) return null;
 
@@ -26,9 +46,9 @@ const HeroSection = () => {
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
       <div className="absolute inset-0 z-0">
         <video
+          ref={videoRef}
           src={produtosVideo}
           poster={produtosPoster}
-          autoPlay
           loop
           muted
           playsInline

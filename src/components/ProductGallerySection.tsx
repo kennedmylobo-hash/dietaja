@@ -1,5 +1,5 @@
 import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { Droplet, Flame, UtensilsCrossed, MapPin } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import { useLandingContent } from "@/hooks/useLandingContent";
@@ -16,7 +16,26 @@ const iconMap: Record<string, any> = { Droplet, Flame, UtensilsCrossed, MapPin }
 
 const ProductGallerySection = () => {
   const ref = useRef(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+
+  // Only play video when visible
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: 0.25 }
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
   const { content, isVisible } = useLandingContent("product_gallery");
   const { location } = useTenantConfig();
 
@@ -56,8 +75,8 @@ const ProductGallerySection = () => {
         >
           <div className="relative rounded-2xl overflow-hidden shadow-card aspect-video">
             <video
+              ref={videoRef}
               src={videoUrl || produtosVideo}
-              autoPlay
               loop
               muted
               playsInline
