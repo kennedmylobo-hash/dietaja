@@ -1,144 +1,143 @@
 
 
-## Bloco 4: Migrar Edge Functions + Residuos Frontend para Branding Dinamico
+## Isolamento Total de Integrações por Tenant
+
+### O Problema Atual
+
+Hoje, **todas** as credenciais de terceiros são compartilhadas via variáveis de ambiente (Secrets) do projeto:
+
+| Serviço | Secret Compartilhado | Impacto |
+|---|---|---|
+| **Asaas (Pagamento PIX)** | `ASAAS_API_KEY` | Todos os pagamentos vão para a **mesma conta bancária** |
+| **WhatsApp (NotificaMe)** | `NOTIFICAME_API_TOKEN` + `NOTIFICAME_WHATSAPP_CHANNEL_TOKEN` | Todas as mensagens saem do **mesmo número de WhatsApp** |
+| **Email (Resend)** | `RESEND_API_KEY` | Todos os emails saem do **mesmo domínio** (`pedidos@dietajavca.com.br`) |
+
+Isso significa que se você vender para o "Pratinho Fitness", os pagamentos PIX cairiam na conta do Dieta Já, as mensagens de WhatsApp viriam do número do Dieta Já, etc. Isso **não funciona** para venda real.
+
+---
+
+### A Solução: Credenciais por Tenant no Banco de Dados
+
+Adicionar colunas na tabela `tenants` para armazenar as credenciais individuais de cada restaurante. As Edge Functions passam a buscar as credenciais do tenant em vez de usar `Deno.env.get()`.
+
+#### Novas colunas na tabela `tenants`:
+
+```text
+tenants
+  + asaas_api_key          (text, encrypted, nullable)
+  + asaas_webhook_token    (text, encrypted, nullable)
+  + notificame_api_token   (text, encrypted, nullable)
+  + notificame_channel_token (text, encrypted, nullable)
+  + resend_api_key         (text, encrypted, nullable)
+  + resend_from_email      (text, nullable)  -- ex: "pedidos@pratinhofitness.com.br"
+```
+
+#### Lógica de Fallback
+
+Para não quebrar o Dieta Já (que já funciona com os Secrets atuais), cada Edge Function usará este padrão:
+
+```text
+1. Buscar credenciais do tenant no banco de dados
+2. Se não encontrar -> usar Deno.env.get() como fallback (Secrets globais)
+3. Usar a credencial resolvida para fazer a chamada à API
+```
+
+Isso garante **compatibilidade retroativa** e permite migração gradual.
+
+---
+
+### Isolamento por Serviço
+
+#### 1. Asaas (Pagamento PIX) -- Cada restaurante com sua conta
+- Cada restaurante cria sua própria conta no Asaas
+- A `asaas_api_key` do restaurante é salva na tabela `tenants`
+- O webhook do Asaas continua apontando para a mesma Edge Function, mas ela identifica o tenant pelo `externalReference` (order_id) no payload
+- **Resultado**: O dinheiro cai direto na conta do restaurante
+
+#### 2. WhatsApp (NotificaMe) -- Cada restaurante com seu número
+- Cada restaurante registra seu próprio número no NotificaMe
+- Os tokens `notificame_api_token` e `notificame_channel_token` são salvos por tenant
+- **Resultado**: As mensagens saem do número do restaurante
+
+#### 3. Email (Resend) -- Cada restaurante com seu domínio
+- Cada restaurante pode ter sua própria API key do Resend e domínio verificado
+- Se não tiver, usa o domínio da plataforma como fallback
+- **Resultado**: Emails personalizados por marca
+
+---
+
+### Segurança das Credenciais
+
+As chaves de API são dados sensíveis. Para protegê-las:
+
+1. **RLS restritiva**: Apenas o `owner_user_id` do tenant pode ler/atualizar suas credenciais
+2. **Colunas sensíveis ocultas nas queries públicas**: As Edge Functions usam `SUPABASE_SERVICE_ROLE_KEY` para acessar (já fazem isso hoje)
+3. **Interface Admin**: No painel do restaurante, uma aba "Integrações" permite ao dono configurar suas próprias credenciais com campos do tipo password
+
+---
+
+### Mudanças Necessárias
+
+#### Banco de Dados
+- Adicionar 6 colunas à tabela `tenants` (credenciais de integração)
+- Criar RLS para proteger as colunas sensíveis
+
+#### Utilitário Compartilhado (Backend)
+- Criar `_shared/tenant-credentials.ts` que busca credenciais do tenant e faz fallback para env vars
+
+#### Edge Functions (12 funções)
+- `create-asaas-pix`: usar `asaas_api_key` do tenant
+- `check-payment-status`: idem
+- `cancel-asaas-payment`: idem
+- `generate-pix-admin`: idem
+- `asaas-webhook`: identificar tenant pelo pedido e usar credenciais corretas
+- `send-order-whatsapp`: usar tokens NotificaMe do tenant
+- `send-order-approved`: idem
+- `send-status-notification`: idem
+- `send-cart-reminders`: idem
+- `send-pending-reminders`: idem
+- `send-order-pending-email`: usar `resend_api_key` e `resend_from_email` do tenant
+- `process-pending-notifications`: idem
+- `send-review-request`: idem
+- `send-recompra-campaigns`: idem
+
+#### Frontend (Painel Admin)
+- Nova aba "Integrações" no painel do restaurante para configurar:
+  - Chave API do Asaas
+  - Tokens do WhatsApp (NotificaMe)
+  - Chave do Resend + email remetente
+- Formulário com campos mascarados (tipo password)
+- Botão de testar conexão para cada serviço
+
+#### Super Admin
+- Visibilidade de quais tenants têm integrações configuradas
+- Possibilidade de configurar credenciais durante o onboarding
+
+---
+
+### Pré-requisitos para cada Restaurante
+
+Antes de operar de forma 100% independente, cada restaurante precisa:
+
+| Serviço | O que fazer | Quem faz |
+|---|---|---|
+| **Asaas** | Criar conta, obter API Key, configurar webhook apontando para a mesma URL | Dono do restaurante (com guia) |
+| **WhatsApp** | Registrar número no NotificaMe, obter tokens | Dono do restaurante (com guia) |
+| **Email** | Criar conta no Resend, verificar domínio, obter API Key | Dono do restaurante (com guia) |
+
+---
+
+### Ordem de Implementação Sugerida
+
+1. **Migração do banco** (novas colunas + RLS)
+2. **Utilitário `tenant-credentials.ts`** (lógica de resolução com fallback)
+3. **Edge Functions do Asaas** (pagamento é o mais crítico)
+4. **Edge Functions do WhatsApp**
+5. **Edge Functions do Email**
+6. **Interface Admin "Integrações"** (para o dono configurar)
+7. **Testes end-to-end** com o Pratinho Fitness
 
 ### Resumo
 
-Migrar 10 Edge Functions e 2 arquivos frontend para usar dados dinamicos do tenant, removendo todas as referencias hardcoded a "Dieta Ja", "dietajavca.com.br" e "Vitoria da Conquista".
-
----
-
-### Estrategia
-
-Todas as Edge Functions que enviam notificacoes (email/WhatsApp) precisam:
-1. Resolver o `tenant_id` a partir do pedido (`orders.tenant_id`)
-2. Chamar `getTenantBranding(supabase, tenantId)` para obter nome, whatsapp, dominio
-3. Usar `getTenantBaseUrl(branding)` para gerar URLs dinamicas
-4. Substituir strings hardcoded pelo branding dinamico
-
-O `from` do email mantera o dominio `pedidos@dietajavca.com.br` (unico verificado no Resend), mas com o **nome** dinamico: `"NomeDaMarca <pedidos@dietajavca.com.br>"`.
-
----
-
-### Edge Functions a Modificar
-
-#### 1. `send-order-whatsapp/index.ts`
-- Importar `getTenantBranding` e `getTenantBaseUrl`
-- Buscar `tenant_id` do pedido (ja faz `select('*')` no order)
-- Substituir `"DIETA JA"` nos 3 FALLBACK_TEMPLATES por `branding.brand_name`
-- Substituir `dietajavca.com.br/pedido/...` e `dietajavca.com.br/pix/...` por `getTenantBaseUrl(branding)`
-- **Linhas afetadas:** 234 (fallback templates), 391 (link variable), 418 (pixPageLink)
-
-#### 2. `send-cart-reminders/index.ts`
-- Importar branding utils
-- Buscar `tenant_id` do carrinho (precisa adicionar ao select ou usar default)
-- Na funcao `generateCartReminderMessage`: substituir "Dieta Ja", "dietajavca.com.br" e "Vitoria da Conquista" por dados do branding
-- **Linhas afetadas:** corpo das 2 mensagens de lembrete (primeira e segunda)
-
-#### 3. `send-order-pending-email/index.ts`
-- Importar branding utils
-- Receber `tenant_id` no body da requisicao (ou buscar do pedido)
-- Em `generateEmailHtml`: substituir header "Dieta Ja", subtitulo "Vitoria da Conquista", WhatsApp hardcoded, footer "Dieta Ja"
-- No `resend.emails.send`: trocar `from: "Dieta Ja <pedidos@...>"` por `"${branding.brand_name} <pedidos@dietajavca.com.br>"`
-- **Linhas afetadas:** 69, 70, 131-132, 136-137, 153-154, 157, 203
-
-#### 4. `send-pending-reminders/index.ts`
-- Importar branding utils
-- Para cada pedido processado, buscar `tenant_id` e resolver branding
-- Em `generateWhatsAppMessage` (linha 214-231): substituir "Equipe Dieta Ja" por `branding.brand_name`
-- Em `generateReminderEmail` (linha 539-650): substituir WhatsApp link hardcoded `5577991001658`, footer "Dieta Ja"
-- No `resend.emails.send` (linha 356): trocar `from: "Dieta Ja <pedidos@...>"`
-- **Linhas afetadas:** 231, 356, 556, 638
-
-#### 5. `process-pending-notifications/index.ts`
-- Importar branding utils
-- Buscar `tenant_id` do pedido (adicionar ao select)
-- Em `replaceVariables` (linha 60-74): substituir `dietajavca.com.br` por URL dinamica
-- Em `sendEmailNotification` (linha 114-187): substituir WhatsApp link `5577991001658`, `from: "Dieta Ja"`, footer
-- **Linhas afetadas:** 62, 123, 169, 178
-
-#### 6. `send-review-request/index.ts`
-- Importar branding utils
-- Buscar `tenant_id` dos pedidos
-- Em `replaceVariables` (linha 20-29): substituir `dietajavca.com.br`
-- Em `sendEmailNotification` (linha 75-150): substituir WhatsApp `5577991001658`, footer "Dieta Ja", `from: "Dieta Ja"`
-- **Linhas afetadas:** 22, 119, 131, 141
-
-#### 7. `send-recompra-campaigns/index.ts`
-- Importar branding utils
-- Buscar `tenant_id` dos pedidos
-- Em `replaceVariables` (linha 33-45): substituir `siteUrl = "https://dietajavca.com.br"`
-- Em `sendEmailNotification` (linha 100-183): substituir WhatsApp `5577991001658`, footer "Dieta Ja", `from: "Dieta Ja"`
-- **Linhas afetadas:** 35, 110, 160-161, 164, 174
-
-#### 8. `generate-pix-admin/index.ts`
-- Importar branding utils
-- Buscar `tenant_id` do pedido
-- Substituir descricao "Dieta Ja" na cobranca Asaas (linha 155)
-- **Linhas afetadas:** 155
-
-#### 9. `create-asaas-pix/index.ts`
-- Importar branding utils
-- Buscar branding com `effectiveTenantId` ja disponivel
-- Substituir descricao "Pedido Dieta Ja" (linha 334) por `branding.brand_name`
-- **Linhas afetadas:** 334
-
-#### 10. `test-whatsapp-connection/index.ts`
-- Nao precisa de branding do banco (e funcao de teste)
-- Substituir "Teste de conexao Dieta Ja" por "Teste de conexao" generico
-- **Linhas afetadas:** mensagem de teste na linha ~90
-
----
-
-### Frontend Residuos
-
-#### 11. `src/pages/StatusPedido.tsx`
-- Importar `useTenantConfig`
-- Substituir `<title>Acompanhar Pedido | Dieta Ja</title>` (linha 233) por titulo dinamico
-- Substituir WhatsApp `5577991001658` (linhas 477, 488, 503) por `contact.whatsapp`
-- **Linhas afetadas:** 233, 477, 488, 503
-
-#### 12. `src/lib/print-utils.ts`
-- A funcao `generateOrderTicketHTML` precisa receber `brandName` como parametro
-- Substituir `<h1>DIETA JA</h1>` (linha 189) por parametro dinamico
-- Atualizar chamadores (`printOrderTicket` e componentes admin que chamam)
-- **Linhas afetadas:** 82 (assinatura), 189 (header), 240 (printOrderTicket)
-
----
-
-### Padrao de Implementacao nas Edge Functions
-
-Para cada funcao, o padrao sera:
-
-```text
-// No topo do arquivo:
-import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
-
-// Dentro do handler, apos buscar o pedido:
-const branding = await getTenantBranding(supabase, order.tenant_id);
-const baseUrl = getTenantBaseUrl(branding);
-
-// Substituicoes:
-// "Dieta Ja" -> branding.brand_name
-// "dietajavca.com.br" -> baseUrl (sem https://)
-// "5577991001658" -> branding.whatsapp
-// "(77) 99100-1658" -> branding.whatsapp_formatted
-// "Vitoria da Conquista" -> branding.city
-```
-
----
-
-### Nota sobre Emails
-
-O `from` do Resend continuara usando `pedidos@dietajavca.com.br` como dominio (unico verificado). O que muda e o **display name**: de `"Dieta Ja"` para `branding.brand_name`. Exemplo: `"Pratinho Fitness <pedidos@dietajavca.com.br>"`.
-
----
-
-### Ordem de Implementacao
-
-1. Edge Functions de notificacao de pedido (send-order-whatsapp, send-order-pending-email)
-2. Edge Functions de lembrete (send-pending-reminders, send-cart-reminders, process-pending-notifications)
-3. Edge Functions de marketing (send-review-request, send-recompra-campaigns)
-4. Edge Functions de pagamento (create-asaas-pix, generate-pix-admin, test-whatsapp-connection)
-5. Frontend residuos (StatusPedido.tsx, print-utils.ts)
+Sim, é 100% possível isolar tudo. A solução é armazenar as credenciais de cada serviço por tenant no banco de dados, com fallback para os Secrets globais. Isso permite que cada restaurante tenha sua própria conta Asaas (dinheiro direto na conta dele), seu próprio número de WhatsApp, e seu próprio domínio de email -- tudo configurável pelo painel admin sem precisar de suporte técnico.
 
