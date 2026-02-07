@@ -1,47 +1,29 @@
 
-## Correção: Banners "Escolha uma opção abaixo" não aparecem
 
-### Causa
+## Correção: Banners "Escolha uma opção abaixo" — Visibilidade no Mobile
 
-Os itens de banner salvos no banco de dados (`tenant_landing_content` com `section_key = 'banners'`) estão incompletos. Cada item tem apenas `title`, `subtitle` e `description`, mas faltam os campos obrigatórios `id`, `icon`, `gradient` e `targetSection` que o componente precisa para renderizar os cards corretamente.
+### Diagnóstico
 
-Dados atuais no banco:
-```text
-{ title: "🔥 Kit Emagrecimento", subtitle: "O mais vendido!", description: "5 marmitas balanceadas..." }
-```
+Verifiquei ao vivo no preview: os 3 cards **estão renderizando** com cores de fundo corretas (verde, terracotta, sage). A correção anterior de defaults está funcionando.
 
-O componente espera:
-```text
-{ id, title, subtitle, description, icon, gradient, targetSection }
-```
+Porém, no mobile (390px), os cards ficam **extremamente pequenos** por estarem em um grid de 3 colunas, o que faz parecer que não aparecem. O texto fica quase ilegível e os cards parecem invisíveis à primeira vista.
 
-Sem `gradient`, os cards ficam sem cor de fundo. Sem `icon`, o ícone fallback (Droplets) aparece mas o card fica praticamente invisível.
+Além disso, se você está testando no site de produção (pedidos.dietajavca.com.br), as últimas mudanças **ainda não foram publicadas** — precisa publicar o projeto no Lovable para atualizar.
 
 ### Solução
 
-Tornar o componente `PromoBannersSection.tsx` resiliente a dados incompletos, aplicando valores padrão (defaults) para os campos ausentes.
+1. **Publicar o projeto** para que as alterações cheguem ao site de produção
 
-### Mudanças
+2. **Melhorar visibilidade no mobile** — Ajustar o grid para ser mais legível em telas pequenas:
+   - Mobile (< 640px): Grid de **1 coluna** com cards mais altos e legíveis
+   - Tablet (640px+): Grid de 3 colunas como está hoje
+
+### Mudanças Técnicas
 
 **Arquivo: `src/components/PromoBannersSection.tsx`**
 
-Na seção onde `banners` é extraído do content (linha 178), adicionar um mapeamento que preenche campos faltantes com defaults sensatos:
+- Alterar a classe do grid de `grid-cols-3` para `grid-cols-1 sm:grid-cols-3`
+- Isso faz os cards empilharem verticalmente no mobile, ficando maiores e mais legíveis
+- No tablet e desktop, mantém o layout de 3 colunas lado a lado
 
-```typescript
-const rawBanners = content?.items ?? defaultBanners;
-const banners = rawBanners.map((banner: any, index: number) => ({
-  id: banner.id || `banner-${index}`,
-  icon: banner.icon || ["Droplets", "UtensilsCrossed", "Salad"][index % 3],
-  gradient: banner.gradient || [
-    "from-primary/90 to-primary",
-    "from-terracotta/90 to-terracotta", 
-    "from-sage-dark/90 to-sage-dark"
-  ][index % 3],
-  targetSection: banner.targetSection || ["kits", "marmitas", "dieta-personalizada"][index % 3],
-  title: banner.title,
-  subtitle: banner.subtitle,
-  description: banner.description,
-}));
-```
-
-Isso garante que mesmo com dados parciais no banco, os cards sempre renderizam com ícones, cores e links de scroll corretos.
+Apenas **1 linha** de alteração no className do grid container.
