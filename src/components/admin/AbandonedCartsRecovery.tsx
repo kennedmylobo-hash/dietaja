@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPhoneSuffix } from "@/lib/phone";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ const AbandonedCartsRecovery = () => {
   const [carts, setCarts] = useState<AbandonedCart[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCart, setSelectedCart] = useState<AbandonedCart | null>(null);
+  const { brand } = useTenantConfig();
 
   const fetchAbandonedCarts = async () => {
     setIsLoading(true);
@@ -167,7 +169,7 @@ const AbandonedCartsRecovery = () => {
     
     const message = encodeURIComponent(
       `Olá ${cart.name || 'cliente'}! 😊\n\n` +
-      `Vi que você deixou alguns itens no carrinho da Dieta Já:\n\n${itemsList}\n\n` +
+      `Vi que você deixou alguns itens no carrinho da ${brand.name}:\n\n${itemsList}\n\n` +
       `Valor: *R$ ${(cart.subtotal || 0).toFixed(2).replace('.', ',')}*\n\n` +
       `Posso te ajudar a finalizar? 💚`
     );

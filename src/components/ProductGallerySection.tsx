@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { Droplet, Flame, UtensilsCrossed, MapPin } from "lucide-react";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import { useLandingContent } from "@/hooks/useLandingContent";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const defaultBadges = [
   { icon: "Droplet", label: "Sucos detox" },
@@ -17,6 +18,7 @@ const ProductGallerySection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { content, isVisible } = useLandingContent("product_gallery");
+  const { location } = useTenantConfig();
 
   if (!isVisible) return null;
 
@@ -27,7 +29,7 @@ const ProductGallerySection = () => {
     icon: iconMap[b.icon] || Droplet,
     label: b.label,
   }));
-  const footerText = content?.footer ?? "Produção semanal em Vitória da Conquista";
+  const footerText = content?.footer ?? `Produção semanal em ${location.city}`;
 
   return (
     <section ref={ref} className="py-12 md:py-16 lg:py-24 bg-background">

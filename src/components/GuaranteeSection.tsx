@@ -1,22 +1,23 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Shield, Lock, MapPin, Heart } from "lucide-react";
-import { siteConfig } from "@/config/site";
 import { useLandingContent } from "@/hooks/useLandingContent";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const iconMap: Record<string, any> = { Shield, Lock, MapPin, Heart };
 const defaultIcons = [Shield, Lock, MapPin];
-
-const getDefaultGuarantees = () => [
-  { icon: "Shield", title: "Garantia de satisfação", description: "Não gostou? Devolvemos seu dinheiro sem burocracia." },
-  { icon: "Lock", title: "Pagamento seguro", description: "Pix ou cartão com total segurança. Seus dados protegidos." },
-  { icon: "MapPin", title: "Produção local", description: `Feito em ${siteConfig.location.city} com ingredientes frescos.` },
-];
 
 const GuaranteeSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { content, isVisible } = useLandingContent("guarantee");
+  const { location } = useTenantConfig();
+
+  const getDefaultGuarantees = () => [
+    { icon: "Shield", title: "Garantia de satisfação", description: "Não gostou? Devolvemos seu dinheiro sem burocracia." },
+    { icon: "Lock", title: "Pagamento seguro", description: "Pix ou cartão com total segurança. Seus dados protegidos." },
+    { icon: "MapPin", title: "Produção local", description: `Feito em ${location.city} com ingredientes frescos.` },
+  ];
 
   if (!isVisible) return null;
 

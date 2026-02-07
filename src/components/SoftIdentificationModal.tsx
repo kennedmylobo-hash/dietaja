@@ -34,7 +34,7 @@ export const SoftIdentificationModal = ({
   // Recuperar dados do localStorage quando o modal abre
   useEffect(() => {
     if (open) {
-      const saved = localStorage.getItem('dietaja_customer');
+      const saved = localStorage.getItem('tenant_customer');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);

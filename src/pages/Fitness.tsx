@@ -19,8 +19,10 @@ import UrgencySection from "@/components/UrgencySection";
 import FitnessFAQSection from "@/components/FitnessFAQSection";
 import { useMarmitaHipertrofia, useGroupedMarmitaFlavors, useMarmitaFlavors } from "@/hooks/useMenuData";
 import { FlavorSelection } from "@/components/CartContext";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const FitnessContent = () => {
+  const { brand, urls, location } = useTenantConfig();
   const menuRef = useRef<HTMLDivElement>(null);
   const packagesRef = useRef<HTMLDivElement>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -150,16 +152,16 @@ const FitnessContent = () => {
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
       <Helmet>
-        <title>Marmitas Fitness 450g | Dieta Já - Hipertrofia</title>
+        <title>Marmitas Fitness 450g | {brand.name} - Hipertrofia</title>
         <meta name="description" content="Marmitas de 450g para quem treina pesado. 150g de proteína, alto valor calórico e praticidade para ganho de massa." />
         <meta name="keywords" content="marmita fitness, hipertrofia, ganho de massa, marmita 450g, proteína" />
-        <link rel="canonical" href="https://dietajavca.com.br/fitness" />
+        <link rel="canonical" href={`${urls.canonical}/fitness`} />
         <meta property="og:type" content="product" />
         <meta property="og:title" content="Marmitas Fitness 450g - Combustível para Treinos" />
-        <meta property="og:description" content="Porção generosa com 150g de proteína. Ideal para ganho de massa em Vitória da Conquista." />
-        <meta property="og:url" content="https://dietajavca.com.br/fitness" />
-        <meta property="og:image" content="https://dietajavca.com.br/og-image.jpg" />
-        <meta property="og:site_name" content="Dieta Já" />
+        <meta property="og:description" content={`Porção generosa com 150g de proteína. Ideal para ganho de massa em ${location.city}.`} />
+        <meta property="og:url" content={`${urls.canonical}/fitness`} />
+        <meta property="og:image" content={urls.ogImage} />
+        <meta property="og:site_name" content={brand.name} />
         <meta name="twitter:card" content="summary_large_image" />
       </Helmet>
 

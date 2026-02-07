@@ -201,7 +201,7 @@ const FlavorSelectionModal = ({
     if (leaveToUs) {
       // Send a special "leave to us" marker
       onConfirm([{
-        name: "Deixar a cargo da Dieta Já",
+        name: "Deixar a cargo da casa",
         quantity: packageQuantity,
         category: "Escolha da casa",
       }], 0);
@@ -375,7 +375,7 @@ const FlavorSelectionModal = ({
               </div>
               <div className="flex-1 pr-16">
                 <span className="font-semibold text-foreground">
-                  🍽️ Deixar a cargo da Dieta Já
+                  🍽️ Deixar a cargo da casa
                 </span>
                 <p className="text-sm text-muted-foreground">
                   Montamos um mix variado com nossos sabores mais pedidos

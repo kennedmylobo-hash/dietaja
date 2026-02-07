@@ -14,8 +14,8 @@ import {
   PiggyBank,
   ArrowRight
 } from "lucide-react";
-import { siteConfig } from "@/config/site";
 import { useLandingContent } from "@/hooks/useLandingContent";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const defaultBeforeItems = [
   { icon: "Clock", text: "Sem tempo pra cozinhar" },
@@ -42,6 +42,7 @@ const BeforeAfterSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { content, isVisible } = useLandingContent("before_after");
+  const { brand } = useTenantConfig();
 
   if (!isVisible) return null;
 
@@ -140,7 +141,7 @@ const BeforeAfterSection = () => {
             <div className="bg-card border-2 border-primary/30 rounded-2xl p-4 sm:p-6 md:p-8 h-full shadow-lg shadow-primary/5">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="px-3 sm:px-4 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full whitespace-nowrap">
-                  ✨ Com a {siteConfig.brand.name}
+                  ✨ Com a {brand.name}
                 </span>
               </div>
               <div className="flex items-center gap-3 mb-4 sm:mb-6 mt-2">

@@ -4,13 +4,14 @@ import { XCircle, Home, MessageCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import { Helmet } from "react-helmet-async";
-import { siteConfig, getWhatsAppLink } from "@/config/site";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const PagamentoErro = () => {
+  const { brand, getWhatsAppLink } = useTenantConfig();
   return (
     <>
       <Helmet>
-        <title>Erro no Pagamento | {siteConfig.brand.name}</title>
+        <title>Erro no Pagamento | {brand.name}</title>
         <meta name="robots" content="noindex" />
       </Helmet>
 

@@ -2,12 +2,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Crown, Sparkles, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 interface ClubHeroProps {
   onScrollToPlans: () => void;
 }
 
 const ClubHero = ({ onScrollToPlans }: ClubHeroProps) => {
+  const { brand } = useTenantConfig();
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-amber-50/80 to-background dark:from-amber-950/20">
       <div className="absolute inset-0 bg-gradient-to-br from-amber-100/40 to-transparent dark:from-amber-900/10 opacity-50" />
@@ -27,7 +29,7 @@ const ClubHero = ({ onScrollToPlans }: ClubHeroProps) => {
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
             Clube{" "}
             <span className="bg-gradient-to-r from-amber-600 to-amber-500 bg-clip-text text-transparent dark:from-amber-400 dark:to-amber-300">
-              Dieta Já
+              {brand.name}
             </span>
           </h1>
 

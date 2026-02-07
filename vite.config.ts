@@ -46,9 +46,9 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       manifest: {
-        name: "Dieta Já - Alimentação Saudável",
-        short_name: "Dieta Já",
-        description: "Alimentação Saudável Pronta em Vitória da Conquista",
+        name: "Sua Loja - Alimentação Saudável",
+        short_name: "PedidoJá",
+        description: "Alimentação Saudável Pronta - Peça Online",
         theme_color: "#22c55e",
         background_color: "#ffffff",
         display: "standalone",

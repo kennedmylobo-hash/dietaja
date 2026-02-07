@@ -6,8 +6,10 @@ import { motion } from "framer-motion";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { celebrateCheckout } from "@/lib/confetti";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const Obrigado = () => {
+  const { brand, urls } = useTenantConfig();
   const params = new URLSearchParams(window.location.search);
   const total = parseFloat(params.get("total") || "0");
   const itemsCount = parseInt(params.get("items") || "0");
@@ -77,9 +79,9 @@ const Obrigado = () => {
   return (
     <>
       <Helmet>
-        <title>Pedido Enviado - Dieta Já</title>
+        <title>Pedido Enviado - {brand.name}</title>
         <meta name="robots" content="noindex, nofollow" />
-        <link rel="canonical" href="https://dietajavca.com.br" />
+        <link rel="canonical" href={urls.canonical} />
       </Helmet>
 
       <div className="min-h-screen bg-background">

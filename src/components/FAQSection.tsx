@@ -1,18 +1,8 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useState } from "react";
 import { ChevronDown, MessageCircle } from "lucide-react";
-import { siteConfig, formatCurrency } from "@/config/site";
 import { useLandingContent } from "@/hooks/useLandingContent";
-
-const getDefaultFaqItems = () => [
-  { question: "Preciso seguir alguma dieta específica?", answer: "Não. Os kits e marmitas foram pensados para simplificar, não para complicar. É só seguir e cuidar de você." },
-  { question: "Vou passar fome?", answer: "Não. A ideia não é sofrimento, é equilíbrio e constância." },
-  { question: "Isso é só para emagrecer?", answer: "Não. O foco é organizar a alimentação, reduzir inchaço e trazer leveza. O resultado vem como consequência." },
-  { question: "Nunca fiz detox, posso começar?", answer: "Sim! O Kit Detox 5 Dias é o mais escolhido por quem está começando." },
-  { question: "Como recebo meu pedido?", answer: `Tudo é entregue congelado e pronto para consumo. Retirada grátis no bairro ${siteConfig.location.pickupNeighborhood} ou entrega por ${formatCurrency(siteConfig.location.deliveryFee)}.` },
-  { question: "Posso pedir só as marmitas, sem o kit detox?", answer: "Claro! Você pode montar seu pedido como preferir." },
-  { question: `Vocês atendem ${siteConfig.location.city}?`, answer: `Sim 😊 Retirada grátis no bairro ${siteConfig.location.pickupNeighborhood} ou entrega por ${formatCurrency(siteConfig.location.deliveryFee)}.` },
-];
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 interface FAQSectionProps {
   onContactClick: () => void;
@@ -23,6 +13,17 @@ const FAQSection = ({ onContactClick }: FAQSectionProps) => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const { content, isVisible } = useLandingContent("faq");
+  const { location, formatCurrency } = useTenantConfig();
+
+  const getDefaultFaqItems = () => [
+    { question: "Preciso seguir alguma dieta específica?", answer: "Não. Os kits e marmitas foram pensados para simplificar, não para complicar. É só seguir e cuidar de você." },
+    { question: "Vou passar fome?", answer: "Não. A ideia não é sofrimento, é equilíbrio e constância." },
+    { question: "Isso é só para emagrecer?", answer: "Não. O foco é organizar a alimentação, reduzir inchaço e trazer leveza. O resultado vem como consequência." },
+    { question: "Nunca fiz detox, posso começar?", answer: "Sim! O Kit Detox 5 Dias é o mais escolhido por quem está começando." },
+    { question: "Como recebo meu pedido?", answer: `Tudo é entregue congelado e pronto para consumo. Retirada grátis no bairro ${location.pickupNeighborhood} ou entrega por ${formatCurrency(location.deliveryFee)}.` },
+    { question: "Posso pedir só as marmitas, sem o kit detox?", answer: "Claro! Você pode montar seu pedido como preferir." },
+    { question: `Vocês atendem ${location.city}?`, answer: `Sim 😊 Retirada grátis no bairro ${location.pickupNeighborhood} ou entrega por ${formatCurrency(location.deliveryFee)}.` },
+  ];
 
   if (!isVisible) return null;
 

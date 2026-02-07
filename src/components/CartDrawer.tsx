@@ -22,7 +22,7 @@ import PixPaymentModal from "./PixPaymentModal";
 import { toast } from "@/hooks/use-toast";
 import { useMarmitaFlavors, useKitJuices, useKitSoups } from "@/hooks/useMenuData";
 import { motion, AnimatePresence } from "framer-motion";
-import { siteConfig, getWhatsAppLink } from "@/config/site";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { validateCPF, formatCPF } from "@/lib/cpf";
 import { sanitizeCustomerName } from "@/lib/name-sanitizer";
 import { useTenantId } from "@/hooks/useTenantId";
@@ -61,6 +61,7 @@ interface CartDrawerProps {
 }
 
 const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
+  const { location: tenantLocation } = useTenantConfig();
   const { items, removeItem, updateItemFlavors, getTotal, clearCart, trackCartOpen, trackCheckoutStart, trackCheckoutComplete, customerInfo, setCustomerInfo, markCartAsConverted } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'confirmation' | 'success'>('cart');
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState<string>("");
@@ -261,7 +262,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   }, [step, customerInfo, setValue]);
 
   const deliveryOption = watch("deliveryOption");
-  const deliveryFee = deliveryOption === "delivery" ? 10 : 0;
+  const deliveryFee = deliveryOption === "delivery" ? tenantLocation.deliveryFee : 0;
   const subtotal = getTotal();
   const total = subtotal + deliveryFee - couponDiscount;
 

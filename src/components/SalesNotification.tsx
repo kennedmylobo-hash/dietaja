@@ -1,44 +1,15 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, MessageCircle } from "lucide-react";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
-const testimonialsData = [
-  { 
-    name: "Mariana S.", 
-    role: "Advogada",
-    quote: "Ter a alimentação pronta foi um cuidado que eu estava devendo comigo mesma.",
-    location: "Vitória da Conquista"
-  },
-  { 
-    name: "Rafael T.", 
-    role: "Engenheiro",
-    quote: "Trabalho home office e agora como bem todo dia sem esforço.",
-    location: "Conquista"
-  },
-  { 
-    name: "Juliana M.", 
-    role: "Professora",
-    quote: "Agora como melhor, gasto menos e sobra energia pra academia.",
-    location: "Conquista"
-  },
-  { 
-    name: "Carlos A.", 
-    role: "Representante",
-    quote: "Chego de viagem e a comida saudável já está pronta!",
-    location: "Vitória da Conquista"
-  },
-  { 
-    name: "Fernanda", 
-    role: "Enfermeira",
-    quote: "Trabalho em plantão e não tinha como manter dieta. Mudou minha vida!",
-    location: "Conquista"
-  },
-  { 
-    name: "Bruno M.", 
-    role: "Personal Trainer",
-    quote: "Indico pra todos os meus alunos. Qualidade top!",
-    location: "Conquista"
-  },
+const getTestimonialsData = (city: string) => [
+  { name: "Mariana S.", role: "Advogada", quote: "Ter a alimentação pronta foi um cuidado que eu estava devendo comigo mesma.", location: city },
+  { name: "Rafael T.", role: "Engenheiro", quote: "Trabalho home office e agora como bem todo dia sem esforço.", location: city },
+  { name: "Juliana M.", role: "Professora", quote: "Agora como melhor, gasto menos e sobra energia pra academia.", location: city },
+  { name: "Carlos A.", role: "Representante", quote: "Chego de viagem e a comida saudável já está pronta!", location: city },
+  { name: "Fernanda", role: "Enfermeira", quote: "Trabalho em plantão e não tinha como manter dieta. Mudou minha vida!", location: city },
+  { name: "Bruno M.", role: "Personal Trainer", quote: "Indico pra todos os meus alunos. Qualidade top!", location: city },
 ];
 
 interface Testimonial {
@@ -49,6 +20,8 @@ interface Testimonial {
 }
 
 const SalesNotification = () => {
+  const { location } = useTenantConfig();
+  const testimonialsData = getTestimonialsData(location.city);
   const [currentTestimonial, setCurrentTestimonial] = useState<Testimonial | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 

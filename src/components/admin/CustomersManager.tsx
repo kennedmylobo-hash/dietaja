@@ -25,8 +25,9 @@
    Crown,
    Award,
  } from "lucide-react";
- import { formatDistanceToNow, format } from "date-fns";
- import { ptBR } from "date-fns/locale";
+  import { formatDistanceToNow, format } from "date-fns";
+  import { ptBR } from "date-fns/locale";
+  import { useTenantConfig } from "@/hooks/useTenantConfig";
  
  interface CustomerData {
    email: string;
@@ -55,11 +56,12 @@
    cancelled: { label: "Cancelado", color: "bg-red-500/10 text-red-600" },
  };
  
- export default function CustomersManager({ dateFilter = 'month' }: CustomersManagerProps) {
-   const [customers, setCustomers] = useState<CustomerData[]>([]);
-   const [isLoading, setIsLoading] = useState(true);
-   const [searchTerm, setSearchTerm] = useState("");
-   const [sortBy, setSortBy] = useState<'totalSpent' | 'totalOrders' | 'lastActivity'>('lastActivity');
+  export default function CustomersManager({ dateFilter = 'month' }: CustomersManagerProps) {
+    const [customers, setCustomers] = useState<CustomerData[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [sortBy, setSortBy] = useState<'totalSpent' | 'totalOrders' | 'lastActivity'>('lastActivity');
+    const { brand } = useTenantConfig();
  
    const fetchCustomers = async () => {
      setIsLoading(true);
@@ -194,9 +196,9 @@
      return null;
    };
  
-   const openWhatsApp = (phone: string, name: string) => {
-     const message = encodeURIComponent(
-       `Olá ${name.split(' ')[0]}! Aqui é da Dieta Já 🥗 Tudo bem com você?`
+    const openWhatsApp = (phone: string, name: string) => {
+      const message = encodeURIComponent(
+        `Olá ${name.split(' ')[0]}! Aqui é da ${brand.name} 🥗 Tudo bem com você?`
      );
      window.open(`https://wa.me/55${phone.replace(/\D/g, '')}?text=${message}`, '_blank');
    };

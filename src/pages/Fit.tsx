@@ -19,8 +19,10 @@ import UrgencySection from "@/components/UrgencySection";
 import FitFAQSection from "@/components/FitFAQSection";
 import { useMarmitaEmagrecimento, useGroupedMarmitaFlavors, useMarmitaFlavors } from "@/hooks/useMenuData";
 import { FlavorSelection } from "@/components/CartContext";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const FitContent = () => {
+  const { brand, urls, location } = useTenantConfig();
   const menuRef = useRef<HTMLDivElement>(null);
   const packagesRef = useRef<HTMLDivElement>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -150,16 +152,16 @@ const FitContent = () => {
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
       <Helmet>
-        <title>Marmitas Fit 300g | Dieta Já - Emagrecimento</title>
+        <title>Marmitas Fit 300g | {brand.name} - Emagrecimento</title>
         <meta name="description" content="Marmitas de 300g balanceadas para emagrecimento. Porções controladas, +30 sabores e praticidade para sua dieta." />
         <meta name="keywords" content="marmita fit, emagrecimento, dieta, marmita 300g, alimentação saudável" />
-        <link rel="canonical" href="https://dietajavca.com.br/fit" />
+        <link rel="canonical" href={`${urls.canonical}/fit`} />
         <meta property="og:type" content="product" />
         <meta property="og:title" content="Marmitas Fit 300g - Emagreça com Sabor" />
-        <meta property="og:description" content="Porções controladas de 300g com +30 sabores. Praticidade para sua dieta em Vitória da Conquista." />
-        <meta property="og:url" content="https://dietajavca.com.br/fit" />
-        <meta property="og:image" content="https://dietajavca.com.br/og-image.jpg" />
-        <meta property="og:site_name" content="Dieta Já" />
+        <meta property="og:description" content={`Porções controladas de 300g com +30 sabores. Praticidade para sua dieta em ${location.city}.`} />
+        <meta property="og:url" content={`${urls.canonical}/fit`} />
+        <meta property="og:image" content={urls.ogImage} />
+        <meta property="og:site_name" content={brand.name} />
         <meta name="twitter:card" content="summary_large_image" />
       </Helmet>
 

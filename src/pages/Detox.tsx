@@ -19,9 +19,10 @@ import UrgencySection from "@/components/UrgencySection";
 import DetoxFAQSection from "@/components/DetoxFAQSection";
 import { useKitPackages, useKitSoups, useKitJuices } from "@/hooks/useMenuData";
 import { FlavorSelection } from "@/components/CartContext";
-import { siteConfig } from "@/config/site";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const DetoxContent = () => {
+  const { brand, urls, location } = useTenantConfig();
   const menuRef = useRef<HTMLDivElement>(null);
   const packagesRef = useRef<HTMLDivElement>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -160,27 +161,23 @@ const DetoxContent = () => {
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
       <Helmet>
-        <title>Kit Detox 3-7 Dias | {siteConfig.brand.name} - Sucos Funcionais</title>
+        <title>Kit Detox 3-7 Dias | {brand.name} - Sucos Funcionais</title>
         <meta name="description" content="Desintoxique seu corpo em até 7 dias com sucos e sopas funcionais. Reduza inchaço, aumente energia e prepare-se para uma nova rotina alimentar." />
-        <meta name="keywords" content="detox, sucos funcionais, sopas detox, limpeza do corpo, reduzir inchaço, Vitória da Conquista" />
-        <link rel="canonical" href={`${siteConfig.urls.canonical}/detox`} />
-        
-        {/* Open Graph para WhatsApp/Facebook */}
+        <meta name="keywords" content={`detox, sucos funcionais, sopas detox, limpeza do corpo, reduzir inchaço, ${location.city}`} />
+        <link rel="canonical" href={`${urls.canonical}/detox`} />
         <meta property="og:type" content="product" />
         <meta property="og:title" content="Kit Detox Funcional - Reduza Inchaço em 3 Dias 🍃" />
-        <meta property="og:description" content="Sucos e sopas funcionais para renovar sua energia. 4 sucos + 2 sopas por dia. Entrega em Vitória da Conquista." />
-        <meta property="og:url" content={`${siteConfig.urls.canonical}/detox`} />
-        <meta property="og:image" content={`${siteConfig.urls.canonical}/og-image-detox.jpg`} />
+        <meta property="og:description" content={`Sucos e sopas funcionais para renovar sua energia. 4 sucos + 2 sopas por dia. Entrega em ${location.city}.`} />
+        <meta property="og:url" content={`${urls.canonical}/detox`} />
+        <meta property="og:image" content={`${urls.canonical}/og-image-detox.jpg`} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:site_name" content={siteConfig.brand.name} />
+        <meta property="og:site_name" content={brand.name} />
         <meta property="og:locale" content="pt_BR" />
-        
-        {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Kit Detox Funcional - Reduza Inchaço em 3 Dias" />
-        <meta name="twitter:description" content="Sucos e sopas funcionais para renovar sua energia. Entrega em Vitória da Conquista." />
-        <meta name="twitter:image" content={`${siteConfig.urls.canonical}/og-image-detox.jpg`} />
+        <meta name="twitter:description" content={`Sucos e sopas funcionais para renovar sua energia. Entrega em ${location.city}.`} />
+        <meta name="twitter:image" content={`${urls.canonical}/og-image-detox.jpg`} />
       </Helmet>
 
       <LandingHeader />
