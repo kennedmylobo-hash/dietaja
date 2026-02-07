@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, MessageCircle } from "lucide-react";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const getTestimonialsData = (city: string) => [
   { name: "Mariana S.", role: "Advogada", quote: "Ter a alimentação pronta foi um cuidado que eu estava devendo comigo mesma.", location: city },
@@ -21,14 +22,16 @@ interface Testimonial {
 
 const SalesNotification = () => {
   const { location } = useTenantConfig();
+  const isMobile = useIsMobile();
   const testimonialsData = getTestimonialsData(location.city);
   const [currentTestimonial, setCurrentTestimonial] = useState<Testimonial | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    const delay = isMobile ? 10000 : 5000;
     const initialTimeout = setTimeout(() => {
       showRandomTestimonial();
-    }, 5000);
+    }, delay);
 
     return () => clearTimeout(initialTimeout);
   }, []);

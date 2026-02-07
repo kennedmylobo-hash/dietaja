@@ -2,6 +2,7 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Droplets, UtensilsCrossed, Salad, ChevronRight } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { useLandingContent } from "@/hooks/useLandingContent";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const defaultBanners = [
   {
@@ -72,6 +73,7 @@ interface BannerCardProps {
 
 const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps) => {
   const ref = useRef<HTMLButtonElement>(null);
+  const isMobile = useIsMobile();
   const Icon = iconMap[banner.icon] || Droplets;
 
   const x = useMotionValue(0);
@@ -87,7 +89,7 @@ const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps) => {
   const contentY = useTransform(ySpring, [-0.5, 0.5], ["-4px", "4px"]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!ref.current) return;
+    if (isMobile || !ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
@@ -105,20 +107,20 @@ const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps) => {
       ref={ref}
       variants={itemVariants}
       onClick={onClick}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{
+      onMouseMove={!isMobile ? handleMouseMove : undefined}
+      onMouseLeave={!isMobile ? handleMouseLeave : undefined}
+      style={!isMobile ? {
         rotateX,
         rotateY,
         transformStyle: "preserve-3d",
-      }}
-      whileHover={{ scale: 1.02 }}
+      } : undefined}
+      whileHover={!isMobile ? { scale: 1.02 } : undefined}
       whileTap={{ scale: 0.97 }}
       className={`group relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 lg:p-8 text-left transition-all duration-300 shadow-xl hover:shadow-2xl ring-2 ring-white/30 hover:ring-white/50 bg-gradient-to-br ${banner.gradient} cursor-pointer border-2 border-white/10`}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <motion.div
-        style={{ x: contentX, y: contentY, transformStyle: "preserve-3d" }}
+        style={!isMobile ? { x: contentX, y: contentY, transformStyle: "preserve-3d" } : undefined}
         className="relative z-10 flex flex-col h-full min-h-[70px] sm:min-h-[110px] md:min-h-[160px] lg:min-h-[180px]"
       >
         <Icon className="w-5 h-5 sm:w-7 sm:h-7 md:w-10 md:h-10 lg:w-12 lg:h-12 text-white/90 mb-1.5 sm:mb-2 md:mb-3" />
@@ -136,13 +138,15 @@ const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps) => {
         <span className="text-[9px] sm:text-xs font-semibold">Clique</span>
         <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" />
       </div>
-      <motion.div
-        style={{ 
-          x: useTransform(xSpring, [-0.5, 0.5], ["8px", "-8px"]),
-          y: useTransform(ySpring, [-0.5, 0.5], ["8px", "-8px"]),
-        }}
-        className="absolute -right-4 -bottom-4 sm:-right-6 sm:-bottom-6 w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white/15 rounded-full blur-2xl"
-      />
+      {!isMobile && (
+        <motion.div
+          style={{ 
+            x: useTransform(xSpring, [-0.5, 0.5], ["8px", "-8px"]),
+            y: useTransform(ySpring, [-0.5, 0.5], ["8px", "-8px"]),
+          }}
+          className="absolute -right-4 -bottom-4 sm:-right-6 sm:-bottom-6 w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white/15 rounded-full blur-2xl"
+        />
+      )}
     </motion.button>
   );
 };
