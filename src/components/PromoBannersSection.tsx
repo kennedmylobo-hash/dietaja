@@ -87,6 +87,8 @@ const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps) => {
   const rotateY = useTransform(xSpring, [-0.5, 0.5], ["-5deg", "5deg"]);
   const contentX = useTransform(xSpring, [-0.5, 0.5], ["-4px", "4px"]);
   const contentY = useTransform(ySpring, [-0.5, 0.5], ["-4px", "4px"]);
+  const blobX = useTransform(xSpring, [-0.5, 0.5], ["8px", "-8px"]);
+  const blobY = useTransform(ySpring, [-0.5, 0.5], ["8px", "-8px"]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (isMobile || !ref.current) return;
@@ -140,10 +142,7 @@ const BannerCard = ({ banner, onClick, shouldPulse }: BannerCardProps) => {
       </div>
       {!isMobile && (
         <motion.div
-          style={{ 
-            x: useTransform(xSpring, [-0.5, 0.5], ["8px", "-8px"]),
-            y: useTransform(ySpring, [-0.5, 0.5], ["8px", "-8px"]),
-          }}
+          style={{ x: blobX, y: blobY }}
           className="absolute -right-4 -bottom-4 sm:-right-6 sm:-bottom-6 w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white/15 rounded-full blur-2xl"
         />
       )}
