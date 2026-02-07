@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getTenantBranding } from "../_shared/tenant-branding.ts";
+import { getPlatformUrl } from "../_shared/platform-config.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -11,26 +13,25 @@ const corsHeaders = {
 
 interface PasswordResetRequest {
   email: string;
+  tenant_id?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("Password reset request received");
 
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { email }: PasswordResetRequest = await req.json();
+    const { email, tenant_id }: PasswordResetRequest = await req.json();
 
     if (!email) {
       throw new Error("Email é obrigatório");
     }
 
-    console.log(`Processing password reset for email: ${email}`);
+    console.log(`Processing password reset for email: ${email}, tenant_id: ${tenant_id || "none"}`);
 
-    // Create Supabase admin client
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -42,9 +43,31 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-    // Generate password reset link using Supabase Auth
-    const redirectTo = "https://pedidos.dietajavca.com.br/admin/reset-password";
-    
+    // Resolve tenant_id from the admin's email if not provided
+    let resolvedTenantId = tenant_id;
+    if (!resolvedTenantId) {
+      // Look up the user's role to find their tenant
+      const { data: userData } = await supabaseAdmin.auth.admin.listUsers();
+      const user = userData?.users?.find(u => u.email === email);
+      if (user) {
+        const { data: roleData } = await supabaseAdmin
+          .from("user_roles")
+          .select("tenant_id")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+        resolvedTenantId = roleData?.tenant_id;
+      }
+    }
+
+    // Fetch tenant branding for dynamic email content
+    const branding = await getTenantBranding(supabaseAdmin, resolvedTenantId);
+    console.log(`Using branding: ${branding.brand_name} (slug: ${branding.slug})`);
+
+    // Always redirect to the platform domain with ?tenant=slug
+    const redirectTo = getPlatformUrl("/admin/reset-password", branding.slug);
+    console.log(`Redirect URL: ${redirectTo}`);
+
     const { data, error: resetError } = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",
       email: email,
@@ -55,16 +78,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (resetError) {
       console.error("Error generating reset link:", resetError);
-      // Don't reveal if email exists or not for security
-      // Still return success to prevent email enumeration
     }
 
-    // Only send email if we got a valid link
     if (data?.properties?.action_link) {
       const resetLink = data.properties.action_link;
       console.log("Reset link generated successfully");
 
-      // Send beautiful email via Resend using fetch
+      const color = branding.primary_color || "#22c55e";
+
       const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -81,11 +102,11 @@ const handler = async (req: Request): Promise<Response> => {
           <!-- Header -->
           <tr>
             <td style="padding: 40px 40px 20px; text-align: center;">
-              <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #4A7C59 0%, #6B9B7A 100%); border-radius: 50%; margin: 0 auto 20px;">
-                <span style="font-size: 28px; line-height: 60px;">🥗</span>
+              <div style="width: 60px; height: 60px; background: ${color}; border-radius: 50%; margin: 0 auto 20px;">
+                <span style="font-size: 28px; line-height: 60px;">🍽️</span>
               </div>
               <h1 style="margin: 0; color: #1a1a1a; font-size: 24px; font-weight: 600;">
-                Dieta Já
+                ${branding.brand_name}
               </h1>
             </td>
           </tr>
@@ -97,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
                 Redefinir sua senha
               </h2>
               <p style="margin: 0 0 24px; color: #666; font-size: 15px; line-height: 1.6; text-align: center;">
-                Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha.
+                Recebemos uma solicitação para redefinir a senha da sua conta no <strong>${branding.brand_name}</strong>. Clique no botão abaixo para criar uma nova senha.
               </p>
               
               <!-- CTA Button -->
@@ -105,7 +126,7 @@ const handler = async (req: Request): Promise<Response> => {
                 <tr>
                   <td align="center" style="padding: 10px 0 30px;">
                     <a href="${resetLink}" 
-                       style="display: inline-block; background: linear-gradient(135deg, #4A7C59 0%, #6B9B7A 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 15px rgba(74, 124, 89, 0.3);">
+                       style="display: inline-block; background: ${color}; color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
                       Redefinir Senha
                     </a>
                   </td>
@@ -129,10 +150,10 @@ const handler = async (req: Request): Promise<Response> => {
           <tr>
             <td style="padding: 30px 40px 40px; border-top: 1px solid #eee;">
               <p style="margin: 0; color: #999; font-size: 12px; text-align: center;">
-                Precisa de ajuda? Entre em contato conosco pelo WhatsApp
+                Precisa de ajuda? Entre em contato pelo WhatsApp ${branding.whatsapp_formatted}
               </p>
               <p style="margin: 8px 0 0; color: #bbb; font-size: 11px; text-align: center;">
-                © 2024 Dieta Já - Todos os direitos reservados
+                PedidoJá — Plataforma de gestão de restaurantes
               </p>
             </td>
           </tr>
@@ -150,9 +171,9 @@ const handler = async (req: Request): Promise<Response> => {
           Authorization: `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: "Dieta Já <pedidos@dietajavca.com.br>",
+          from: `PedidoJá <pedidos@dietajavca.com.br>`,
           to: [email],
-          subject: "Redefinir sua senha - Dieta Já",
+          subject: `Redefinir sua senha - ${branding.brand_name}`,
           html: emailHtml,
         }),
       });
@@ -165,7 +186,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Always return success to prevent email enumeration attacks
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -179,7 +199,6 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in send-password-reset function:", error);
     
-    // Still return a generic success message to prevent email enumeration
     return new Response(
       JSON.stringify({ 
         success: true, 
