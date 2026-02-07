@@ -1,29 +1,37 @@
 
 
-## Correção: send-password-reset + Diagnóstico de Entrega
+## Correção: Sabores Duplicados + Peso no Cardápio
 
-### Diagnóstico
+### O que sera feito
 
-Os logs confirmam que o email **foi enviado com sucesso** pelo Resend. O problema é de **entrega/classificação do Gmail**, não de código. O Kennedy deve verificar:
-- Pasta de **Spam/Lixo Eletrônico**
-- Aba **Promoções** ou **Atualizações** do Gmail
+1. **Limpar pacotes duplicados no banco** - Existem 16 registros ativos quando deveriam ser 8 (4 quantidades x 2 linhas). Vamos desativar os duplicados.
 
-### Correção Técnica Pendente
+2. **Corrigir agrupamento no cardápio** - Hoje o codigo coloca TODOS os pacotes de marmita em TODAS as categorias (carnes, frangos, massas...). O correto e agrupar por linha: "Marmitas Fit (300g)" e "Marmitas Fitness (450g)".
 
-A função `send-password-reset` é a única que ainda **não foi migrada** para usar o sistema de credenciais por tenant. Ela usa:
-- `RESEND_API_KEY` global direto (em vez de `getEmailCredentials`)
-- `from: "PedidoJá <pedidos@dietajavca.com.br>"` hardcoded
+3. **Exibir o peso no card do produto** - Fit = 300g, Fitness = 450g. Badge visual no card.
 
-### Mudanças
+4. **Passar o peso correto ao modal de sabores** - O modal ja aceita `packageWeight`, mas o Cardapio nao esta enviando. Vamos passar com base no `line_type`.
 
-**Arquivo: `supabase/functions/send-password-reset/index.ts`**
+---
 
-1. Importar `getEmailCredentials` de `../_shared/tenant-credentials.ts`
-2. Remover `const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")` do topo
-3. Após resolver o branding, chamar `getEmailCredentials(supabaseAdmin, resolvedTenantId)`
-4. Usar `emailCreds.apiKey` no header Authorization do fetch ao Resend
-5. Usar `branding.brand_name` no display name do `from` em vez de "PedidoJá" hardcoded
-6. Manter `emailCreds.fromEmail` como domínio do remetente
+### Detalhes Tecnicos
 
-Isso alinha esta função com todas as outras já migradas e garante que, quando um tenant tiver sua própria chave Resend, o email de reset de senha também usará a credencial correta.
+**Migration SQL**: Desativar (`active = false`) os duplicados, mantendo apenas 1 registro por combinacao `(line_type, quantity)` -- o de menor `id` lexicografico.
+
+**src/pages/Cardapio.tsx**:
+- Substituir o agrupamento por categorias de sabor (`carnes`, `frangos`, `massas`) por agrupamento por linha (`fit`, `fitness`)
+- Criar duas secoes fixas com nomes descritivos: "Marmitas Fit - Emagrecimento (300g)" e "Marmitas FITNESS - Hipertrofia (450g)"
+- Passar `weight` no objeto do produto
+- Passar `packageWeight` ao `FlavorSelectionModal` baseado no `lineType` do produto (300 para emagrecimento, 450 para hipertrofia)
+- Atualizar `PendingProduct` para incluir `weight`
+- Atualizar sidebar/nav para refletir as duas categorias de linha em vez das categorias de sabor
+
+**src/components/cardapio/ProductCard.tsx**:
+- Adicionar prop `weight?: number`
+- Exibir badge com peso (ex: "300g" ou "450g") proximo ao badge de tipo
+
+**src/components/cardapio/CategorySection.tsx**:
+- Propagar prop `weight` para `ProductCard`
+
+**Menu Categories**: As categorias `carnes`, `frangos`, `massas`, `especiais` continuam existindo no banco para uso no modal de selecao de sabores. No cardapio, as secoes de marmita passam a ser agrupadas por linha (fit/fitness) em vez de por categoria de sabor.
 
