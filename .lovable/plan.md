@@ -1,37 +1,27 @@
 
 
-## Usar texto original do pedido e normalizar "mix de salada/legumes"
+## Substituir "mix de salada" por "mix de legumes" no texto exibido
 
-### Problema raiz
+### Problema
 
-O banco nao tem "Carne moida com aipim e mix de legumes". As opcoes de carne moida sao:
-- Carne moida com arroz e feijao
-- Carne moida com arroz e legumes
-- Carne moida com salada de legumes e graos
-
-O parser faz o match mais proximo e depois exibe o nome do CATALOGO (`matchedName`) em vez do texto ORIGINAL do WhatsApp. Por isso aparece "graos" onde o cliente escreveu "aipim".
+O parser ja normaliza internamente para matching, mas o `item.name` preserva o texto bruto do WhatsApp. Quando o cliente escreve "mix de salada", isso aparece igual na tela. O correto e sempre exibir "mix de legumes" porque sao o mesmo prato.
 
 ### Solucao
 
-**1. Exibir sempre o texto original do pedido**
+No `WhatsAppOrderImporter.tsx`, logo apos o parsing (linha 178), aplicar um `.map()` nos items para substituir "mix de salada" por "mix de legumes" no campo `name`:
 
-No componente `WhatsAppOrderImporter.tsx`, em todos os lugares que exibem o nome do item, usar `item.name` (texto original do WhatsApp) em vez de `item.matchedName` (nome do catalogo). O `matchedName` serve apenas para calcular a confianca do match, nao para exibir ao usuario.
+```
+setItems(result.items.map(item => ({
+  ...item,
+  name: item.name.replace(/mix de salada/gi, 'mix de legumes'),
+})));
+```
 
-- Linha 224 (createOrder): mudar de `item.matchedName || item.name` para `item.name`
-- Na listagem de itens no formulario de revisao: garantir que exibe `item.name`
+Isso garante que em toda a interface (lista de itens, resumo, pedido salvo) apareca "mix de legumes".
 
-**2. Normalizar "mix de salada" = "mix de legumes" no parser**
-
-No `whatsapp-parser.ts`, antes de fazer o fuzzy match, normalizar ambos os textos (usuario e catalogo) substituindo "mix de salada" por "mix de legumes". Isso melhora o score de match sem alterar o texto original que sera exibido.
-
-**3. Multiplicador na frente (confirmacao)**
-
-Na listagem de itens do importador, garantir que o formato e `2x Nome do item` (ja foi feito no OrdersManager mas precisa confirmar no importador).
-
-### Arquivos alterados
+### Arquivo alterado
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/components/admin/WhatsAppOrderImporter.tsx` | Usar `item.name` em vez de `item.matchedName` na exibicao e na criacao do pedido. Formato `{qty}x {name}`. |
-| `src/lib/whatsapp-parser.ts` | Normalizar "mix de salada" para "mix de legumes" antes do fuzzy match para melhorar acuracia. |
+| `src/components/admin/WhatsAppOrderImporter.tsx` | Linha 178: normalizar `item.name` substituindo "mix de salada" por "mix de legumes" ao popular os itens apos o parsing |
 
