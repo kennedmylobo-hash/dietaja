@@ -20,6 +20,9 @@ import {
 import { Settings2, ChevronDown, ChevronUp, Plus, Trash2, Save, Loader2 } from "lucide-react";
 
 export interface PricingSettings {
+  rawCostPerKg: number;
+  cookingLossPercent: number;
+  correctionFactor: number;
   costPerGram: number;
   packagingCost: number;
   fixedCostPerMeal: number;
@@ -87,21 +90,75 @@ export default function PricingConfig({ settings, onChange, onSave, saving }: Pr
 
         <CollapsibleContent>
           <CardContent className="space-y-6 pt-0">
-            {/* Bloco A - Custos */}
+            {/* Bloco A - Custos de Ingredientes */}
             <div>
-              <h4 className="font-semibold text-sm text-muted-foreground mb-3">💰 Custos</h4>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-3">🥩 Custo dos Ingredientes</h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-xs">Custo por grama (R$)</Label>
+                  <Label className="text-xs">Preço do kg cru (R$)</Label>
                   <Input
                     type="number"
-                    step="0.001"
+                    step="0.01"
                     min="0"
-                    value={settings.costPerGram}
-                    onChange={(e) => update({ costPerGram: parseFloat(e.target.value) || 0 })}
+                    value={settings.rawCostPerKg}
+                    onChange={(e) => {
+                      const rawCost = parseFloat(e.target.value) || 0;
+                      const costPerGram = (rawCost / 1000) * settings.correctionFactor;
+                      update({ rawCostPerKg: rawCost, costPerGram });
+                    }}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Ingredientes</p>
+                  <p className="text-xs text-muted-foreground mt-1">Média ponderada dos ingredientes</p>
                 </div>
+                <div>
+                  <Label className="text-xs">Perda na cocção (%)</Label>
+                  <Input
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="90"
+                    value={settings.cookingLossPercent}
+                    onChange={(e) => {
+                      const loss = parseFloat(e.target.value) || 0;
+                      const fc = loss >= 100 ? 1 : 1 / (1 - loss / 100);
+                      const costPerGram = (settings.rawCostPerKg / 1000) * fc;
+                      update({ cookingLossPercent: loss, correctionFactor: parseFloat(fc.toFixed(4)), costPerGram });
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Peso que perde ao cozinhar</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Fator de Correção (FC)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    value={settings.correctionFactor}
+                    onChange={(e) => {
+                      const fc = parseFloat(e.target.value) || 1;
+                      const loss = fc > 0 ? (1 - 1 / fc) * 100 : 0;
+                      const costPerGram = (settings.rawCostPerKg / 1000) * fc;
+                      update({ correctionFactor: fc, cookingLossPercent: parseFloat(loss.toFixed(1)), costPerGram });
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Peso bruto ÷ peso líquido</p>
+                </div>
+              </div>
+              <div className="mt-3 p-3 bg-muted/60 rounded-lg border text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Custo bruto/grama:</span>
+                  <span>R$ {(settings.rawCostPerKg / 1000).toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span className="text-muted-foreground">Custo real/grama (após cocção):</span>
+                  <span className="text-primary">R$ {settings.costPerGram.toFixed(4)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bloco B - Custos Fixos */}
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-3">📦 Custos Fixos</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs">Embalagem (R$)</Label>
                   <Input

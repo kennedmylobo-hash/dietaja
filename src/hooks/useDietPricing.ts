@@ -12,7 +12,10 @@ const DEFAULT_PACKAGES: PackageOption[] = [
 ];
 
 const DEFAULT_SETTINGS: PricingSettings = {
-  costPerGram: 0.04,
+  rawCostPerKg: 20.00,
+  cookingLossPercent: 30,
+  correctionFactor: 1.43,
+  costPerGram: 0.0286,
   packagingCost: 1.50,
   fixedCostPerMeal: 2.00,
   pricingMode: "margin",
@@ -38,6 +41,9 @@ export function useDietPricing() {
       if (data) {
         const d = data as any;
         setSettings({
+          rawCostPerKg: d.raw_cost_per_kg ?? DEFAULT_SETTINGS.rawCostPerKg,
+          cookingLossPercent: d.cooking_loss_percent ?? DEFAULT_SETTINGS.cookingLossPercent,
+          correctionFactor: d.correction_factor ?? DEFAULT_SETTINGS.correctionFactor,
           costPerGram: d.cost_per_gram ?? DEFAULT_SETTINGS.costPerGram,
           packagingCost: d.packaging_cost ?? DEFAULT_SETTINGS.packagingCost,
           fixedCostPerMeal: d.fixed_cost_per_meal ?? DEFAULT_SETTINGS.fixedCostPerMeal,
@@ -57,6 +63,9 @@ export function useDietPricing() {
     try {
       const payload = {
         tenant_id: tenantId,
+        raw_cost_per_kg: settings.rawCostPerKg,
+        cooking_loss_percent: settings.cookingLossPercent,
+        correction_factor: settings.correctionFactor,
         cost_per_gram: settings.costPerGram,
         packaging_cost: settings.packagingCost,
         fixed_cost_per_meal: settings.fixedCostPerMeal,
