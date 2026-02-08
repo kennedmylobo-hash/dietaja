@@ -14,7 +14,7 @@ export interface FlavorSidesByLine {
  * Maps line_type from marmita_packages (emagrecimento/hipertrofia) to JSONB key (fit/fitness)
  */
 export const mapLineTypeToKey = (lineType: string): 'fit' | 'fitness' => {
-  if (lineType === 'hipertrofia') return 'fitness';
+  if (lineType === 'hipertrofia' || lineType === 'fitness') return 'fitness';
   return 'fit';
 };
 
