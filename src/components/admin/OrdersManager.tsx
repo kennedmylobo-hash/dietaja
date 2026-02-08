@@ -1505,9 +1505,16 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                       {item.flavors && item.flavors.length > 0 && (
                         <div className="mt-1 ml-2 space-y-1">
                           {item.flavors.map((flavor, fi) => {
-                            const composition = inferredLineType
-                              ? getFlavorDescription(flavorSidesMap[flavor.name] ?? null, inferredLineType)
-                              : null;
+                            let sidesData = flavorSidesMap[flavor.name] ?? null;
+                            if (!sidesData) {
+                              const normalizedName = flavor.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                              const matchKey = Object.keys(flavorSidesMap).find(key => {
+                                const normalizedKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                                return normalizedName.includes(normalizedKey) || normalizedKey.includes(normalizedName);
+                              });
+                              if (matchKey) sidesData = flavorSidesMap[matchKey];
+                            }
+                            const composition = inferredLineType ? getFlavorDescription(sidesData, inferredLineType) : null;
                             return (
                               <div key={fi}>
                                 <p className="text-xs text-muted-foreground">
