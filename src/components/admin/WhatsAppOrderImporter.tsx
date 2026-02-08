@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,10 @@ import {
   MapPin,
   Loader2,
   Trash2,
-  Edit,
+  Calendar,
+  Clock,
+  CreditCard,
+  Utensils,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { 
@@ -35,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTenantId } from "@/hooks/useTenantId";
 
 interface MarmitaFlavor {
   id: string;
@@ -64,12 +68,25 @@ interface KitPackage {
   price: number;
 }
 
+type Step = 'input' | 'review';
+
+const MISSING_FIELD_LABELS: Record<string, string> = {
+  name: 'Nome do cliente',
+  items: 'Itens do pedido (pelo menos 1)',
+  lineType: 'Tipo do pedido (FIT ou FITNESS)',
+  deliveryDate: 'Data da entrega',
+  deliveryTime: 'Horário da entrega',
+  subtotal: 'Valor total do pedido (> 0)',
+  paymentStatus: 'Status do pagamento (pago ou a receber)',
+};
+
 const WhatsAppOrderImporter = () => {
+  const tenantId = useTenantId();
   const [conversationText, setConversationText] = useState("");
   const [parsedOrder, setParsedOrder] = useState<ParsedOrder | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [step, setStep] = useState<Step>('input');
   
   // Catalog data
   const [marmitaFlavors, setMarmitaFlavors] = useState<MarmitaFlavor[]>([]);
@@ -85,6 +102,12 @@ const WhatsAppOrderImporter = () => {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryOption, setDeliveryOption] = useState<'delivery' | 'pickup'>('delivery');
   const [items, setItems] = useState<ParsedOrderItem[]>([]);
+
+  // New required fields
+  const [lineType, setLineType] = useState<'fit' | 'fitness' | null>(null);
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [deliveryTime, setDeliveryTime] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'pending_payment' | null>(null);
 
   useEffect(() => {
     fetchCatalogData();
@@ -109,6 +132,24 @@ const WhatsAppOrderImporter = () => {
       console.error('Error fetching catalog:', error);
     }
   };
+
+  const subtotal = useMemo(() => {
+    return items.reduce((sum, item) => sum + item.totalPrice, 0);
+  }, [items]);
+
+  const missingFields = useMemo(() => {
+    const missing: string[] = [];
+    if (!customerName.trim()) missing.push('name');
+    if (items.length === 0) missing.push('items');
+    if (!lineType) missing.push('lineType');
+    if (!deliveryDate) missing.push('deliveryDate');
+    if (!deliveryTime) missing.push('deliveryTime');
+    if (subtotal <= 0) missing.push('subtotal');
+    if (!paymentStatus) missing.push('paymentStatus');
+    return missing;
+  }, [customerName, items, lineType, deliveryDate, deliveryTime, subtotal, paymentStatus]);
+
+  const isComplete = missingFields.length === 0;
 
   const analyzeConversation = () => {
     if (!conversationText.trim()) {
@@ -140,19 +181,12 @@ const WhatsAppOrderImporter = () => {
       setCustomerEmail(result.customer.email || "");
       setDeliveryAddress(result.customer.address || "");
       setItems(result.items);
+      setStep('review');
 
-      if (result.warnings.length > 0) {
-        toast({
-          title: "Atenção",
-          description: result.warnings.join(". "),
-          variant: "default",
-        });
-      } else {
-        toast({
-          title: "Análise concluída!",
-          description: `${result.items.length} item(s) identificado(s).`,
-        });
-      }
+      toast({
+        title: "Análise concluída",
+        description: `${result.items.length} item(s) identificado(s). Preencha os campos faltantes.`,
+      });
     } catch (error) {
       console.error('Error parsing conversation:', error);
       toast({
@@ -183,41 +217,20 @@ const WhatsAppOrderImporter = () => {
     setItems(prev => prev.filter((_, i) => i !== index));
   };
 
-  const calculateSubtotal = () => {
-    return items.reduce((sum, item) => sum + item.totalPrice, 0);
-  };
-
   const createOrder = async () => {
-    // Validation
-    if (!customerName.trim()) {
-      toast({ title: "Erro", description: "Nome do cliente é obrigatório.", variant: "destructive" });
-      return;
-    }
-    if (!customerPhone.trim()) {
-      toast({ title: "Erro", description: "WhatsApp é obrigatório.", variant: "destructive" });
-      return;
-    }
-    if (items.length === 0) {
-      toast({ title: "Erro", description: "Adicione pelo menos um item ao pedido.", variant: "destructive" });
-      return;
-    }
-    if (deliveryOption === 'delivery' && !deliveryAddress.trim()) {
-      toast({ title: "Erro", description: "Endereço de entrega é obrigatório para delivery.", variant: "destructive" });
-      return;
-    }
+    if (!isComplete) return;
 
     setIsCreating(true);
 
     try {
-      const subtotal = calculateSubtotal();
-      const deliveryFee = deliveryOption === 'delivery' ? 15 : 0; // Default fee
+      const deliveryFee = deliveryOption === 'delivery' ? 15 : 0;
 
-      // Format items for order
       const orderItems = items.map(item => ({
         name: item.matchedName || item.name,
         quantity: item.quantity,
         totalPrice: item.totalPrice,
         type: item.type,
+        lineType: lineType,
         flavors: item.type === 'marmita' ? [{
           name: item.matchedName || item.name,
           quantity: item.quantity,
@@ -225,8 +238,9 @@ const WhatsAppOrderImporter = () => {
         }] : undefined,
       }));
 
-      // Generate default email if not provided
-      const email = customerEmail.trim() || `${customerPhone}@whatsapp.imported`;
+      const email = customerEmail.trim() || `${customerPhone.replace(/\D/g, '')}@whatsapp.imported`;
+
+      const orderStatus = paymentStatus === 'paid' ? 'approved' : 'whatsapp_pending';
 
       const { error } = await supabase
         .from('orders')
@@ -240,25 +254,27 @@ const WhatsAppOrderImporter = () => {
           subtotal,
           delivery_fee: deliveryFee,
           total: subtotal + deliveryFee,
-          status: 'whatsapp_pending',
+          status: orderStatus,
           payment_method: 'whatsapp',
+          paid_at: paymentStatus === 'paid' ? new Date().toISOString() : null,
+          tenant_id: tenantId,
+          utm_data: {
+            source: 'whatsapp_import',
+            scheduled_date: deliveryDate,
+            scheduled_time: deliveryTime,
+            line_type: lineType,
+          },
         });
 
       if (error) throw error;
 
       toast({
-        title: "Pedido criado!",
-        description: "O pedido foi registrado como WhatsApp Pendente.",
+        title: "✅ Pedido lançado!",
+        description: `Pedido de ${customerName} criado como ${paymentStatus === 'paid' ? 'Aprovado' : 'WhatsApp Pendente'}.`,
       });
 
-      // Reset form
-      setConversationText("");
-      setParsedOrder(null);
-      setCustomerName("");
-      setCustomerPhone("");
-      setCustomerEmail("");
-      setDeliveryAddress("");
-      setItems([]);
+      // Reset everything
+      resetForm();
     } catch (error) {
       console.error('Error creating order:', error);
       toast({
@@ -271,12 +287,35 @@ const WhatsAppOrderImporter = () => {
     }
   };
 
+  const resetForm = () => {
+    setConversationText("");
+    setParsedOrder(null);
+    setCustomerName("");
+    setCustomerPhone("");
+    setCustomerEmail("");
+    setDeliveryAddress("");
+    setItems([]);
+    setLineType(null);
+    setDeliveryDate("");
+    setDeliveryTime("");
+    setPaymentStatus(null);
+    setStep('input');
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
     }).format(value);
   };
+
+  const formatDateBR = (dateStr: string) => {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-');
+    return `${d}/${m}/${y}`;
+  };
+
+  const isMissing = (field: string) => missingFields.includes(field);
 
   return (
     <div className="space-y-6">
@@ -288,7 +327,7 @@ const WhatsAppOrderImporter = () => {
         <div>
           <h2 className="text-xl font-bold">Importar Pedido do WhatsApp</h2>
           <p className="text-sm text-muted-foreground">
-            Cole a conversa e extraia automaticamente os dados do pedido
+            Cole a conversa, preencha o que faltar, confirme e lance
           </p>
         </div>
       </div>
@@ -307,8 +346,6 @@ Exemplo:
 Olá, quero fazer um pedido:
 5 marmitas de carne moída
 3 marmitas de frango grelhado
-2 sucos verdes
-Entrega: Rua das Flores, 123
 Nome: Maria Silva
 WhatsApp: 77991234567"
               className="min-h-[300px] font-mono text-sm"
@@ -335,76 +372,66 @@ WhatsApp: 77991234567"
           </CardContent>
         </Card>
 
-        {/* Extracted Order Section */}
+        {/* Review Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center justify-between">
-              <span>📋 Pedido Extraído</span>
-              {parsedOrder && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setIsEditing(!isEditing)}
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  {isEditing ? 'Visualizar' : 'Editar'}
-                </Button>
-              )}
-            </CardTitle>
+            <CardTitle className="text-base">📋 Pedido Extraído</CardTitle>
           </CardHeader>
           <CardContent>
-            {!parsedOrder ? (
+            {step === 'input' && !parsedOrder ? (
               <div className="text-center py-12 text-muted-foreground">
                 <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>Cole uma conversa e clique em "Analisar" para extrair o pedido</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Warnings */}
-                {parsedOrder.warnings.length > 0 && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                    {parsedOrder.warnings.map((warning, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-sm text-yellow-700">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                        {warning}
-                      </div>
-                    ))}
+                {/* Missing Fields Alert */}
+                {missingFields.length > 0 && (
+                  <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 space-y-1">
+                    <div className="flex items-center gap-2 font-medium text-sm text-destructive-foreground">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      Para lançar esse pedido, preciso das seguintes informações:
+                    </div>
+                    <ul className="pl-6 space-y-0.5">
+                      {missingFields.map(field => (
+                        <li key={field} className="text-sm text-destructive list-disc">
+                          {MISSING_FIELD_LABELS[field]}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
                 {/* Customer Info */}
                 <div className="space-y-3">
-                  <h4 className="font-medium flex items-center gap-2">
+                  <h4 className="font-medium flex items-center gap-2 text-sm">
                     <User className="w-4 h-4" /> Cliente
                   </h4>
-                  
-                  <div className="grid gap-3">
+                  <div className="grid gap-2">
                     <div>
-                      <Label>Nome</Label>
+                      <Label className="text-xs">Nome *</Label>
                       <Input
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
                         placeholder="Nome do cliente"
-                        disabled={!isEditing}
+                        className={isMissing('name') ? 'border-destructive' : ''}
                       />
                     </div>
                     <div>
-                      <Label>WhatsApp</Label>
+                      <Label className="text-xs">WhatsApp</Label>
                       <Input
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
                         placeholder="77999999999"
-                        disabled={!isEditing}
                       />
                     </div>
                     <div>
-                      <Label>Email (opcional)</Label>
+                      <Label className="text-xs">Email (opcional)</Label>
                       <Input
                         type="email"
                         value={customerEmail}
                         onChange={(e) => setCustomerEmail(e.target.value)}
                         placeholder="email@exemplo.com"
-                        disabled={!isEditing}
                       />
                     </div>
                   </div>
@@ -412,16 +439,42 @@ WhatsApp: 77991234567"
 
                 <Separator />
 
+                {/* Line Type (FIT / FITNESS) */}
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2 text-sm">
+                    <Utensils className="w-4 h-4" /> Tipo da Marmita *
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={lineType === 'fit' ? 'default' : 'outline'}
+                      className={`w-full ${isMissing('lineType') ? 'border-destructive' : ''}`}
+                      onClick={() => setLineType('fit')}
+                    >
+                      FIT 300g
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={lineType === 'fitness' ? 'default' : 'outline'}
+                      className={`w-full ${isMissing('lineType') ? 'border-destructive' : ''}`}
+                      onClick={() => setLineType('fitness')}
+                    >
+                      FITNESS 450g
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator />
+
                 {/* Delivery Info */}
-                <div className="space-y-3">
-                  <h4 className="font-medium flex items-center gap-2">
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2 text-sm">
                     <MapPin className="w-4 h-4" /> Entrega
                   </h4>
                   
                   <Select 
                     value={deliveryOption} 
                     onValueChange={(v) => setDeliveryOption(v as 'delivery' | 'pickup')}
-                    disabled={!isEditing}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -437,21 +490,47 @@ WhatsApp: 77991234567"
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
                       placeholder="Endereço completo"
-                      disabled={!isEditing}
                     />
                   )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> Data *
+                      </Label>
+                      <Input
+                        type="date"
+                        value={deliveryDate}
+                        onChange={(e) => setDeliveryDate(e.target.value)}
+                        className={isMissing('deliveryDate') ? 'border-destructive' : ''}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> Horário *
+                      </Label>
+                      <Input
+                        type="time"
+                        value={deliveryTime}
+                        onChange={(e) => setDeliveryTime(e.target.value)}
+                        className={isMissing('deliveryTime') ? 'border-destructive' : ''}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <Separator />
 
                 {/* Items */}
-                <div className="space-y-3">
-                  <h4 className="font-medium">📦 Itens</h4>
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">📦 Itens *</h4>
                   
                   {items.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhum item identificado</p>
+                    <p className={`text-sm ${isMissing('items') ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                      Nenhum item identificado
+                    </p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {items.map((item, idx) => (
                         <div 
                           key={idx} 
@@ -459,54 +538,41 @@ WhatsApp: 77991234567"
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium truncate">{item.matchedName}</span>
+                              <span className="font-medium text-sm truncate">{item.matchedName}</span>
                               {item.confidence < 0.8 && (
                                 <Badge variant="outline" className="text-xs bg-yellow-50">
                                   ~{Math.round(item.confidence * 100)}%
                                 </Badge>
                               )}
                             </div>
-                            {item.name !== item.matchedName && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                Original: {item.name}
-                              </p>
-                            )}
                           </div>
                           
-                          <div className="flex items-center gap-2">
-                            {isEditing && (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-7 w-7"
-                                  onClick={() => updateItemQuantity(idx, -1)}
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <span className="w-8 text-center font-medium">{item.quantity}x</span>
-                            {isEditing && (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-7 w-7"
-                                  onClick={() => updateItemQuantity(idx, 1)}
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-red-500"
-                                  onClick={() => removeItem(idx)}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => updateItemQuantity(idx, -1)}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <span className="w-7 text-center font-medium text-sm">{item.quantity}x</span>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => updateItemQuantity(idx, 1)}
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive"
+                              onClick={() => removeItem(idx)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           </div>
                         </div>
                       ))}
@@ -516,31 +582,80 @@ WhatsApp: 77991234567"
 
                 <Separator />
 
-                {/* Total & Action */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-lg font-bold">
-                    <span>Total:</span>
-                    <span>{formatCurrency(calculateSubtotal())}</span>
+                {/* Payment Status */}
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2 text-sm">
+                    <CreditCard className="w-4 h-4" /> Pagamento *
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={paymentStatus === 'paid' ? 'default' : 'outline'}
+                      className={`w-full ${isMissing('paymentStatus') ? 'border-destructive' : ''}`}
+                      onClick={() => setPaymentStatus('paid')}
+                    >
+                      ✅ Pago
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={paymentStatus === 'pending_payment' ? 'default' : 'outline'}
+                      className={`w-full ${isMissing('paymentStatus') ? 'border-destructive' : ''}`}
+                      onClick={() => setPaymentStatus('pending_payment')}
+                    >
+                      ⏳ A receber
+                    </Button>
                   </div>
-
-                  <Button 
-                    className="w-full" 
-                    onClick={createOrder}
-                    disabled={isCreating || items.length === 0}
-                  >
-                    {isCreating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Criando...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Criar Pedido (WhatsApp Pendente)
-                      </>
-                    )}
-                  </Button>
                 </div>
+
+                <Separator />
+
+                {/* Subtotal */}
+                <div className="flex items-center justify-between font-bold">
+                  <span>Valor total:</span>
+                  <span className={isMissing('subtotal') ? 'text-destructive' : ''}>
+                    {formatCurrency(subtotal)}
+                  </span>
+                </div>
+
+                {/* Order Summary Card (only when complete) */}
+                {isComplete && (
+                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-1.5 text-sm">
+                    <p className="font-bold text-primary mb-2">📋 Resumo do Pedido</p>
+                    <p><strong>Cliente:</strong> {customerName}</p>
+                    <p><strong>Pedido:</strong> {items.map(i => `${i.quantity}x ${i.matchedName}`).join(', ')}</p>
+                    <p><strong>Tipo:</strong> {lineType === 'fit' ? 'FIT 300g' : 'FITNESS 450g'}</p>
+                    <p><strong>Entrega:</strong> {formatDateBR(deliveryDate)} — {deliveryTime}</p>
+                    <p><strong>Valor:</strong> {formatCurrency(subtotal)}</p>
+                    <p><strong>Pagamento:</strong> {paymentStatus === 'paid' ? 'Pago' : 'A receber'}</p>
+                    <p><strong>Financeiro:</strong> Valor lançado</p>
+                  </div>
+                )}
+
+                {/* Action Button */}
+                <Button 
+                  className="w-full" 
+                  onClick={createOrder}
+                  disabled={isCreating || !isComplete}
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Lançando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      {isComplete ? 'Posso lançar esse pedido agora?' : 'Preencha todos os campos obrigatórios'}
+                    </>
+                  )}
+                </Button>
+
+                {/* Reset */}
+                {parsedOrder && (
+                  <Button variant="ghost" className="w-full text-sm" onClick={resetForm}>
+                    Limpar e começar novo pedido
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
