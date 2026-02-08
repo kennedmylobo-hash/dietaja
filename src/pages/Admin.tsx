@@ -63,6 +63,7 @@ import ReviewsManager from "@/components/admin/ReviewsManager";
 import RecurringCustomers from "@/components/admin/RecurringCustomers";
 import TenantSettingsEditor from "@/components/admin/TenantSettingsEditor";
 import LandingEditor from "@/components/admin/LandingEditor";
+import ShoppingList from "@/components/admin/ShoppingList";
 
 interface Lead {
   id: string;
@@ -716,6 +717,9 @@ const Admin = () => {
 
       case "production":
         return <ProductionPanel dateFilter={dateFilter} />;
+
+      case "shopping-list":
+        return <ShoppingList dateFilter={dateFilter} />;
 
        case "recurring":
          return <RecurringCustomers />;

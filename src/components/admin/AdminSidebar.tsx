@@ -21,6 +21,7 @@ import {
    CalendarClock,
    Store,
    Palette,
+  ShoppingCart,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -47,6 +48,7 @@ const menuGroups: AdminMenuGroup[] = [
       { id: "live", label: "Ao Vivo", icon: Radio, pulse: true },
       { id: "orders", label: "Pedidos", icon: Package },
       { id: "production", label: "Produção", icon: ChefHat },
+      { id: "shopping-list", label: "Compras", icon: ShoppingCart },
        { id: "recurring", label: "Recorrentes", icon: CalendarClock },
       { id: "whatsapp-import", label: "Importar", icon: MessageCircle },
     ],
