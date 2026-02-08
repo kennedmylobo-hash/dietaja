@@ -542,8 +542,11 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         fetchStatusHistory(orderId);
       }
 
-      // Send notification
-      sendStatusNotification(orderId, 'cancelled');
+      // Send notification (skip for WhatsApp imported orders)
+      const isWhatsAppImport = currentOrder?.utm_data?.source === 'whatsapp_import';
+      if (!isWhatsAppImport) {
+        sendStatusNotification(orderId, 'cancelled');
+      }
 
       // Clear cancel state
       setOrderToCancel(null);
@@ -828,8 +831,10 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
         fetchStatusHistory(orderId);
       }
 
-      // Send notification for status change (except pending statuses)
-      if (!['pending', 'whatsapp_pending'].includes(newStatus)) {
+      // Send notification for status change (except pending statuses and WhatsApp imports)
+      const currentOrderForNotif = orders.find(o => o.id === orderId);
+      const isWhatsAppImportStatus = (currentOrderForNotif?.utm_data as any)?.source === 'whatsapp_import';
+      if (!['pending', 'whatsapp_pending'].includes(newStatus) && !isWhatsAppImportStatus) {
         sendStatusNotification(orderId, newStatus);
       }
 
