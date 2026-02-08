@@ -47,14 +47,21 @@ interface OrderConfirmationModalProps {
   onSubtotalChanged?: (value: number) => void;
 }
 
-const extractProteinName = (itemName: string): string => {
+const extractProteinName = (itemName: string, isEscondidinho = false): string => {
   const lower = itemName.toLowerCase();
   // Remove "escondidinho de " prefix
   const cleaned = lower.replace(/escondidinho\s+de\s+/i, '');
   // Take first part before comma, "com", "e "
   const part = cleaned.split(/[,]|\s+com\s+|\s+e\s+/)[0].trim();
   // Capitalize first letter
-  return part.charAt(0).toUpperCase() + part.slice(1);
+  let protein = part.charAt(0).toUpperCase() + part.slice(1);
+
+  // Escondidinho: "carne" alone → "Carne moída" or "Carne desfiada"
+  if (isEscondidinho && protein.toLowerCase() === 'carne') {
+    protein = lower.includes('desfiada') ? 'Carne desfiada' : 'Carne moída';
+  }
+
+  return protein;
 };
 
 const extractCarbName = (itemName: string): string => {
@@ -91,7 +98,7 @@ const parseAllIngredients = (itemName: string): string[] => {
 const generateDefaultSides = (itemName: string, line: "fit" | "fitness"): FlavorSideItem[] => {
   const isEscondidinho = itemName.toLowerCase().includes('escondidinho');
   const allParts = parseAllIngredients(itemName);
-  const protein = allParts[0] || 'Proteína';
+  const protein = extractProteinName(itemName, isEscondidinho) || allParts[0] || 'Proteína';
 
   if (isEscondidinho) {
     // Base: protein + purê
@@ -120,12 +127,12 @@ const generateDefaultSides = (itemName: string, line: "fit" | "fitness"): Flavor
     }
 
     // Distribute: protein + carb + extras = target weight
+    // Escondidinho keeps standard protein weights (120/175), purê absorbs the reduction
     const target = line === 'fit' ? 300 : 450;
     const extraWeight = line === 'fit' ? 50 : 100;
     const totalExtraWeight = extraWeight * extras.length;
-    const remaining = target - totalExtraWeight;
-    const proteinW = line === 'fit' ? 100 : 150;
-    const carbW = remaining - proteinW;
+    const proteinW = line === 'fit' ? 120 : 175;
+    const carbW = target - proteinW - totalExtraWeight;
 
     const sides: FlavorSideItem[] = [
       { name: protein, weight: proteinW },
