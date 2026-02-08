@@ -629,22 +629,22 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
       <head>
         <title>Produção Completa - ${today}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 20px; }
-          h1 { font-size: 18px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-          h2 { font-size: 16px; margin-top: 20px; color: #333; }
-          .item { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
-          .weight { font-weight: bold; font-size: 18px; }
-          .protein { background: #f0f9ff; padding: 10px; margin: 5px 0; }
-          .side { padding: 10px; margin: 5px 0; }
-          .divider { border-top: 3px solid #000; margin: 30px 0; }
-          .section-fit { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 8px 12px; border-radius: 6px; }
-          .section-fitness { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 8px 12px; border-radius: 6px; }
-          .combo { background: #f8f8f8; padding: 12px; margin: 10px 0; border-radius: 8px; page-break-inside: avoid; }
-          .combo-header { display: flex; align-items: center; gap: 10px; font-weight: bold; margin-bottom: 8px; }
-          .combo-qty { background: #22c55e; color: white; padding: 4px 12px; border-radius: 20px; font-size: 16px; min-width: 50px; text-align: center; }
-          .combo-details { color: #666; font-size: 14px; }
-          .customers { font-size: 12px; color: #999; margin-top: 8px; }
-          .total { font-size: 14px; color: #666; margin-top: 20px; text-align: center; }
+          body { font-family: Arial, sans-serif; padding: 10px; font-size: 11px; }
+          h1 { font-size: 14px; border-bottom: 2px solid #000; padding-bottom: 5px; }
+          h2 { font-size: 12px; margin-top: 10px; color: #333; }
+          .item { padding: 3px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+          .weight { font-weight: bold; font-size: 12px; }
+          .protein { background: #f0f9ff; padding: 4px 8px; margin: 2px 0; }
+          .side { padding: 4px 8px; margin: 2px 0; }
+          .divider { border-top: 3px solid #000; margin: 15px 0; }
+          .section-fit { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 4px 8px; border-radius: 6px; }
+          .section-fitness { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 4px 8px; border-radius: 6px; }
+          .combo { background: #f8f8f8; padding: 6px 8px; margin: 4px 0; border-radius: 8px; page-break-inside: avoid; }
+          .combo-header { display: flex; align-items: center; gap: 6px; font-weight: bold; margin-bottom: 3px; font-size: 12px; }
+          .combo-qty { background: #22c55e; color: white; padding: 2px 8px; border-radius: 20px; font-size: 11px; min-width: 40px; text-align: center; }
+          .combo-details { color: #666; font-size: 10px; }
+          .customers { font-size: 9px; color: #999; margin-top: 3px; }
+          .total { font-size: 11px; color: #666; margin-top: 10px; text-align: center; }
         </style>
       </head>
       <body>
