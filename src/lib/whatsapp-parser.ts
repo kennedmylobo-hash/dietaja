@@ -219,6 +219,9 @@ function extractItems(text: string, catalog: CatalogItem[]): ParsedOrderItem[] {
       }
     }
 
+    // Filter noise: only accept lines captured by a quantity pattern with enough text
+    if (productText.trim().length < 8) continue;
+
     // Try to match with catalog
     const matchResult = findBestMatch(productText, catalog);
     if (matchResult && matchResult.confidence >= 0.75) {
@@ -231,6 +234,17 @@ function extractItems(text: string, catalog: CatalogItem[]): ParsedOrderItem[] {
         totalPrice: (item.price || 0) * quantity,
         type: item.type,
         confidence,
+      });
+    } else {
+      // No match: accept as-is so no items are lost
+      items.push({
+        name: productText.trim(),
+        matchedName: productText.trim(),
+        quantity,
+        unitPrice: 0,
+        totalPrice: 0,
+        type: 'marmita',
+        confidence: 0,
       });
     }
   }
