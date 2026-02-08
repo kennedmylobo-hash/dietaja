@@ -1735,6 +1735,8 @@ export type Database = {
       }
       tenant_diet_pricing: {
         Row: {
+          cooking_loss_percent: number
+          correction_factor: number
           cost_per_gram: number
           created_at: string
           fixed_cost_per_meal: number
@@ -1744,10 +1746,13 @@ export type Database = {
           package_options: Json
           packaging_cost: number
           pricing_mode: string
+          raw_cost_per_kg: number
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          cooking_loss_percent?: number
+          correction_factor?: number
           cost_per_gram?: number
           created_at?: string
           fixed_cost_per_meal?: number
@@ -1757,10 +1762,13 @@ export type Database = {
           package_options?: Json
           packaging_cost?: number
           pricing_mode?: string
+          raw_cost_per_kg?: number
           tenant_id: string
           updated_at?: string
         }
         Update: {
+          cooking_loss_percent?: number
+          correction_factor?: number
           cost_per_gram?: number
           created_at?: string
           fixed_cost_per_meal?: number
@@ -1770,6 +1778,7 @@ export type Database = {
           package_options?: Json
           packaging_cost?: number
           pricing_mode?: string
+          raw_cost_per_kg?: number
           tenant_id?: string
           updated_at?: string
         }
