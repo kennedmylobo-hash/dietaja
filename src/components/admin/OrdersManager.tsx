@@ -235,7 +235,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       fetchStatusHistory(selectedOrder.id);
       // Fetch flavor compositions for marmita items
       const hasMarmita = selectedOrder.items.some(i => i.type === 'marmita');
-      if (hasMarmita && Object.keys(flavorSidesMap).length === 0) {
+      if (hasMarmita) {
         supabase
           .from('marmita_flavors')
           .select('name, sides')
@@ -1507,12 +1507,23 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                           {item.flavors.map((flavor, fi) => {
                             let sidesData = flavorSidesMap[flavor.name] ?? null;
                             if (!sidesData) {
-                              const normalizedName = flavor.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                              const matchKey = Object.keys(flavorSidesMap).find(key => {
-                                const normalizedKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                                return normalizedName.includes(normalizedKey) || normalizedKey.includes(normalizedName);
-                              });
-                              if (matchKey) sidesData = flavorSidesMap[matchKey];
+                              const stopWords = new Set(['com', 'de', 'e', 'em', 'ao', 'a', 'o', 'mix', 'da', 'do']);
+                              const extractWords = (str: string) =>
+                                str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                                  .split(/[\s,]+/).filter(w => w.length > 1 && !stopWords.has(w));
+                              const targetWords = extractWords(flavor.name);
+                              let bestMatch = '';
+                              let bestScore = 0;
+                              for (const key of Object.keys(flavorSidesMap)) {
+                                const keyWords = extractWords(key);
+                                const overlap = targetWords.filter(w => keyWords.includes(w)).length;
+                                const score = overlap / Math.max(targetWords.length, keyWords.length);
+                                if (score > bestScore && score >= 0.5) {
+                                  bestScore = score;
+                                  bestMatch = key;
+                                }
+                              }
+                              if (bestMatch) sidesData = flavorSidesMap[bestMatch];
                             }
                             const composition = inferredLineType ? getFlavorDescription(sidesData, inferredLineType) : null;
                             return (
