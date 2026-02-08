@@ -93,6 +93,45 @@ export default function PricingConfig({ settings, onChange, onSave, saving }: Pr
             {/* Bloco A - Custos de Ingredientes */}
             <div>
               <h4 className="font-semibold text-sm text-muted-foreground mb-3">🥩 Custo dos Ingredientes</h4>
+              
+              {/* Presets de cocção */}
+              <div className="mb-4">
+                <Label className="text-xs mb-2 block">Preset de cocção (sugestão por IA)</Label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "🐄 Carne bovina", loss: 35, emoji: "🐄" },
+                    { label: "🐔 Frango", loss: 25, emoji: "🐔" },
+                    { label: "🐖 Porco", loss: 30, emoji: "🐖" },
+                    { label: "🐟 Peixe", loss: 20, emoji: "🐟" },
+                    { label: "🥦 Vegetais", loss: 15, emoji: "🥦" },
+                    { label: "🍚 Grãos/Arroz", loss: 0, emoji: "🍚" },
+                  ].map((preset) => {
+                    const isActive = Math.abs(settings.cookingLossPercent - preset.loss) < 0.5;
+                    return (
+                      <Button
+                        key={preset.label}
+                        type="button"
+                        variant={isActive ? "default" : "outline"}
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => {
+                          const fc = preset.loss >= 100 ? 1 : 1 / (1 - preset.loss / 100);
+                          const costPerGram = (settings.rawCostPerKg / 1000) * fc;
+                          update({
+                            cookingLossPercent: preset.loss,
+                            correctionFactor: parseFloat(fc.toFixed(4)),
+                            costPerGram,
+                          });
+                        }}
+                      >
+                        {preset.label} ({preset.loss}%)
+                      </Button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Clique para aplicar ou edite manualmente abaixo</p>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label className="text-xs">Preço do kg cru (R$)</Label>
