@@ -40,8 +40,9 @@ import {
 } from "@/components/ui/select";
 import { useTenantId } from "@/hooks/useTenantId";
 import FlavorCompositionModal from "./FlavorCompositionModal";
+import OrderConfirmationModal, { ConfirmItem } from "./OrderConfirmationModal";
 import { Json } from "@/integrations/supabase/types";
-import { getFlavorDescription, mapLineTypeToKey } from "@/lib/flavor-description";
+import { getFlavorDescription, mapLineTypeToKey, parseSides } from "@/lib/flavor-description";
 
 interface MarmitaFlavor {
   id: string;
@@ -102,6 +103,10 @@ const WhatsAppOrderImporter = () => {
   const [compositionFlavorName, setCompositionFlavorName] = useState("");
   const [compositionFlavorSides, setCompositionFlavorSides] = useState<Json | null>(null);
   const [pendingCompositionItems, setPendingCompositionItems] = useState<{id: string; name: string; sides: Json | null}[]>([]);
+
+  // Confirmation modal state
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [confirmItems, setConfirmItems] = useState<ConfirmItem[]>([]);
 
   useEffect(() => {
     fetchCatalogData();
@@ -253,13 +258,39 @@ const WhatsAppOrderImporter = () => {
     return missing;
   };
 
+  const buildConfirmItems = (): ConfirmItem[] => {
+    if (!lineType) return [];
+    const lineKey = mapLineTypeToKey(lineType === 'fit' ? 'emagrecimento' : 'hipertrofia');
+    
+    return items.filter(i => i.type === 'marmita').map(item => {
+      const matchedFlavor = marmitaFlavors.find(f => 
+        f.name.toLowerCase() === item.matchedName.toLowerCase()
+      );
+      const parsed = matchedFlavor ? parseSides(matchedFlavor.sides) : null;
+      const sides = parsed?.[lineKey] || [];
+      
+      return {
+        name: item.name,
+        matchedName: item.matchedName,
+        quantity: item.quantity,
+        flavorId: matchedFlavor?.id || null,
+        sides: sides.map(s => ({ ...s })),
+      };
+    });
+  };
+
+  const openConfirmationModal = () => {
+    const builtItems = buildConfirmItems();
+    setConfirmItems(builtItems);
+    setConfirmModalOpen(true);
+  };
+
   const handleCreateOrder = () => {
     if (!isComplete) return;
     
     const missing = getItemsMissingComposition();
     if (missing.length > 0) {
       setPendingCompositionItems(missing);
-      // Open modal for the first missing item
       const first = missing[0];
       setCompositionFlavorId(first.id);
       setCompositionFlavorName(first.name);
@@ -268,29 +299,25 @@ const WhatsAppOrderImporter = () => {
       return;
     }
     
-    createOrder();
+    openConfirmationModal();
   };
 
   const handleCompositionSaved = (flavorId: string, newSides: Json) => {
-    // Update local marmitaFlavors cache
     setMarmitaFlavors(prev => prev.map(f => f.id === flavorId ? { ...f, sides: newSides } : f));
     
-    // Remove from pending list
     const remaining = pendingCompositionItems.filter(item => item.id !== flavorId);
     setPendingCompositionItems(remaining);
     
     if (remaining.length > 0) {
-      // Open next one
       const next = remaining[0];
       setCompositionFlavorId(next.id);
       setCompositionFlavorName(next.name);
       setCompositionFlavorSides(next.sides);
       setCompositionModalOpen(true);
     } else {
-      // All done, proceed with order
       setCompositionModalOpen(false);
-      toast({ title: "Composições salvas! Lançando pedido..." });
-      setTimeout(() => createOrder(), 300);
+      toast({ title: "Composições salvas! Revise e confirme o pedido." });
+      setTimeout(() => openConfirmationModal(), 300);
     }
   };
 
@@ -751,6 +778,28 @@ WhatsApp: 77991234567"
         sides={compositionFlavorSides}
         onSaved={handleCompositionSaved}
       />
+
+      {/* Order Confirmation Modal with editable weights */}
+      {lineType && paymentStatus && (
+        <OrderConfirmationModal
+          isOpen={confirmModalOpen}
+          onClose={() => setConfirmModalOpen(false)}
+          onConfirm={() => {
+            setConfirmModalOpen(false);
+            createOrder();
+          }}
+          items={confirmItems}
+          lineType={lineType}
+          customerName={customerName}
+          subtotal={subtotal}
+          deliveryDate={deliveryDate}
+          deliveryTime={deliveryTime}
+          paymentStatus={paymentStatus}
+          onItemsUpdated={(flavorId, newSides) => {
+            setMarmitaFlavors(prev => prev.map(f => f.id === flavorId ? { ...f, sides: newSides } : f));
+          }}
+        />
+      )}
     </div>
   );
 };
