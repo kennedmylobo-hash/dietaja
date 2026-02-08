@@ -1,21 +1,92 @@
 
 
-## Corrigir Scroll no Modal de Detalhes do Pedido
+## Separar Estrogonofe de Frango e de Carne na Ficha de Producao
 
 ### Problema
-A correcao anterior (`min-h-0`) nao foi suficiente. O `ScrollArea` do Radix UI depende de calculos internos de altura que nao funcionam bem em containers flex sem altura explicita. O viewport interno do Radix continua sem ativar o scroll.
+No banco de dados, todos os sabores de estrogonofe (frango e carne) estao com o ingrediente proteina cadastrado como apenas "Estrogonofe". Isso faz com que o sistema some tudo junto na ficha de producao, sem distinguir frango de carne.
 
-### Solucao
-Substituir o `ScrollArea` do Radix por um `div` com `overflow-y-auto` nativo, que funciona de forma confiavel em containers flex.
+### Solucao (2 partes)
 
-**Arquivo:** `src/components/admin/OrdersManager.tsx`
+**Parte 1 - Corrigir dados no banco**
 
-1. **Linha 1425**: Trocar `<ScrollArea className="flex-1 min-h-0 pr-4">` por `<div className="flex-1 min-h-0 overflow-y-auto pr-4">`
+Atualizar o campo `sides` de todos os sabores de estrogonofe para usar nomes especificos:
+- "Estrogonofe de frango" nos sabores que contem "frango" no nome
+- "Estrogonofe de carne" nos sabores que contem "carne" no nome
 
-2. **Linha 1769**: Trocar `</ScrollArea>` por `</div>`
+Isso envolve um migration SQL que faz UPDATE em `marmita_flavors` para trocar `"Estrogonofe"` por `"Estrogonofe de frango"` ou `"Estrogonofe de carne"` no JSONB `sides`, cobrindo ambas as linhas (fit e fitness).
 
-### Por que essa abordagem
-O componente `ScrollArea` do Radix usa um viewport interno com calculos de altura que conflitam com layouts flex dinamicos. O `overflow-y-auto` nativo do CSS funciona perfeitamente com `flex-1` + `min-h-0`, ativando o scroll automaticamente quando o conteudo excede o espaco disponivel.
+**Parte 2 - Prevenir no codigo**
+
+Ajustar a funcao `extractProteinName` em `src/lib/flavor-description.ts` para que, quando o nome do sabor contem "estrogonofe de [algo]", preserve o nome completo (ex: "Estrogonofe de frango") em vez de simplificar para apenas "Estrogonofe".
+
+Atualmente o split por "com" ja faz isso corretamente (`"estrogonofe de frango com aipim..."` gera `"Estrogonofe de frango"`), entao o `generateDefaultSides` ja funciona bem. O problema e exclusivamente nos dados salvos no banco.
 
 ### Resultado Esperado
-O modal tera scroll nativo funcional, permitindo rolar ate o final e acessar todos os botoes (Producao, WhatsApp, Cancelar, etc.).
+Na ficha de producao, os totais de proteina mostrarao:
+- Estrogonofe de frango: Xg
+- Estrogonofe de carne: Yg
+
+Em vez de um unico "Estrogonofe: X+Yg".
+
+### Detalhes Tecnicos
+
+**Migration SQL:**
+```sql
+-- Atualizar estrogonofe de FRANGO (fit)
+UPDATE marmita_flavors
+SET sides = jsonb_set(
+  sides,
+  '{fit}',
+  (SELECT jsonb_agg(
+    CASE WHEN elem->>'name' = 'Estrogonofe'
+    THEN jsonb_set(elem, '{name}', '"Estrogonofe de frango"')
+    ELSE elem END
+  ) FROM jsonb_array_elements(sides->'fit') elem)
+)
+WHERE lower(name) LIKE '%estrogonofe%frango%'
+  AND sides->'fit' IS NOT NULL;
+
+-- Mesmo para fitness
+UPDATE marmita_flavors
+SET sides = jsonb_set(
+  sides,
+  '{fitness}',
+  (SELECT jsonb_agg(
+    CASE WHEN elem->>'name' = 'Estrogonofe'
+    THEN jsonb_set(elem, '{name}', '"Estrogonofe de frango"')
+    ELSE elem END
+  ) FROM jsonb_array_elements(sides->'fitness') elem)
+)
+WHERE lower(name) LIKE '%estrogonofe%frango%'
+  AND sides->'fitness' IS NOT NULL;
+
+-- Atualizar estrogonofe de CARNE (fit)
+UPDATE marmita_flavors
+SET sides = jsonb_set(
+  sides,
+  '{fit}',
+  (SELECT jsonb_agg(
+    CASE WHEN elem->>'name' = 'Estrogonofe'
+    THEN jsonb_set(elem, '{name}', '"Estrogonofe de carne"')
+    ELSE elem END
+  ) FROM jsonb_array_elements(sides->'fit') elem)
+)
+WHERE lower(name) LIKE '%estrogonofe%carne%'
+  AND sides->'fit' IS NOT NULL;
+
+-- Mesmo para fitness
+UPDATE marmita_flavors
+SET sides = jsonb_set(
+  sides,
+  '{fitness}',
+  (SELECT jsonb_agg(
+    CASE WHEN elem->>'name' = 'Estrogonofe'
+    THEN jsonb_set(elem, '{name}', '"Estrogonofe de carne"')
+    ELSE elem END
+  ) FROM jsonb_array_elements(sides->'fitness') elem)
+)
+WHERE lower(name) LIKE '%estrogonofe%carne%'
+  AND sides->'fitness' IS NOT NULL;
+```
+
+**Nenhuma alteracao de codigo e necessaria** - o `generateDefaultSides` ja extrai corretamente "Estrogonofe de frango" / "Estrogonofe de carne" do nome do sabor. O problema era apenas nos dados ja salvos no banco.
