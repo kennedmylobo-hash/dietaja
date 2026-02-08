@@ -1,58 +1,43 @@
 
 
-## Corrigir o Parser de Pedidos WhatsApp
+## Corrigir matching de sabores e formato de exibicao
 
-O problema atual: o parser mistura pacotes ("Pacote 7 Marmitas", "Kit 3 Dias"), sucos e sopas no mesmo catalogo dos sabores. O fuzzy matching com threshold de 0.6 faz combinacoes erradas. Alem disso, a quebra por virgula separa descricoes como "Frango em cubos, aipim e mix de salada" em fragmentos que cada um vira um item errado.
+### Problema 1: Sabores errados (graos em vez de aipim)
 
-### O que esta dando errado
+O parser fez fuzzy match de "Carne moida, aipim e mix de legumes" com "Carne moida com salada de legumes e graos" porque nao existe no banco um sabor chamado "Carne moida com aipim e mix de legumes". O threshold de 0.75 permitiu esse match incorreto.
 
-1. **Catalogo poluido**: `buildCatalog` junta marmita_packages (ex: "Pacote 7 Marmitas"), kit_packages (ex: "Kit 3 Dias"), sucos, sopas e sabores num unico array. A palavra "marmitas" no texto de entrada acaba casando com "Pacote 7 Marmitas".
+A solucao e melhorar o matching para dar mais peso a palavras-chave presentes na descricao do usuario. Se o texto do usuario contem "aipim", o match so deve casar com sabores que tambem contenham "aipim". Palavras como aipim, arroz, batata doce, feijao sao diferenciadores — se estao no texto mas nao no sabor candidato, o score deve ser penalizado fortemente.
 
-2. **Virgula como separador**: O parser faz `text.split(/[\n,;]/)`, entao "Frango em cubos, aipim e mix de salada" vira duas linhas: "Frango em cubos" e "aipim e mix de salada" -- cada uma tenta casar com o catalogo separadamente.
+**Arquivo:** `src/lib/whatsapp-parser.ts`
 
-3. **Threshold muito baixo**: Com 0.6, palavras parciais como "carne moida" casam com "Risoto de carne bovina desfiada" ao inves do item correto.
+Mudancas na funcao `findBestMatch`:
+- Extrair palavras-chave de acompanhamento do texto do usuario (aipim, arroz, batata doce, feijao, graos, pure)
+- Se o texto contem uma dessas palavras e o candidato NAO contem, penalizar o score em 50%
+- Isso garante que "carne moida, aipim" nunca case com "carne moida com graos"
 
-### Solucao
+### Problema 2: Multiplicador na frente do nome
 
-**Arquivo: `src/lib/whatsapp-parser.ts`**
+No modal de detalhes do pedido (`OrdersManager.tsx`, linha 1486), o formato atual e:
 
-1. **Nao incluir packages e kits no catalogo para matching de itens**: Remover `marmitaPackages` e `kitPackages` do `buildCatalog` (ou criar um catalogo separado so de sabores). Pedidos manuais via WhatsApp sao sempre sabores individuais, nao pacotes.
-
-2. **Nao quebrar por virgula**: Mudar o split de `text.split(/[\n,;]/)` para `text.split(/\n/)` -- cada linha e um item. Virgulas fazem parte da descricao do sabor.
-
-3. **Aumentar threshold**: Subir de 0.6 para 0.75 para evitar matches falsos.
-
-4. **Remover aliases genericos**: Os aliases fixos no final do `buildCatalog` ("carne moida", "frango grelhado", etc) competem com os nomes reais do catalogo e geram duplicatas.
-
-**Arquivo: `src/components/admin/WhatsAppOrderImporter.tsx`**
-
-5. **Passar so sabores para o catalogo**: Ajustar a chamada de `buildCatalog` para nao enviar packages e kits, ja que o admin seleciona o tipo (FIT/FITNESS) manualmente e o preco vem do pacote selecionado -- nao do item individual.
-
-6. **Preco do item baseado no pacote selecionado**: Quando o admin escolhe FIT ou FITNESS, buscar o `unit_price` do pacote correspondente (ex: "Pacote 7 Marmitas" = R$26.90 por unidade) e aplicar a todos os itens. Hoje o preco individual vem zero porque sabores nao tem preco no catalogo.
-
-### Resultado esperado
-
-Com o pedido colado:
 ```
-2x Frango em cubos, aipim e mix de salada
-5x Estrogonofe de carne com aipim e mix de salada
-5x Almondegas bovina, aipim e mix de legumes
-2x Carne moida, aipim e mix de legumes
+Carne moida com salada de legumes e graos (2x)  R$ 63,80
 ```
 
-O parser deve identificar:
-- 2x Frango em cubos com aipim e mix de salada
-- 5x Estrogonofe de carne bovina com aipim e mix de salada
-- 5x Almôndegas de carne bovina com aipim e mix de salada (ou legumes)
-- 2x Carne moida com aipim e mix de legumes (match parcial)
+O correto e:
 
-Sem "Pacote 7 Marmitas", sem "Kit 3 Dias", sem items fantasma.
+```
+2x Carne moida com salada de legumes e graos  R$ 63,80
+```
 
-### Detalhes tecnicos
+**Arquivo:** `src/components/admin/OrdersManager.tsx`
+
+Mudanca na linha 1486:
+- De: `{item.name} ({item.quantity}x)`
+- Para: `{item.quantity}x {item.name}`
+
+### Arquivos alterados
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/lib/whatsapp-parser.ts` | Split so por `\n`. Threshold 0.75. Remover aliases duplicados. |
-| `src/lib/whatsapp-parser.ts` | `buildCatalog`: nao incluir marmitaPackages nem kitPackages. Remover aliases fixos que ja existem no banco. |
-| `src/components/admin/WhatsAppOrderImporter.tsx` | Chamar `buildCatalog` sem packages/kits. Calcular preco unitario baseado no lineType selecionado (buscar unit_price do pacote correspondente). Recalcular subtotal quando lineType mudar. |
-
+| `src/lib/whatsapp-parser.ts` | Penalizar score quando palavras-chave de acompanhamento divergem entre texto e candidato |
+| `src/components/admin/OrdersManager.tsx` | Mover multiplicador para frente do nome do item (linha 1486) |
