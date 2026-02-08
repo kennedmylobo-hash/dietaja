@@ -1,45 +1,33 @@
 
+## Reduzir tamanho da impressao (Producao + Montagem)
 
-## Corrigir nomes de ingredientes na auto-geracao
+Vou compactar os estilos CSS das 3 funcoes de impressao no `ProductionPanel.tsx` para que caibam melhor na folha.
 
-### Problema
+### Mudancas em `src/components/admin/ProductionPanel.tsx`
 
-1. **Escondidinho**: quando o nome diz "escondidinho de carne", o sistema extrai apenas "Carne" como proteina. Mas escondidinho sempre usa "Carne moida" ou "Carne desfiada" -- nunca so "Carne". Precisa aplicar essa regra.
+**1. `handlePrintProduction` (linhas 479-486) -- Producao avulsa**
+- body: font-size de padrao para `11px`, padding `10px`
+- h1: font-size `14px` → `13px`, padding-bottom `5px`
+- h2: font-size `16px` → `11px`, margin-top `12px`
+- .item: padding `4px 0`
+- .weight: font-size `18px` → `12px`
+- .protein / .side: padding `4px 6px`, margin `1px 0`
 
-2. **Escondidinho com extras**: quando tem "mix de salada" no nome, o peso da proteina cai de 120g para 100g (FIT). A regra correta para escondidinho com extras e manter 120g proteina + reduzir o pure para caber o mix.
+**2. `handlePrintAssembly` (linhas 587-598) -- Montagem avulsa**
+- body: font-size `11px`, padding `10px`
+- h1: font-size `14px` → `13px`
+- h2: font-size `16px` → `11px`, margin-top `12px`, padding `4px 8px`
+- .combo: padding `5px 8px`, margin `3px 0`
+- .combo-header: font-size `11px`, gap `5px`, margin-bottom `2px`
+- .combo-qty: font-size `10px`, padding `1px 6px`
+- .combo-details: font-size `9px`
+- .customers: font-size `8px`
 
-3. **Carboidrato em escondidinho**: sempre deve aparecer como "Pure de aipim" (ja funciona), mas para pratos standard como "Carne moida, aipim e mix de legumes" deve aparecer "Aipim" (ja funciona).
+**3. `handlePrintAll` (linhas 660-675) -- Ja esta compacto, ajustar para ficar uniforme**
+- Manter os valores atuais que ja sao menores, mas reduzir mais:
+  - body font-size `10px`
+  - h1 `12px`, h2 `10px`
+  - .combo padding `4px 6px`
+  - .combo-details `9px`, .customers `8px`
 
-### Mudancas
-
-**Arquivo:** `src/components/admin/OrderConfirmationModal.tsx`
-
-1. **`extractProteinName` (linha 50-58)** -- Adicionar regra: se o nome contem "escondidinho" e a proteina extraida for apenas "carne" (sem qualificador), assumir "Carne moida" como padrao. Se conter "desfiada", usar "Carne desfiada".
-
-2. **Escondidinho com extras (linhas 122-135)** -- Corrigir os pesos para manter as proporcoes corretas:
-   - FIT (300g): 120g proteina + pure + extras (mix de salada/legumes a 50g, pure ajustado)
-   - FITNESS (450g): 175g proteina + pure + extras (100g, pure ajustado)
-
-### Exemplo esperado
-
-**"Escondidinho de carne com aipim e mix de salada" (FIT 300g):**
-```
-Carne moida      120g
-Pure de aipim    130g
-Mix de salada     50g
-```
-
-**"Carne moida, aipim e mix de legumes" (FIT 300g):**
-```
-Carne moida      100g
-Aipim            150g
-Mix de legumes    50g
-```
-
-### Resumo tecnico
-
-| Arquivo | Mudanca |
-|---|---|
-| OrderConfirmationModal.tsx | `extractProteinName`: regra "carne" -> "Carne moida" para escondidinho |
-| OrderConfirmationModal.tsx | `generateDefaultSides`: corrigir pesos do escondidinho com extras (120g/175g proteina) |
-
+Resultado: todas as impressoes ficam mais compactas, cabendo em menos folhas.
