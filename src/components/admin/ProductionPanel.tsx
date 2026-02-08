@@ -91,6 +91,7 @@ interface AssemblyCombination {
   sides: { name: string; weight: number }[];
   quantity: number;
   customers: { name: string; quantity: number }[];
+  lineType: 'fit' | 'fitness';
 }
 
 interface ProductionPanelProps {
@@ -304,12 +305,13 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
               }
             }
 
-            // === ASSEMBLY LIST: Create unique combination key ===
+            // === ASSEMBLY LIST: Create unique combination key (includes line type) ===
+            const lineLabel = (itemLineType === 'hipertrofia' || itemLineType === 'fitness') ? 'fitness' : 'fit';
             const sidesKey = flavorSides
               .map(s => `${s.name}:${s.weight}`)
               .sort()
               .join('|');
-            const combinationKey = `${flavor.name}:${PROTEIN_WEIGHT}|${sidesKey}`;
+            const combinationKey = `${lineLabel}:${flavor.name}:${PROTEIN_WEIGHT}|${sidesKey}`;
             
             const existingCombination = assemblyMap.get(combinationKey);
             
@@ -334,6 +336,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 sides: flavorSides.map(s => ({ name: s.name, weight: s.weight })),
                 quantity: flavor.quantity,
                 customers: [{ name: order.customer_name, quantity: flavor.quantity }],
+                lineType: lineLabel,
               });
             }
           }
@@ -503,6 +506,26 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
   const handlePrintAssembly = () => {
     const today = formatDateShort(new Date().toISOString());
     
+    const fitCombos = productionData.assemblyCombinations.filter(c => c.lineType === 'fit');
+    const fitnessCombos = productionData.assemblyCombinations.filter(c => c.lineType === 'fitness');
+    const fitTotal = fitCombos.reduce((s, c) => s + c.quantity, 0);
+    const fitnessTotal = fitnessCombos.reduce((s, c) => s + c.quantity, 0);
+    
+    const renderCombos = (combos: AssemblyCombination[]) => combos.map(combo => `
+      <div class="combo">
+        <div class="combo-header">
+          <span class="combo-qty">${combo.quantity}x</span>
+          <span>${combo.proteinName}</span>
+        </div>
+        <div class="combo-details">
+          ${combo.proteinWeight}g ${combo.proteinName} + ${combo.sides.map(s => `${s.weight}g ${s.name}`).join(' + ')}
+        </div>
+        <div class="customers">
+          👥 ${combo.customers.map(c => `${c.name} (${c.quantity})`).join(', ')}
+        </div>
+      </div>
+    `).join('');
+
     const printContent = `
       <!DOCTYPE html>
       <html>
@@ -511,9 +534,12 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
         <style>
           body { font-family: Arial, sans-serif; padding: 20px; }
           h1 { font-size: 18px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+          h2 { font-size: 16px; margin-top: 25px; padding: 8px 12px; border-radius: 6px; }
+          .section-fit { background: #f0fdf4; border-left: 4px solid #22c55e; }
+          .section-fitness { background: #eff6ff; border-left: 4px solid #3b82f6; }
           .combo { background: #f8f8f8; padding: 12px; margin: 10px 0; border-radius: 8px; page-break-inside: avoid; }
-          .combo-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 8px; }
-          .combo-qty { background: #22c55e; color: white; padding: 4px 12px; border-radius: 20px; }
+          .combo-header { display: flex; align-items: center; gap: 10px; font-weight: bold; margin-bottom: 8px; }
+          .combo-qty { background: #22c55e; color: white; padding: 4px 12px; border-radius: 20px; font-size: 16px; min-width: 50px; text-align: center; }
           .combo-details { color: #666; font-size: 14px; }
           .customers { font-size: 12px; color: #999; margin-top: 8px; }
           .total { font-size: 14px; color: #666; margin-top: 20px; text-align: center; }
@@ -523,20 +549,15 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
         <h1>📦 LISTA DE MONTAGEM</h1>
         <p style="color: #666; font-size: 12px;">${today} • ${productionData.totals.marmitas} marmitas</p>
         
-        ${productionData.assemblyCombinations.map(combo => `
-          <div class="combo">
-            <div class="combo-header">
-              <span>${combo.proteinName}</span>
-              <span class="combo-qty">${combo.quantity}x</span>
-            </div>
-            <div class="combo-details">
-              ${combo.proteinWeight}g proteína + ${combo.sides.map(s => `${s.weight}g ${s.name}`).join(' + ')}
-            </div>
-            <div class="customers">
-              👥 ${combo.customers.map(c => `${c.name} (${c.quantity})`).join(', ')}
-            </div>
-          </div>
-        `).join('')}
+        ${fitCombos.length > 0 ? `
+          <h2 class="section-fit">🥗 FIT 300g — ${fitTotal} marmitas</h2>
+          ${renderCombos(fitCombos)}
+        ` : ''}
+        
+        ${fitnessCombos.length > 0 ? `
+          <h2 class="section-fitness">💪 FITNESS 450g — ${fitnessTotal} marmitas</h2>
+          ${renderCombos(fitnessCombos)}
+        ` : ''}
         
         <div class="total">
           Total: ${productionData.totals.marmitas} marmitas para montar
@@ -617,14 +638,31 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
   const handleShareAssembly = () => {
     const today = formatDateShort(new Date().toISOString());
     
+    const fitCombos = productionData.assemblyCombinations.filter(c => c.lineType === 'fit');
+    const fitnessCombos = productionData.assemblyCombinations.filter(c => c.lineType === 'fitness');
+    const fitTotal = fitCombos.reduce((s, c) => s + c.quantity, 0);
+    const fitnessTotal = fitnessCombos.reduce((s, c) => s + c.quantity, 0);
+    
     let text = `📦 *LISTA DE MONTAGEM*\n`;
     text += `📅 ${today}\n\n`;
     
-    productionData.assemblyCombinations.forEach(combo => {
-      text += `*${combo.quantity}x ${combo.proteinName}*\n`;
-      text += `   ${combo.proteinWeight}g + ${combo.sides.map(s => `${s.weight}g ${s.name}`).join(' + ')}\n`;
-      text += `   👥 ${combo.customers.map(c => `${c.name}(${c.quantity})`).join(', ')}\n\n`;
-    });
+    if (fitCombos.length > 0) {
+      text += `*🥗 FIT 300g — ${fitTotal} marmitas*\n\n`;
+      fitCombos.forEach(combo => {
+        text += `*${combo.quantity}x ${combo.proteinName}*\n`;
+        text += `   ${combo.proteinWeight}g + ${combo.sides.map(s => `${s.weight}g ${s.name}`).join(' + ')}\n`;
+        text += `   👥 ${combo.customers.map(c => `${c.name}(${c.quantity})`).join(', ')}\n\n`;
+      });
+    }
+    
+    if (fitnessCombos.length > 0) {
+      text += `*💪 FITNESS 450g — ${fitnessTotal} marmitas*\n\n`;
+      fitnessCombos.forEach(combo => {
+        text += `*${combo.quantity}x ${combo.proteinName}*\n`;
+        text += `   ${combo.proteinWeight}g + ${combo.sides.map(s => `${s.weight}g ${s.name}`).join(' + ')}\n`;
+        text += `   👥 ${combo.customers.map(c => `${c.name}(${c.quantity})`).join(', ')}\n\n`;
+      });
+    }
     
     text += `📊 *TOTAL: ${productionData.totals.marmitas} marmitas*`;
     
@@ -917,39 +955,70 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
               </Button>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  📦 Combinações para Montar
-                  <Badge variant="secondary">{productionData.totals.marmitas} marmitas</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {productionData.assemblyCombinations.map((combo, idx) => (
-                    <div 
-                      key={idx} 
-                      className="p-4 bg-muted/50 rounded-lg border-l-4 border-primary"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-lg">{combo.proteinName}</h4>
-                        <Badge className="text-base px-4 py-1">
-                          {combo.quantity}x
-                        </Badge>
-                      </div>
-                      
-                      <div className="text-sm text-muted-foreground mb-3 font-mono bg-background/50 p-2 rounded">
-                        {combo.proteinWeight}g {combo.proteinName} + {combo.sides.map(s => `${s.weight}g ${s.name}`).join(' + ')}
-                      </div>
+            {(() => {
+              const fitCombos = productionData.assemblyCombinations.filter(c => c.lineType === 'fit');
+              const fitnessCombos = productionData.assemblyCombinations.filter(c => c.lineType === 'fitness');
+              const fitTotal = fitCombos.reduce((s, c) => s + c.quantity, 0);
+              const fitnessTotal = fitnessCombos.reduce((s, c) => s + c.quantity, 0);
+              
+              const renderComboCard = (combo: AssemblyCombination, idx: number, borderColor: string) => (
+                <div 
+                  key={idx} 
+                  className={`p-4 bg-muted/50 rounded-lg border-l-4 ${borderColor}`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <Badge className="text-base px-4 py-1 shrink-0">
+                      {combo.quantity}x
+                    </Badge>
+                    <h4 className="font-bold text-lg">{combo.proteinName}</h4>
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground mb-3 font-mono bg-background/50 p-2 rounded">
+                    {combo.proteinWeight}g {combo.proteinName} + {combo.sides.map(s => `${s.weight}g ${s.name}`).join(' + ')}
+                  </div>
 
-                      <div className="text-xs text-muted-foreground">
-                        👥 {combo.customers.map(c => `${c.name} (${c.quantity})`).join(', ')}
-                      </div>
-                    </div>
-                  ))}
+                  <div className="text-xs text-muted-foreground">
+                    👥 {combo.customers.map(c => `${c.name} (${c.quantity})`).join(', ')}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              );
+
+              return (
+                <>
+                  {fitCombos.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          🥗 FIT 300g
+                          <Badge variant="secondary">{fitTotal} marmitas</Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {fitCombos.map((combo, idx) => renderComboCard(combo, idx, 'border-primary'))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  
+                  {fitnessCombos.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          💪 FITNESS 450g
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">{fitnessTotal} marmitas</Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {fitnessCombos.map((combo, idx) => renderComboCard(combo, idx, 'border-blue-500'))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              );
+            })()}
           </TabsContent>
         </Tabs>
       )}
