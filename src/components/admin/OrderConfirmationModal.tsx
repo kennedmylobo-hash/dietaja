@@ -44,6 +44,7 @@ interface OrderConfirmationModalProps {
   deliveryTime: string;
   paymentStatus: "paid" | "pending_payment";
   onItemsUpdated: (flavorId: string, newSides: Json) => void;
+  onSubtotalChanged?: (value: number) => void;
 }
 
 const OrderConfirmationModal = ({
@@ -58,9 +59,11 @@ const OrderConfirmationModal = ({
   deliveryTime,
   paymentStatus,
   onItemsUpdated,
+  onSubtotalChanged,
 }: OrderConfirmationModalProps) => {
   const [editableItems, setEditableItems] = useState<ConfirmItem[]>([]);
   const [confirming, setConfirming] = useState(false);
+  const [editableSubtotal, setEditableSubtotal] = useState(String(subtotal));
 
   useEffect(() => {
     if (isOpen) {
@@ -68,8 +71,9 @@ const OrderConfirmationModal = ({
         ...item,
         sides: item.sides.map(s => ({ ...s })),
       })));
+      setEditableSubtotal(String(subtotal));
     }
-  }, [isOpen, initialItems]);
+  }, [isOpen, initialItems, subtotal]);
 
   const targetWeight = lineType === "fit" ? 300 : 450;
 
@@ -173,6 +177,11 @@ const OrderConfirmationModal = ({
           <DialogTitle className="text-lg flex items-center gap-2">
             <Pencil className="w-4 h-4" />
             Confirmar Pedido de {customerName}
+            {editableItems.length > 0 && (
+              <Badge variant="secondary" className="text-xs ml-1">
+                {editableItems.reduce((s, i) => s + i.quantity, 0)} marmitas
+              </Badge>
+            )}
           </DialogTitle>
           <DialogDescription className="text-sm">
             Revise os pesos e quantidades antes de lançar. Alterações serão salvas para próximos pedidos.
@@ -257,9 +266,24 @@ const OrderConfirmationModal = ({
           <Separator />
 
           {/* Summary */}
-          <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
+          <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
             <p><strong>Entrega:</strong> {formatDateBR(deliveryDate)} — {deliveryTime}</p>
-            <p><strong>Valor:</strong> {formatCurrency(subtotal)}</p>
+            <div className="flex items-center gap-2">
+              <strong>Valor:</strong>
+              <span className="text-sm">R$</span>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={editableSubtotal}
+                onChange={(e) => {
+                  setEditableSubtotal(e.target.value);
+                  const val = parseFloat(e.target.value);
+                  if (val > 0 && onSubtotalChanged) onSubtotalChanged(val);
+                }}
+                className="w-28 h-7 text-sm"
+              />
+            </div>
             <p><strong>Pagamento:</strong> {paymentStatus === "paid" ? "✅ Pago" : "⏳ A receber"}</p>
           </div>
         </div>
