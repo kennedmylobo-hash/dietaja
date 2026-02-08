@@ -2,11 +2,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { TenantProvider } from "./contexts/TenantContext";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 
 // Eager load critical pages
 import Index from "./pages/Index";
@@ -37,6 +37,19 @@ const PageLoader = () => (
   </div>
 );
 
+// Handle SPA redirect from 404.html fallback
+const SpaRedirectHandler = () => {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const redirectPath = sessionStorage.getItem('spa-redirect');
+    if (redirectPath) {
+      sessionStorage.removeItem('spa-redirect');
+      navigate(redirectPath, { replace: true });
+    }
+  }, [navigate]);
+  return null;
+};
+
 // v2.0 - Landing pages Fit, Fitness e Detox
 const queryClient = new QueryClient();
 
@@ -49,6 +62,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <SpaRedirectHandler />
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/" element={<Index />} />
