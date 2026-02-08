@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getFlavorSidesForLine, mapLineTypeToKey, FlavorSideItem } from "@/lib/flavor-description";
+import { getFlavorSidesForLine, mapLineTypeToKey, FlavorSideItem, generateDefaultSides } from "@/lib/flavor-description";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -190,14 +190,46 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
     return orders.filter(o => o.status === statusFilter);
   }, [orders, statusFilter]);
 
+  // Normalize for comparison: remove accents, lowercase
+  const normForMatch = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
   // Get sides config for a flavor, considering line_type
-  // Returns { items, isConfigured } - if configured, protein is included as first item
+  // Uses fuzzy matching to find the closest catalog entry
   const getFlavorComposition = (flavorName: string, lineType?: string): { items: FlavorSideItem[], isConfigured: boolean } => {
-    const flavor = marmitaFlavors.find(f => 
-      f.name.toLowerCase() === flavorName.toLowerCase()
-    );
+    const lineKey = lineType ? mapLineTypeToKey(lineType) : 'fit';
+    const normalizedFlavorName = normForMatch(flavorName);
+
+    // 1. Try exact match first
+    let flavor = marmitaFlavors.find(f => normForMatch(f.name) === normalizedFlavorName);
+
+    // 2. If no exact match, try substring/keyword matching
+    if (!flavor) {
+      // Extract core protein part (before comma/com)
+      const corePart = normalizedFlavorName.split(/[,]|\s+com\s+/)[0].trim();
+      
+      let bestScore = 0;
+      for (const f of marmitaFlavors) {
+        const candidateNorm = normForMatch(f.name);
+        const candidateCore = candidateNorm.split(/[,]|\s+com\s+/)[0].trim();
+        
+        // Core protein must match
+        if (corePart !== candidateCore && !candidateCore.includes(corePart) && !corePart.includes(candidateCore)) continue;
+        
+        // Score based on side-dish keyword overlap
+        const sideKeywords = ['aipim', 'arroz', 'batata', 'feijao', 'graos', 'pure', 'legumes', 'salada'];
+        const userSides = sideKeywords.filter(k => normalizedFlavorName.includes(k));
+        const candidateSides = sideKeywords.filter(k => candidateNorm.includes(k));
+        const overlap = userSides.filter(k => candidateSides.includes(k)).length;
+        const score = overlap + (candidateCore.includes(corePart) ? 2 : 0);
+        
+        if (score > bestScore) {
+          bestScore = score;
+          flavor = f;
+        }
+      }
+    }
+
     if (flavor?.sides) {
-      const lineKey = lineType ? mapLineTypeToKey(lineType) : 'fit';
       const lineSides = getFlavorSidesForLine(flavor.sides as any, lineKey);
       if (lineSides && lineSides.length > 0) return { items: lineSides, isConfigured: true };
       
@@ -206,12 +238,10 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
         return { items: flavor.sides as unknown as FlavorSideItem[], isConfigured: true };
       }
     }
-    // Default sides if not configured - protein NOT included
+
+    // Smart fallback: generate composition from item name instead of generic Arroz+Feijão
     return {
-      items: [
-        { name: 'Arroz', weight: 200 },
-        { name: 'Feijão', weight: 100 },
-      ],
+      items: generateDefaultSides(flavorName, lineKey),
       isConfigured: false,
     };
   };
@@ -301,33 +331,26 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 }
               }
             } else {
-              // Fallback: protein NOT in sides, add separately
-              const proteinKey = flavor.name.toLowerCase();
-              const existingProtein = ingredientMap.get(proteinKey);
-              const proteinTotalWeight = flavor.quantity * DEFAULT_PROTEIN_WEIGHT;
-              
-              if (existingProtein) {
-                existingProtein.totalWeight += proteinTotalWeight;
-              } else {
-                ingredientMap.set(proteinKey, {
-                  name: flavor.name,
-                  totalWeight: proteinTotalWeight,
-                  type: 'protein',
-                });
-              }
-
-              for (const side of flavorSides) {
-                const sideKey = side.name.toLowerCase();
-                const existingSide = ingredientMap.get(sideKey);
-                const sideTotalWeight = flavor.quantity * side.weight;
+              // Fallback: generateDefaultSides already includes protein as first item
+              // Use same processing as configured path
+              for (let i = 0; i < flavorSides.length; i++) {
+                const ingredient = flavorSides[i];
+                const isProtein = i === 0;
+                const displayName = isProtein
+                  ? flavor.name.split(/\s+com\s+|,\s*/i)[0].trim()
+                  : ingredient.name;
+                const ingredientKey = displayName.toLowerCase();
+                const existing = ingredientMap.get(ingredientKey);
+                const totalWeight = flavor.quantity * ingredient.weight;
+                const type = isProtein ? 'protein' as const : classifyIngredient(ingredient.name);
                 
-                if (existingSide) {
-                  existingSide.totalWeight += sideTotalWeight;
+                if (existing) {
+                  existing.totalWeight += totalWeight;
                 } else {
-                  ingredientMap.set(sideKey, {
-                    name: side.name,
-                    totalWeight: sideTotalWeight,
-                    type: classifyIngredient(side.name),
+                  ingredientMap.set(ingredientKey, {
+                    name: displayName,
+                    totalWeight: totalWeight,
+                    type,
                   });
                 }
               }
@@ -335,9 +358,8 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
 
             // === ASSEMBLY LIST: Build full ingredients list ===
             const lineLabel = (itemLineType === 'hipertrofia' || itemLineType === 'fitness') ? 'fitness' : 'fit';
-            const allIngredients: AssemblyCombination['ingredients'] = isConfigured
-              ? flavorSides.map((s, i) => ({ name: s.name, weight: s.weight, type: (i === 0 ? 'protein' as const : classifyIngredient(s.name)) }))
-              : [{ name: flavor.name, weight: DEFAULT_PROTEIN_WEIGHT, type: 'protein' as const }, ...flavorSides.map(s => ({ name: s.name, weight: s.weight, type: classifyIngredient(s.name) }))];
+            const allIngredients: AssemblyCombination['ingredients'] = 
+              flavorSides.map((s, i) => ({ name: s.name, weight: s.weight, type: (i === 0 ? 'protein' as const : classifyIngredient(s.name)) }));
             
             const ingredientsKey = allIngredients
               .map(s => `${s.name}:${s.weight}`)
