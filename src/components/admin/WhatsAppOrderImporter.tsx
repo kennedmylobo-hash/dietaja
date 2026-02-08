@@ -221,13 +221,13 @@ const WhatsAppOrderImporter = () => {
       const deliveryFee = deliveryOption === 'delivery' ? 15 : 0;
 
       const orderItems = items.map(item => ({
-        name: item.matchedName || item.name,
+        name: item.name,
         quantity: item.quantity,
         totalPrice: item.totalPrice,
         type: item.type,
         lineType: lineType,
         flavors: item.type === 'marmita' ? [{
-          name: item.matchedName || item.name,
+          name: item.name,
           quantity: item.quantity,
           category: 'carnes',
         }] : undefined,
@@ -533,7 +533,7 @@ WhatsApp: 77991234567"
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm truncate">{item.matchedName}</span>
+                              <span className="font-medium text-sm truncate">{item.quantity}x {item.name}</span>
                               {item.confidence < 0.8 && (
                                 <Badge variant="outline" className="text-xs bg-yellow-50">
                                   ~{Math.round(item.confidence * 100)}%
@@ -617,7 +617,7 @@ WhatsApp: 77991234567"
                   <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-1.5 text-sm">
                     <p className="font-bold text-primary mb-2">📋 Resumo do Pedido</p>
                     <p><strong>Cliente:</strong> {customerName}</p>
-                    <p><strong>Pedido:</strong> {items.map(i => `${i.quantity}x ${i.matchedName}`).join(', ')}</p>
+                    <p><strong>Pedido:</strong> {items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p>
                     <p><strong>Tipo:</strong> {lineType === 'fit' ? 'FIT 300g' : 'FITNESS 450g'}</p>
                     <p><strong>Entrega:</strong> {formatDateBR(deliveryDate)} — {deliveryTime}</p>
                     <p><strong>Valor:</strong> {formatCurrency(subtotal)}</p>

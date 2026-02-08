@@ -77,13 +77,13 @@ function findBestMatch(text: string, catalog: CatalogItem[]): { item: CatalogIte
   let bestMatch: CatalogItem | null = null;
   let bestScore = 0;
 
-  const normalizedText = normalizeFull(text);
+  const normalizedText = normalizeFull(text).replace(/mix de salada/g, 'mix de legumes');
 
   // Detect side-dish keywords in user text
   const userKeywords = SIDE_KEYWORDS.filter(k => normalizedText.includes(normalizeFull(k)));
 
   for (const item of catalog) {
-    const normalizedName = normalizeFull(item.name);
+    const normalizedName = normalizeFull(item.name).replace(/mix de salada/g, 'mix de legumes');
 
     let score = 0;
 
