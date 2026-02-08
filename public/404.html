@@ -2,14 +2,16 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0;url=/" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Redirecionando... | Dieta Já</title>
     <script>
-      // SPA fallback - redirect to index.html preserving the path
+      // SPA fallback - preserve the full path so React Router handles it
       (function() {
-        var path = window.location.pathname + window.location.search + window.location.hash;
-        window.location.replace('/' + '?redirect=' + encodeURIComponent(path));
+        var segment = window.location.pathname + window.location.search + window.location.hash;
+        // Store the path in sessionStorage and redirect to root
+        // The main app will pick it up and navigate
+        sessionStorage.setItem('spa-redirect', segment);
+        window.location.replace('/');
       })();
     </script>
   </head>
