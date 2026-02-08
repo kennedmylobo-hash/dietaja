@@ -43,13 +43,13 @@ const FALLBACK_MESSAGES: Record<string, { title: string; emoji: string; color: s
 
 const replaceVariables = (template: string, order: OrderData, branding?: TenantBranding): string => {
   const firstName = order.customer_name.split(" ")[0];
-  const baseUrl = branding ? getTenantBaseUrl(branding) : "https://dietajavca.com.br";
+  const baseUrl = branding ? getTenantBaseUrl(branding) : "";
   const trackingUrl = `${baseUrl}/pedido/${order.order_number}`;
   const linkRastreio = order.tracking_link ? `📍 Rastreie em tempo real:\n${order.tracking_link}` : `🔗 Acompanhe seu pedido:\n${trackingUrl}`;
   return template.replace(/{nome}/g, firstName).replace(/{nome_completo}/g, order.customer_name)
     .replace(/{pedido}/g, order.order_number).replace(/{total}/g, order.total.toFixed(2).replace(".", ","))
     .replace(/{link}/g, trackingUrl).replace(/{link_rastreio}/g, linkRastreio)
-    .replace(/{marca}/g, branding?.brand_name || "Dieta Já");
+    .replace(/{marca}/g, branding?.brand_name || "Meu Restaurante");
 };
 
 const sendWhatsAppText = async (phone: string, message: string, orderNumber: string, apiToken: string, channelToken: string) => {

@@ -104,7 +104,7 @@ serve(async (req) => {
       cycle: 'MONTHLY',
       value: price,
       nextDueDate: formattedDate,
-      description: `Clube Dieta Já - ${kit_name}`,
+      description: `Clube - ${kit_name}`,
       externalReference: `club_${kit_type}`,
     };
 

@@ -79,7 +79,7 @@ export const formatDateShort = (dateString: string): string => {
   });
 };
 
-export const generateOrderTicketHTML = (order: Order, brandName: string = 'DIETA JÁ'): string => {
+export const generateOrderTicketHTML = (order: Order, brandName: string = 'MEU RESTAURANTE'): string => {
   const itemsHtml = order.items.map(item => {
     if (item.flavors && item.flavors.length > 0) {
       const flavorsGrouped = item.flavors.reduce((acc, f) => {
@@ -237,7 +237,7 @@ export const generateOrderTicketHTML = (order: Order, brandName: string = 'DIETA
   `;
 };
 
-export const printOrderTicket = (order: Order, brandName: string = 'DIETA JÁ'): void => {
+export const printOrderTicket = (order: Order, brandName: string = 'MEU RESTAURANTE'): void => {
   const printWindow = window.open('', '_blank', 'width=450,height=600');
   if (!printWindow) {
     alert('Não foi possível abrir a janela de impressão. Verifique se pop-ups estão habilitados.');

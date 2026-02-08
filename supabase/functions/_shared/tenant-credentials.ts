@@ -110,7 +110,7 @@ export async function getEmailCredentials(
         console.log(`[credentials] Using tenant-specific Resend key for ${tenantId}`);
         return {
           apiKey: data.resend_api_key,
-          fromEmail: data.resend_from_email || "pedidos@dietajavca.com.br",
+          fromEmail: data.resend_from_email || "noreply@pedidoja.com.br",
         };
       }
     } catch (err) {
@@ -122,5 +122,5 @@ export async function getEmailCredentials(
   if (!apiKey) throw new Error("RESEND_API_KEY not configured");
 
   console.log(`[credentials] Using global Resend key (fallback)`);
-  return { apiKey, fromEmail: "pedidos@dietajavca.com.br" };
+  return { apiKey, fromEmail: "noreply@pedidoja.com.br" };
 }

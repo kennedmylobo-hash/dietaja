@@ -216,8 +216,8 @@ export function formatQuizDataForWhatsApp(
 }
 
 // localStorage key for quiz data
-const QUIZ_STORAGE_KEY = 'dietaja_quiz_data';
-const INCOMPLETE_LEADS_KEY = 'dietaja_incomplete_leads';
+const QUIZ_STORAGE_KEY = 'pedidoja_quiz_data';
+const INCOMPLETE_LEADS_KEY = 'pedidoja_incomplete_leads';
 
 export interface QuizStorageEntry {
   answers: QuizAnswers;

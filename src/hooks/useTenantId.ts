@@ -2,7 +2,7 @@ import { useTenant } from '@/contexts/TenantContext';
 
 /**
  * Returns the current tenant ID for use in queries and inserts.
- * Falls back to the default Dieta Já tenant ID.
+ * Falls back to the default master tenant ID.
  */
 export const useTenantId = () => {
   const { tenant } = useTenant();
