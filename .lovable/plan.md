@@ -1,74 +1,62 @@
 
-## Reorganizar Lista de Producao para a Cozinheira
 
-Hoje a lista da cozinha mostra apenas 2 grupos: "Proteinas" e "Acompanhamentos". A cozinheira precisa de uma separacao mais clara em 3 categorias para facilitar a montagem.
+## Mostrar FIT/FITNESS e Pesos no Detalhe do Pedido
+
+Hoje o modal de detalhe do pedido mostra apenas "Pacote 14 Marmitas (7x)" com os sabores listados sem nenhuma indicacao de linha (FIT ou FITNESS) e sem os pesos dos ingredientes. Isso dificulta a conferencia.
 
 ### O que muda
 
 | Antes | Depois |
 |---|---|
-| PROTEINAS (tudo junto) | PROTEINAS (carne moida, frango, almondegas...) |
-| ACOMPANHAMENTOS (tudo misturado) | CARBOIDRATOS (arroz, aipim, batata doce, pure, feijao, graos...) |
-| | SALADA (mix de legumes, mix de salada, legumes, brocolis, vagem...) |
+| Pacote 14 Marmitas (14x) | Pacote 14 Marmitas - FIT 300g (14x) |
+| - 3x Almondegas de carne bovina... | - 3x Almondegas de carne bovina... |
+| (sem pesos) | 100g Almondegas + 150g Batata doce + 50g Mix de legumes |
 
-A ordem na impressao e tela sera sempre: **PROTEINAS -> CARBOIDRATOS -> SALADA**, facilitando o fluxo da cozinha.
+### Alteracoes
 
-### Classificacao dos ingredientes
+**1. Salvar `lineType` no pedido (CartDrawer.tsx)**
 
-Com base nos dados reais do cardapio:
+Ao criar o pedido no banco, incluir o campo `lineType` em cada item. Isso garante que pedidos futuros tenham a informacao correta salva.
 
-- **PROTEINAS**: Carne moida, Carne bovina, Almondegas, Frango, Peixe, Lombo, etc. (primeiro ingrediente de cada sabor)
-- **CARBOIDRATOS**: Arroz, Aipim, Batata doce, Pure, Feijao, Graos, Arroz do risoto, Macarrao, Nhoque
-- **SALADA**: Mix de legumes, Mix de salada, Legumes, Salada de legumes, Brocolis, Vagem, e qualquer vegetal/verdura
-
-### Onde muda
-
-Arquivo unico: `src/components/admin/ProductionPanel.tsx`
-
-**1. Tipo `IngredientTotal`**
-Mudar o campo `type` de `'protein' | 'side'` para `'protein' | 'carb' | 'salad'`
-
-**2. Funcao de classificacao de ingrediente**
-Nova funcao `classifyIngredient(name)` que retorna `'carb'` ou `'salad'` baseado no nome:
-- Palavras-chave para carboidrato: arroz, aipim, batata, pure, feijao, graos, macarrao, nhoque, mandioca, farinha
-- Tudo que nao for carboidrato vai para salada (mix, legumes, salada, brocolis, vagem, etc.)
-
-**3. Calculo de producao (useMemo)**
-Onde hoje salva `type: 'side'`, passar a usar `classifyIngredient(side.name)` para determinar se eh `'carb'` ou `'salad'`
-
-**4. Tela (cards na aba Producao)**
-- Card "Proteinas" (mantém igual, cor amber)
-- Card "Carboidratos" (nova cor azul, emoji arroz)
-- Card "Salada" (nova cor verde, emoji salada)
-
-**5. Impressao (`handlePrintProduction`)**
-Trocar a secao "Acompanhamentos" por duas secoes separadas: "CARBOIDRATOS" e "SALADA"
-
-**6. WhatsApp (`handleShareProduction`)**
-Mesmo ajuste: separar em 3 categorias no texto formatado
-
-**7. Impressao da montagem (`handlePrintAssembly`) e WhatsApp montagem (`handleShareAssembly`)**
-Na composicao de cada marmita, mostrar os ingredientes na ordem: proteina primeiro, depois carboidrato, depois salada — para a cozinheira ler de forma logica.
-
-### Resultado visual (impressao)
-
-```text
-LISTA DE PRODUCAO - COZINHA
-08/02/2026 - 15 marmitas
-
-PROTEINAS
-  Carne moida .............. 1.5kg
-  Carne bovina ............. 600g
-  Frango ................... 800g
-
-CARBOIDRATOS
-  Arroz .................... 2kg
-  Aipim .................... 600g
-  Feijao ................... 400g
-
-SALADA
-  Mix de legumes ........... 800g
-  Legumes .................. 300g
+```
+items: items.map(item => ({
+  ...existing fields...,
+  lineType: item.lineType,  // <-- NOVO
+})),
 ```
 
-### Nenhum arquivo novo. Nenhuma mudanca no banco de dados.
+**2. Exibir FIT/FITNESS e pesos no modal do pedido (OrdersManager.tsx)**
+
+No modal de detalhes, para itens do tipo `marmita`:
+- Inferir a linha: se o item tem `lineType` salvo, usar. Senao, checar se o nome contem "hipertrofia" ou "fitness"
+- Mostrar badge "FIT 300g" ou "FITNESS 450g" ao lado do nome do pacote
+- Abaixo de cada sabor, exibir a composicao com pesos (ex: "100g Carne + 150g Arroz + 50g Mix de legumes")
+- Buscar os dados de composicao da tabela `marmita_flavors` (campo `sides` JSONB), ja utilizada no painel de producao
+
+**3. Carregar dados de sabores no OrdersManager**
+
+Adicionar uma query para buscar `marmita_flavors` (id, name, sides) quando o modal for aberto, para poder exibir os pesos de cada sabor. Reutilizar as funcoes `getFlavorSidesForLine` e `mapLineTypeToKey` ja existentes em `src/lib/flavor-description.ts`.
+
+### Resultado visual no modal
+
+```
+Itens
+Pacote 7 Marmitas - FIT 300g (7x)          R$ 188,30
+  - 3x Almondegas de carne bovina com batata doce e mix de salada
+    100g Almondegas + 150g Batata doce + 50g Mix de legumes
+  - 2x Frango desfiado com arroz, feijao e legumes
+    100g Frango + 100g Arroz + 100g Feijao
+  - 2x Frango em cubos com batata doce e mix de salada
+    100g Frango + 150g Batata doce + 50g Mix de legumes
+```
+
+### Arquivos alterados
+
+| Arquivo | Mudanca |
+|---|---|
+| `src/components/CartDrawer.tsx` | Salvar `lineType` no item do pedido |
+| `src/components/admin/OrdersManager.tsx` | Buscar marmita_flavors, inferir linha, exibir badge e pesos |
+
+### Pedidos antigos
+
+Para pedidos ja existentes que nao tem `lineType` salvo, o sistema vai inferir pela mesma logica do painel de producao: se o nome do item contem "hipertrofia" ou "fitness", eh FITNESS; senao, eh FIT.
