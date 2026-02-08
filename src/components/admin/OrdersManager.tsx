@@ -1413,7 +1413,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           }
         }}
       >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="w-5 h-5" />
@@ -1422,7 +1422,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           </DialogHeader>
           
           {selectedOrder && (
-            <ScrollArea className="flex-1 pr-4">
+            <ScrollArea className="flex-1 min-h-0 pr-4">
               <div className="space-y-4 pb-4">
               {/* Status with manual dropdown */}
                 <div className="flex items-center justify-between gap-4">
