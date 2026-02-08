@@ -1483,7 +1483,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                     <div key={i} className="py-1.5 border-b last:border-0">
                       <div className="flex justify-between text-sm">
                         <span className="font-medium flex items-center gap-1.5 flex-wrap">
-                          {item.name} ({item.quantity}x)
+                          {item.quantity}x {item.name}
                           {inferredLineType && (
                             <Badge
                               variant="outline"

@@ -66,54 +66,52 @@ function similarity(str1: string, str2: string): number {
   return 1 - (distance / maxLen);
 }
 
+// Side-dish keywords that differentiate similar flavors
+const SIDE_KEYWORDS = ['aipim', 'arroz', 'batata doce', 'batata-doce', 'feijao', 'feijão', 'graos', 'grãos', 'pure', 'purê', 'mandioca', 'macaxeira'];
+
+function normalizeFull(str: string): string {
+  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
 function findBestMatch(text: string, catalog: CatalogItem[]): { item: CatalogItem; confidence: number } | null {
   let bestMatch: CatalogItem | null = null;
   let bestScore = 0;
 
-  const normalizedText = text.toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim();
+  const normalizedText = normalizeFull(text);
+
+  // Detect side-dish keywords in user text
+  const userKeywords = SIDE_KEYWORDS.filter(k => normalizedText.includes(normalizeFull(k)));
 
   for (const item of catalog) {
-    const normalizedName = item.name.toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
+    const normalizedName = normalizeFull(item.name);
+
+    let score = 0;
 
     // Check for exact or substring match first
     if (normalizedText.includes(normalizedName) || normalizedName.includes(normalizedText)) {
-      const score = normalizedText === normalizedName ? 1 : 0.9;
-      if (score > bestScore) {
-        bestScore = score;
-        bestMatch = item;
-      }
+      score = normalizedText === normalizedName ? 1 : 0.9;
     } else {
       // Use fuzzy matching
-      const score = similarity(normalizedText, normalizedName);
-      if (score > 0.75 && score > bestScore) {
-        bestScore = score;
-        bestMatch = item;
+      score = similarity(normalizedText, normalizedName);
+      if (score <= 0.75) continue;
+    }
+
+    // Penalize if user has a side-dish keyword that candidate doesn't have (or vice-versa)
+    if (userKeywords.length > 0) {
+      const candidateKeywords = SIDE_KEYWORDS.filter(k => normalizedName.includes(normalizeFull(k)));
+      const userHas = userKeywords.some(k => !candidateKeywords.map(c => normalizeFull(c)).includes(normalizeFull(k)));
+      if (userHas) {
+        score *= 0.4; // Heavy penalty
       }
     }
 
-    // Check individual words
-    const words = normalizedText.split(/\s+/);
-    const itemWords = normalizedName.split(/\s+/);
-    
-    for (const word of words) {
-      if (word.length < 3) continue;
-      for (const itemWord of itemWords) {
-        if (itemWord.length < 3) continue;
-        const wordScore = similarity(word, itemWord);
-        if (wordScore > 0.8 && wordScore * 0.85 > bestScore) {
-          bestScore = wordScore * 0.85;
-          bestMatch = item;
-        }
-      }
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = item;
     }
   }
 
-  return bestMatch ? { item: bestMatch, confidence: bestScore } : null;
+  return bestMatch && bestScore >= 0.75 ? { item: bestMatch, confidence: bestScore } : null;
 }
 
 // Extract phone number from text
