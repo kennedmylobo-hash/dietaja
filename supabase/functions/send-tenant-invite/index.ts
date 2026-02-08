@@ -139,7 +139,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `PedidoJá <pedidos@dietajavca.com.br>`,
+        from: `PedidoJá <noreply@pedidoja.com.br>`,
         to: [email],
         subject: `Bem-vindo ao ${brand_name} — Crie sua senha`,
         html: emailHtml,

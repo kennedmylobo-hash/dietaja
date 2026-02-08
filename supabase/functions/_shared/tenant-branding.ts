@@ -13,20 +13,20 @@ export interface TenantBranding {
 }
 
 const DEFAULT_BRANDING: TenantBranding = {
-  brand_name: "Dieta Já",
-  whatsapp: "5577991001658",
-  whatsapp_formatted: "(77) 99100-1658",
+  brand_name: "Meu Restaurante",
+  whatsapp: "",
+  whatsapp_formatted: "",
   logo_url: null,
   primary_color: "#22c55e",
-  city: "Vitória da Conquista",
-  state: "BA",
-  domain: "dietajavca.com.br",
-  slug: "dietaja",
+  city: "",
+  state: "",
+  domain: null,
+  slug: "",
 };
 
 /**
  * Fetches tenant branding info from the tenants table.
- * Falls back to Dieta Já defaults if tenant not found.
+ * Falls back to generic defaults if tenant not found.
  */
 export async function getTenantBranding(
   supabase: ReturnType<typeof createClient>,

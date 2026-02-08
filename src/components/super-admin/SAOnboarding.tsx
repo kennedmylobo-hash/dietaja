@@ -135,7 +135,7 @@ export default function SAOnboarding() {
                 className="mt-0.5"
               />
               <Label htmlFor="cloneMenu" className="text-sm cursor-pointer leading-relaxed">
-                <span className="font-medium">Clonar cardápio do Dieta Já como modelo</span>
+                <span className="font-medium">Clonar cardápio modelo</span>
                 <span className="text-muted-foreground block text-xs mt-0.5">
                   Inclui pacotes de marmitas, sabores, kits, acompanhamentos, planos do clube e níveis de fidelidade
                 </span>

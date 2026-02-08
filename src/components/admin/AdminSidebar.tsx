@@ -166,7 +166,7 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { tenant } = useTenant();
-  const brandName = tenant?.brand_name || "Dieta Já";
+  const brandName = tenant?.brand_name || "Meu Restaurante";
 
   return (
     <>

@@ -15,6 +15,7 @@ import Logo from '@/components/Logo';
 import { useCashback } from '@/hooks/useCashback';
 import CashbackCard from '@/components/minha-conta/CashbackCard';
 import CashbackHistory from '@/components/minha-conta/CashbackHistory';
+import ProfileOnboarding from '@/components/minha-conta/ProfileOnboarding';
 import { useCart, FlavorSelection } from '@/components/CartContext';
 
 interface Profile {
@@ -426,6 +427,11 @@ const MinhaConta = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Profile Onboarding */}
+        {profile && (
+          <ProfileOnboarding profile={profile} onComplete={fetchProfile} />
+        )}
 
         {/* Cashback Section */}
         <CashbackCard cashbackData={cashbackData} />

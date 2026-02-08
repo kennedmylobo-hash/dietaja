@@ -20,7 +20,7 @@
  const A7_HEIGHT = 105;
  const MARGIN = 5;
  
- export const generateLabelsA7 = (orders: OrderForLabel[], brandName: string = "DIETA JÁ") => {
+ export const generateLabelsA7 = (orders: OrderForLabel[], brandName: string = "MEU RESTAURANTE") => {
    const doc = new jsPDF({
      format: [A7_WIDTH, A7_HEIGHT],
      orientation: "portrait",
@@ -93,7 +93,7 @@
  const THERMAL_WIDTH = 80;
  const THERMAL_HEIGHT = 60;
  
- export const generateLabelsThermal = (orders: OrderForLabel[], brandName: string = "DIETA JÁ") => {
+ export const generateLabelsThermal = (orders: OrderForLabel[], brandName: string = "MEU RESTAURANTE") => {
    const doc = new jsPDF({
      format: [THERMAL_WIDTH, THERMAL_HEIGHT],
      orientation: "portrait",

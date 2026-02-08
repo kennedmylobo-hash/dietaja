@@ -210,7 +210,7 @@ const NotificationTester = () => {
         : { 
             order_id: order.id, 
             status: 'pending',
-            pix_code: '00020126580014br.gov.bcb.pix0136teste-pix-exemplo-dietaja520400005303986540510.005802BR5925DIETA JA6009SAO PAULO62070503***6304TEST'
+            pix_code: '00020126580014br.gov.bcb.pix0136teste-pix-exemplo520400005303986540510.005802BR5925TESTE6009SAO PAULO62070503***6304TEST'
           };
 
       const { data: result, error } = await supabase.functions.invoke('send-order-whatsapp', {
@@ -331,7 +331,7 @@ const NotificationTester = () => {
         body: { 
           order_id: order2.id, 
           status: 'pending',
-          pix_code: '00020126580014br.gov.bcb.pix0136teste-pix-exemplo-dietaja520400005303986540510.005802BR5925DIETA JA6009SAO PAULO62070503***6304TEST'
+          pix_code: '00020126580014br.gov.bcb.pix0136teste-pix-exemplo520400005303986540510.005802BR5925TESTE6009SAO PAULO62070503***6304TEST'
         }
       });
 
