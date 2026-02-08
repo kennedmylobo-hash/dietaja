@@ -90,6 +90,7 @@ const WhatsAppOrderImporter = () => {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryOption, setDeliveryOption] = useState<'delivery' | 'pickup'>('delivery');
   const [items, setItems] = useState<ParsedOrderItem[]>([]);
+  const [manualSubtotal, setManualSubtotal] = useState("");
 
   // New required fields
   const [lineType, setLineType] = useState<'fit' | 'fitness' | null>(null);
@@ -150,8 +151,17 @@ const WhatsAppOrderImporter = () => {
     }
   };
 
-  const subtotal = useMemo(() => {
+  const calculatedSubtotal = useMemo(() => {
     return items.reduce((sum, item) => sum + item.totalPrice, 0);
+  }, [items]);
+
+  const subtotal = useMemo(() => {
+    const manual = parseFloat(manualSubtotal);
+    return manual > 0 ? manual : calculatedSubtotal;
+  }, [manualSubtotal, calculatedSubtotal]);
+
+  const totalMarmitas = useMemo(() => {
+    return items.reduce((sum, i) => sum + i.quantity, 0);
   }, [items]);
 
   const missingFields = useMemo(() => {
@@ -399,6 +409,7 @@ const WhatsAppOrderImporter = () => {
     setCustomerEmail("");
     setDeliveryAddress("");
     setItems([]);
+    setManualSubtotal("");
     setLineType(null);
     setDeliveryDate("");
     setDeliveryTime("");
@@ -627,7 +638,14 @@ WhatsApp: 77991234567"
 
                 {/* Items */}
                 <div className="space-y-2">
-                  <h4 className="font-medium text-sm">📦 Itens *</h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-medium text-sm">📦 Itens *</h4>
+                    {totalMarmitas > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {totalMarmitas} marmita{totalMarmitas !== 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </div>
                   
                   {items.length === 0 ? (
                     <p className={`text-sm ${isMissing('items') ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
@@ -713,12 +731,26 @@ WhatsApp: 77991234567"
 
                 <Separator />
 
-                {/* Subtotal */}
-                <div className="flex items-center justify-between font-bold">
-                  <span>Valor total:</span>
-                  <span className={isMissing('subtotal') ? 'text-destructive' : ''}>
-                    {formatCurrency(subtotal)}
-                  </span>
+                {/* Subtotal - editable */}
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold">Valor total *</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">R$</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0,00"
+                      value={manualSubtotal}
+                      onChange={(e) => setManualSubtotal(e.target.value)}
+                      className={`w-32 ${isMissing('subtotal') ? 'border-destructive' : ''}`}
+                    />
+                    {calculatedSubtotal > 0 && !manualSubtotal && (
+                      <span className="text-xs text-muted-foreground">
+                        Auto: {formatCurrency(calculatedSubtotal)}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Order Summary Card (only when complete) */}
@@ -798,6 +830,7 @@ WhatsApp: 77991234567"
           onItemsUpdated={(flavorId, newSides) => {
             setMarmitaFlavors(prev => prev.map(f => f.id === flavorId ? { ...f, sides: newSides } : f));
           }}
+          onSubtotalChanged={(val) => setManualSubtotal(String(val))}
         />
       )}
     </div>
