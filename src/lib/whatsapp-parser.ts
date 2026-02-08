@@ -99,9 +99,11 @@ function findBestMatch(text: string, catalog: CatalogItem[]): { item: CatalogIte
     // Penalize if user has a side-dish keyword that candidate doesn't have (or vice-versa)
     if (userKeywords.length > 0) {
       const candidateKeywords = SIDE_KEYWORDS.filter(k => normalizedName.includes(normalizeFull(k)));
-      const userHas = userKeywords.some(k => !candidateKeywords.map(c => normalizeFull(c)).includes(normalizeFull(k)));
-      if (userHas) {
-        score *= 0.4; // Heavy penalty
+      if (candidateKeywords.length > 0) {
+        const userHas = userKeywords.some(k => !candidateKeywords.map(c => normalizeFull(c)).includes(normalizeFull(k)));
+        if (userHas) {
+          score *= 0.4; // Heavy penalty only when there's a real conflict
+        }
       }
     }
 
