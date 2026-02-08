@@ -67,11 +67,18 @@ interface KitSoup {
   name: string;
 }
 
+// Classify a side ingredient as carb or salad
+const classifyIngredient = (name: string): 'carb' | 'salad' => {
+  const lower = name.toLowerCase();
+  const carbKeywords = ['arroz', 'aipim', 'batata', 'purê', 'pure', 'feijão', 'feijao', 'grãos', 'graos', 'macarrão', 'macarrao', 'nhoque', 'mandioca', 'farinha', 'risoto'];
+  return carbKeywords.some(k => lower.includes(k)) ? 'carb' : 'salad';
+};
+
 // For kitchen: aggregated ingredients
 interface IngredientTotal {
   name: string;
   totalWeight: number; // in grams
-  type: 'protein' | 'side' | 'juice' | 'soup';
+  type: 'protein' | 'carb' | 'salad' | 'juice' | 'soup';
   emoji?: string;
   count?: number; // for items counted by unit (juices, soups)
 }
@@ -292,7 +299,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 ingredientMap.set(sideKey, {
                   name: side.name,
                   totalWeight: sideTotalWeight,
-                  type: 'side',
+                  type: classifyIngredient(side.name),
                 });
               }
             }
@@ -371,9 +378,11 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
     }
 
     // Convert maps to sorted arrays
+    const typeOrder: Record<string, number> = { protein: 0, carb: 1, salad: 2 };
     const ingredients = Array.from(ingredientMap.values()).sort((a, b) => {
-      // Proteins first, then sides
-      if (a.type !== b.type) return a.type === 'protein' ? -1 : 1;
+      const orderA = typeOrder[a.type] ?? 3;
+      const orderB = typeOrder[b.type] ?? 3;
+      if (orderA !== orderB) return orderA - orderB;
       return b.totalWeight - a.totalWeight;
     });
 
@@ -435,9 +444,19 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
             </div>
           `).join('')}
         
-        <h2>🍚 ACOMPANHAMENTOS</h2>
+        <h2>🍚 CARBOIDRATOS</h2>
         ${productionData.ingredients
-          .filter(i => i.type === 'side')
+          .filter(i => i.type === 'carb')
+          .map(i => `
+            <div class="item side">
+              <span>${i.name}</span>
+              <span class="weight">${formatWeight(i.totalWeight)}</span>
+            </div>
+          `).join('')}
+        
+        <h2>🥗 SALADA</h2>
+        ${productionData.ingredients
+          .filter(i => i.type === 'salad')
           .map(i => `
             <div class="item side">
               <span>${i.name}</span>
@@ -551,11 +570,21 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
       text += `\n`;
     }
     
-    // Sides
-    const sides = productionData.ingredients.filter(i => i.type === 'side');
-    if (sides.length > 0) {
-      text += `*🍚 ACOMPANHAMENTOS*\n`;
-      sides.forEach(s => {
+    // Carbs
+    const carbs = productionData.ingredients.filter(i => i.type === 'carb');
+    if (carbs.length > 0) {
+      text += `*🍚 CARBOIDRATOS*\n`;
+      carbs.forEach(s => {
+        text += `• ${s.name}: *${formatWeight(s.totalWeight)}*\n`;
+      });
+      text += `\n`;
+    }
+    
+    // Salads
+    const salads = productionData.ingredients.filter(i => i.type === 'salad');
+    if (salads.length > 0) {
+      text += `*🥗 SALADA*\n`;
+      salads.forEach(s => {
         text += `• ${s.name}: *${formatWeight(s.totalWeight)}*\n`;
       });
       text += `\n`;
@@ -741,15 +770,15 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
               </CardContent>
             </Card>
 
-            {/* Sides */}
+            {/* Carbs */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  🍚 Acompanhamentos
+                  🍚 Carboidratos
                   <Badge variant="secondary">
                     {formatWeight(
                       productionData.ingredients
-                        .filter(i => i.type === 'side')
+                        .filter(i => i.type === 'carb')
                         .reduce((sum, i) => sum + i.totalWeight, 0)
                     )}
                   </Badge>
@@ -758,14 +787,47 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
               <CardContent>
                 <div className="space-y-3">
                   {productionData.ingredients
-                    .filter(i => i.type === 'side')
+                    .filter(i => i.type === 'carb')
                     .map((ingredient, idx) => (
                       <div 
                         key={idx} 
-                        className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
+                        className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800"
                       >
                         <span className="font-medium">{ingredient.name}</span>
-                        <span className="text-xl font-bold">
+                        <span className="text-xl font-bold text-blue-700 dark:text-blue-400">
+                          {formatWeight(ingredient.totalWeight)}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Salad */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  🥗 Salada
+                  <Badge variant="secondary">
+                    {formatWeight(
+                      productionData.ingredients
+                        .filter(i => i.type === 'salad')
+                        .reduce((sum, i) => sum + i.totalWeight, 0)
+                    )}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {productionData.ingredients
+                    .filter(i => i.type === 'salad')
+                    .map((ingredient, idx) => (
+                      <div 
+                        key={idx} 
+                        className="flex items-center justify-between p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800"
+                      >
+                        <span className="font-medium">{ingredient.name}</span>
+                        <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
                           {formatWeight(ingredient.totalWeight)}
                         </span>
                       </div>
