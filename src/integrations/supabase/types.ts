@@ -1733,6 +1733,56 @@ export type Database = {
           },
         ]
       }
+      tenant_diet_pricing: {
+        Row: {
+          cost_per_gram: number
+          created_at: string
+          fixed_cost_per_meal: number
+          id: string
+          manual_price_per_gram: number
+          margin_percent: number
+          package_options: Json
+          packaging_cost: number
+          pricing_mode: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          cost_per_gram?: number
+          created_at?: string
+          fixed_cost_per_meal?: number
+          id?: string
+          manual_price_per_gram?: number
+          margin_percent?: number
+          package_options?: Json
+          packaging_cost?: number
+          pricing_mode?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          cost_per_gram?: number
+          created_at?: string
+          fixed_cost_per_meal?: number
+          id?: string
+          manual_price_per_gram?: number
+          margin_percent?: number
+          package_options?: Json
+          packaging_cost?: number
+          pricing_mode?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_diet_pricing_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_landing_content: {
         Row: {
           content: Json
