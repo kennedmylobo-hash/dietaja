@@ -69,8 +69,28 @@ function similarity(str1: string, str2: string): number {
 // Side-dish keywords that differentiate similar flavors
 const SIDE_KEYWORDS = ['aipim', 'arroz', 'batata doce', 'batata-doce', 'feijao', 'feijão', 'graos', 'grãos', 'pure', 'purê', 'mandioca', 'macaxeira'];
 
+// Protein keywords — mismatches here must heavily penalize the score
+const PROTEIN_KEYWORDS = [
+  'carne', 'frango', 'peixe', 'bovina', 'suina', 'suína', 'porco',
+  'almondega', 'almondegas', 'almôndega', 'almôndegas',
+  'estrogonofe', 'strogonoff',
+  'desfiado', 'desfiada', 'cubos', 'grelhado', 'grelhada', 'moida', 'moído',
+];
+
 function normalizeFull(str: string): string {
   return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+/**
+ * Extracts the core protein identifier from a dish name.
+ * E.g. "Estrogonofe de carne, aipim e mix de legumes" → "estrogonofe carne"
+ * E.g. "Frango em cubos, aipim e mix de salada" → "frango cubos"
+ */
+function extractProteinSignature(normalizedName: string): string {
+  // Remove side-dish parts after comma or "com"
+  const core = normalizedName.split(/[,]|\s+com\s+/)[0].trim();
+  // Remove prepositions
+  return core.replace(/\b(de|em|ao|a|o|da|do|das|dos|na|no|nas|nos)\b/g, '').replace(/\s+/g, ' ').trim();
 }
 
 function findBestMatch(text: string, catalog: CatalogItem[]): { item: CatalogItem; confidence: number } | null {
@@ -78,6 +98,7 @@ function findBestMatch(text: string, catalog: CatalogItem[]): { item: CatalogIte
   let bestScore = 0;
 
   const normalizedText = normalizeFull(text).replace(/mix de salada/g, 'mix de legumes');
+  const userProteinSig = extractProteinSignature(normalizedText);
 
   // Detect side-dish keywords in user text
   const userKeywords = SIDE_KEYWORDS.filter(k => normalizedText.includes(normalizeFull(k)));
@@ -94,6 +115,27 @@ function findBestMatch(text: string, catalog: CatalogItem[]): { item: CatalogIte
       // Use fuzzy matching
       score = similarity(normalizedText, normalizedName);
       if (score <= 0.75) continue;
+    }
+
+    // === PROTEIN MISMATCH PENALTY ===
+    // Compare the core protein part (before sides) to avoid matching
+    // "Estrogonofe de carne" to "Estrogonofe de frango"
+    const candidateProteinSig = extractProteinSignature(normalizedName);
+    if (userProteinSig !== candidateProteinSig) {
+      // Check if the protein keywords differ critically
+      const userProteins = PROTEIN_KEYWORDS.filter(k => userProteinSig.includes(k));
+      const candidateProteins = PROTEIN_KEYWORDS.filter(k => candidateProteinSig.includes(k));
+      
+      if (userProteins.length > 0 && candidateProteins.length > 0) {
+        // Both have protein keywords — check if they conflict
+        const userSet = new Set(userProteins);
+        const candidateSet = new Set(candidateProteins);
+        const hasConflict = [...userSet].some(p => !candidateSet.has(p)) || 
+                           [...candidateSet].some(p => !userSet.has(p));
+        if (hasConflict) {
+          score *= 0.2; // Very heavy penalty for protein mismatch
+        }
+      }
     }
 
     // Penalize if user has a side-dish keyword that candidate doesn't have (or vice-versa)
