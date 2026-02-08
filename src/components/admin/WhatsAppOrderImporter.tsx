@@ -50,22 +50,8 @@ interface MarmitaPackage {
   id: string;
   name: string;
   unit_price: number;
-}
-
-interface KitJuice {
-  id: string;
-  name: string;
-}
-
-interface KitSoup {
-  id: string;
-  name: string;
-}
-
-interface KitPackage {
-  id: string;
-  name: string;
-  price: number;
+  line_type: string | null;
+  quantity: number;
 }
 
 type Step = 'input' | 'review';
@@ -91,9 +77,6 @@ const WhatsAppOrderImporter = () => {
   // Catalog data
   const [marmitaFlavors, setMarmitaFlavors] = useState<MarmitaFlavor[]>([]);
   const [marmitaPackages, setMarmitaPackages] = useState<MarmitaPackage[]>([]);
-  const [kitJuices, setKitJuices] = useState<KitJuice[]>([]);
-  const [kitSoups, setKitSoups] = useState<KitSoup[]>([]);
-  const [kitPackages, setKitPackages] = useState<KitPackage[]>([]);
 
   // Editable form state
   const [customerName, setCustomerName] = useState("");
@@ -113,21 +96,39 @@ const WhatsAppOrderImporter = () => {
     fetchCatalogData();
   }, []);
 
+  // Recalculate item prices when lineType changes
+  useEffect(() => {
+    if (!lineType || items.length === 0 || marmitaPackages.length === 0) return;
+
+    const lineTypeKey = lineType === 'fit' ? 'emagrecimento' : 'hipertrofia';
+    // Find the cheapest package for this line to get unit_price
+    const matchingPackages = marmitaPackages.filter(p => {
+      const name = p.name.toLowerCase();
+      if (lineTypeKey === 'hipertrofia') return name.includes('fitness') || name.includes('hipertrofia');
+      return !name.includes('fitness') && !name.includes('hipertrofia');
+    });
+    
+    // Use first matching package's unit_price, or fallback
+    const unitPrice = matchingPackages.length > 0 
+      ? matchingPackages.reduce((max, p) => Math.max(max, p.unit_price), 0)
+      : 0;
+
+    setItems(prev => prev.map(item => ({
+      ...item,
+      unitPrice,
+      totalPrice: unitPrice * item.quantity,
+    })));
+  }, [lineType, marmitaPackages.length]);
+
   const fetchCatalogData = async () => {
     try {
-      const [flavorsRes, packagesRes, juicesRes, soupsRes, kitsRes] = await Promise.all([
-        supabase.from('marmita_flavors').select('id, name, category').eq('active', true),
-        supabase.from('marmita_packages').select('id, name, unit_price').eq('active', true),
-        supabase.from('kit_juices').select('id, name').eq('active', true),
-        supabase.from('kit_soups').select('id, name').eq('active', true),
-        supabase.from('kit_packages').select('id, name, price').eq('active', true),
+      const [flavorsRes, packagesRes] = await Promise.all([
+        supabase.from('marmita_flavors').select('id, name, category').eq('active', true).eq('tenant_id', tenantId),
+        supabase.from('marmita_packages').select('id, name, unit_price, line_type, quantity').eq('active', true).eq('tenant_id', tenantId),
       ]);
 
       if (flavorsRes.data) setMarmitaFlavors(flavorsRes.data);
       if (packagesRes.data) setMarmitaPackages(packagesRes.data);
-      if (juicesRes.data) setKitJuices(juicesRes.data);
-      if (soupsRes.data) setKitSoups(soupsRes.data);
-      if (kitsRes.data) setKitPackages(kitsRes.data);
     } catch (error) {
       console.error('Error fetching catalog:', error);
     }
@@ -164,13 +165,7 @@ const WhatsAppOrderImporter = () => {
     setIsAnalyzing(true);
 
     try {
-      const catalog = buildCatalog(
-        marmitaFlavors,
-        marmitaPackages,
-        kitJuices,
-        kitSoups,
-        kitPackages
-      );
+      const catalog = buildCatalog(marmitaFlavors);
 
       const result = parseWhatsAppConversation(conversationText, catalog);
       setParsedOrder(result);
