@@ -1,113 +1,109 @@
 
-# Aba "Dieta Personalizada" - Calculadora de Orcamento Rapido
 
-## O que vai ser criado
+# Painel de Precificacao Personalizavel - Dieta Personalizada
 
-Uma nova aba no painel Admin chamada **"Dieta Personal."** que permite ao restaurante criar orcamentos rapidos para pedidos de dieta personalizada. O fluxo eh: o cliente manda a lista de itens pelo WhatsApp (como na imagem), o admin cola no sistema, e o orcamento eh calculado automaticamente.
+## Problema atual
 
-## Como vai funcionar
+O sistema atual tem apenas um campo "Preco por grama (R$)" fixo em R$ 0,08. Nao existe:
+- Visao de **custo** dos ingredientes
+- Calculo de **margem de lucro**
+- Personalizacao dos **pacotes** (dias/descontos)
+- **Taxa de embalagem** ou custos fixos por marmita
+- Possibilidade de salvar as configuracoes para nao ter que ajustar toda vez
 
-1. **Textarea para colar a mensagem** do WhatsApp com a lista de itens da nutricionista
-2. **Parser inteligente** que extrai automaticamente cada item com:
-   - Numero do item (1, 2, 3...)
-   - Descricao completa do prato
-   - Ingredientes e pesos individuais (ex: "arroz com brocolis (60g)")
-   - Peso total calculado automaticamente
-3. **Tabela editavel** onde o admin pode:
-   - Ajustar descricoes
-   - Editar pesos
-   - Definir preco por grama ou preco fixo por item
-   - Adicionar/remover itens
-4. **Configuracao de preco base** (ex: R$ 0,08/g) com possibilidade de ajuste por item
-5. **Campo para nome do cliente e WhatsApp**
-6. **Resumo do orcamento** com:
-   - Preco unitario de cada item
-   - Subtotal
-   - Opcoes de pacote (7/14/21/28 unidades)
-   - Total final
-7. **Botao "Enviar pelo WhatsApp"** que gera mensagem formatada com o orcamento completo
-8. **Botao "Salvar PDF"** usando jspdf (ja instalado) para gerar um orcamento profissional
-9. **Historico de orcamentos** salvos no banco para consulta futura
+## O que vai mudar
 
-## Exemplo de fluxo
+### 1. Secao "Regras de Precificacao" (expansivel, acima da tabela de itens)
 
-```text
-Admin cola:
-"1- Strogonoff de grao de bico (100g) com arroz com brocolis (100g) + legumes variados (100g)
- 2- Hamburguer de grao de bico com lentilha (120g) + macarrao ao molho branco (180g)
- 3- File de tilapia (80g) + pure de aipim (120g) + legumes variados (100g)"
+Um card colapsavel com todas as configuracoes de preco, dividido em abas ou blocos:
 
-Sistema extrai:
-| # | Descricao                                    | Peso Total | Preco    |
-|---|----------------------------------------------|-----------|----------|
-| 1 | Strogonoff de grao de bico + arroz + legumes | 300g      | R$ 24,00 |
-| 2 | Hamburguer de grao de bico + macarrao        | 300g      | R$ 24,00 |
-| 3 | File de tilapia + pure + legumes             | 300g      | R$ 24,00 |
+**Bloco A - Custos:**
+- Custo por grama dos ingredientes (R$) — o quanto GASTA em media por grama de comida
+- Taxa fixa por embalagem (R$) — custo da embalagem (marmita, tampa, etiqueta)
+- Custo fixo por refeicao (R$) — gas, mao de obra, etc (rateio)
 
-Total por unidade: R$ 72,00
-Kit 7 dias (7x cada): R$ 504,00
-Kit 14 dias (14x cada): R$ 952,00 (com desconto)
-```
+**Bloco B - Margem e Preco de Venda:**
+- Margem de lucro desejada (%) — ex: 50%, 100%, 200%
+- OU preco de venda por grama (R$) — o admin escolhe se quer calcular pela margem ou definir direto
+- Toggle: "Calcular pelo custo + margem" ou "Definir preco manual por grama"
+
+**Bloco C - Pacotes (editavel):**
+- Tabela editavel dos pacotes (hoje fixo no codigo):
+  - Dias | Label | Desconto (%)
+  - Botao para adicionar/remover pacotes
+  - Ex: 7 dias / 0% | 14 dias / 5% | 21 dias / 8% | 28 dias / 10%
+
+**Bloco D - Salvar Configuracao:**
+- Botao "Salvar como padrao" que persiste no banco para o tenant
+- Ao abrir a aba, carrega as configuracoes salvas automaticamente
+
+### 2. Resumo financeiro aprimorado
+
+Apos calcular o orcamento, o resumo mostra:
+- **Custo total estimado** por refeicao (custo ingredientes + embalagem + fixo)
+- **Preco de venda** por refeicao
+- **Lucro por refeicao** (venda - custo)
+- **Margem real** (%)
+- Para cada pacote: custo total, venda total, lucro total
+
+Isso fica visivel APENAS para o admin (nao vai no WhatsApp nem no PDF para o cliente).
+
+### 3. O que o cliente ve (WhatsApp/PDF) continua limpo
+
+- Apenas preco final por item e totais dos pacotes
+- Nenhuma informacao de custo ou margem
 
 ## Detalhes tecnicos
 
-### 1. Nova tabela no banco: `custom_diet_quotes`
+### Nova tabela: `tenant_diet_pricing` (configuracao por tenant)
+
+```
+tenant_diet_pricing
+- id UUID PK
+- tenant_id UUID FK (unique - 1 config por tenant)
+- cost_per_gram NUMERIC DEFAULT 0.04
+- packaging_cost NUMERIC DEFAULT 1.50
+- fixed_cost_per_meal NUMERIC DEFAULT 2.00
+- pricing_mode TEXT DEFAULT 'margin' (ou 'manual')
+- margin_percent NUMERIC DEFAULT 100
+- manual_price_per_gram NUMERIC DEFAULT 0.08
+- package_options JSONB DEFAULT '[{"days":7,"label":"7 dias","discount":0},...]'
+- created_at / updated_at
+```
+
+### Alteracoes no CustomDietQuoter.tsx
+
+1. Adicionar state para todas as configs de precificacao
+2. Carregar configs do banco ao montar (`tenant_diet_pricing`)
+3. Novo componente interno `PricingConfig` (card colapsavel)
+4. Atualizar `getItemPrice()` para usar o modo correto (margem ou manual)
+5. Adicionar calculo de custo: `getItemCost(item) = item.totalWeight * costPerGram + packagingCost + fixedCost`
+6. Resumo financeiro com colunas de custo/venda/lucro
+7. Botao "Salvar como padrao" faz upsert na tabela `tenant_diet_pricing`
+
+### Logica de preco
+
+```
+Se modo = 'margin':
+  custoItem = (peso * custoGrama) + embalagem + custoFixo
+  precoVenda = custoItem * (1 + margem/100)
+
+Se modo = 'manual':
+  precoVenda = peso * precoManualGrama
+  custoItem = (peso * custoGrama) + embalagem + custoFixo (so para exibir lucro)
+```
+
+### Arquivos alterados
+
+| Arquivo | Alteracao |
+|---|---|
+| Nova migracao SQL | Criar tabela `tenant_diet_pricing` com RLS por tenant |
+| `src/components/admin/CustomDietQuoter.tsx` | Adicionar secao de precificacao, carregar/salvar configs, resumo financeiro |
+
+### RLS
 
 ```sql
-CREATE TABLE custom_diet_quotes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES tenants(id),
-  customer_name TEXT,
-  customer_phone TEXT,
-  items JSONB NOT NULL DEFAULT '[]',
-  price_per_gram NUMERIC(10,4) DEFAULT 0.08,
-  subtotal_per_unit NUMERIC(10,2),
-  package_options JSONB DEFAULT '[]',
-  notes TEXT,
-  status TEXT DEFAULT 'draft',
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- RLS
-ALTER TABLE custom_diet_quotes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "tenant_isolation" ON custom_diet_quotes
+CREATE POLICY "tenant_isolation" ON tenant_diet_pricing
   FOR ALL USING (tenant_id = get_current_tenant_id());
 ```
 
-### 2. Novo componente: `src/components/admin/CustomDietQuoter.tsx`
-
-- Textarea para colar texto do WhatsApp
-- Parser que usa regex para extrair itens numerados e pesos entre parenteses
-- Tabela editavel com react state
-- Configuracao de preco/grama com input numerico
-- Calculo automatico de pacotes (7/14/21/28)
-- Geracao de mensagem WhatsApp formatada
-- Geracao de PDF com jspdf
-- Lista de orcamentos anteriores salvos
-
-### 3. Parser de itens personalizados
-
-Regex para extrair:
-- Numero do item: `/^\d+[-.)]\s*/`
-- Ingredientes com peso: `/([^(]+)\((\d+)g?\)/g` -- captura nome e gramatura
-- Peso total: soma de todas as gramaturas encontradas
-
-### 4. Sidebar: adicionar item ao grupo "Operacoes"
-
-```typescript
-{ id: "custom-diet", label: "Dieta Personal.", icon: ClipboardList }
-```
-
-### 5. Admin.tsx: adicionar case no switch
-
-```typescript
-case "custom-diet":
-  return <CustomDietQuoter />;
-```
-
-### 6. Multi-tenant
-
-- Todos os orcamentos sao salvos com `tenant_id`
-- O preco base por grama pode ser configuravel por tenant (campo na tabela `tenants` ou inline no componente)
-- Historico filtrado por tenant via RLS
