@@ -90,7 +90,7 @@ function findBestMatch(text: string, catalog: CatalogItem[]): { item: CatalogIte
     } else {
       // Use fuzzy matching
       const score = similarity(normalizedText, normalizedName);
-      if (score > 0.6 && score > bestScore) {
+      if (score > 0.75 && score > bestScore) {
         bestScore = score;
         bestMatch = item;
       }
@@ -187,7 +187,7 @@ function extractAddress(text: string): string | null {
 // Extract order items with quantities
 function extractItems(text: string, catalog: CatalogItem[]): ParsedOrderItem[] {
   const items: ParsedOrderItem[] = [];
-  const lines = text.split(/[\n,;]/);
+  const lines = text.split(/\n/);
 
   // Patterns to find quantity + product
   const quantityPatterns = [
@@ -221,7 +221,7 @@ function extractItems(text: string, catalog: CatalogItem[]): ParsedOrderItem[] {
 
     // Try to match with catalog
     const matchResult = findBestMatch(productText, catalog);
-    if (matchResult && matchResult.confidence >= 0.6) {
+    if (matchResult && matchResult.confidence >= 0.75) {
       const { item, confidence } = matchResult;
       items.push({
         name: productText.trim(),
@@ -290,14 +290,11 @@ export function parseWhatsAppConversation(
 
 export function buildCatalog(
   marmitaFlavors: { name: string; category: string }[],
-  marmitaPackages: { name: string; unit_price: number }[],
-  kitJuices: { name: string }[],
-  kitSoups: { name: string }[],
-  kitPackages: { name: string; price: number }[]
 ): CatalogItem[] {
   const catalog: CatalogItem[] = [];
 
-  // Add marmita flavors
+  // Only add marmita flavors — packages, kits, juices and soups
+  // are NOT included to avoid false matches
   for (const flavor of marmitaFlavors) {
     catalog.push({
       name: flavor.name,
@@ -305,54 +302,6 @@ export function buildCatalog(
       category: flavor.category,
     });
   }
-
-  // Add marmita packages
-  for (const pkg of marmitaPackages) {
-    catalog.push({
-      name: pkg.name,
-      type: 'marmita',
-      price: pkg.unit_price,
-    });
-  }
-
-  // Add juices
-  for (const juice of kitJuices) {
-    catalog.push({
-      name: juice.name,
-      type: 'juice',
-    });
-  }
-
-  // Add soups
-  for (const soup of kitSoups) {
-    catalog.push({
-      name: soup.name,
-      type: 'soup',
-    });
-  }
-
-  // Add kit packages
-  for (const kit of kitPackages) {
-    catalog.push({
-      name: kit.name,
-      type: 'kit',
-      price: kit.price,
-    });
-  }
-
-  // Add common variations/aliases
-  const aliases: CatalogItem[] = [
-    { name: 'suco verde', type: 'juice' },
-    { name: 'suco rosa', type: 'juice' },
-    { name: 'suco amarelo', type: 'juice' },
-    { name: 'sopa de abóbora', type: 'soup' },
-    { name: 'sopa de aipim', type: 'soup' },
-    { name: 'carne moída', type: 'marmita' },
-    { name: 'frango grelhado', type: 'marmita' },
-    { name: 'frango desfiado', type: 'marmita' },
-  ];
-
-  catalog.push(...aliases);
 
   return catalog;
 }
