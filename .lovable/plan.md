@@ -1,62 +1,46 @@
 
+## Modal de Confirmacao com Pesos Editaveis Apos Lancar Pedido WhatsApp
 
-## Exibir pesos (proteína, carboidrato, etc.) nos pedidos importados do WhatsApp
+### O que muda
 
-### Problema
+Apos clicar em "Posso lancar esse pedido agora?", em vez de criar o pedido diretamente, o sistema abre um **modal de confirmacao** mostrando o resumo completo do pedido com a **composicao de pesos de cada item** (ex: "100g Carne moida + 150g Aipim + 50g Mix de legumes"). Cada peso e editavel inline, permitindo corrigir gramaturas, quantidades e nomes antes de confirmar definitivamente.
 
-Quando um pedido é importado via WhatsApp, os itens são salvos com o nome exato que o cliente digitou (ex: "Carne moída, aipim e mix de legumes"). Na hora de exibir no modal de detalhes do pedido, o sistema tenta buscar a composição de pesos usando esse nome como chave no mapa de sabores do catálogo. Como o nome não bate exatamente com o catálogo, a composição não é encontrada e os pesos não aparecem.
+### Fluxo
 
-### Solução em 2 partes
-
-**Parte 1 - WhatsAppOrderImporter.tsx (salvar com nome do catálogo)**
-
-Na hora de criar o pedido (função `createOrder`), usar o `matchedName` (nome encontrado no catálogo) no campo `flavors[].name` em vez do nome cru digitado pelo cliente. O nome original continua no campo `item.name` para referência.
-
-```
-// Antes (linha 232-236):
-flavors: item.type === 'marmita' ? [{
-  name: item.name,          // "Carne moída, aipim e mix de legumes"
-  quantity: item.quantity,
-  category: 'carnes',
-}] : undefined,
-
-// Depois:
-flavors: item.type === 'marmita' ? [{
-  name: item.matchedName,   // "Carne moída com arroz e feijão" (do catálogo)
-  quantity: item.quantity,
-  category: 'carnes',
-}] : undefined,
+```text
+[Preencher dados] -> [Clicar "Lancar"] -> [Modal de Confirmacao com pesos editaveis]
+                                                    |
+                                           [Editar pesos/qtd se necessario]
+                                                    |
+                                           [Confirmar -> Cria o pedido]
 ```
 
-**Parte 2 - OrdersManager.tsx (fallback fuzzy para pedidos antigos)**
+### Detalhes tecnicos
 
-Para pedidos já existentes onde o `flavors[].name` é o texto cru, adicionar um fallback: se o nome exato não for encontrado no `flavorSidesMap`, buscar a chave mais similar (substring match). Isso garante que pedidos antigos também mostrem os pesos.
+**Arquivo:** `src/components/admin/WhatsAppOrderImporter.tsx`
 
-```
-// Na renderização de flavors (linha 1509):
-// Antes:
-const composition = getFlavorDescription(flavorSidesMap[flavor.name] ?? null, inferredLineType);
+1. Novo estado `confirmModalOpen` (boolean) e `confirmItems` (array com dados enriquecidos com pesos do `flavorSidesMap`)
 
-// Depois:
-let sidesData = flavorSidesMap[flavor.name] ?? null;
-// Fallback: buscar por substring se nome exato não encontrou
-if (!sidesData) {
-  const normalizedName = flavor.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const matchKey = Object.keys(flavorSidesMap).find(key => {
-    const normalizedKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    return normalizedName.includes(normalizedKey) || normalizedKey.includes(normalizedName);
-  });
-  if (matchKey) sidesData = flavorSidesMap[matchKey];
-}
-const composition = inferredLineType ? getFlavorDescription(sidesData, inferredLineType) : null;
-```
+2. No `handleCreateOrder`, apos verificar composicoes (FlavorCompositionModal), em vez de chamar `createOrder()` diretamente, abrir o modal de confirmacao:
+   - Para cada item, buscar no `marmitaFlavors` o sabor correspondente (`matchedName`) e extrair os `sides` para a `lineType` selecionada
+   - Montar um array `confirmItems` com: nome, quantidade, e lista de ingredientes (nome + peso editavel)
 
-### Resumo das mudanças
+3. O modal exibe:
+   - Cabecalho: "Confirmar Pedido de {Nome}"
+   - Para cada item:
+     - Nome do sabor + quantidade (editavel)
+     - Lista de ingredientes com inputs de peso (editaveis)
+   - Resumo: valor total, tipo, data/hora entrega, pagamento
+   - Botoes: "Voltar" e "Confirmar e Lancar"
 
-| Arquivo | Mudança |
+4. Se o admin editar um peso no modal, o novo valor e salvo no banco (`marmita_flavors.sides`) alem de ser usado no pedido, assim da proxima vez ja vem correto.
+
+5. Ao clicar "Confirmar e Lancar", chama `createOrder()` normalmente.
+
+### Resumo das mudancas
+
+| Arquivo | Mudanca |
 |---|---|
-| `src/components/admin/WhatsAppOrderImporter.tsx` | Linha 233: usar `item.matchedName` em vez de `item.name` no `flavors[].name` |
-| `src/components/admin/OrdersManager.tsx` | Linhas 1508-1510: adicionar fallback fuzzy por substring para encontrar composição de pesos quando o nome exato não bate |
+| `src/components/admin/WhatsAppOrderImporter.tsx` | Adicionar estado e logica do modal de confirmacao com pesos editaveis. Intercalar entre a verificacao de composicao e o `createOrder()`. Modal inline no mesmo componente usando Dialog. |
 
-Isso resolve tanto pedidos futuros (usando o nome correto do catálogo) quanto pedidos antigos já salvos (fallback por similaridade).
-
+Nenhum arquivo novo necessario -- tudo fica no WhatsAppOrderImporter usando o Dialog existente.
