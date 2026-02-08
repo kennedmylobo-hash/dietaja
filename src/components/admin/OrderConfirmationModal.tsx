@@ -21,6 +21,7 @@ import {
   parseSides,
   getTotalWeight,
   mapLineTypeToKey,
+  generateDefaultSides,
 } from "@/lib/flavor-description";
 import { Json } from "@/integrations/supabase/types";
 
@@ -47,106 +48,8 @@ interface OrderConfirmationModalProps {
   onSubtotalChanged?: (value: number) => void;
 }
 
-const extractProteinName = (itemName: string, isEscondidinho = false): string => {
-  const lower = itemName.toLowerCase();
-  // Remove "escondidinho de " prefix
-  const cleaned = lower.replace(/escondidinho\s+de\s+/i, '');
-  // Take first part before comma, "com", "e "
-  const part = cleaned.split(/[,]|\s+com\s+|\s+e\s+/)[0].trim();
-  // Capitalize first letter
-  let protein = part.charAt(0).toUpperCase() + part.slice(1);
-
-  // Escondidinho: "carne" alone → "Carne moída" or "Carne desfiada"
-  if (isEscondidinho && protein.toLowerCase() === 'carne') {
-    protein = lower.includes('desfiada') ? 'Carne desfiada' : 'Carne moída';
-  }
-
-  return protein;
-};
-
-const extractCarbName = (itemName: string): string => {
-  const lower = itemName.toLowerCase();
-  // Common carbs to detect
-  const carbs: Record<string, string> = {
-    'aipim': 'Aipim',
-    'mandioca': 'Aipim',
-    'macaxeira': 'Aipim',
-    'arroz': 'Arroz',
-    'batata': 'Batata-doce',
-    'batata-doce': 'Batata-doce',
-    'purê': 'Purê de aipim',
-    'pure': 'Purê de aipim',
-    'macarrão': 'Macarrão',
-    'macarrao': 'Macarrão',
-    'nhoque': 'Nhoque',
-  };
-  for (const [key, label] of Object.entries(carbs)) {
-    if (lower.includes(key)) return label;
-  }
-  return 'Aipim';
-};
-
-const parseAllIngredients = (itemName: string): string[] => {
-  const lower = itemName.toLowerCase();
-  // Remove "escondidinho de " prefix
-  const cleaned = lower.replace(/escondidinho\s+de\s+/i, '');
-  // Split by comma, " com ", " e "
-  const parts = cleaned.split(/[,]|\s+com\s+|\s+e\s+/).map(p => p.trim()).filter(Boolean);
-  return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1));
-};
-
-const generateDefaultSides = (itemName: string, line: "fit" | "fitness"): FlavorSideItem[] => {
-  const isEscondidinho = itemName.toLowerCase().includes('escondidinho');
-  const allParts = parseAllIngredients(itemName);
-  const protein = extractProteinName(itemName, isEscondidinho) || allParts[0] || 'Proteína';
-
-  if (isEscondidinho) {
-    // Base: protein + purê
-    const carb = extractCarbName(itemName);
-    const carbLabel = carb.toLowerCase().includes('aipim') ? 'Purê de aipim' : carb;
-    
-    // Collect extra ingredients mentioned in the name (e.g. "mix de salada")
-    const extras: string[] = [];
-    const lower = itemName.toLowerCase();
-    if (lower.includes('mix de salada') || lower.includes('mix de legumes')) {
-      extras.push(lower.includes('mix de salada') ? 'Mix de salada' : 'Mix de legumes');
-    }
-    // Check for other parts not already covered
-    for (const part of allParts.slice(1)) {
-      const partLower = part.toLowerCase();
-      if (partLower.includes('aipim') || partLower.includes('purê') || partLower.includes('pure')) continue;
-      if (extras.some(e => e.toLowerCase() === partLower)) continue;
-      if (partLower.includes('mix')) continue; // already handled above
-      extras.push(part);
-    }
-
-    if (extras.length === 0) {
-      return line === 'fit'
-        ? [{ name: protein, weight: 120 }, { name: carbLabel, weight: 180 }]
-        : [{ name: protein, weight: 175 }, { name: carbLabel, weight: 275 }];
-    }
-
-    // Distribute: protein + carb + extras = target weight
-    // Escondidinho keeps standard protein weights (120/175), purê absorbs the reduction
-    const target = line === 'fit' ? 300 : 450;
-    const extraWeight = line === 'fit' ? 50 : 100;
-    const totalExtraWeight = extraWeight * extras.length;
-    const proteinW = line === 'fit' ? 120 : 175;
-    const carbW = target - proteinW - totalExtraWeight;
-
-    const sides: FlavorSideItem[] = [
-      { name: protein, weight: proteinW },
-      { name: carbLabel, weight: Math.max(carbW, 0) },
-      ...extras.map(e => ({ name: e, weight: extraWeight })),
-    ];
-    return sides;
-  }
-
-  const carb = extractCarbName(itemName);
-  return line === 'fit'
-    ? [{ name: protein, weight: 100 }, { name: carb, weight: 150 }, { name: 'Mix de legumes', weight: 50 }]
-    : [{ name: protein, weight: 150 }, { name: carb, weight: 200 }, { name: 'Mix de legumes', weight: 100 }];
-};
+// generateDefaultSides, extractProteinName, extractCarbName, parseAllIngredients
+// are now in src/lib/flavor-description.ts
 
 const OrderConfirmationModal = ({
   isOpen,
