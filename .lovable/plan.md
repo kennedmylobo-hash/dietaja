@@ -1,59 +1,53 @@
 
 
-## Aceitar todos os itens do pedido, mesmo sem match no catálogo
+## Silenciar notificações para pedidos importados do WhatsApp
 
-### Problema raiz
+### Problema
 
-O parser atual so aceita itens que tenham match >= 0.75 com o catalogo. Quando o cliente escreve um nome que nao existe no catalogo (ex: "Carne moida, aipim e mix de legumes" -- nao existe carne moida com aipim no banco), o item e simplesmente descartado.
+Quando o admin muda o status de um pedido importado via WhatsApp (preparando, pronto, entregue, cancelado), o sistema dispara WhatsApp e e-mail para o cliente. Pedidos importados manualmente nao devem gerar nenhuma notificacao ao cliente em nenhum status.
 
-Itens faltantes na screenshot:
-- "Frango em cubos, aipim e mix de salada" -- usa virgula em vez de "com", score cai
-- "Escondidinho de carne com aipim e mix de salada" -- catalogo tem "Escondidinho de carne bovina com pure de aipim" (nome muito diferente)
-- "Carne moida, aipim e mix de legumes" -- NAO EXISTE no catalogo (so tem carne moida com arroz/feijao/graos)
+### Como identificar pedidos importados
+
+Os pedidos importados pelo WhatsApp ja possuem o campo `utm_data.source = 'whatsapp_import'`. Basta verificar esse campo antes de disparar notificacoes.
 
 ### Solucao
 
-Mudar a logica do `extractItems` em `whatsapp-parser.ts`: quando uma linha tem padrao de quantidade + texto (ex: "2x Escondidinho de carne..."), o item SEMPRE e adicionado a lista, mesmo sem match no catalogo. O match com catalogo serve apenas para enriquecer com tipo e preco, mas nunca para rejeitar.
+**Arquivo:** `src/components/admin/OrdersManager.tsx`
 
-**Arquivo:** `src/lib/whatsapp-parser.ts`, funcao `extractItems` (linhas 188-239)
+Adicionar uma verificacao antes de cada chamada a `sendStatusNotification`. Se o pedido tiver `utm_data.source === 'whatsapp_import'`, pular o envio.
 
-Logica nova:
+**Mudanca 1 - Cancelamento (linha 546):**
 ```
-// Tenta match com catalogo
-const matchResult = findBestMatch(productText, catalog);
+// Antes:
+sendStatusNotification(orderId, 'cancelled');
 
-if (matchResult && matchResult.confidence >= 0.75) {
-  // Match encontrado: usar tipo e preco do catalogo
-  items.push({
-    name: productText.trim(),
-    matchedName: matchResult.item.name,
-    quantity,
-    unitPrice: matchResult.item.price || 0,
-    totalPrice: (matchResult.item.price || 0) * quantity,
-    type: matchResult.item.type,
-    confidence: matchResult.confidence,
-  });
-} else {
-  // Sem match: aceitar como marmita com preco 0 (sera ajustado pelo lineType)
-  items.push({
-    name: productText.trim(),
-    matchedName: productText.trim(),
-    quantity,
-    unitPrice: 0,
-    totalPrice: 0,
-    type: 'marmita',
-    confidence: 0,
-  });
+// Depois:
+const isWhatsAppImport = currentOrder?.utm_data?.source === 'whatsapp_import';
+if (!isWhatsAppImport) {
+  sendStatusNotification(orderId, 'cancelled');
 }
 ```
 
-Porem, para nao incluir linhas de lixo (saudacoes, "ola", "obrigado"), adicionar um filtro minimo: so aceitar linhas que foram capturadas por um padrao de quantidade (ex: "2x", "5 marmitas de") E que tenham pelo menos 8 caracteres no texto do produto.
+**Mudanca 2 - Mudanca de status geral (linhas 831-834):**
+```
+// Antes:
+if (!['pending', 'whatsapp_pending'].includes(newStatus)) {
+  sendStatusNotification(orderId, newStatus);
+}
 
-### Resumo da mudanca
+// Depois:
+const currentOrderForNotif = orders.find(o => o.id === orderId);
+const isWhatsAppImportStatus = currentOrderForNotif?.utm_data?.source === 'whatsapp_import';
+if (!['pending', 'whatsapp_pending'].includes(newStatus) && !isWhatsAppImportStatus) {
+  sendStatusNotification(orderId, newStatus);
+}
+```
+
+### Resumo
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/lib/whatsapp-parser.ts` | Funcao `extractItems`: aceitar TODOS os itens que tenham padrao de quantidade, mesmo sem match no catalogo. Itens sem match entram como tipo 'marmita' com preco 0 e confidence 0. Filtro de tamanho minimo (8 chars) para evitar lixo. |
+| `src/components/admin/OrdersManager.tsx` | Linha 546: verificar `whatsapp_import` antes de notificar cancelamento |
+| `src/components/admin/OrdersManager.tsx` | Linhas 831-834: verificar `whatsapp_import` antes de notificar mudanca de status |
 
-Isso garante que o pedido do cliente apareca EXATAMENTE como ele escreveu, sem depender do catalogo para decidir se o item existe ou nao.
-
+Nenhum status (preparando, pronto, saiu para entrega, entregue, cancelado) vai disparar mensagem para o cliente quando o pedido vier do importador WhatsApp.
