@@ -121,13 +121,19 @@ const Admin = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
-        // Verify admin role and get tenant_id
-        const { data: roles } = await supabase
-          .from('user_roles')
-          .select('role, tenant_id')
-          .eq('user_id', session.user.id);
-        
-        const adminRole = roles?.find((r: any) => r.role === 'admin' || r.role === 'super_admin');
+        // Verify admin role with retry (RLS may need a moment after session restore)
+        let adminRole = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const { data: roles } = await supabase
+            .from('user_roles')
+            .select('role, tenant_id')
+            .eq('user_id', session.user.id);
+          
+          adminRole = roles?.find((r: any) => r.role === 'admin' || r.role === 'super_admin');
+          if (adminRole) break;
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
         if (adminRole) {
           setIsAuthenticated(true);
         } else {
