@@ -175,7 +175,10 @@ const WhatsAppOrderImporter = () => {
       setCustomerPhone(result.customer.phone || "");
       setCustomerEmail(result.customer.email || "");
       setDeliveryAddress(result.customer.address || "");
-      setItems(result.items);
+      setItems(result.items.map(item => ({
+        ...item,
+        name: item.name.replace(/mix de salada/gi, 'mix de legumes'),
+      })));
       setStep('review');
 
       toast({
