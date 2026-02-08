@@ -1,33 +1,34 @@
 
-## Reduzir tamanho da impressao (Producao + Montagem)
 
-Vou compactar os estilos CSS das 3 funcoes de impressao no `ProductionPanel.tsx` para que caibam melhor na folha.
+## Corrigir Scroll no Modal de Detalhes do Pedido
 
-### Mudancas em `src/components/admin/ProductionPanel.tsx`
+### Problema
+O modal de detalhes do pedido usa `ScrollArea` com `flex-1`, mas o componente do Radix ScrollArea precisa de uma altura explicitamente definida para funcionar corretamente. Atualmente o conteudo transborda sem scroll visivel.
 
-**1. `handlePrintProduction` (linhas 479-486) -- Producao avulsa**
-- body: font-size de padrao para `11px`, padding `10px`
-- h1: font-size `14px` → `13px`, padding-bottom `5px`
-- h2: font-size `16px` → `11px`, margin-top `12px`
-- .item: padding `4px 0`
-- .weight: font-size `18px` → `12px`
-- .protein / .side: padding `4px 6px`, margin `1px 0`
+### Solucao
+Alterar o `ScrollArea` dentro do modal para ter uma altura minima definida e garantir que o overflow funcione:
 
-**2. `handlePrintAssembly` (linhas 587-598) -- Montagem avulsa**
-- body: font-size `11px`, padding `10px`
-- h1: font-size `14px` → `13px`
-- h2: font-size `16px` → `11px`, margin-top `12px`, padding `4px 8px`
-- .combo: padding `5px 8px`, margin `3px 0`
-- .combo-header: font-size `11px`, gap `5px`, margin-bottom `2px`
-- .combo-qty: font-size `10px`, padding `1px 6px`
-- .combo-details: font-size `9px`
-- .customers: font-size `8px`
+**Arquivo:** `src/components/admin/OrdersManager.tsx`
 
-**3. `handlePrintAll` (linhas 660-675) -- Ja esta compacto, ajustar para ficar uniforme**
-- Manter os valores atuais que ja sao menores, mas reduzir mais:
-  - body font-size `10px`
-  - h1 `12px`, h2 `10px`
-  - .combo padding `4px 6px`
-  - .combo-details `9px`, .customers `8px`
+1. Na linha 1425, alterar o `ScrollArea` de:
+   ```
+   <ScrollArea className="flex-1 pr-4">
+   ```
+   Para:
+   ```
+   <ScrollArea className="flex-1 min-h-0 pr-4">
+   ```
 
-Resultado: todas as impressoes ficam mais compactas, cabendo em menos folhas.
+2. Na linha 1416, alterar o `DialogContent` de:
+   ```
+   <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+   ```
+   Para:
+   ```
+   <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+   ```
+
+A chave do problema e o `min-h-0` no ScrollArea. Em containers flex, elementos filhos tem `min-height: auto` por padrao, o que impede o flex-shrink de funcionar. Adicionar `min-h-0` permite que o ScrollArea respeite o limite de altura do pai e ative o scroll interno.
+
+### Resultado Esperado
+O modal tera uma barra de rolagem funcional, permitindo acessar todos os botoes (Producao, WhatsApp, etc.) sem precisar selecionar texto para forcar o scroll.
