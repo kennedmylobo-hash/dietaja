@@ -86,9 +86,8 @@ interface IngredientTotal {
 // For assembly: unique marmita combinations
 interface AssemblyCombination {
   key: string;
-  proteinName: string;
-  proteinWeight: number;
-  sides: { name: string; weight: number }[];
+  flavorName: string;
+  ingredients: { name: string; weight: number; type: 'protein' | 'carb' | 'salad' }[];
   quantity: number;
   customers: { name: string; quantity: number }[];
   lineType: 'fit' | 'fitness';
@@ -98,7 +97,7 @@ interface ProductionPanelProps {
   dateFilter: 'today' | 'week' | 'month';
 }
 
-const PROTEIN_WEIGHT = 150; // Default protein weight in grams
+const DEFAULT_PROTEIN_WEIGHT = 150; // Default protein weight when sides not configured
 const JUICE_UNIT_ML = 300;  // Sucos são de 300ml por unidade
 const SOUP_UNIT_ML = 450;   // Sopas são de 450ml por unidade
 
@@ -192,26 +191,29 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
   }, [orders, statusFilter]);
 
   // Get sides config for a flavor, considering line_type
-  const getFlavorSides = (flavorName: string, lineType?: string) => {
+  // Returns { items, isConfigured } - if configured, protein is included as first item
+  const getFlavorComposition = (flavorName: string, lineType?: string): { items: FlavorSideItem[], isConfigured: boolean } => {
     const flavor = marmitaFlavors.find(f => 
       f.name.toLowerCase() === flavorName.toLowerCase()
     );
     if (flavor?.sides) {
-      // Try new structured format { fit: [...], fitness: [...] }
       const lineKey = lineType ? mapLineTypeToKey(lineType) : 'fit';
       const lineSides = getFlavorSidesForLine(flavor.sides as any, lineKey);
-      if (lineSides) return lineSides;
+      if (lineSides && lineSides.length > 0) return { items: lineSides, isConfigured: true };
       
       // Fallback: old flat array format
       if (Array.isArray(flavor.sides) && (flavor.sides as any[]).length > 0) {
-        return flavor.sides as unknown as FlavorSideItem[];
+        return { items: flavor.sides as unknown as FlavorSideItem[], isConfigured: true };
       }
     }
-    // Default sides if not configured
-    return [
-      { name: 'Arroz', weight: 200 },
-      { name: 'Feijão', weight: 100 },
-    ];
+    // Default sides if not configured - protein NOT included
+    return {
+      items: [
+        { name: 'Arroz', weight: 200 },
+        { name: 'Feijão', weight: 100 },
+      ],
+      isConfigured: false,
+    };
   };
 
   // Production data calculation
@@ -268,50 +270,74 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
             }
             
             // === Normal marmita processing ===
-            // Determine line_type: from item data, infer from name, or default to fit
             const itemLineType = item.lineType || 
               (item.name.toLowerCase().includes('fitness') || item.name.toLowerCase().includes('hipertrofia') ? 'hipertrofia' : 'emagrecimento');
-            const flavorSides = getFlavorSides(flavor.name, itemLineType);
+            const { items: flavorSides, isConfigured } = getFlavorComposition(flavor.name, itemLineType);
             
-            // === KITCHEN LIST: Aggregate protein ===
-            const proteinKey = flavor.name.toLowerCase();
-            const existingProtein = ingredientMap.get(proteinKey);
-            const proteinTotalWeight = flavor.quantity * PROTEIN_WEIGHT;
-            
-            if (existingProtein) {
-              existingProtein.totalWeight += proteinTotalWeight;
+            if (isConfigured) {
+              // Sides JSONB already includes protein as first item
+              // Iterate ALL items, classify each one
+              for (let i = 0; i < flavorSides.length; i++) {
+                const ingredient = flavorSides[i];
+                const ingredientKey = ingredient.name.toLowerCase();
+                const existing = ingredientMap.get(ingredientKey);
+                const totalWeight = flavor.quantity * ingredient.weight;
+                const type = i === 0 ? 'protein' as const : classifyIngredient(ingredient.name);
+                
+                if (existing) {
+                  existing.totalWeight += totalWeight;
+                } else {
+                  ingredientMap.set(ingredientKey, {
+                    name: ingredient.name,
+                    totalWeight: totalWeight,
+                    type,
+                  });
+                }
+              }
             } else {
-              ingredientMap.set(proteinKey, {
-                name: flavor.name,
-                totalWeight: proteinTotalWeight,
-                type: 'protein',
-              });
-            }
-
-            // === KITCHEN LIST: Aggregate each side ===
-            for (const side of flavorSides) {
-              const sideKey = side.name.toLowerCase();
-              const existingSide = ingredientMap.get(sideKey);
-              const sideTotalWeight = flavor.quantity * side.weight;
+              // Fallback: protein NOT in sides, add separately
+              const proteinKey = flavor.name.toLowerCase();
+              const existingProtein = ingredientMap.get(proteinKey);
+              const proteinTotalWeight = flavor.quantity * DEFAULT_PROTEIN_WEIGHT;
               
-              if (existingSide) {
-                existingSide.totalWeight += sideTotalWeight;
+              if (existingProtein) {
+                existingProtein.totalWeight += proteinTotalWeight;
               } else {
-                ingredientMap.set(sideKey, {
-                  name: side.name,
-                  totalWeight: sideTotalWeight,
-                  type: classifyIngredient(side.name),
+                ingredientMap.set(proteinKey, {
+                  name: flavor.name,
+                  totalWeight: proteinTotalWeight,
+                  type: 'protein',
                 });
+              }
+
+              for (const side of flavorSides) {
+                const sideKey = side.name.toLowerCase();
+                const existingSide = ingredientMap.get(sideKey);
+                const sideTotalWeight = flavor.quantity * side.weight;
+                
+                if (existingSide) {
+                  existingSide.totalWeight += sideTotalWeight;
+                } else {
+                  ingredientMap.set(sideKey, {
+                    name: side.name,
+                    totalWeight: sideTotalWeight,
+                    type: classifyIngredient(side.name),
+                  });
+                }
               }
             }
 
-            // === ASSEMBLY LIST: Create unique combination key (includes line type) ===
+            // === ASSEMBLY LIST: Build full ingredients list ===
             const lineLabel = (itemLineType === 'hipertrofia' || itemLineType === 'fitness') ? 'fitness' : 'fit';
-            const sidesKey = flavorSides
+            const allIngredients: AssemblyCombination['ingredients'] = isConfigured
+              ? flavorSides.map((s, i) => ({ name: s.name, weight: s.weight, type: (i === 0 ? 'protein' as const : classifyIngredient(s.name)) }))
+              : [{ name: flavor.name, weight: DEFAULT_PROTEIN_WEIGHT, type: 'protein' as const }, ...flavorSides.map(s => ({ name: s.name, weight: s.weight, type: classifyIngredient(s.name) }))];
+            
+            const ingredientsKey = allIngredients
               .map(s => `${s.name}:${s.weight}`)
               .sort()
               .join('|');
-            const combinationKey = `${lineLabel}:${flavor.name}:${PROTEIN_WEIGHT}|${sidesKey}`;
+            const combinationKey = `${lineLabel}:${flavor.name}:${ingredientsKey}`;
             
             const existingCombination = assemblyMap.get(combinationKey);
             
@@ -331,9 +357,8 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
             } else {
               assemblyMap.set(combinationKey, {
                 key: combinationKey,
-                proteinName: flavor.name,
-                proteinWeight: PROTEIN_WEIGHT,
-                sides: flavorSides.map(s => ({ name: s.name, weight: s.weight })),
+                flavorName: flavor.name,
+                ingredients: allIngredients,
                 quantity: flavor.quantity,
                 customers: [{ name: order.customer_name, quantity: flavor.quantity }],
                 lineType: lineLabel,
@@ -515,10 +540,10 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
       <div class="combo">
         <div class="combo-header">
           <span class="combo-qty">${combo.quantity}x</span>
-          <span>${combo.proteinName}</span>
+          <span>${combo.flavorName}</span>
         </div>
         <div class="combo-details">
-          ${combo.proteinWeight}g ${combo.proteinName} + ${combo.sides.map(s => `${s.weight}g ${s.name}`).join(' + ')}
+          ${combo.ingredients.map(i => `${i.weight}g ${i.name}`).join(' + ')}
         </div>
         <div class="customers">
           👥 ${combo.customers.map(c => `${c.name} (${c.quantity})`).join(', ')}
@@ -649,8 +674,8 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
     if (fitCombos.length > 0) {
       text += `*🥗 FIT 300g — ${fitTotal} marmitas*\n\n`;
       fitCombos.forEach(combo => {
-        text += `*${combo.quantity}x ${combo.proteinName}*\n`;
-        text += `   ${combo.proteinWeight}g + ${combo.sides.map(s => `${s.weight}g ${s.name}`).join(' + ')}\n`;
+        text += `*${combo.quantity}x ${combo.flavorName}*\n`;
+        text += `   ${combo.ingredients.map(i => `${i.weight}g ${i.name}`).join(' + ')}\n`;
         text += `   👥 ${combo.customers.map(c => `${c.name}(${c.quantity})`).join(', ')}\n\n`;
       });
     }
@@ -658,8 +683,8 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
     if (fitnessCombos.length > 0) {
       text += `*💪 FITNESS 450g — ${fitnessTotal} marmitas*\n\n`;
       fitnessCombos.forEach(combo => {
-        text += `*${combo.quantity}x ${combo.proteinName}*\n`;
-        text += `   ${combo.proteinWeight}g + ${combo.sides.map(s => `${s.weight}g ${s.name}`).join(' + ')}\n`;
+        text += `*${combo.quantity}x ${combo.flavorName}*\n`;
+        text += `   ${combo.ingredients.map(i => `${i.weight}g ${i.name}`).join(' + ')}\n`;
         text += `   👥 ${combo.customers.map(c => `${c.name}(${c.quantity})`).join(', ')}\n\n`;
       });
     }
@@ -970,11 +995,11 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                     <Badge className="text-base px-4 py-1 shrink-0">
                       {combo.quantity}x
                     </Badge>
-                    <h4 className="font-bold text-lg">{combo.proteinName}</h4>
+                    <h4 className="font-bold text-lg">{combo.flavorName}</h4>
                   </div>
                   
                   <div className="text-sm text-muted-foreground mb-3 font-mono bg-background/50 p-2 rounded">
-                    {combo.proteinWeight}g {combo.proteinName} + {combo.sides.map(s => `${s.weight}g ${s.name}`).join(' + ')}
+                    {combo.ingredients.map(i => `${i.weight}g ${i.name}`).join(' + ')}
                   </div>
 
                   <div className="text-xs text-muted-foreground">
