@@ -1,61 +1,60 @@
 
-# Mapeamento de Proteínas na Lista de Compras
+# Limpeza de Referências "Dieta Já" + Onboarding Inteligente do Cliente
 
-## Problema
-A lista de compras mostra o **nome do prato** (ex: "Estrogonofe de carne") em vez do **insumo real** (ex: "Carne pedaço"). Isso impede a compra correta porque pratos diferentes usam o mesmo insumo.
+## Parte 1: Remover referências hardcoded do "Dieta Já"
 
-## Solucao
+Ainda existem referências diretas ao "Dieta Já", "Vitória da Conquista" e "dietajavca.com.br" espalhadas pelo projeto. Vou substituí-las por valores dinâmicos do tenant ou por fallbacks genéricos da plataforma ("PedidoJá").
 
-Criar um mapa de **sabor -> insumo real** que converte nomes de pratos nos ingredientes que precisam ser comprados. Isso faz com que pratos diferentes que usam o mesmo corte sejam somados corretamente.
+### Arquivos a alterar:
 
-### Regras de mapeamento (conforme informado):
+| Arquivo | O que tem hardcoded | Solução |
+|---|---|---|
+| `index.html` | Title, meta tags, OG, Pixel, canonical com "Dieta Já" e "dietajavca" | Trocar por valores genéricos da plataforma ("PedidoJá - Seu Restaurante Online"). O Helmet já sobrescreve dinamicamente por tenant no runtime |
+| `public/404.html` | Title "Dieta Já" | Trocar por "Redirecionando..." (genérico) |
+| `src/config/site.ts` | Nome, cidade, WhatsApp, domínio, SEO tudo do Dieta Já | Trocar por valores genéricos da plataforma. Este arquivo é só fallback — o tenant real vem do banco |
+| `src/components/admin/AdminSidebar.tsx` | Fallback "Dieta Já" | Trocar por "Meu Restaurante" |
+| `src/lib/print-utils.ts` | Default `'DIETA JÁ'` nos parâmetros | Trocar por `'MEU RESTAURANTE'` |
+| `src/lib/label-utils.ts` | Default `"DIETA JÁ"` nos parâmetros | Trocar por `"MEU RESTAURANTE"` |
+| `src/lib/quiz-logic.ts` | Keys `dietaja_quiz_data` e `dietaja_incomplete_leads` | Trocar por `pedidoja_quiz_data` e `pedidoja_incomplete_leads` |
+| `supabase/functions/_shared/tenant-branding.ts` | DEFAULT_BRANDING com dados do Dieta Já | Trocar por valores genéricos ("Meu Restaurante", sem WhatsApp fixo) |
+| `supabase/functions/_shared/tenant-credentials.ts` | Fallback `pedidos@dietajavca.com.br` | Trocar por `noreply@pedidoja.com.br` (ou domínio da plataforma) |
+| `supabase/functions/send-tenant-invite/index.ts` | `from: PedidoJá <pedidos@dietajavca.com.br>` e fallback slug | Usar branding dinâmico do tenant |
+| `supabase/functions/send-order-confirmation/index.ts` | `from: ... <pedidos@dietajavca.com.br>` | Usar `fromEmail` do tenant-credentials |
+| `supabase/functions/send-status-notification/index.ts` | Fallback URL `dietajavca.com.br` | Usar `getTenantBaseUrl(branding)` sempre |
+| `supabase/functions/create-club-subscription/index.ts` | `Clube Dieta Já` na descrição | Usar `Clube ${branding.brand_name}` |
+| `src/components/super-admin/SAOnboarding.tsx` | Texto "Clonar cardápio do Dieta Já" | Trocar por "Clonar cardápio modelo" |
+| `src/hooks/useTenantId.ts` | Comentário "Dieta Já" | Remover referência no comentário |
+| `src/components/admin/NotificationTester.tsx` | Template names com "dietaja" e PIX code fake com "DIETA JA" | Manter nomes de template (são identificadores reais do NotificaMe), limpar apenas textos de exibição |
 
-| Sabor no pedido | Insumo real (compra) |
-|---|---|
-| Estrogonofe de carne | Carne pedaco |
-| Almondega | Carne moida |
-| Carne desfiada | Carne pedaco |
-| Escondidinho de carne | Carne moida |
-| Escondidinho de frango | Frango (file de peito) |
-| Carne moida | Carne moida |
-| Qualquer tipo de frango | File de peito de frango |
-| Outros pratos de carne bovina | Carne pedaco (padrao) |
+**Nota**: Os nomes de templates WhatsApp (`pix_pendente_dietaja`, `compraa_confrimadaa`) são identificadores cadastrados no NotificaMe e NAO devem ser renomeados — são chaves de API, não texto de exibição.
 
-### Exemplo pratico:
-- 5x Estrogonofe de carne + 3x Carne desfiada = **8 porcoes de "Carne pedaco"**
-- 4x Almondega + 2x Escondidinho de carne = **6 porcoes de "Carne moida"**
-- 3x Frango grelhado + 2x Escondidinho de frango = **5 porcoes de "File de peito de frango"**
+---
 
-## Detalhes tecnicos
+## Parte 2: Onboarding Inteligente do Cliente (Minha Conta)
 
-### Arquivo: `src/components/admin/ShoppingList.tsx`
+Quando o cliente faz login pela primeira vez e o perfil está incompleto (sem telefone, sem endereço), exibir um fluxo de boas-vindas guiado que pede as informações faltantes de forma amigável.
 
-1. **Adicionar mapa de conversao** -- um dicionario `PROTEIN_INGREDIENT_MAP` que mapeia palavras-chave do nome do sabor para o nome do insumo real:
+### Como vai funcionar:
 
-```text
-estrogonofe de carne -> Carne pedaco
-almondega / almodegas -> Carne moida
-carne desfiada -> Carne pedaco
-escondidinho de carne -> Carne moida
-escondidinho de frango -> File de peito de frango
-carne moida -> Carne moida
-frango (qualquer) -> File de peito de frango
-peixe / tilapia -> Tilapia
-porco / linguica -> Linguica
-carne (fallback generico) -> Carne pedaco
-```
+1. Ao carregar `/minha-conta` com perfil logado, verificar se `phone` ou `preferred_address` estão vazios
+2. Se estiverem, mostrar um modal/card de boas-vindas com um formulário passo a passo:
+   - Passo 1: "Qual seu nome completo?" (pré-preenchido se já tiver)
+   - Passo 2: "Qual seu WhatsApp?" (com máscara de telefone)
+   - Passo 3: "Qual seu endereço de entrega?" (textarea)
+3. Ao finalizar, salvar tudo no perfil via Supabase e fechar o modal
+4. O cliente pode pular, mas o card reaparece até completar
 
-2. **Criar funcao `resolveProteinIngredient(flavorName)`** que:
-   - Normaliza o nome do sabor
-   - Percorre o mapa de conversao por ordem de prioridade (matches mais especificos primeiro)
-   - Retorna o nome do insumo real para compra
+### Detalhes técnicos:
 
-3. **Alterar a logica de agregacao** (linhas 257-272) para usar `resolveProteinIngredient()` em vez de `flavor.name.split(...)` quando `isProtein === true`. Isso garante que pratos diferentes que usam o mesmo insumo sejam somados.
+- **Novo componente**: `src/components/minha-conta/ProfileOnboarding.tsx`
+  - Recebe o `profile` como prop
+  - Verifica campos vazios (`!profile.phone || !profile.preferred_address`)
+  - Renderiza um Card com steps progressivos (indicador 1/3, 2/3, 3/3)
+  - Salva via `supabase.from('profiles').update(...)` ao finalizar
+  - Usa animações suaves com framer-motion (já instalado)
 
-4. **Atualizar fatores de coccao** para os novos nomes de insumos:
-   - "Carne pedaco" -> fator 1.35
-   - "Carne moida" -> fator 1.30
-   - "File de peito de frango" -> fator 1.40
-   - Remover entradas antigas que nao se aplicam mais
+- **Alteração em `src/pages/MinhaConta.tsx`**:
+  - Importar e renderizar `<ProfileOnboarding>` logo após o Profile Card quando perfil está incompleto
+  - Passar callback `onComplete` para refresh do perfil após salvar
 
-5. **Manter editavel** -- o administrador ainda pode ajustar fatores via o painel "Fatores" existente.
+- **Multi-tenant**: O componente usa `useTenantConfig` para exibir o nome do restaurante na mensagem de boas-vindas (ex: "Complete seu cadastro no Pratinho Fitness")
