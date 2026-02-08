@@ -1,63 +1,26 @@
 
 
-## Auto-gerar composicao padrao para itens sem cadastro
+## Rolagem e total de marmitas no modal de detalhes do pedido
 
-### Problema
+### Problema 1 - Conteudo cortado
+O modal de detalhes do pedido usa `max-h-[85vh]` com `ScrollArea`, mas o conteudo esta sendo cortado nos ultimos itens. Precisa garantir que a area de rolagem funcione corretamente com padding inferior suficiente.
 
-Quando um sabor nao tem composicao cadastrada no banco, o modal mostra "Sem composicao cadastrada" e nao permite editar os pesos. Isso forca o admin a confirmar pedidos sem informacoes de gramatura.
+### Problema 2 - Total de marmitas nao aparece
+O titulo "Itens" nao mostra a contagem total de marmitas do pedido.
 
-### Solucao
+### Mudancas
 
-Em vez de mostrar "Sem composicao cadastrada", o sistema vai **auto-gerar uma composicao padrao** baseada no nome do sabor e nas regras de proporcao ja conhecidas, com campos editaveis para o admin ajustar antes de confirmar.
+**Arquivo:** `src/components/admin/OrdersManager.tsx`
 
-### Regras de auto-geracao
+1. **Linha 1476** - Adicionar Badge com total de marmitas ao lado do titulo "Itens":
+   ```
+   Itens  [18 marmitas]
+   ```
+   Calculo: `selectedOrder.items.reduce((sum, i) => sum + (i.quantity || 1), 0)`
 
-O sistema analisa o nome do sabor para determinar o tipo de prato e aplica as proporcoes corretas:
-
-**Escondidinho** (detectado por "escondidinho" no nome):
-- FIT: 120g Proteina + 180g Pure de aipim = 300g
-- FITNESS: 175g Proteina + 275g Pure de aipim = 450g
-
-**Standard** (todos os outros - carne moida, frango, etc.):
-- FIT: 100g Proteina + 150g Carboidrato + 50g Mix de legumes = 300g
-- FITNESS: 150g Proteina + 200g Carboidrato + 100g Mix de legumes = 450g
-
-O nome da proteina sera extraido do nome do sabor (ex: "Carne moida" de "Carne moida, aipim e mix de legumes").
-
-### O que muda no modal
-
-Em vez de:
-```
-Sem composicao cadastrada
-```
-
-Aparece os campos editaveis ja preenchidos com os valores padrao:
-```
-Ingredientes              [300g / 300g]
-[Carne moida    ] [100] g
-[Aipim          ] [150] g
-[Mix de legumes ] [ 50] g
-```
-
-O admin pode editar qualquer campo antes de confirmar. Ao confirmar, os pesos sao salvos no banco como composicao oficial do sabor.
-
-### Detalhes tecnicos
-
-**Arquivo:** `src/components/admin/OrderConfirmationModal.tsx`
-
-1. Criar funcao `generateDefaultSides(itemName: string, lineType: "fit" | "fitness"): FlavorSideItem[]` que:
-   - Detecta se e escondidinho (nome contem "escondidinho")
-   - Extrai nome da proteina da primeira parte do nome (antes de "com" ou virgula)
-   - Extrai nome do carboidrato da segunda parte (aipim, arroz, etc.)
-   - Aplica pesos conforme a regra da linha
-
-2. No `useEffect` que inicializa `editableItems`: se `item.sides.length === 0`, chamar `generateDefaultSides` para preencher automaticamente
-
-3. Remover o bloco "Sem composicao cadastrada" -- agora todos os itens sempre terao campos editaveis
-
-### Resumo
+2. **Linha 1414** - Ajustar o `DialogContent` para melhorar a rolagem: trocar `max-h-[85vh]` por `max-h-[90vh]` e adicionar `pb-4` ao conteudo interno do `ScrollArea` para que o ultimo item nao fique cortado.
 
 | Arquivo | Mudanca |
 |---|---|
-| OrderConfirmationModal.tsx | Adicionar funcao `generateDefaultSides`, preencher automaticamente itens sem composicao, remover mensagem "Sem composicao cadastrada" |
-
+| OrdersManager.tsx | Linha 1476: Badge com total de marmitas | 
+| OrdersManager.tsx | Linha 1414: melhorar altura maxima e padding do scroll |
