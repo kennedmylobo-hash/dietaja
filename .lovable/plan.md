@@ -1,60 +1,113 @@
 
-# Limpeza de Referências "Dieta Já" + Onboarding Inteligente do Cliente
+# Aba "Dieta Personalizada" - Calculadora de Orcamento Rapido
 
-## Parte 1: Remover referências hardcoded do "Dieta Já"
+## O que vai ser criado
 
-Ainda existem referências diretas ao "Dieta Já", "Vitória da Conquista" e "dietajavca.com.br" espalhadas pelo projeto. Vou substituí-las por valores dinâmicos do tenant ou por fallbacks genéricos da plataforma ("PedidoJá").
+Uma nova aba no painel Admin chamada **"Dieta Personal."** que permite ao restaurante criar orcamentos rapidos para pedidos de dieta personalizada. O fluxo eh: o cliente manda a lista de itens pelo WhatsApp (como na imagem), o admin cola no sistema, e o orcamento eh calculado automaticamente.
 
-### Arquivos a alterar:
+## Como vai funcionar
 
-| Arquivo | O que tem hardcoded | Solução |
-|---|---|---|
-| `index.html` | Title, meta tags, OG, Pixel, canonical com "Dieta Já" e "dietajavca" | Trocar por valores genéricos da plataforma ("PedidoJá - Seu Restaurante Online"). O Helmet já sobrescreve dinamicamente por tenant no runtime |
-| `public/404.html` | Title "Dieta Já" | Trocar por "Redirecionando..." (genérico) |
-| `src/config/site.ts` | Nome, cidade, WhatsApp, domínio, SEO tudo do Dieta Já | Trocar por valores genéricos da plataforma. Este arquivo é só fallback — o tenant real vem do banco |
-| `src/components/admin/AdminSidebar.tsx` | Fallback "Dieta Já" | Trocar por "Meu Restaurante" |
-| `src/lib/print-utils.ts` | Default `'DIETA JÁ'` nos parâmetros | Trocar por `'MEU RESTAURANTE'` |
-| `src/lib/label-utils.ts` | Default `"DIETA JÁ"` nos parâmetros | Trocar por `"MEU RESTAURANTE"` |
-| `src/lib/quiz-logic.ts` | Keys `dietaja_quiz_data` e `dietaja_incomplete_leads` | Trocar por `pedidoja_quiz_data` e `pedidoja_incomplete_leads` |
-| `supabase/functions/_shared/tenant-branding.ts` | DEFAULT_BRANDING com dados do Dieta Já | Trocar por valores genéricos ("Meu Restaurante", sem WhatsApp fixo) |
-| `supabase/functions/_shared/tenant-credentials.ts` | Fallback `pedidos@dietajavca.com.br` | Trocar por `noreply@pedidoja.com.br` (ou domínio da plataforma) |
-| `supabase/functions/send-tenant-invite/index.ts` | `from: PedidoJá <pedidos@dietajavca.com.br>` e fallback slug | Usar branding dinâmico do tenant |
-| `supabase/functions/send-order-confirmation/index.ts` | `from: ... <pedidos@dietajavca.com.br>` | Usar `fromEmail` do tenant-credentials |
-| `supabase/functions/send-status-notification/index.ts` | Fallback URL `dietajavca.com.br` | Usar `getTenantBaseUrl(branding)` sempre |
-| `supabase/functions/create-club-subscription/index.ts` | `Clube Dieta Já` na descrição | Usar `Clube ${branding.brand_name}` |
-| `src/components/super-admin/SAOnboarding.tsx` | Texto "Clonar cardápio do Dieta Já" | Trocar por "Clonar cardápio modelo" |
-| `src/hooks/useTenantId.ts` | Comentário "Dieta Já" | Remover referência no comentário |
-| `src/components/admin/NotificationTester.tsx` | Template names com "dietaja" e PIX code fake com "DIETA JA" | Manter nomes de template (são identificadores reais do NotificaMe), limpar apenas textos de exibição |
+1. **Textarea para colar a mensagem** do WhatsApp com a lista de itens da nutricionista
+2. **Parser inteligente** que extrai automaticamente cada item com:
+   - Numero do item (1, 2, 3...)
+   - Descricao completa do prato
+   - Ingredientes e pesos individuais (ex: "arroz com brocolis (60g)")
+   - Peso total calculado automaticamente
+3. **Tabela editavel** onde o admin pode:
+   - Ajustar descricoes
+   - Editar pesos
+   - Definir preco por grama ou preco fixo por item
+   - Adicionar/remover itens
+4. **Configuracao de preco base** (ex: R$ 0,08/g) com possibilidade de ajuste por item
+5. **Campo para nome do cliente e WhatsApp**
+6. **Resumo do orcamento** com:
+   - Preco unitario de cada item
+   - Subtotal
+   - Opcoes de pacote (7/14/21/28 unidades)
+   - Total final
+7. **Botao "Enviar pelo WhatsApp"** que gera mensagem formatada com o orcamento completo
+8. **Botao "Salvar PDF"** usando jspdf (ja instalado) para gerar um orcamento profissional
+9. **Historico de orcamentos** salvos no banco para consulta futura
 
-**Nota**: Os nomes de templates WhatsApp (`pix_pendente_dietaja`, `compraa_confrimadaa`) são identificadores cadastrados no NotificaMe e NAO devem ser renomeados — são chaves de API, não texto de exibição.
+## Exemplo de fluxo
 
----
+```text
+Admin cola:
+"1- Strogonoff de grao de bico (100g) com arroz com brocolis (100g) + legumes variados (100g)
+ 2- Hamburguer de grao de bico com lentilha (120g) + macarrao ao molho branco (180g)
+ 3- File de tilapia (80g) + pure de aipim (120g) + legumes variados (100g)"
 
-## Parte 2: Onboarding Inteligente do Cliente (Minha Conta)
+Sistema extrai:
+| # | Descricao                                    | Peso Total | Preco    |
+|---|----------------------------------------------|-----------|----------|
+| 1 | Strogonoff de grao de bico + arroz + legumes | 300g      | R$ 24,00 |
+| 2 | Hamburguer de grao de bico + macarrao        | 300g      | R$ 24,00 |
+| 3 | File de tilapia + pure + legumes             | 300g      | R$ 24,00 |
 
-Quando o cliente faz login pela primeira vez e o perfil está incompleto (sem telefone, sem endereço), exibir um fluxo de boas-vindas guiado que pede as informações faltantes de forma amigável.
+Total por unidade: R$ 72,00
+Kit 7 dias (7x cada): R$ 504,00
+Kit 14 dias (14x cada): R$ 952,00 (com desconto)
+```
 
-### Como vai funcionar:
+## Detalhes tecnicos
 
-1. Ao carregar `/minha-conta` com perfil logado, verificar se `phone` ou `preferred_address` estão vazios
-2. Se estiverem, mostrar um modal/card de boas-vindas com um formulário passo a passo:
-   - Passo 1: "Qual seu nome completo?" (pré-preenchido se já tiver)
-   - Passo 2: "Qual seu WhatsApp?" (com máscara de telefone)
-   - Passo 3: "Qual seu endereço de entrega?" (textarea)
-3. Ao finalizar, salvar tudo no perfil via Supabase e fechar o modal
-4. O cliente pode pular, mas o card reaparece até completar
+### 1. Nova tabela no banco: `custom_diet_quotes`
 
-### Detalhes técnicos:
+```sql
+CREATE TABLE custom_diet_quotes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id),
+  customer_name TEXT,
+  customer_phone TEXT,
+  items JSONB NOT NULL DEFAULT '[]',
+  price_per_gram NUMERIC(10,4) DEFAULT 0.08,
+  subtotal_per_unit NUMERIC(10,2),
+  package_options JSONB DEFAULT '[]',
+  notes TEXT,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-- **Novo componente**: `src/components/minha-conta/ProfileOnboarding.tsx`
-  - Recebe o `profile` como prop
-  - Verifica campos vazios (`!profile.phone || !profile.preferred_address`)
-  - Renderiza um Card com steps progressivos (indicador 1/3, 2/3, 3/3)
-  - Salva via `supabase.from('profiles').update(...)` ao finalizar
-  - Usa animações suaves com framer-motion (já instalado)
+-- RLS
+ALTER TABLE custom_diet_quotes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "tenant_isolation" ON custom_diet_quotes
+  FOR ALL USING (tenant_id = get_current_tenant_id());
+```
 
-- **Alteração em `src/pages/MinhaConta.tsx`**:
-  - Importar e renderizar `<ProfileOnboarding>` logo após o Profile Card quando perfil está incompleto
-  - Passar callback `onComplete` para refresh do perfil após salvar
+### 2. Novo componente: `src/components/admin/CustomDietQuoter.tsx`
 
-- **Multi-tenant**: O componente usa `useTenantConfig` para exibir o nome do restaurante na mensagem de boas-vindas (ex: "Complete seu cadastro no Pratinho Fitness")
+- Textarea para colar texto do WhatsApp
+- Parser que usa regex para extrair itens numerados e pesos entre parenteses
+- Tabela editavel com react state
+- Configuracao de preco/grama com input numerico
+- Calculo automatico de pacotes (7/14/21/28)
+- Geracao de mensagem WhatsApp formatada
+- Geracao de PDF com jspdf
+- Lista de orcamentos anteriores salvos
+
+### 3. Parser de itens personalizados
+
+Regex para extrair:
+- Numero do item: `/^\d+[-.)]\s*/`
+- Ingredientes com peso: `/([^(]+)\((\d+)g?\)/g` -- captura nome e gramatura
+- Peso total: soma de todas as gramaturas encontradas
+
+### 4. Sidebar: adicionar item ao grupo "Operacoes"
+
+```typescript
+{ id: "custom-diet", label: "Dieta Personal.", icon: ClipboardList }
+```
+
+### 5. Admin.tsx: adicionar case no switch
+
+```typescript
+case "custom-diet":
+  return <CustomDietQuoter />;
+```
+
+### 6. Multi-tenant
+
+- Todos os orcamentos sao salvos com `tenant_id`
+- O preco base por grama pode ser configuravel por tenant (campo na tabela `tenants` ou inline no componente)
+- Historico filtrado por tenant via RLS
