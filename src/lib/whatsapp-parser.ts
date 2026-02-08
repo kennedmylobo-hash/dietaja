@@ -122,17 +122,16 @@ function findBestMatch(text: string, catalog: CatalogItem[]): { item: CatalogIte
     // "Estrogonofe de carne" to "Estrogonofe de frango"
     const candidateProteinSig = extractProteinSignature(normalizedName);
     if (userProteinSig !== candidateProteinSig) {
-      // Check if the protein keywords differ critically
       const userProteins = PROTEIN_KEYWORDS.filter(k => userProteinSig.includes(k));
       const candidateProteins = PROTEIN_KEYWORDS.filter(k => candidateProteinSig.includes(k));
       
       if (userProteins.length > 0 && candidateProteins.length > 0) {
-        // Both have protein keywords — check if they conflict
-        const userSet = new Set(userProteins);
         const candidateSet = new Set(candidateProteins);
-        const hasConflict = [...userSet].some(p => !candidateSet.has(p)) || 
-                           [...candidateSet].some(p => !userSet.has(p));
-        if (hasConflict) {
+        // Only penalize when user has a protein the candidate LACKS
+        // e.g. user says "carne" but candidate is "frango" → conflict
+        // but user says "carne" and candidate is "carne bovina" → no conflict (subset)
+        const userHasExtra = userProteins.some(p => !candidateSet.has(p));
+        if (userHasExtra) {
           score *= 0.2; // Very heavy penalty for protein mismatch
         }
       }
