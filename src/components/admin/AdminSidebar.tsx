@@ -22,6 +22,7 @@ import {
    Store,
    Palette,
   ShoppingCart,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -51,6 +52,7 @@ const menuGroups: AdminMenuGroup[] = [
       { id: "shopping-list", label: "Compras", icon: ShoppingCart },
        { id: "recurring", label: "Recorrentes", icon: CalendarClock },
       { id: "whatsapp-import", label: "Importar", icon: MessageCircle },
+      { id: "custom-diet", label: "Dieta Personal.", icon: ClipboardList },
     ],
   },
   {

@@ -489,6 +489,59 @@ export type Database = {
           },
         ]
       }
+      custom_diet_quotes: {
+        Row: {
+          created_at: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          items: Json
+          notes: string | null
+          package_options: Json | null
+          price_per_gram: number | null
+          status: string | null
+          subtotal_per_unit: number | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          package_options?: Json | null
+          price_per_gram?: number | null
+          status?: string | null
+          subtotal_per_unit?: number | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          package_options?: Json | null
+          price_per_gram?: number | null
+          status?: string | null
+          subtotal_per_unit?: number | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_diet_quotes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kit_juices: {
         Row: {
           active: boolean

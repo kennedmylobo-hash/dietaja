@@ -1,0 +1,522 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenantId } from "@/hooks/useTenantId";
+import { useTenant } from "@/contexts/TenantContext";
+import { parseDietMessage, type ParsedDietItem } from "@/lib/diet-quote-parser";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { toast } from "@/hooks/use-toast";
+import {
+  ClipboardPaste,
+  Trash2,
+  Plus,
+  Send,
+  FileText,
+  Save,
+  History,
+  Calculator,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import jsPDF from "jspdf";
+
+interface QuoteItem {
+  number: number;
+  description: string;
+  totalWeight: number;
+  priceOverride: number | null; // null = use per-gram pricing
+}
+
+interface SavedQuote {
+  id: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  items: any;
+  price_per_gram: number;
+  subtotal_per_unit: number | null;
+  status: string;
+  created_at: string;
+}
+
+const PACKAGE_OPTIONS = [
+  { days: 7, label: "7 dias", discount: 0 },
+  { days: 14, label: "14 dias", discount: 0.05 },
+  { days: 21, label: "21 dias", discount: 0.08 },
+  { days: 28, label: "28 dias", discount: 0.10 },
+];
+
+export default function CustomDietQuoter() {
+  const tenantId = useTenantId();
+  const { tenant } = useTenant();
+
+  const [rawText, setRawText] = useState("");
+  const [items, setItems] = useState<QuoteItem[]>([]);
+  const [pricePerGram, setPricePerGram] = useState(0.08);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [notes, setNotes] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
+  const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // Load history
+  useEffect(() => {
+    if (showHistory) loadHistory();
+  }, [showHistory]);
+
+  const loadHistory = async () => {
+    const { data } = await supabase
+      .from("custom_diet_quotes" as any)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setSavedQuotes((data as any[]) || []);
+  };
+
+  const handleParse = () => {
+    const parsed = parseDietMessage(rawText);
+    if (parsed.length === 0) {
+      toast({ title: "Nenhum item encontrado", description: "Cole a lista numerada do WhatsApp.", variant: "destructive" });
+      return;
+    }
+    setItems(parsed.map(p => ({
+      number: p.number,
+      description: p.description,
+      totalWeight: p.totalWeight,
+      priceOverride: null,
+    })));
+    toast({ title: `${parsed.length} itens extraídos!` });
+  };
+
+  const updateItem = (idx: number, field: keyof QuoteItem, value: any) => {
+    setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+  };
+
+  const removeItem = (idx: number) => {
+    setItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const addItem = () => {
+    setItems(prev => [
+      ...prev,
+      { number: prev.length + 1, description: "", totalWeight: 0, priceOverride: null },
+    ]);
+  };
+
+  const getItemPrice = (item: QuoteItem) => {
+    if (item.priceOverride !== null && item.priceOverride > 0) return item.priceOverride;
+    return item.totalWeight * pricePerGram;
+  };
+
+  const subtotalPerUnit = items.reduce((sum, item) => sum + getItemPrice(item), 0);
+
+  const formatCurrency = (v: number) =>
+    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  // Save quote
+  const handleSave = async () => {
+    if (items.length === 0) return;
+    setSaving(true);
+    try {
+      const payload = {
+        tenant_id: tenantId,
+        customer_name: customerName || null,
+        customer_phone: customerPhone || null,
+        items: items as any,
+        price_per_gram: pricePerGram,
+        subtotal_per_unit: subtotalPerUnit,
+        package_options: PACKAGE_OPTIONS.map(p => ({
+          days: p.days,
+          total: Math.round((subtotalPerUnit * items.length * p.days * (1 - p.discount)) * 100) / 100,
+          discount: p.discount,
+        })) as any,
+        notes: notes || null,
+        status: "sent",
+      };
+
+      const { error } = await supabase.from("custom_diet_quotes" as any).insert(payload);
+      if (error) throw error;
+      toast({ title: "Orçamento salvo!" });
+      if (showHistory) loadHistory();
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // WhatsApp message
+  const sendWhatsApp = () => {
+    if (items.length === 0) return;
+
+    const brandName = tenant?.brand_name || "Restaurante";
+    let msg = `🥗 *Orçamento Dieta Personalizada*\n`;
+    msg += `*${brandName}*\n\n`;
+    if (customerName) msg += `👤 Cliente: ${customerName}\n\n`;
+
+    msg += `📋 *Itens por refeição:*\n`;
+    items.forEach((item) => {
+      msg += `${item.number}. ${item.description} (${item.totalWeight}g) — ${formatCurrency(getItemPrice(item))}\n`;
+    });
+
+    msg += `\n💰 *Subtotal por refeição:* ${formatCurrency(subtotalPerUnit)}\n\n`;
+    msg += `📦 *Pacotes:*\n`;
+    PACKAGE_OPTIONS.forEach(pkg => {
+      const total = subtotalPerUnit * items.length * pkg.days * (1 - pkg.discount);
+      const discountLabel = pkg.discount > 0 ? ` (${pkg.discount * 100}% desc.)` : "";
+      msg += `• Kit ${pkg.label}: ${formatCurrency(total)}${discountLabel}\n`;
+    });
+
+    const phone = customerPhone?.replace(/\D/g, "") || "";
+    const url = phone
+      ? `https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank");
+    handleSave();
+  };
+
+  // PDF generation
+  const generatePDF = () => {
+    if (items.length === 0) return;
+
+    const doc = new jsPDF();
+    const brandName = tenant?.brand_name || "Restaurante";
+    let y = 20;
+
+    doc.setFontSize(18);
+    doc.text(brandName, 105, y, { align: "center" });
+    y += 8;
+    doc.setFontSize(12);
+    doc.text("Orçamento — Dieta Personalizada", 105, y, { align: "center" });
+    y += 12;
+
+    if (customerName) {
+      doc.setFontSize(11);
+      doc.text(`Cliente: ${customerName}`, 14, y);
+      y += 7;
+    }
+    if (customerPhone) {
+      doc.text(`WhatsApp: ${customerPhone}`, 14, y);
+      y += 7;
+    }
+    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, y);
+    y += 10;
+
+    // Table header
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("#", 14, y);
+    doc.text("Descrição", 24, y);
+    doc.text("Peso", 140, y);
+    doc.text("Preço", 165, y);
+    y += 2;
+    doc.line(14, y, 196, y);
+    y += 5;
+
+    doc.setFont("helvetica", "normal");
+    items.forEach((item) => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      doc.text(String(item.number), 14, y);
+      const desc = item.description.length > 50 ? item.description.substring(0, 50) + "..." : item.description;
+      doc.text(desc, 24, y);
+      doc.text(`${item.totalWeight}g`, 140, y);
+      doc.text(formatCurrency(getItemPrice(item)), 165, y);
+      y += 7;
+    });
+
+    y += 3;
+    doc.line(14, y, 196, y);
+    y += 7;
+
+    doc.setFont("helvetica", "bold");
+    doc.text(`Subtotal por refeição: ${formatCurrency(subtotalPerUnit)}`, 14, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    doc.text("Pacotes:", 14, y);
+    y += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    PACKAGE_OPTIONS.forEach(pkg => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      const total = subtotalPerUnit * items.length * pkg.days * (1 - pkg.discount);
+      const discountLabel = pkg.discount > 0 ? ` (${pkg.discount * 100}% desconto)` : "";
+      doc.text(`Kit ${pkg.label}: ${formatCurrency(total)}${discountLabel}`, 20, y);
+      y += 6;
+    });
+
+    if (notes) {
+      y += 5;
+      doc.setFontSize(9);
+      doc.text(`Obs: ${notes}`, 14, y);
+    }
+
+    doc.save(`orcamento-dieta-${customerName || "cliente"}-${new Date().toISOString().split("T")[0]}.pdf`);
+    handleSave();
+  };
+
+  // Load a saved quote
+  const loadQuote = (q: SavedQuote) => {
+    setCustomerName(q.customer_name || "");
+    setCustomerPhone(q.customer_phone || "");
+    setPricePerGram(q.price_per_gram);
+    const loadedItems = (q.items as any[]) || [];
+    setItems(loadedItems.map((item: any) => ({
+      number: item.number || 0,
+      description: item.description || "",
+      totalWeight: item.totalWeight || 0,
+      priceOverride: item.priceOverride ?? null,
+    })));
+    setShowHistory(false);
+    toast({ title: "Orçamento carregado!" });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Dieta Personalizada</h2>
+          <p className="text-muted-foreground text-sm">
+            Cole a mensagem do WhatsApp e gere o orçamento automaticamente
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowHistory(!showHistory)}
+        >
+          <History className="w-4 h-4 mr-2" />
+          Histórico
+          {showHistory ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
+        </Button>
+      </div>
+
+      {/* History */}
+      {showHistory && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Orçamentos Anteriores</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {savedQuotes.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum orçamento salvo ainda.</p>
+            ) : (
+              <div className="space-y-2">
+                {savedQuotes.map((q) => (
+                  <div
+                    key={q.id}
+                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => loadQuote(q)}
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{q.customer_name || "Sem nome"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(q.created_at).toLocaleDateString("pt-BR")} •{" "}
+                        {((q.items as any[]) || []).length} itens •{" "}
+                        {q.subtotal_per_unit ? formatCurrency(q.subtotal_per_unit) : "—"}/refeição
+                      </p>
+                    </div>
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">Carregar</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Input area */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ClipboardPaste className="w-4 h-4" />
+            Cola a lista do WhatsApp
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Textarea
+            placeholder={`Cole aqui a mensagem da nutricionista, ex:\n1- Strogonoff de grão de bico (100g) com arroz com brócolis (100g) + legumes variados (100g)\n2- Hambúrguer de grão de bico (120g) + macarrão ao molho branco (180g)\n3- Filé de tilápia (80g) + purê de aipim (120g) + legumes (100g)`}
+            value={rawText}
+            onChange={(e) => setRawText(e.target.value)}
+            rows={6}
+          />
+          <Button onClick={handleParse} className="w-full" variant="cta">
+            <Calculator className="w-4 h-4 mr-2" />
+            Extrair Itens
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Items table */}
+      {items.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label>Nome do cliente</Label>
+              <Input
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Maria Silva"
+              />
+            </div>
+            <div>
+              <Label>WhatsApp</Label>
+              <Input
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="(77) 99999-9999"
+              />
+            </div>
+            <div>
+              <Label>Preço por grama (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={pricePerGram}
+                onChange={(e) => setPricePerGram(parseFloat(e.target.value) || 0)}
+              />
+            </div>
+          </div>
+
+          <Card>
+            <CardContent className="pt-4 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">#</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead className="w-24">Peso (g)</TableHead>
+                    <TableHead className="w-32">Preço fixo</TableHead>
+                    <TableHead className="w-28 text-right">Preço</TableHead>
+                    <TableHead className="w-10"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell className="font-medium">{item.number}</TableCell>
+                      <TableCell>
+                        <Input
+                          value={item.description}
+                          onChange={(e) => updateItem(idx, "description", e.target.value)}
+                          className="text-sm"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={item.totalWeight}
+                          onChange={(e) => updateItem(idx, "totalWeight", parseInt(e.target.value) || 0)}
+                          className="text-sm w-20"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Auto"
+                          value={item.priceOverride ?? ""}
+                          onChange={(e) =>
+                            updateItem(idx, "priceOverride", e.target.value ? parseFloat(e.target.value) : null)
+                          }
+                          className="text-sm w-28"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(getItemPrice(item))}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeItem(idx)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <Button variant="outline" size="sm" onClick={addItem} className="mt-3">
+                <Plus className="w-4 h-4 mr-1" /> Adicionar item
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Notes */}
+          <div>
+            <Label>Observações</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Observações sobre o orçamento..."
+              rows={2}
+            />
+          </div>
+
+          {/* Summary */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="pt-6">
+              <h3 className="font-bold text-lg mb-4">Resumo do Orçamento</h3>
+
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-muted-foreground">Subtotal por refeição ({items.length} itens):</span>
+                <span className="font-bold text-lg">{formatCurrency(subtotalPerUnit)}</span>
+              </div>
+
+              <div className="border-t pt-4 mt-4 space-y-2">
+                <p className="font-semibold text-sm text-muted-foreground mb-2">Pacotes:</p>
+                {PACKAGE_OPTIONS.map((pkg) => {
+                  const total = subtotalPerUnit * items.length * pkg.days * (1 - pkg.discount);
+                  return (
+                    <div key={pkg.days} className="flex justify-between items-center">
+                      <span className="text-sm">
+                        Kit {pkg.label} ({pkg.days}x cada)
+                        {pkg.discount > 0 && (
+                          <span className="text-primary ml-1 text-xs">-{pkg.discount * 100}%</span>
+                        )}
+                      </span>
+                      <span className="font-semibold">{formatCurrency(total)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button onClick={sendWhatsApp} variant="cta" className="flex-1">
+              <Send className="w-4 h-4 mr-2" />
+              Enviar pelo WhatsApp
+            </Button>
+            <Button onClick={generatePDF} variant="outline" className="flex-1">
+              <FileText className="w-4 h-4 mr-2" />
+              Gerar PDF
+            </Button>
+            <Button onClick={handleSave} variant="secondary" disabled={saving}>
+              <Save className="w-4 h-4 mr-2" />
+              Salvar
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
