@@ -1411,7 +1411,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           }
         }}
       >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="w-5 h-5" />

@@ -279,16 +279,22 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
               // Iterate ALL items, classify each one
               for (let i = 0; i < flavorSides.length; i++) {
                 const ingredient = flavorSides[i];
-                const ingredientKey = ingredient.name.toLowerCase();
+                // For protein (first item), use the specific name from the flavor
+                // e.g. "Frango em cubos" instead of generic "Frango"
+                const isProtein = i === 0;
+                const displayName = isProtein
+                  ? flavor.name.split(/\s+com\s+|,\s*/i)[0].trim()
+                  : ingredient.name;
+                const ingredientKey = displayName.toLowerCase();
                 const existing = ingredientMap.get(ingredientKey);
                 const totalWeight = flavor.quantity * ingredient.weight;
-                const type = i === 0 ? 'protein' as const : classifyIngredient(ingredient.name);
+                const type = isProtein ? 'protein' as const : classifyIngredient(ingredient.name);
                 
                 if (existing) {
                   existing.totalWeight += totalWeight;
                 } else {
                   ingredientMap.set(ingredientKey, {
-                    name: ingredient.name,
+                    name: displayName,
                     totalWeight: totalWeight,
                     type,
                   });
