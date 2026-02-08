@@ -1,41 +1,74 @@
 
+## Reorganizar Lista de Producao para a Cozinheira
 
-## Forcar Atualizacao do Cache para Todos os Visitantes
+Hoje a lista da cozinha mostra apenas 2 grupos: "Proteinas" e "Acompanhamentos". A cozinheira precisa de uma separacao mais clara em 3 categorias para facilitar a montagem.
 
-O problema e que navegadores guardam os arquivos JavaScript e CSS antigos no cache. Visitantes que ja acessaram o site antes continuam vendo a versao antiga ate o cache expirar naturalmente (pode levar dias).
+### O que muda
 
-### Solucao
+| Antes | Depois |
+|---|---|
+| PROTEINAS (tudo junto) | PROTEINAS (carne moida, frango, almondegas...) |
+| ACOMPANHAMENTOS (tudo misturado) | CARBOIDRATOS (arroz, aipim, batata doce, pure, feijao, graos...) |
+| | SALADA (mix de legumes, mix de salada, legumes, brocolis, vagem...) |
 
-Vite ja gera arquivos com hash no nome (ex: `index-abc123.js`), entao quando voce publica uma nova versao, os nomes dos arquivos mudam automaticamente. O problema esta no **cache do `index.html`** — ele e o arquivo que aponta para os demais, e se o navegador guardar uma versao antiga do `index.html`, ele continua carregando os scripts antigos.
+A ordem na impressao e tela sera sempre: **PROTEINAS -> CARBOIDRATOS -> SALADA**, facilitando o fluxo da cozinha.
 
-### O que sera feito
+### Classificacao dos ingredientes
 
-**1. Meta tags de cache no `index.html`**
+Com base nos dados reais do cardapio:
 
-Adicionar headers que instruem o navegador a sempre verificar se ha uma versao nova do HTML:
+- **PROTEINAS**: Carne moida, Carne bovina, Almondegas, Frango, Peixe, Lombo, etc. (primeiro ingrediente de cada sabor)
+- **CARBOIDRATOS**: Arroz, Aipim, Batata doce, Pure, Feijao, Graos, Arroz do risoto, Macarrao, Nhoque
+- **SALADA**: Mix de legumes, Mix de salada, Legumes, Salada de legumes, Brocolis, Vagem, e qualquer vegetal/verdura
 
-```html
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
+### Onde muda
+
+Arquivo unico: `src/components/admin/ProductionPanel.tsx`
+
+**1. Tipo `IngredientTotal`**
+Mudar o campo `type` de `'protein' | 'side'` para `'protein' | 'carb' | 'salad'`
+
+**2. Funcao de classificacao de ingrediente**
+Nova funcao `classifyIngredient(name)` que retorna `'carb'` ou `'salad'` baseado no nome:
+- Palavras-chave para carboidrato: arroz, aipim, batata, pure, feijao, graos, macarrao, nhoque, mandioca, farinha
+- Tudo que nao for carboidrato vai para salada (mix, legumes, salada, brocolis, vagem, etc.)
+
+**3. Calculo de producao (useMemo)**
+Onde hoje salva `type: 'side'`, passar a usar `classifyIngredient(side.name)` para determinar se eh `'carb'` ou `'salad'`
+
+**4. Tela (cards na aba Producao)**
+- Card "Proteinas" (mantém igual, cor amber)
+- Card "Carboidratos" (nova cor azul, emoji arroz)
+- Card "Salada" (nova cor verde, emoji salada)
+
+**5. Impressao (`handlePrintProduction`)**
+Trocar a secao "Acompanhamentos" por duas secoes separadas: "CARBOIDRATOS" e "SALADA"
+
+**6. WhatsApp (`handleShareProduction`)**
+Mesmo ajuste: separar em 3 categorias no texto formatado
+
+**7. Impressao da montagem (`handlePrintAssembly`) e WhatsApp montagem (`handleShareAssembly`)**
+Na composicao de cada marmita, mostrar os ingredientes na ordem: proteina primeiro, depois carboidrato, depois salada — para a cozinheira ler de forma logica.
+
+### Resultado visual (impressao)
+
+```text
+LISTA DE PRODUCAO - COZINHA
+08/02/2026 - 15 marmitas
+
+PROTEINAS
+  Carne moida .............. 1.5kg
+  Carne bovina ............. 600g
+  Frango ................... 800g
+
+CARBOIDRATOS
+  Arroz .................... 2kg
+  Aipim .................... 600g
+  Feijao ................... 400g
+
+SALADA
+  Mix de legumes ........... 800g
+  Legumes .................. 300g
 ```
 
-**2. Configurar headers no Vercel (`vercel.json`)**
-
-Adicionar regra de headers para que o servidor envie instrucoes de cache corretas:
-- `index.html`: sempre revalidar (no-cache)
-- Arquivos JS/CSS com hash: cache longo (1 ano) — ja que o hash muda quando o conteudo muda
-
-### Resultado
-
-- Visitantes novos e antigos vao sempre carregar a versao mais recente
-- Nao precisa pedir para ninguem limpar cache
-- Os arquivos JS/CSS continuam sendo cacheados eficientemente (so mudam quando tem atualizacao real)
-
-### Arquivos alterados
-
-| Arquivo | Mudanca |
-|---|---|
-| `index.html` | Meta tags anti-cache |
-| `vercel.json` | Headers de cache para HTML vs assets |
-
+### Nenhum arquivo novo. Nenhuma mudanca no banco de dados.
