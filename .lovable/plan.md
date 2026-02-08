@@ -1,46 +1,53 @@
 
-## Modal de Confirmacao com Pesos Editaveis Apos Lancar Pedido WhatsApp
 
-### O que muda
+## Garantir que pesos SEMPRE aparecam nos pedidos
 
-Apos clicar em "Posso lancar esse pedido agora?", em vez de criar o pedido diretamente, o sistema abre um **modal de confirmacao** mostrando o resumo completo do pedido com a **composicao de pesos de cada item** (ex: "100g Carne moida + 150g Aipim + 50g Mix de legumes"). Cada peso e editavel inline, permitindo corrigir gramaturas, quantidades e nomes antes de confirmar definitivamente.
+### Problema
 
-### Fluxo
+Pedidos importados do WhatsApp salvam nomes como "Frango em cubos, aipim e mix de legumes" mas o catalogo tem "Frango em cubos com aipim e mix de salada". O fuzzy match atual usa substring completa, que falha quando as palavras diferem (ex: "legumes" vs "salada", virgula vs "com").
 
-```text
-[Preencher dados] -> [Clicar "Lancar"] -> [Modal de Confirmacao com pesos editaveis]
-                                                    |
-                                           [Editar pesos/qtd se necessario]
-                                                    |
-                                           [Confirmar -> Cria o pedido]
+### Solucao
+
+**Arquivo:** `src/components/admin/OrdersManager.tsx`
+
+Substituir o fuzzy match por um algoritmo de **similaridade por palavras-chave**: extrair palavras significativas do nome do sabor e encontrar o registro do catalogo com maior sobreposicao de palavras. Isso garante que "Frango em cubos, aipim e mix de legumes" encontre "Frango em cubos com aipim e mix de salada" porque compartilham as palavras-chave principais (frango, cubos, aipim).
+
+**Mudanca na area de renderizacao de flavors (~linhas 1508-1516):**
+
+```typescript
+// Substituir o fuzzy match atual por:
+let sidesData = flavorSidesMap[flavor.name] ?? null;
+if (!sidesData) {
+  // Extrair palavras significativas (ignorar preposicoes)
+  const stopWords = new Set(['com', 'de', 'e', 'em', 'ao', 'a', 'o', 'mix', 'da', 'do']);
+  const extractWords = (str: string) =>
+    str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .split(/[\s,]+/).filter(w => w.length > 1 && !stopWords.has(w));
+
+  const targetWords = extractWords(flavor.name);
+  let bestMatch = '';
+  let bestScore = 0;
+
+  for (const key of Object.keys(flavorSidesMap)) {
+    const keyWords = extractWords(key);
+    const overlap = targetWords.filter(w => keyWords.includes(w)).length;
+    const score = overlap / Math.max(targetWords.length, keyWords.length);
+    if (score > bestScore && score >= 0.5) {
+      bestScore = score;
+      bestMatch = key;
+    }
+  }
+  if (bestMatch) sidesData = flavorSidesMap[bestMatch];
+}
 ```
 
-### Detalhes tecnicos
+**Tambem corrigir o carregamento do mapa (~linha 238):** Remover a condicao `Object.keys(flavorSidesMap).length === 0` para sempre recarregar ao abrir um pedido diferente, evitando cache vazio.
 
-**Arquivo:** `src/components/admin/WhatsAppOrderImporter.tsx`
-
-1. Novo estado `confirmModalOpen` (boolean) e `confirmItems` (array com dados enriquecidos com pesos do `flavorSidesMap`)
-
-2. No `handleCreateOrder`, apos verificar composicoes (FlavorCompositionModal), em vez de chamar `createOrder()` diretamente, abrir o modal de confirmacao:
-   - Para cada item, buscar no `marmitaFlavors` o sabor correspondente (`matchedName`) e extrair os `sides` para a `lineType` selecionada
-   - Montar um array `confirmItems` com: nome, quantidade, e lista de ingredientes (nome + peso editavel)
-
-3. O modal exibe:
-   - Cabecalho: "Confirmar Pedido de {Nome}"
-   - Para cada item:
-     - Nome do sabor + quantidade (editavel)
-     - Lista de ingredientes com inputs de peso (editaveis)
-   - Resumo: valor total, tipo, data/hora entrega, pagamento
-   - Botoes: "Voltar" e "Confirmar e Lancar"
-
-4. Se o admin editar um peso no modal, o novo valor e salvo no banco (`marmita_flavors.sides`) alem de ser usado no pedido, assim da proxima vez ja vem correto.
-
-5. Ao clicar "Confirmar e Lancar", chama `createOrder()` normalmente.
-
-### Resumo das mudancas
+### Resumo
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/components/admin/WhatsAppOrderImporter.tsx` | Adicionar estado e logica do modal de confirmacao com pesos editaveis. Intercalar entre a verificacao de composicao e o `createOrder()`. Modal inline no mesmo componente usando Dialog. |
+| `src/components/admin/OrdersManager.tsx` | Linhas 1508-1516: substituir fuzzy substring por match por palavras-chave com score minimo de 50% |
+| `src/components/admin/OrdersManager.tsx` | Linha 238: remover condicao de cache para garantir que o mapa de sabores sempre carregue |
 
-Nenhum arquivo novo necessario -- tudo fica no WhatsAppOrderImporter usando o Dialog existente.
+Com isso, nenhum pedido ficara sem peso -- mesmo que o nome salvo seja diferente do catalogo, o sistema encontra o sabor mais proximo e exibe a composicao.
