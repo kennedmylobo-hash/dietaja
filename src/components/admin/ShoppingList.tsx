@@ -52,24 +52,41 @@ interface ShoppingItem {
   unit: 'g' | 'un';
 }
 
+// ── Protein ingredient mapping (flavor → raw ingredient for purchasing) ──
+// Order matters: more specific patterns must come first
+const PROTEIN_INGREDIENT_MAP: [RegExp, string][] = [
+  [/estrogonofe\s+de\s+carne/i, 'Carne pedaço'],
+  [/estrogonofe\s+de\s+frango/i, 'Filé de peito de frango'],
+  [/alm[oô]nd[ei]ga/i, 'Carne moída'],
+  [/carne\s+desfiada/i, 'Carne pedaço'],
+  [/escondidinho\s+de\s+carne/i, 'Carne moída'],
+  [/escondidinho\s+de\s+frango/i, 'Filé de peito de frango'],
+  [/carne\s+mo[ií]da/i, 'Carne moída'],
+  [/til[aá]pia/i, 'Tilápia'],
+  [/peixe/i, 'Tilápia'],
+  [/lingu[ií][cç]a/i, 'Linguiça'],
+  [/porco/i, 'Linguiça'],
+  [/frango/i, 'Filé de peito de frango'],
+  [/carne/i, 'Carne pedaço'], // fallback genérico para carne bovina
+];
+
+const resolveProteinIngredient = (flavorName: string): string => {
+  const normalized = flavorName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  for (const [pattern, ingredient] of PROTEIN_INGREDIENT_MAP) {
+    if (pattern.test(normalized) || pattern.test(flavorName)) return ingredient;
+  }
+  return flavorName.split(/\s+com\s+|,\s*/i)[0].trim();
+};
+
 // Default cooking/cleaning factors (gross = net * factor)
 const DEFAULT_FACTORS: Record<string, number> = {
-  // Proteins
-  'frango': 1.40,
-  'carne': 1.35,
+  // Proteins (raw ingredient names)
+  'carne pedaço': 1.35,
   'carne moída': 1.30,
-  'carne bovina': 1.35,
-  'patinho': 1.35,
-  'músculo': 1.40,
-  'acém': 1.35,
-  'alcatra': 1.30,
-  'filé mignon': 1.25,
-  'estrogonofe': 1.30,
-  'peixe': 1.45,
+  'filé de peito de frango': 1.40,
   'tilápia': 1.45,
-  'ovo': 1.10,
   'linguiça': 1.15,
-  'porco': 1.35,
+  'ovo': 1.10,
   // Carbs
   'arroz': 2.50,
   'feijão': 2.20,
@@ -258,7 +275,7 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
               const ingredient = flavorSides[i];
               const isProtein = i === 0;
               const displayName = isProtein
-                ? flavor.name.split(/\s+com\s+|,\s*/i)[0].trim()
+                ? resolveProteinIngredient(flavor.name)
                 : ingredient.name;
               const key = displayName.toLowerCase();
               const totalWeight = flavor.quantity * ingredient.weight;
