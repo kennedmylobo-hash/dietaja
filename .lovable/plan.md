@@ -1,53 +1,45 @@
 
 
-## Garantir que pesos SEMPRE aparecam nos pedidos
+## Campo de valor manual + contagem total de marmitas
 
-### Problema
+### Mudanca 1 - Campo para digitar o valor total manualmente
 
-Pedidos importados do WhatsApp salvam nomes como "Frango em cubos, aipim e mix de legumes" mas o catalogo tem "Frango em cubos com aipim e mix de salada". O fuzzy match atual usa substring completa, que falha quando as palavras diferem (ex: "legumes" vs "salada", virgula vs "com").
+Atualmente o valor total e calculado automaticamente (subtotal = soma dos precos dos itens). Quando o pedido vem via WhatsApp sem preco, fica R$ 0,00 e aparece como campo faltante.
 
-### Solucao
+**Arquivo:** `src/components/admin/WhatsAppOrderImporter.tsx`
 
-**Arquivo:** `src/components/admin/OrdersManager.tsx`
+- Adicionar um novo estado `manualSubtotal` (string) para o campo editavel
+- Trocar a area "Valor total" (linhas 716-722) por um Input editavel com label "Valor total *"
+- O `subtotal` usado no restante do fluxo passa a ser o valor do input manual (parseFloat) se preenchido, ou o calculado automaticamente como fallback
+- O campo tera borda vermelha quando vazio/zero (isMissing('subtotal'))
 
-Substituir o fuzzy match por um algoritmo de **similaridade por palavras-chave**: extrair palavras significativas do nome do sabor e encontrar o registro do catalogo com maior sobreposicao de palavras. Isso garante que "Frango em cubos, aipim e mix de legumes" encontre "Frango em cubos com aipim e mix de salada" porque compartilham as palavras-chave principais (frango, cubos, aipim).
+### Mudanca 2 - Contagem total de marmitas no resumo e no modal de confirmacao
 
-**Mudanca na area de renderizacao de flavors (~linhas 1508-1516):**
+**Arquivo:** `src/components/admin/WhatsAppOrderImporter.tsx`
 
-```typescript
-// Substituir o fuzzy match atual por:
-let sidesData = flavorSidesMap[flavor.name] ?? null;
-if (!sidesData) {
-  // Extrair palavras significativas (ignorar preposicoes)
-  const stopWords = new Set(['com', 'de', 'e', 'em', 'ao', 'a', 'o', 'mix', 'da', 'do']);
-  const extractWords = (str: string) =>
-    str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .split(/[\s,]+/).filter(w => w.length > 1 && !stopWords.has(w));
+- Na secao "Itens *" (linha 630), ao lado do titulo, exibir um Badge com o total de marmitas: `{totalMarmitas} marmita(s)`
+- `totalMarmitas = items.reduce((sum, i) => sum + i.quantity, 0)`
 
-  const targetWords = extractWords(flavor.name);
-  let bestMatch = '';
-  let bestScore = 0;
+**Arquivo:** `src/components/admin/OrderConfirmationModal.tsx`
 
-  for (const key of Object.keys(flavorSidesMap)) {
-    const keyWords = extractWords(key);
-    const overlap = targetWords.filter(w => keyWords.includes(w)).length;
-    const score = overlap / Math.max(targetWords.length, keyWords.length);
-    if (score > bestScore && score >= 0.5) {
-      bestScore = score;
-      bestMatch = key;
-    }
-  }
-  if (bestMatch) sidesData = flavorSidesMap[bestMatch];
-}
-```
+- No cabecalho do modal, exibir o total de marmitas: somar as quantidades de todos os `editableItems`
+- Exibir como Badge ao lado do titulo, ex: "18 marmitas"
 
-**Tambem corrigir o carregamento do mapa (~linha 238):** Remover a condicao `Object.keys(flavorSidesMap).length === 0` para sempre recarregar ao abrir um pedido diferente, evitando cache vazio.
+### Mudanca 3 - Valor editavel tambem no modal de confirmacao
 
-### Resumo
+**Arquivo:** `src/components/admin/OrderConfirmationModal.tsx`
+
+- Trocar o campo "Valor" no resumo por um Input editavel para que o admin possa corrigir o valor antes de confirmar
+- Adicionar estado local `editableSubtotal` inicializado com o `subtotal` da prop
+- Adicionar callback `onSubtotalChanged` na interface para devolver o novo valor ao pai
+
+**Arquivo:** `src/components/admin/WhatsAppOrderImporter.tsx`
+
+- Passar o callback `onSubtotalChanged` para o OrderConfirmationModal e atualizar o `manualSubtotal` quando o valor mudar no modal
+
+### Resumo tecnico
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/components/admin/OrdersManager.tsx` | Linhas 1508-1516: substituir fuzzy substring por match por palavras-chave com score minimo de 50% |
-| `src/components/admin/OrdersManager.tsx` | Linha 238: remover condicao de cache para garantir que o mapa de sabores sempre carregue |
-
-Com isso, nenhum pedido ficara sem peso -- mesmo que o nome salvo seja diferente do catalogo, o sistema encontra o sabor mais proximo e exibe a composicao.
+| WhatsAppOrderImporter.tsx | Estado `manualSubtotal`, Input editavel para valor, Badge com total de marmitas na secao Itens |
+| OrderConfirmationModal.tsx | Badge com total de marmitas no cabecalho, Input editavel para valor no resumo, callback onSubtotalChanged |
