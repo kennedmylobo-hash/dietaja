@@ -412,13 +412,20 @@ const Admin = () => {
 
       if (error) throw error;
 
-      // Check admin role
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('role, tenant_id')
-        .eq('user_id', data.user.id);
+      // Check admin role with retry (RLS may need a moment after fresh login)
+      let adminRole = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role, tenant_id')
+          .eq('user_id', data.user.id);
 
-      const adminRole = roles?.find((r: any) => r.role === 'admin' || r.role === 'super_admin');
+        adminRole = roles?.find((r: any) => r.role === 'admin' || r.role === 'super_admin');
+        if (adminRole) break;
+        // Wait briefly before retrying
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
       if (!adminRole) {
         await supabase.auth.signOut();
         throw new Error('Você não tem permissão de administrador.');
