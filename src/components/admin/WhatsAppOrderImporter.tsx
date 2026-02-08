@@ -39,11 +39,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTenantId } from "@/hooks/useTenantId";
+import FlavorCompositionModal from "./FlavorCompositionModal";
+import { Json } from "@/integrations/supabase/types";
+import { getFlavorDescription, mapLineTypeToKey } from "@/lib/flavor-description";
 
 interface MarmitaFlavor {
   id: string;
   name: string;
   category: string;
+  sides: Json | null;
 }
 
 interface MarmitaPackage {
@@ -92,6 +96,13 @@ const WhatsAppOrderImporter = () => {
   const [deliveryTime, setDeliveryTime] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'pending_payment' | null>(null);
 
+  // Composition modal state
+  const [compositionModalOpen, setCompositionModalOpen] = useState(false);
+  const [compositionFlavorId, setCompositionFlavorId] = useState("");
+  const [compositionFlavorName, setCompositionFlavorName] = useState("");
+  const [compositionFlavorSides, setCompositionFlavorSides] = useState<Json | null>(null);
+  const [pendingCompositionItems, setPendingCompositionItems] = useState<{id: string; name: string; sides: Json | null}[]>([]);
+
   useEffect(() => {
     fetchCatalogData();
   }, []);
@@ -123,7 +134,7 @@ const WhatsAppOrderImporter = () => {
   const fetchCatalogData = async () => {
     try {
       const [flavorsRes, packagesRes] = await Promise.all([
-        supabase.from('marmita_flavors').select('id, name, category').eq('active', true).eq('tenant_id', tenantId),
+        supabase.from('marmita_flavors').select('id, name, category, sides').eq('active', true).eq('tenant_id', tenantId),
         supabase.from('marmita_packages').select('id, name, unit_price, line_type, quantity').eq('active', true).eq('tenant_id', tenantId),
       ]);
 
@@ -213,6 +224,74 @@ const WhatsAppOrderImporter = () => {
 
   const removeItem = (index: number) => {
     setItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Check which items are missing composition (sides) data
+  const getItemsMissingComposition = (): {id: string; name: string; sides: Json | null}[] => {
+    if (!lineType) return [];
+    const lineKey = mapLineTypeToKey(lineType === 'fit' ? 'emagrecimento' : 'hipertrofia');
+    const missing: {id: string; name: string; sides: Json | null}[] = [];
+    
+    for (const item of items) {
+      if (item.type !== 'marmita') continue;
+      const matchedFlavor = marmitaFlavors.find(f => 
+        f.name.toLowerCase() === item.matchedName.toLowerCase()
+      );
+      if (!matchedFlavor) continue;
+      
+      // Check if sides has data for this line
+      const sides = matchedFlavor.sides;
+      if (!sides || typeof sides !== 'object' || Array.isArray(sides)) {
+        missing.push({ id: matchedFlavor.id, name: matchedFlavor.name, sides: matchedFlavor.sides });
+        continue;
+      }
+      const sidesObj = sides as Record<string, unknown>;
+      if (!Array.isArray(sidesObj[lineKey]) || (sidesObj[lineKey] as unknown[]).length === 0) {
+        missing.push({ id: matchedFlavor.id, name: matchedFlavor.name, sides: matchedFlavor.sides });
+      }
+    }
+    return missing;
+  };
+
+  const handleCreateOrder = () => {
+    if (!isComplete) return;
+    
+    const missing = getItemsMissingComposition();
+    if (missing.length > 0) {
+      setPendingCompositionItems(missing);
+      // Open modal for the first missing item
+      const first = missing[0];
+      setCompositionFlavorId(first.id);
+      setCompositionFlavorName(first.name);
+      setCompositionFlavorSides(first.sides);
+      setCompositionModalOpen(true);
+      return;
+    }
+    
+    createOrder();
+  };
+
+  const handleCompositionSaved = (flavorId: string, newSides: Json) => {
+    // Update local marmitaFlavors cache
+    setMarmitaFlavors(prev => prev.map(f => f.id === flavorId ? { ...f, sides: newSides } : f));
+    
+    // Remove from pending list
+    const remaining = pendingCompositionItems.filter(item => item.id !== flavorId);
+    setPendingCompositionItems(remaining);
+    
+    if (remaining.length > 0) {
+      // Open next one
+      const next = remaining[0];
+      setCompositionFlavorId(next.id);
+      setCompositionFlavorName(next.name);
+      setCompositionFlavorSides(next.sides);
+      setCompositionModalOpen(true);
+    } else {
+      // All done, proceed with order
+      setCompositionModalOpen(false);
+      toast({ title: "Composições salvas! Lançando pedido..." });
+      setTimeout(() => createOrder(), 300);
+    }
   };
 
   const createOrder = async () => {
@@ -632,7 +711,7 @@ WhatsApp: 77991234567"
                 {/* Action Button */}
                 <Button 
                   className="w-full" 
-                  onClick={createOrder}
+                  onClick={handleCreateOrder}
                   disabled={isCreating || !isComplete}
                 >
                   {isCreating ? (
@@ -659,6 +738,19 @@ WhatsApp: 77991234567"
           </CardContent>
         </Card>
       </div>
+
+      {/* Composition Modal for missing weights */}
+      <FlavorCompositionModal
+        isOpen={compositionModalOpen}
+        onClose={() => {
+          setCompositionModalOpen(false);
+          setPendingCompositionItems([]);
+        }}
+        flavorId={compositionFlavorId}
+        flavorName={compositionFlavorName}
+        sides={compositionFlavorSides}
+        onSaved={handleCompositionSaved}
+      />
     </div>
   );
 };
