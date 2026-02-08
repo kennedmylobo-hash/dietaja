@@ -1411,7 +1411,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           }
         }}
       >
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="w-5 h-5" />
@@ -1421,7 +1421,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           
           {selectedOrder && (
             <ScrollArea className="flex-1 pr-4">
-              <div className="space-y-4">
+              <div className="space-y-4 pb-4">
               {/* Status with manual dropdown */}
                 <div className="flex items-center justify-between gap-4">
                 <span className="text-sm text-muted-foreground">Status</span>
@@ -1473,7 +1473,12 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
 
               {/* Items */}
               <div className="p-3 rounded-lg bg-muted/50">
-                <h4 className="font-medium mb-2">Itens</h4>
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  Itens
+                  <Badge variant="secondary" className="text-xs">
+                    {selectedOrder.items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0)} marmitas
+                  </Badge>
+                </h4>
                 {selectedOrder.items.map((item, i) => {
                   // Infer line type for marmita items
                   const inferredLineType = item.type === 'marmita'
