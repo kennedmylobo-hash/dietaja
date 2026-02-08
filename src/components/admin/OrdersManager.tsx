@@ -64,6 +64,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { printOrderTicket } from "@/lib/print-utils";
+import { printOrderProduction, generateOrderProductionWhatsApp } from "@/lib/order-production-utils";
+import { shareViaWhatsApp } from "@/lib/print-utils";
 
 interface FlavorItem {
   name: string;
@@ -1711,6 +1713,35 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                   <Printer className="w-4 h-4 mr-2" />
                   Imprimir Ficha
                 </Button>
+
+                {/* Production ticket buttons - only for marmita orders */}
+                {selectedOrder.items.some(i => i.type === 'marmita') && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => printOrderProduction(selectedOrder, flavorSidesMap)}
+                    >
+                      <ChefHat className="w-4 h-4 mr-2" />
+                      🖨️ Produção (Imprimir)
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        const text = generateOrderProductionWhatsApp(selectedOrder, flavorSidesMap);
+                        if (!text) {
+                          toast({ title: 'Sem marmitas', description: 'Este pedido não possui marmitas.', variant: 'destructive' });
+                          return;
+                        }
+                        shareViaWhatsApp(text);
+                      }}
+                    >
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      📋 Produção (WhatsApp)
+                    </Button>
+                  </>
+                )}
 
                 {/* WhatsApp button */}
                 <Button
