@@ -1,53 +1,62 @@
 
 
-## Silenciar notificações para pedidos importados do WhatsApp
+## Exibir pesos (proteína, carboidrato, etc.) nos pedidos importados do WhatsApp
 
 ### Problema
 
-Quando o admin muda o status de um pedido importado via WhatsApp (preparando, pronto, entregue, cancelado), o sistema dispara WhatsApp e e-mail para o cliente. Pedidos importados manualmente nao devem gerar nenhuma notificacao ao cliente em nenhum status.
+Quando um pedido é importado via WhatsApp, os itens são salvos com o nome exato que o cliente digitou (ex: "Carne moída, aipim e mix de legumes"). Na hora de exibir no modal de detalhes do pedido, o sistema tenta buscar a composição de pesos usando esse nome como chave no mapa de sabores do catálogo. Como o nome não bate exatamente com o catálogo, a composição não é encontrada e os pesos não aparecem.
 
-### Como identificar pedidos importados
+### Solução em 2 partes
 
-Os pedidos importados pelo WhatsApp ja possuem o campo `utm_data.source = 'whatsapp_import'`. Basta verificar esse campo antes de disparar notificacoes.
+**Parte 1 - WhatsAppOrderImporter.tsx (salvar com nome do catálogo)**
 
-### Solucao
+Na hora de criar o pedido (função `createOrder`), usar o `matchedName` (nome encontrado no catálogo) no campo `flavors[].name` em vez do nome cru digitado pelo cliente. O nome original continua no campo `item.name` para referência.
 
-**Arquivo:** `src/components/admin/OrdersManager.tsx`
-
-Adicionar uma verificacao antes de cada chamada a `sendStatusNotification`. Se o pedido tiver `utm_data.source === 'whatsapp_import'`, pular o envio.
-
-**Mudanca 1 - Cancelamento (linha 546):**
 ```
-// Antes:
-sendStatusNotification(orderId, 'cancelled');
+// Antes (linha 232-236):
+flavors: item.type === 'marmita' ? [{
+  name: item.name,          // "Carne moída, aipim e mix de legumes"
+  quantity: item.quantity,
+  category: 'carnes',
+}] : undefined,
 
 // Depois:
-const isWhatsAppImport = currentOrder?.utm_data?.source === 'whatsapp_import';
-if (!isWhatsAppImport) {
-  sendStatusNotification(orderId, 'cancelled');
-}
+flavors: item.type === 'marmita' ? [{
+  name: item.matchedName,   // "Carne moída com arroz e feijão" (do catálogo)
+  quantity: item.quantity,
+  category: 'carnes',
+}] : undefined,
 ```
 
-**Mudanca 2 - Mudanca de status geral (linhas 831-834):**
+**Parte 2 - OrdersManager.tsx (fallback fuzzy para pedidos antigos)**
+
+Para pedidos já existentes onde o `flavors[].name` é o texto cru, adicionar um fallback: se o nome exato não for encontrado no `flavorSidesMap`, buscar a chave mais similar (substring match). Isso garante que pedidos antigos também mostrem os pesos.
+
 ```
+// Na renderização de flavors (linha 1509):
 // Antes:
-if (!['pending', 'whatsapp_pending'].includes(newStatus)) {
-  sendStatusNotification(orderId, newStatus);
-}
+const composition = getFlavorDescription(flavorSidesMap[flavor.name] ?? null, inferredLineType);
 
 // Depois:
-const currentOrderForNotif = orders.find(o => o.id === orderId);
-const isWhatsAppImportStatus = currentOrderForNotif?.utm_data?.source === 'whatsapp_import';
-if (!['pending', 'whatsapp_pending'].includes(newStatus) && !isWhatsAppImportStatus) {
-  sendStatusNotification(orderId, newStatus);
+let sidesData = flavorSidesMap[flavor.name] ?? null;
+// Fallback: buscar por substring se nome exato não encontrou
+if (!sidesData) {
+  const normalizedName = flavor.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const matchKey = Object.keys(flavorSidesMap).find(key => {
+    const normalizedKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return normalizedName.includes(normalizedKey) || normalizedKey.includes(normalizedName);
+  });
+  if (matchKey) sidesData = flavorSidesMap[matchKey];
 }
+const composition = inferredLineType ? getFlavorDescription(sidesData, inferredLineType) : null;
 ```
 
-### Resumo
+### Resumo das mudanças
 
-| Arquivo | Mudanca |
+| Arquivo | Mudança |
 |---|---|
-| `src/components/admin/OrdersManager.tsx` | Linha 546: verificar `whatsapp_import` antes de notificar cancelamento |
-| `src/components/admin/OrdersManager.tsx` | Linhas 831-834: verificar `whatsapp_import` antes de notificar mudanca de status |
+| `src/components/admin/WhatsAppOrderImporter.tsx` | Linha 233: usar `item.matchedName` em vez de `item.name` no `flavors[].name` |
+| `src/components/admin/OrdersManager.tsx` | Linhas 1508-1510: adicionar fallback fuzzy por substring para encontrar composição de pesos quando o nome exato não bate |
 
-Nenhum status (preparando, pronto, saiu para entrega, entregue, cancelado) vai disparar mensagem para o cliente quando o pedido vier do importador WhatsApp.
+Isso resolve tanto pedidos futuros (usando o nome correto do catálogo) quanto pedidos antigos já salvos (fallback por similaridade).
+
