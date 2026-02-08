@@ -599,6 +599,116 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
     }
   };
 
+  // Print both production + assembly on same page
+  const handlePrintAll = () => {
+    const today = formatDateShort(new Date().toISOString());
+    
+    const fitCombos = productionData.assemblyCombinations.filter(c => c.lineType === 'fit');
+    const fitnessCombos = productionData.assemblyCombinations.filter(c => c.lineType === 'fitness');
+    const fitTotal = fitCombos.reduce((s, c) => s + c.quantity, 0);
+    const fitnessTotal = fitnessCombos.reduce((s, c) => s + c.quantity, 0);
+    
+    const renderCombos = (combos: AssemblyCombination[]) => combos.map(combo => `
+      <div class="combo">
+        <div class="combo-header">
+          <span class="combo-qty">${combo.quantity}x</span>
+          <span>${combo.flavorName}</span>
+        </div>
+        <div class="combo-details">
+          ${combo.ingredients.map(i => `${i.weight}g ${i.name}`).join(' + ')}
+        </div>
+        <div class="customers">
+          👥 ${combo.customers.map(c => `${c.name} (${c.quantity})`).join(', ')}
+        </div>
+      </div>
+    `).join('');
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Produção Completa - ${today}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { font-size: 18px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+          h2 { font-size: 16px; margin-top: 20px; color: #333; }
+          .item { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+          .weight { font-weight: bold; font-size: 18px; }
+          .protein { background: #f0f9ff; padding: 10px; margin: 5px 0; }
+          .side { padding: 10px; margin: 5px 0; }
+          .divider { border-top: 3px solid #000; margin: 30px 0; }
+          .section-fit { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 8px 12px; border-radius: 6px; }
+          .section-fitness { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 8px 12px; border-radius: 6px; }
+          .combo { background: #f8f8f8; padding: 12px; margin: 10px 0; border-radius: 8px; page-break-inside: avoid; }
+          .combo-header { display: flex; align-items: center; gap: 10px; font-weight: bold; margin-bottom: 8px; }
+          .combo-qty { background: #22c55e; color: white; padding: 4px 12px; border-radius: 20px; font-size: 16px; min-width: 50px; text-align: center; }
+          .combo-details { color: #666; font-size: 14px; }
+          .customers { font-size: 12px; color: #999; margin-top: 8px; }
+          .total { font-size: 14px; color: #666; margin-top: 20px; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <h1>🍳 LISTA DE PRODUÇÃO - COZINHA</h1>
+        <p style="color: #666; font-size: 12px;">${today} • ${productionData.totals.marmitas} marmitas</p>
+        
+        <h2>🥩 PROTEÍNAS</h2>
+        ${productionData.ingredients
+          .filter(i => i.type === 'protein')
+          .map(i => `<div class="item protein"><span>${i.name}</span><span class="weight">${formatWeight(i.totalWeight)}</span></div>`)
+          .join('')}
+        
+        <h2>🍚 CARBOIDRATOS</h2>
+        ${productionData.ingredients
+          .filter(i => i.type === 'carb')
+          .map(i => `<div class="item side"><span>${i.name}</span><span class="weight">${formatWeight(i.totalWeight)}</span></div>`)
+          .join('')}
+        
+        <h2>🥗 SALADA</h2>
+        ${productionData.ingredients
+          .filter(i => i.type === 'salad')
+          .map(i => `<div class="item side"><span>${i.name}</span><span class="weight">${formatWeight(i.totalWeight)}</span></div>`)
+          .join('')}
+        
+        ${productionData.juices.length > 0 ? `
+          <h2>🥤 SUCOS (300ml/un)</h2>
+          ${productionData.juices.map(j => `<div class="item"><span>${j.emoji} ${j.name}</span><span class="weight">${formatJuiceDisplay(j.quantity)}</span></div>`).join('')}
+        ` : ''}
+        
+        ${productionData.soups.length > 0 ? `
+          <h2>🥣 SOPAS (450ml/un)</h2>
+          ${productionData.soups.map(s => `<div class="item"><span>${s.emoji} ${s.name}</span><span class="weight">${formatSoupDisplay(s.quantity)}</span></div>`).join('')}
+        ` : ''}
+        
+        <div class="divider"></div>
+        
+        <h1>📦 LISTA DE MONTAGEM</h1>
+        <p style="color: #666; font-size: 12px;">${today} • ${productionData.totals.marmitas} marmitas</p>
+        
+        ${fitCombos.length > 0 ? `
+          <h2 class="section-fit">🥗 FIT 300g — ${fitTotal} marmitas</h2>
+          ${renderCombos(fitCombos)}
+        ` : ''}
+        
+        ${fitnessCombos.length > 0 ? `
+          <h2 class="section-fitness">💪 FITNESS 450g — ${fitnessTotal} marmitas</h2>
+          ${renderCombos(fitnessCombos)}
+        ` : ''}
+        
+        <div class="total">
+          Total: ${productionData.totals.marmitas} marmitas + ${productionData.totals.juices} sucos + ${productionData.totals.soups} sopas
+        </div>
+      </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
   // Share production via WhatsApp
   const handleShareProduction = () => {
     const today = formatDateShort(new Date().toISOString());
@@ -776,16 +886,22 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
         </Card>
       ) : (
         <Tabs defaultValue="production" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="production" className="flex items-center gap-2">
-              <Utensils className="w-4 h-4" />
-              Produção (Cozinha)
-            </TabsTrigger>
-            <TabsTrigger value="assembly" className="flex items-center gap-2">
-              <Package className="w-4 h-4" />
-              Montagem
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between">
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="production" className="flex items-center gap-2">
+                <Utensils className="w-4 h-4" />
+                Produção (Cozinha)
+              </TabsTrigger>
+              <TabsTrigger value="assembly" className="flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Montagem
+              </TabsTrigger>
+            </TabsList>
+            <Button variant="outline" size="sm" onClick={handlePrintAll}>
+              <Printer className="w-4 h-4 mr-2" />
+              Imprimir Tudo
+            </Button>
+          </div>
 
           {/* PRODUCTION TAB - Kitchen aggregated ingredients */}
           <TabsContent value="production" className="space-y-4">
