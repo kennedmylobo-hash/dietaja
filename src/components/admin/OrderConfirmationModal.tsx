@@ -47,6 +47,54 @@ interface OrderConfirmationModalProps {
   onSubtotalChanged?: (value: number) => void;
 }
 
+const extractProteinName = (itemName: string): string => {
+  const lower = itemName.toLowerCase();
+  // Remove "escondidinho de " prefix
+  const cleaned = lower.replace(/escondidinho\s+de\s+/i, '');
+  // Take first part before comma, "com", "e "
+  const part = cleaned.split(/[,]|\s+com\s+|\s+e\s+/)[0].trim();
+  // Capitalize first letter
+  return part.charAt(0).toUpperCase() + part.slice(1);
+};
+
+const extractCarbName = (itemName: string): string => {
+  const lower = itemName.toLowerCase();
+  // Common carbs to detect
+  const carbs: Record<string, string> = {
+    'aipim': 'Aipim',
+    'mandioca': 'Aipim',
+    'macaxeira': 'Aipim',
+    'arroz': 'Arroz',
+    'batata': 'Batata-doce',
+    'batata-doce': 'Batata-doce',
+    'purê': 'Purê de aipim',
+    'pure': 'Purê de aipim',
+    'macarrão': 'Macarrão',
+    'macarrao': 'Macarrão',
+    'nhoque': 'Nhoque',
+  };
+  for (const [key, label] of Object.entries(carbs)) {
+    if (lower.includes(key)) return label;
+  }
+  return 'Aipim';
+};
+
+const generateDefaultSides = (itemName: string, line: "fit" | "fitness"): FlavorSideItem[] => {
+  const isEscondidinho = itemName.toLowerCase().includes('escondidinho');
+  const protein = extractProteinName(itemName);
+
+  if (isEscondidinho) {
+    return line === 'fit'
+      ? [{ name: protein, weight: 120 }, { name: 'Purê de aipim', weight: 180 }]
+      : [{ name: protein, weight: 175 }, { name: 'Purê de aipim', weight: 275 }];
+  }
+
+  const carb = extractCarbName(itemName);
+  return line === 'fit'
+    ? [{ name: protein, weight: 100 }, { name: carb, weight: 150 }, { name: 'Mix de legumes', weight: 50 }]
+    : [{ name: protein, weight: 150 }, { name: carb, weight: 200 }, { name: 'Mix de legumes', weight: 100 }];
+};
+
 const OrderConfirmationModal = ({
   isOpen,
   onClose,
@@ -69,7 +117,9 @@ const OrderConfirmationModal = ({
     if (isOpen) {
       setEditableItems(initialItems.map(item => ({
         ...item,
-        sides: item.sides.map(s => ({ ...s })),
+        sides: item.sides.length > 0
+          ? item.sides.map(s => ({ ...s }))
+          : generateDefaultSides(item.matchedName || item.name, lineType),
       })));
       setEditableSubtotal(String(subtotal));
     }
@@ -256,9 +306,7 @@ const OrderConfirmationModal = ({
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">Sem composição cadastrada</p>
-                )}
+                ) : null}
               </div>
             );
           })}
