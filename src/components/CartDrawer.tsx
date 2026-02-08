@@ -384,6 +384,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             unitPrice: item.unitPrice,
             totalPrice: item.totalPrice,
             type: item.type,
+            lineType: item.lineType || null,
             flavors: item.flavors?.map(f => ({
               name: f.name,
               quantity: f.quantity,
