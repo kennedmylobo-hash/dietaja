@@ -64,6 +64,7 @@ import RecurringCustomers from "@/components/admin/RecurringCustomers";
 import TenantSettingsEditor from "@/components/admin/TenantSettingsEditor";
 import LandingEditor from "@/components/admin/LandingEditor";
 import ShoppingList from "@/components/admin/ShoppingList";
+import CustomDietQuoter from "@/components/admin/CustomDietQuoter";
 
 interface Lead {
   id: string;
@@ -1158,6 +1159,9 @@ const Admin = () => {
        case "customers":
          return <CustomersManager dateFilter={dateFilter} />;
  
+      case "custom-diet":
+        return <CustomDietQuoter />;
+
       case "menu":
         return (
           <div className="space-y-6">
