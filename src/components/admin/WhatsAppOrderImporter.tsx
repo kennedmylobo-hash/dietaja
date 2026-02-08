@@ -230,7 +230,7 @@ const WhatsAppOrderImporter = () => {
         type: item.type,
         lineType: lineType,
         flavors: item.type === 'marmita' ? [{
-          name: item.name,
+          name: item.matchedName,
           quantity: item.quantity,
           category: 'carnes',
         }] : undefined,
