@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPhoneVariations } from "@/lib/phone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getFlavorDescription, mapLineTypeToKey } from "@/lib/flavor-description";
+import type { Json } from "@/integrations/supabase/types";
 import {
   Select,
   SelectContent,
@@ -74,6 +76,7 @@ interface OrderItem {
   quantity: number;
   totalPrice: number;
   type: string;
+  lineType?: string;
   flavors?: FlavorItem[];
 }
 
@@ -126,7 +129,10 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const [cancellationTypeFilter, setCancellationTypeFilter] = useState<string>('all');
   const [isBulkCancelling, setIsBulkCancelling] = useState(false);
   const [bulkCancelReason, setBulkCancelReason] = useState('');
-  
+
+  // Flavor compositions for order detail
+  const [flavorSidesMap, setFlavorSidesMap] = useState<Record<string, Json | null>>({});
+
   // PIX Generation states
   const [isGeneratingPix, setIsGeneratingPix] = useState<string | null>(null);
   const [pixResult, setPixResult] = useState<{
@@ -223,10 +229,24 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     };
   }, []);
 
-  // Carregar histórico automaticamente quando um pedido é selecionado
+  // Carregar histórico e composições quando um pedido é selecionado
   useEffect(() => {
     if (selectedOrder?.id) {
       fetchStatusHistory(selectedOrder.id);
+      // Fetch flavor compositions for marmita items
+      const hasMarmita = selectedOrder.items.some(i => i.type === 'marmita');
+      if (hasMarmita && Object.keys(flavorSidesMap).length === 0) {
+        supabase
+          .from('marmita_flavors')
+          .select('name, sides')
+          .then(({ data }) => {
+            if (data) {
+              const map: Record<string, Json | null> = {};
+              data.forEach(f => { map[f.name] = f.sides; });
+              setFlavorSidesMap(map);
+            }
+          });
+      }
     }
   }, [selectedOrder?.id]);
 
@@ -1449,23 +1469,58 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
               {/* Items */}
               <div className="p-3 rounded-lg bg-muted/50">
                 <h4 className="font-medium mb-2">Itens</h4>
-                {selectedOrder.items.map((item, i) => (
-                  <div key={i} className="py-1.5 border-b last:border-0">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium">{item.name} ({item.quantity}x)</span>
-                      <span>R$ {item.totalPrice.toFixed(2).replace('.', ',')}</span>
-                    </div>
-                    {item.flavors && item.flavors.length > 0 && (
-                      <div className="mt-1 ml-2 space-y-0.5">
-                        {item.flavors.map((flavor, fi) => (
-                          <p key={fi} className="text-xs text-muted-foreground">
-                            • {flavor.quantity}x {flavor.name}
-                          </p>
-                        ))}
+                {selectedOrder.items.map((item, i) => {
+                  // Infer line type for marmita items
+                  const inferredLineType = item.type === 'marmita'
+                    ? (item.lineType === 'hipertrofia' || item.lineType === 'fitness'
+                      || /hipertrofia|fitness/i.test(item.name)
+                      ? 'fitness' : 'fit')
+                    : null;
+                  const lineWeight = inferredLineType === 'fitness' ? '450g' : '300g';
+                  const lineLabel = inferredLineType === 'fitness' ? 'FITNESS' : 'FIT';
+
+                  return (
+                    <div key={i} className="py-1.5 border-b last:border-0">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium flex items-center gap-1.5 flex-wrap">
+                          {item.name} ({item.quantity}x)
+                          {inferredLineType && (
+                            <Badge
+                              variant="outline"
+                              className={inferredLineType === 'fitness'
+                                ? 'bg-blue-500/10 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0'
+                                : 'bg-green-500/10 text-green-700 border-green-200 text-[10px] px-1.5 py-0'}
+                            >
+                              {inferredLineType === 'fitness' ? '💪' : '🥗'} {lineLabel} {lineWeight}
+                            </Badge>
+                          )}
+                        </span>
+                        <span className="shrink-0">R$ {item.totalPrice.toFixed(2).replace('.', ',')}</span>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {item.flavors && item.flavors.length > 0 && (
+                        <div className="mt-1 ml-2 space-y-1">
+                          {item.flavors.map((flavor, fi) => {
+                            const composition = inferredLineType
+                              ? getFlavorDescription(flavorSidesMap[flavor.name] ?? null, inferredLineType)
+                              : null;
+                            return (
+                              <div key={fi}>
+                                <p className="text-xs text-muted-foreground">
+                                  • {flavor.quantity}x {flavor.name}
+                                </p>
+                                {composition && (
+                                  <p className="text-[10px] text-muted-foreground/70 ml-3">
+                                    {composition}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 <div className="border-t mt-2 pt-2 space-y-1">
                   <div className="flex justify-between text-sm">
                     <span>Subtotal</span>
