@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Settings2, ChevronDown, ChevronUp, Plus, Trash2, Save, Loader2 } from "lucide-react";
+import type { SubcategoryItem, SubcategoryPricing } from "@/lib/subcategory-pricing";
 
 export interface CategoryPricing {
   costPerKg: number;
@@ -28,7 +29,7 @@ export interface PricingSettings {
   proteinPricing: CategoryPricing;
   carbPricing: CategoryPricing;
   veggiePricing: CategoryPricing;
-  // Legacy fields kept for backwards compat
+  subcategoryPricing: SubcategoryPricing;
   rawCostPerKg: number;
   cookingLossPercent: number;
   correctionFactor: number;
@@ -59,33 +60,37 @@ function getCostPerGram(costPerKg: number, cookingLoss: number): number {
   return (costPerKg / 1000) * fc;
 }
 
-function CategoryRow({
-  label,
-  emoji,
-  pricing,
+function SubcategoryRow({
+  item,
   onChange,
+  onRemove,
+  canRemove,
 }: {
-  label: string;
-  emoji: string;
-  pricing: CategoryPricing;
-  onChange: (p: CategoryPricing) => void;
+  item: SubcategoryItem;
+  onChange: (item: SubcategoryItem) => void;
+  onRemove: () => void;
+  canRemove: boolean;
 }) {
-  const costPerGram = getCostPerGram(pricing.costPerKg, pricing.cookingLossPercent);
-  const fc = pricing.cookingLossPercent >= 100 ? 1 : 1 / (1 - pricing.cookingLossPercent / 100);
+  const costPerGram = getCostPerGram(item.costPerKg, item.cookingLossPercent);
+  const fc = item.cookingLossPercent >= 100 ? 1 : 1 / (1 - item.cookingLossPercent / 100);
 
   return (
-    <TableRow>
-      <TableCell className="font-medium">
-        <span className="text-base mr-1">{emoji}</span> {label}
+    <TableRow className="bg-muted/30">
+      <TableCell className="pl-8 text-sm">
+        <Input
+          value={item.name}
+          onChange={(e) => onChange({ ...item, name: e.target.value })}
+          className="w-full text-sm h-8"
+        />
       </TableCell>
       <TableCell>
         <Input
           type="number"
           step="0.01"
           min="0"
-          value={pricing.costPerKg}
-          onChange={(e) => onChange({ ...pricing, costPerKg: parseFloat(e.target.value) || 0 })}
-          className="w-24 text-sm"
+          value={item.costPerKg}
+          onChange={(e) => onChange({ ...item, costPerKg: parseFloat(e.target.value) || 0 })}
+          className="w-24 text-sm h-8"
         />
       </TableCell>
       <TableCell>
@@ -94,9 +99,9 @@ function CategoryRow({
           step="1"
           min="0"
           max="90"
-          value={pricing.cookingLossPercent}
-          onChange={(e) => onChange({ ...pricing, cookingLossPercent: parseFloat(e.target.value) || 0 })}
-          className="w-20 text-sm"
+          value={item.cookingLossPercent}
+          onChange={(e) => onChange({ ...item, cookingLossPercent: parseFloat(e.target.value) || 0 })}
+          className="w-20 text-sm h-8"
         />
       </TableCell>
       <TableCell className="text-right text-xs text-muted-foreground">
@@ -105,7 +110,114 @@ function CategoryRow({
       <TableCell className="text-right font-medium text-primary text-sm">
         R$ {costPerGram.toFixed(4)}
       </TableCell>
+      <TableCell className="w-10">
+        {canRemove && (
+          <Button variant="ghost" size="icon" onClick={onRemove} className="text-destructive hover:text-destructive h-7 w-7">
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        )}
+      </TableCell>
     </TableRow>
+  );
+}
+
+function CategoryGroup({
+  label,
+  emoji,
+  category,
+  subcategories,
+  fallbackPricing,
+  onSubcategoriesChange,
+}: {
+  label: string;
+  emoji: string;
+  category: "protein" | "carb" | "veggie";
+  subcategories: SubcategoryItem[];
+  fallbackPricing: CategoryPricing;
+  onSubcategoriesChange: (items: SubcategoryItem[]) => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+
+  // Compute weighted average for the category header
+  const avgCostPerGram = subcategories.length > 0
+    ? subcategories.reduce((s, i) => s + getCostPerGram(i.costPerKg, i.cookingLossPercent), 0) / subcategories.length
+    : getCostPerGram(fallbackPricing.costPerKg, fallbackPricing.cookingLossPercent);
+
+  const addSubcategory = () => {
+    onSubcategoriesChange([
+      ...subcategories,
+      { name: "Novo item", costPerKg: 10, cookingLossPercent: 0, keywords: [] },
+    ]);
+  };
+
+  const updateSub = (idx: number, item: SubcategoryItem) => {
+    onSubcategoriesChange(subcategories.map((s, i) => (i === idx ? item : s)));
+  };
+
+  const removeSub = (idx: number) => {
+    onSubcategoriesChange(subcategories.filter((_, i) => i !== idx));
+  };
+
+  if (subcategories.length === 0) {
+    // No subcategories (e.g. veggie) - show simple row
+    const costPerGram = getCostPerGram(fallbackPricing.costPerKg, fallbackPricing.cookingLossPercent);
+    const fc = fallbackPricing.cookingLossPercent >= 100 ? 1 : 1 / (1 - fallbackPricing.cookingLossPercent / 100);
+    return (
+      <TableRow>
+        <TableCell className="font-medium">
+          <span className="text-base mr-1">{emoji}</span> {label}
+        </TableCell>
+        <TableCell className="text-muted-foreground text-xs" colSpan={2}>—</TableCell>
+        <TableCell className="text-right text-xs text-muted-foreground">{fc.toFixed(2)}</TableCell>
+        <TableCell className="text-right font-medium text-primary text-sm">R$ {costPerGram.toFixed(4)}</TableCell>
+        <TableCell />
+      </TableRow>
+    );
+  }
+
+  return (
+    <>
+      <TableRow
+        className="cursor-pointer hover:bg-muted/50"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <TableCell className="font-medium">
+          <span className="flex items-center gap-1">
+            <span className="text-base mr-1">{emoji}</span> {label}
+            <span className="text-xs text-muted-foreground ml-1">({subcategories.length})</span>
+            {expanded ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
+          </span>
+        </TableCell>
+        <TableCell colSpan={2} className="text-xs text-muted-foreground">
+          {subcategories.length} subcategorias
+        </TableCell>
+        <TableCell className="text-right text-xs text-muted-foreground">—</TableCell>
+        <TableCell className="text-right font-medium text-primary text-sm">
+          ~ R$ {avgCostPerGram.toFixed(4)}
+        </TableCell>
+        <TableCell />
+      </TableRow>
+      {expanded && (
+        <>
+          {subcategories.map((sub, idx) => (
+            <SubcategoryRow
+              key={idx}
+              item={sub}
+              onChange={(item) => updateSub(idx, item)}
+              onRemove={() => removeSub(idx)}
+              canRemove={subcategories.length > 1}
+            />
+          ))}
+          <TableRow className="bg-muted/20">
+            <TableCell colSpan={6} className="pl-8">
+              <Button variant="ghost" size="sm" onClick={addSubcategory} className="text-xs h-7">
+                <Plus className="w-3 h-3 mr-1" /> Adicionar {label.toLowerCase()}
+              </Button>
+            </TableCell>
+          </TableRow>
+        </>
+      )}
+    </>
   );
 }
 
@@ -114,6 +226,15 @@ export default function PricingConfig({ settings, onChange, onSave, saving }: Pr
 
   const update = (partial: Partial<PricingSettings>) => {
     onChange({ ...settings, ...partial });
+  };
+
+  const updateSubcategories = (category: keyof SubcategoryPricing, items: SubcategoryItem[]) => {
+    update({
+      subcategoryPricing: {
+        ...settings.subcategoryPricing,
+        [category]: items,
+      },
+    });
   };
 
   const updatePackage = (idx: number, field: keyof PackageOption, value: any) => {
@@ -154,40 +275,47 @@ export default function PricingConfig({ settings, onChange, onSave, saving }: Pr
 
         <CollapsibleContent>
           <CardContent className="space-y-6 pt-0">
-            {/* Bloco A - Tabela de Insumos por Categoria */}
+            {/* Bloco A - Tabela de Insumos por Subcategoria */}
             <div>
-              <h4 className="font-semibold text-sm text-muted-foreground mb-3">🥩 Tabela de Insumos (pré-fixada)</h4>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-3">🥩 Tabela de Insumos</h4>
               <p className="text-xs text-muted-foreground mb-3">
-                Preços e cocção por categoria. Atualize quando houver reajuste do fornecedor.
+                Preços e cocção por subcategoria. Atualize quando houver reajuste do fornecedor.
               </p>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Categoria</TableHead>
+                    <TableHead>Categoria / Subcategoria</TableHead>
                     <TableHead className="w-28">Preço/kg cru</TableHead>
                     <TableHead className="w-24">Cocção (%)</TableHead>
                     <TableHead className="w-16 text-right">FC</TableHead>
                     <TableHead className="w-28 text-right">Custo/g real</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <CategoryRow
+                  <CategoryGroup
                     label="Proteína"
                     emoji="🥩"
-                    pricing={settings.proteinPricing}
-                    onChange={(p) => update({ proteinPricing: p })}
+                    category="protein"
+                    subcategories={settings.subcategoryPricing.protein}
+                    fallbackPricing={settings.proteinPricing}
+                    onSubcategoriesChange={(items) => updateSubcategories("protein", items)}
                   />
-                  <CategoryRow
+                  <CategoryGroup
                     label="Carboidrato"
                     emoji="🍚"
-                    pricing={settings.carbPricing}
-                    onChange={(p) => update({ carbPricing: p })}
+                    category="carb"
+                    subcategories={settings.subcategoryPricing.carb}
+                    fallbackPricing={settings.carbPricing}
+                    onSubcategoriesChange={(items) => updateSubcategories("carb", items)}
                   />
-                  <CategoryRow
+                  <CategoryGroup
                     label="Mix de Legumes"
                     emoji="🥦"
-                    pricing={settings.veggiePricing}
-                    onChange={(p) => update({ veggiePricing: p })}
+                    category="veggie"
+                    subcategories={settings.subcategoryPricing.veggie}
+                    fallbackPricing={settings.veggiePricing}
+                    onSubcategoriesChange={(items) => updateSubcategories("veggie", items)}
                   />
                 </TableBody>
               </Table>

@@ -4,6 +4,8 @@ import { useTenantId } from "@/hooks/useTenantId";
 import { toast } from "@/hooks/use-toast";
 import type { PricingSettings, PackageOption } from "@/components/admin/diet-pricing/PricingConfig";
 import { getCostPerGram } from "@/components/admin/diet-pricing/PricingConfig";
+import { DEFAULT_SUBCATEGORY_PRICING, getSubcategoryCostPerGram } from "@/lib/subcategory-pricing";
+import type { SubcategoryPricing } from "@/lib/subcategory-pricing";
 
 const DEFAULT_PACKAGES: PackageOption[] = [
   { days: 7, label: "7 dias", discount: 0 },
@@ -16,6 +18,7 @@ const DEFAULT_SETTINGS: PricingSettings = {
   proteinPricing: { costPerKg: 30.00, cookingLossPercent: 30 },
   carbPricing: { costPerKg: 8.00, cookingLossPercent: 0 },
   veggiePricing: { costPerKg: 12.00, cookingLossPercent: 15 },
+  subcategoryPricing: DEFAULT_SUBCATEGORY_PRICING,
   rawCostPerKg: 20.00,
   cookingLossPercent: 30,
   correctionFactor: 1.43,
@@ -52,6 +55,7 @@ export function useDietPricing() {
 
       if (data) {
         const d = data as any;
+        const subPricing = d.subcategory_pricing as SubcategoryPricing | null;
         setSettings({
           proteinPricing: {
             costPerKg: d.protein_cost_per_kg ?? 30,
@@ -65,6 +69,7 @@ export function useDietPricing() {
             costPerKg: d.veggie_cost_per_kg ?? 12,
             cookingLossPercent: d.veggie_cooking_loss ?? 15,
           },
+          subcategoryPricing: subPricing && subPricing.protein ? subPricing : DEFAULT_SUBCATEGORY_PRICING,
           rawCostPerKg: d.raw_cost_per_kg ?? DEFAULT_SETTINGS.rawCostPerKg,
           cookingLossPercent: d.cooking_loss_percent ?? DEFAULT_SETTINGS.cookingLossPercent,
           correctionFactor: d.correction_factor ?? DEFAULT_SETTINGS.correctionFactor,
@@ -103,6 +108,7 @@ export function useDietPricing() {
         carb_cooking_loss: settings.carbPricing.cookingLossPercent,
         veggie_cost_per_kg: settings.veggiePricing.costPerKg,
         veggie_cooking_loss: settings.veggiePricing.cookingLossPercent,
+        subcategory_pricing: settings.subcategoryPricing as any,
       };
 
       const { error } = await supabase
