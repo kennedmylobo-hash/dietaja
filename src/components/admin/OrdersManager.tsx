@@ -785,6 +785,9 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
 
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
 
+  // Payment approval prompt state
+  const [paymentPrompt, setPaymentPrompt] = useState<{ orderId: string; newStatus: string; trackingLinkValue?: string } | null>(null);
+
   const updateOrderStatus = async (orderId: string, newStatus: string, trackingLinkValue?: string) => {
     // If status is "delivering" and we don't have a tracking link decision yet, open modal
     if (newStatus === 'delivering' && trackingLinkValue === undefined) {
@@ -793,11 +796,23 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       return;
     }
 
+    // Check if order is unpaid and being moved to a production/delivery status
+    const currentOrder = orders.find(o => o.id === orderId);
+    const unpaidStatuses = ['pending', 'whatsapp_pending', 'awaiting_payment'];
+    const productionStatuses = ['preparing', 'ready', 'delivering', 'delivered'];
+    
+    if (currentOrder && unpaidStatuses.includes(currentOrder.status) && productionStatuses.includes(newStatus) && !paymentPrompt) {
+      // Show payment approval prompt
+      setPaymentPrompt({ orderId, newStatus, trackingLinkValue });
+      return;
+    }
+
+    // Clear payment prompt if it was open
+    setPaymentPrompt(null);
+
     setIsUpdatingStatus(orderId);
     
     try {
-      // Get current status before updating
-      const currentOrder = orders.find(o => o.id === orderId);
       const previousStatus = currentOrder?.status || 'unknown';
 
       // Build update object
@@ -836,8 +851,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       }
 
       // Send notification for status change (except pending statuses and WhatsApp imports)
-      const currentOrderForNotif = orders.find(o => o.id === orderId);
-      const isWhatsAppImportStatus = (currentOrderForNotif?.utm_data as any)?.source === 'whatsapp_import';
+      const isWhatsAppImportStatus = (currentOrder?.utm_data as any)?.source === 'whatsapp_import';
       if (!['pending', 'whatsapp_pending'].includes(newStatus) && !isWhatsAppImportStatus) {
         sendStatusNotification(orderId, newStatus);
       }
@@ -852,6 +866,41 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     } finally {
       setIsUpdatingStatus(null);
     }
+  };
+
+  // Handle payment prompt: approve payment first, then proceed with status change
+  const handlePaymentPromptApprove = async () => {
+    if (!paymentPrompt) return;
+    const { orderId, newStatus, trackingLinkValue } = paymentPrompt;
+    
+    // First confirm/approve the order (handles payment, stock, notifications)
+    await confirmOrder(orderId);
+    
+    // Then if the target status is beyond 'approved', continue updating
+    if (newStatus !== 'approved' && newStatus !== 'preparing') {
+      // Small delay to let the confirmOrder finish
+      setTimeout(() => {
+        setPaymentPrompt(null);
+        updateOrderStatus(orderId, newStatus, trackingLinkValue);
+      }, 500);
+    } else if (newStatus === 'preparing') {
+      // Confirm then move to preparing
+      setTimeout(() => {
+        setPaymentPrompt(null);
+        updateOrderStatus(orderId, 'preparing', trackingLinkValue);
+      }, 500);
+    } else {
+      setPaymentPrompt(null);
+    }
+  };
+
+  // Handle payment prompt: skip payment, just change status
+  const handlePaymentPromptSkip = () => {
+    if (!paymentPrompt) return;
+    const { orderId, newStatus, trackingLinkValue } = paymentPrompt;
+    setPaymentPrompt(null);
+    // Force the update by calling with paymentPrompt already cleared
+    updateOrderStatus(orderId, newStatus, trackingLinkValue);
   };
 
   const handleSendToDelivery = (withLink: boolean) => {
@@ -2028,6 +2077,41 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Approval Prompt Modal */}
+      <AlertDialog open={!!paymentPrompt} onOpenChange={(open) => { if (!open) setPaymentPrompt(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              Aprovar pagamento?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Este pedido ainda não está marcado como pago. Deseja <strong>aprovar o pagamento</strong> antes de mudar o status?
+              <br /><br />
+              <span className="text-muted-foreground text-xs">
+                Aprovar irá registrar como pago, decrementar estoque e enviar confirmação ao cliente.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel onClick={() => setPaymentPrompt(null)}>Cancelar</AlertDialogCancel>
+            <Button 
+              variant="outline" 
+              onClick={handlePaymentPromptSkip}
+            >
+              Pular (só mudar status)
+            </Button>
+            <Button 
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handlePaymentPromptApprove}
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Sim, aprovar pagamento
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
