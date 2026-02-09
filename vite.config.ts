@@ -25,7 +25,10 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: "autoUpdate",
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,jpg,jpeg,svg,webp,woff,woff2}"],
+        skipWaiting: true,
+        clientsClaim: true,
+        globPatterns: ["**/*.{js,css,ico,png,jpg,jpeg,svg,webp,woff,woff2}"],
+        navigateFallback: null,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
