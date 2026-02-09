@@ -1,7 +1,9 @@
- import { useState, useMemo } from "react";
- import { useQuery } from "@tanstack/react-query";
- import { supabase } from "@/integrations/supabase/client";
- import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useOrderCostCalculator, calculateOrderCost } from "@/hooks/useOrderCostCalculator";
+import type { Json } from "@/integrations/supabase/types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  import { Button } from "@/components/ui/button";
  import {
    Select,
@@ -11,16 +13,17 @@
    SelectValue,
  } from "@/components/ui/select";
  import {
-   DollarSign,
-   Package,
-   TrendingUp,
-   Users,
-   ArrowUp,
-   ArrowDown,
-   RefreshCw,
-   Utensils,
-   Droplets,
- } from "lucide-react";
+  DollarSign,
+  Package,
+  TrendingUp,
+  Users,
+  ArrowUp,
+  ArrowDown,
+  RefreshCw,
+  Utensils,
+  Droplets,
+  Wallet,
+} from "lucide-react";
  import {
    AreaChart,
    Area,
@@ -44,7 +47,8 @@
  const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
  
  const KPIDashboard = ({ dateFilter }: KPIDashboardProps) => {
-   const [period, setPeriod] = useState<"day" | "week" | "month">("week");
+  const [period, setPeriod] = useState<"day" | "week" | "month">("week");
+  const { settings: pricingSettings, loaded: pricingLoaded } = useOrderCostCalculator();
  
    const getDateRange = (filter: string) => {
      const now = new Date();
@@ -94,8 +98,19 @@
        return data || [];
      },
    });
- 
-   // Previous period data for comparison
+
+  // Flavor compositions for cost calculation
+  const { data: flavorSidesMap } = useQuery({
+    queryKey: ["kpi-flavor-sides"],
+    queryFn: async () => {
+      const { data } = await supabase.from("marmita_flavors").select("name, sides");
+      const map: Record<string, Json | null> = {};
+      data?.forEach((f) => { map[f.name] = f.sides; });
+      return map;
+    },
+  });
+
+  // Previous period data for comparison
    const { data: previousOrders } = useQuery({
      queryKey: ["kpi-orders-prev", dateFilter],
      queryFn: async () => {
@@ -137,30 +152,43 @@
      const leadsCount = leads?.length || 0;
      const conversionRate = leadsCount > 0 ? (orderCount / leadsCount) * 100 : 0;
  
-     // Revenue by category
-     let marmitasRevenue = 0;
-     let kitsRevenue = 0;
- 
-     validOrders.forEach((order) => {
-       const items = order.items as any[];
-       if (!Array.isArray(items)) return;
-       items.forEach((item) => {
-         if (item.type === "marmita") marmitasRevenue += item.totalPrice || 0;
-         else if (item.type === "kit") kitsRevenue += item.totalPrice || 0;
-       });
-     });
- 
-     return {
-       revenue,
-       orderCount,
-       avgTicket,
-       revenueGrowth,
-       ordersGrowth,
-       conversionRate,
-       marmitasRevenue,
-       kitsRevenue,
-     };
-   }, [orders, previousOrders, leads]);
+      // Revenue by category + estimated cost
+      let marmitasRevenue = 0;
+      let kitsRevenue = 0;
+      let estimatedCost = 0;
+
+      validOrders.forEach((order) => {
+        const items = order.items as any[];
+        if (!Array.isArray(items)) return;
+        items.forEach((item) => {
+          if (item.type === "marmita") marmitasRevenue += item.totalPrice || 0;
+          else if (item.type === "kit") kitsRevenue += item.totalPrice || 0;
+        });
+
+        // Calculate cost if we have pricing + flavor data
+        if (pricingLoaded && flavorSidesMap) {
+          const costResult = calculateOrderCost(items, flavorSidesMap, pricingSettings);
+          estimatedCost += costResult.totalCost;
+        }
+      });
+
+      const estimatedProfit = revenue - estimatedCost;
+      const avgMargin = revenue > 0 ? (estimatedProfit / revenue) * 100 : 0;
+
+      return {
+        revenue,
+        orderCount,
+        avgTicket,
+        revenueGrowth,
+        ordersGrowth,
+        conversionRate,
+        marmitasRevenue,
+        kitsRevenue,
+        estimatedCost,
+        estimatedProfit,
+        avgMargin,
+      };
+    }, [orders, previousOrders, leads, pricingLoaded, pricingSettings, flavorSidesMap]);
  
    // Daily chart data
    const chartData = useMemo(() => {
@@ -331,32 +359,62 @@
          </Card>
        </div>
  
-       {/* Category Revenue */}
-       <div className="grid grid-cols-2 gap-4">
-         <Card>
-           <CardHeader className="pb-2">
-             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-               <Utensils className="h-4 w-4" />
-               Marmitas
-             </CardTitle>
-           </CardHeader>
-           <CardContent>
-             <div className="text-xl font-bold text-primary">{formatCurrency(kpis?.marmitasRevenue || 0)}</div>
-           </CardContent>
-         </Card>
- 
-         <Card>
-           <CardHeader className="pb-2">
-             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-               <Droplets className="h-4 w-4" />
-               Kits Detox
-             </CardTitle>
-           </CardHeader>
-           <CardContent>
-             <div className="text-xl font-bold text-primary">{formatCurrency(kpis?.kitsRevenue || 0)}</div>
-           </CardContent>
-         </Card>
-       </div>
+        {/* Category Revenue + Profit */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Utensils className="h-4 w-4" />
+                Marmitas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-primary">{formatCurrency(kpis?.marmitasRevenue || 0)}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Droplets className="h-4 w-4" />
+                Kits Detox
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-primary">{formatCurrency(kpis?.kitsRevenue || 0)}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Lucro Estimado
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-xl font-bold ${(kpis?.estimatedProfit || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {formatCurrency(kpis?.estimatedProfit || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">Receita − custo dos insumos</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Margem Média
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-xl font-bold ${(kpis?.avgMargin || 0) >= 50 ? "text-green-600" : (kpis?.avgMargin || 0) >= 30 ? "text-amber-600" : "text-red-600"}`}>
+                {(kpis?.avgMargin || 0).toFixed(1)}%
+              </div>
+              <p className="text-xs text-muted-foreground">Baseada na tabela de insumos</p>
+            </CardContent>
+          </Card>
+        </div>
  
        {/* Charts */}
        <div className="grid md:grid-cols-2 gap-6">

@@ -360,9 +360,8 @@ export default function CustomDietQuoter() {
                     <TableHead className="w-20">🍚 Carbo (g)</TableHead>
                     <TableHead className="w-20">🥦 Leg (g)</TableHead>
                     <TableHead className="w-16">Total</TableHead>
-                    <TableHead className="w-28">Preço fixo</TableHead>
-                    <TableHead className="w-28 text-right">Preço</TableHead>
-                    <TableHead className="w-10"></TableHead>
+                     <TableHead className="w-32 text-right">Preço un.</TableHead>
+                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -381,16 +380,33 @@ export default function CustomDietQuoter() {
                       <TableCell>
                         <Input type="number" value={item.veggieWeight} onChange={(e) => updateItem(idx, "veggieWeight", parseInt(e.target.value) || 0)} className="text-sm w-16" />
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground font-medium">{item.totalWeight}g</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number" step="0.01" placeholder="Auto"
-                          value={item.priceOverride ?? ""}
-                          onChange={(e) => updateItem(idx, "priceOverride", e.target.value ? parseFloat(e.target.value) : null)}
-                          className="text-sm w-24"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(getItemPrice(item))}</TableCell>
+                       <TableCell className="text-xs text-muted-foreground font-medium">{item.totalWeight}g</TableCell>
+                       <TableCell className="text-right">
+                         <div className="flex items-center justify-end gap-1">
+                           <Input
+                             type="number"
+                             step="0.01"
+                             placeholder={formatCurrency(getItemPrice({ ...item, priceOverride: null }))}
+                             value={item.priceOverride ?? ""}
+                             onChange={(e) => updateItem(idx, "priceOverride", e.target.value ? parseFloat(e.target.value) : null)}
+                             className={`text-sm w-24 text-right ${item.priceOverride !== null ? "border-primary ring-1 ring-primary/30" : ""}`}
+                           />
+                           {item.priceOverride !== null && (
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                               onClick={() => updateItem(idx, "priceOverride", null)}
+                               title="Voltar ao preço automático"
+                             >
+                               <span className="text-xs">↺</span>
+                             </Button>
+                           )}
+                         </div>
+                         {item.priceOverride !== null && (
+                           <p className="text-[10px] text-primary mt-0.5">Manual</p>
+                         )}
+                       </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="text-destructive hover:text-destructive">
                           <Trash2 className="w-4 h-4" />
