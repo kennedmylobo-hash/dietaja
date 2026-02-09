@@ -35,6 +35,42 @@ export const DEFAULT_SUBCATEGORY_PRICING: SubcategoryPricing = {
  * Find the best matching subcategory for an ingredient name.
  * Returns the specific cost per gram, or falls back to the category-level pricing.
  */
+/**
+ * Find the best matching subcategory name for an ingredient.
+ */
+export function matchSubcategoryName(
+  ingredientName: string,
+  category: "protein" | "carb" | "veggie",
+  subcategories: SubcategoryPricing
+): string | null {
+  const lower = ingredientName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const subs = subcategories[category];
+  if (!subs || subs.length === 0) return null;
+
+  let bestMatch: SubcategoryItem | null = null;
+  let bestScore = 0;
+
+  for (const sub of subs) {
+    let score = 0;
+    for (const kw of sub.keywords) {
+      const kwNorm = kw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (lower.includes(kwNorm)) {
+        score += kwNorm.length;
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = sub;
+    }
+  }
+
+  return bestMatch?.name || null;
+}
+
+/**
+ * Find the best matching subcategory for an ingredient name.
+ * Returns the specific cost per gram, or falls back to the category-level pricing.
+ */
 export function getSubcategoryCostPerGram(
   ingredientName: string,
   category: "protein" | "carb" | "veggie",
@@ -53,7 +89,7 @@ export function getSubcategoryCostPerGram(
       for (const kw of sub.keywords) {
         const kwNorm = kw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         if (lower.includes(kwNorm)) {
-          score += kwNorm.length; // longer keyword = better match
+          score += kwNorm.length;
         }
       }
       if (score > bestScore) {

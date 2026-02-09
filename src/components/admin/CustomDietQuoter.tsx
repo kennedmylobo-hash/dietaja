@@ -4,6 +4,7 @@ import { useTenantId } from "@/hooks/useTenantId";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDietPricing } from "@/hooks/useDietPricing";
 import { parseDietMessage } from "@/lib/diet-quote-parser";
+import { matchSubcategoryName } from "@/lib/subcategory-pricing";
 import PricingConfig from "@/components/admin/diet-pricing/PricingConfig";
 import FinancialSummary from "@/components/admin/diet-pricing/FinancialSummary";
 import { Button } from "@/components/ui/button";
@@ -22,9 +23,17 @@ import {
 import { buildFormattedQuoteMessage } from "@/lib/quote-message-builder";
 import jsPDF from "jspdf";
 
+interface QuoteIngredient {
+  name: string;
+  weightGrams: number;
+  category: "protein" | "carb" | "veggie";
+  subcategory: string;
+}
+
 interface QuoteItem {
   number: number;
   description: string;
+  ingredients: QuoteIngredient[];
   proteinWeight: number;
   carbWeight: number;
   veggieWeight: number;
@@ -77,8 +86,15 @@ export default function CustomDietQuoter() {
       toast({ title: "Nenhum item encontrado", description: "Cole a lista numerada do WhatsApp.", variant: "destructive" });
       return;
     }
+    const subcats = settings.subcategoryPricing;
     setItems(parsed.map(p => ({
       number: p.number, description: p.description,
+      ingredients: p.ingredients.map(ing => ({
+        name: ing.name,
+        weightGrams: ing.weightGrams,
+        category: ing.category,
+        subcategory: matchSubcategoryName(ing.name, ing.category, subcats) || "Não identificado",
+      })),
       proteinWeight: p.proteinWeight, carbWeight: p.carbWeight,
       veggieWeight: p.veggieWeight, totalWeight: p.totalWeight,
       priceOverride: null,
@@ -98,7 +114,7 @@ export default function CustomDietQuoter() {
     }));
   };
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
-  const addItem = () => setItems(prev => [...prev, { number: prev.length + 1, description: "", proteinWeight: 0, carbWeight: 0, veggieWeight: 0, totalWeight: 0, priceOverride: null }]);
+  const addItem = () => setItems(prev => [...prev, { number: prev.length + 1, description: "", ingredients: [], proteinWeight: 0, carbWeight: 0, veggieWeight: 0, totalWeight: 0, priceOverride: null }]);
 
   const subtotalPerUnit = items.reduce((sum, item) => sum + getItemPrice(item), 0);
 
@@ -248,6 +264,12 @@ export default function CustomDietQuoter() {
     const loadedItems = (q.items as any[]) || [];
     setItems(loadedItems.map((item: any) => ({
       number: item.number || 0, description: item.description || "",
+      ingredients: (item.ingredients || []).map((ing: any) => ({
+        name: ing.name || "",
+        weightGrams: ing.weightGrams || 0,
+        category: ing.category || "protein",
+        subcategory: ing.subcategory || "Não identificado",
+      })),
       proteinWeight: item.proteinWeight || 0, carbWeight: item.carbWeight || 0,
       veggieWeight: item.veggieWeight || 0, totalWeight: item.totalWeight || 0,
       priceOverride: item.priceOverride ?? null,
@@ -356,64 +378,89 @@ export default function CustomDietQuoter() {
                   <TableRow>
                     <TableHead className="w-10">#</TableHead>
                     <TableHead>Descrição</TableHead>
-                    <TableHead className="w-20">🥩 Prot (g)</TableHead>
-                    <TableHead className="w-20">🍚 Carbo (g)</TableHead>
-                    <TableHead className="w-20">🥦 Leg (g)</TableHead>
                     <TableHead className="w-16">Total</TableHead>
-                     <TableHead className="w-32 text-right">Preço un.</TableHead>
-                     <TableHead className="w-10"></TableHead>
+                    <TableHead className="w-32 text-right">Preço un.</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="font-medium">{item.number}</TableCell>
-                      <TableCell>
-                        <Input value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} className="text-sm" />
-                      </TableCell>
-                      <TableCell>
-                        <Input type="number" value={item.proteinWeight} onChange={(e) => updateItem(idx, "proteinWeight", parseInt(e.target.value) || 0)} className="text-sm w-16" />
-                      </TableCell>
-                      <TableCell>
-                        <Input type="number" value={item.carbWeight} onChange={(e) => updateItem(idx, "carbWeight", parseInt(e.target.value) || 0)} className="text-sm w-16" />
-                      </TableCell>
-                      <TableCell>
-                        <Input type="number" value={item.veggieWeight} onChange={(e) => updateItem(idx, "veggieWeight", parseInt(e.target.value) || 0)} className="text-sm w-16" />
-                      </TableCell>
-                       <TableCell className="text-xs text-muted-foreground font-medium">{item.totalWeight}g</TableCell>
-                       <TableCell className="text-right">
-                         <div className="flex items-center justify-end gap-1">
-                           <Input
-                             type="number"
-                             step="0.01"
-                             placeholder={formatCurrency(getItemPrice({ ...item, priceOverride: null }))}
-                             value={item.priceOverride ?? ""}
-                             onChange={(e) => updateItem(idx, "priceOverride", e.target.value ? parseFloat(e.target.value) : null)}
-                             className={`text-sm w-24 text-right ${item.priceOverride !== null ? "border-primary ring-1 ring-primary/30" : ""}`}
-                           />
-                           {item.priceOverride !== null && (
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                               onClick={() => updateItem(idx, "priceOverride", null)}
-                               title="Voltar ao preço automático"
-                             >
-                               <span className="text-xs">↺</span>
-                             </Button>
-                           )}
-                         </div>
-                         {item.priceOverride !== null && (
-                           <p className="text-[10px] text-primary mt-0.5">Manual</p>
-                         )}
-                       </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="text-destructive hover:text-destructive">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {items.map((item, idx) => {
+                    const hasUnmatched = item.ingredients.some(ing => ing.subcategory === "Não identificado");
+                    return (
+                      <>
+                        <TableRow key={`item-${idx}`} className={hasUnmatched ? "border-l-2 border-l-amber-500" : ""}>
+                          <TableCell className="font-medium">{item.number}</TableCell>
+                          <TableCell>
+                            <Input value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} className="text-sm" />
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground font-medium">{item.totalWeight}g</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder={formatCurrency(getItemPrice({ ...item, priceOverride: null }))}
+                                value={item.priceOverride ?? ""}
+                                onChange={(e) => updateItem(idx, "priceOverride", e.target.value ? parseFloat(e.target.value) : null)}
+                                className={`text-sm w-24 text-right ${item.priceOverride !== null ? "border-primary ring-1 ring-primary/30" : ""}`}
+                              />
+                              {item.priceOverride !== null && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                  onClick={() => updateItem(idx, "priceOverride", null)}
+                                  title="Voltar ao preço automático"
+                                >
+                                  <span className="text-xs">↺</span>
+                                </Button>
+                              )}
+                            </div>
+                            {item.priceOverride !== null && (
+                              <p className="text-[10px] text-primary mt-0.5">Manual</p>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="text-destructive hover:text-destructive">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        {/* Ingredient rows */}
+                        {item.ingredients.length > 0 && (
+                          <TableRow key={`ings-${idx}`} className="bg-muted/30 hover:bg-muted/40">
+                            <TableCell />
+                            <TableCell colSpan={4}>
+                              <div className="space-y-1.5 py-1">
+                                {item.ingredients.map((ing, ingIdx) => {
+                                  const categoryEmoji = ing.category === "protein" ? "🥩" : ing.category === "carb" ? "🍚" : "🥦";
+                                  const isUnmatched = ing.subcategory === "Não identificado";
+                                  return (
+                                    <div key={ingIdx} className="flex items-center gap-2 text-xs">
+                                      <span>{categoryEmoji}</span>
+                                      <span className="text-muted-foreground min-w-[100px]">{ing.name}</span>
+                                      <span className="font-medium">{ing.weightGrams}g</span>
+                                      <span className="mx-1">→</span>
+                                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                        isUnmatched
+                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 ring-1 ring-amber-300"
+                                          : "bg-primary/10 text-primary"
+                                      }`}>
+                                        {ing.subcategory}
+                                      </span>
+                                      {isUnmatched && (
+                                        <span className="text-amber-600 text-[10px]">⚠ Preencher</span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    );
+                  })}
                 </TableBody>
               </Table>
               <Button variant="outline" size="sm" onClick={addItem} className="mt-3">
