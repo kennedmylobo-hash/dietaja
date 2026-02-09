@@ -17,8 +17,9 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   ClipboardPaste, Trash2, Plus, Send, FileText, Save, History,
-  Calculator, ChevronDown, ChevronUp,
+  Calculator, ChevronDown, ChevronUp, Copy,
 } from "lucide-react";
+import { buildFormattedQuoteMessage } from "@/lib/quote-message-builder";
 import jsPDF from "jspdf";
 
 interface QuoteItem {
@@ -91,7 +92,37 @@ export default function CustomDietQuoter() {
   const formatCurrency = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const handleSave = async () => {
+  const generateQuoteNumber = async (): Promise<string> => {
+    const year = new Date().getFullYear();
+    const { count } = await supabase
+      .from("custom_diet_quotes" as any)
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .gte("created_at", `${year}-01-01`)
+      .lte("created_at", `${year}-12-31`);
+    const seq = ((count as number) || 0) + 1;
+    return `ORC-${year}-${String(seq).padStart(4, "0")}`;
+  };
+
+  const buildMessage = (quoteNumber: string) => {
+    const brandName = tenant?.brand_name || "Restaurante";
+    return buildFormattedQuoteMessage({
+      brandName,
+      quoteNumber,
+      customerName,
+      items: items.map(item => ({
+        number: item.number,
+        description: item.description,
+        totalWeight: item.totalWeight,
+        price: getItemPrice(item),
+      })),
+      subtotalPerUnit,
+      packageOptions: settings.packageOptions,
+      notes,
+    });
+  };
+
+  const handleSave = async (quoteNumber?: string) => {
     if (items.length === 0) return;
     setSaving(true);
     try {
@@ -102,6 +133,7 @@ export default function CustomDietQuoter() {
         items: items as any,
         price_per_gram: settings.pricingMode === "manual" ? settings.manualPricePerGram : null,
         subtotal_per_unit: subtotalPerUnit,
+        quote_number: quoteNumber || null,
         package_options: settings.packageOptions.map(p => ({
           days: p.days,
           total: Math.round((subtotalPerUnit * items.length * p.days * (1 - p.discount)) * 100) / 100,
@@ -121,27 +153,33 @@ export default function CustomDietQuoter() {
     }
   };
 
-  const sendWhatsApp = () => {
+  const handleCopyQuote = async () => {
     if (items.length === 0) return;
-    const brandName = tenant?.brand_name || "Restaurante";
-    let msg = `🥗 *Orçamento Dieta Personalizada*\n*${brandName}*\n\n`;
-    if (customerName) msg += `👤 Cliente: ${customerName}\n\n`;
-    msg += `📋 *Itens por refeição:*\n`;
-    items.forEach(item => {
-      msg += `${item.number}. ${item.description} (${item.totalWeight}g) — ${formatCurrency(getItemPrice(item))}\n`;
-    });
-    msg += `\n💰 *Subtotal por refeição:* ${formatCurrency(subtotalPerUnit)}\n\n📦 *Pacotes:*\n`;
-    settings.packageOptions.forEach(pkg => {
-      const total = subtotalPerUnit * items.length * pkg.days * (1 - pkg.discount);
-      const discountLabel = pkg.discount > 0 ? ` (${Math.round(pkg.discount * 100)}% desc.)` : "";
-      msg += `• Kit ${pkg.label}: ${formatCurrency(total)}${discountLabel}\n`;
-    });
-    const phone = customerPhone?.replace(/\D/g, "") || "";
-    const url = phone
-      ? `https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`
-      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-    window.open(url, "_blank");
-    handleSave();
+    try {
+      const qn = await generateQuoteNumber();
+      const msg = buildMessage(qn);
+      await navigator.clipboard.writeText(msg);
+      toast({ title: "📋 Orçamento copiado!", description: `Nº ${qn}` });
+      handleSave(qn);
+    } catch (err: any) {
+      toast({ title: "Erro ao copiar", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const sendWhatsApp = async () => {
+    if (items.length === 0) return;
+    try {
+      const qn = await generateQuoteNumber();
+      const msg = buildMessage(qn);
+      const phone = customerPhone?.replace(/\D/g, "") || "";
+      const url = phone
+        ? `https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`
+        : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      window.open(url, "_blank");
+      handleSave(qn);
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar", description: err.message, variant: "destructive" });
+    }
   };
 
   const generatePDF = () => {
@@ -359,13 +397,16 @@ export default function CustomDietQuoter() {
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button onClick={sendWhatsApp} variant="cta" className="flex-1">
+            <Button onClick={handleCopyQuote} variant="cta" className="flex-1">
+              <Copy className="w-4 h-4 mr-2" /> Copiar Orçamento
+            </Button>
+            <Button onClick={sendWhatsApp} variant="outline" className="flex-1">
               <Send className="w-4 h-4 mr-2" /> Enviar pelo WhatsApp
             </Button>
             <Button onClick={generatePDF} variant="outline" className="flex-1">
               <FileText className="w-4 h-4 mr-2" /> Gerar PDF
             </Button>
-            <Button onClick={handleSave} variant="secondary" disabled={saving}>
+            <Button onClick={() => handleSave()} variant="secondary" disabled={saving}>
               <Save className="w-4 h-4 mr-2" /> Salvar
             </Button>
           </div>

@@ -499,6 +499,7 @@ export type Database = {
           notes: string | null
           package_options: Json | null
           price_per_gram: number | null
+          quote_number: string | null
           status: string | null
           subtotal_per_unit: number | null
           tenant_id: string
@@ -513,6 +514,7 @@ export type Database = {
           notes?: string | null
           package_options?: Json | null
           price_per_gram?: number | null
+          quote_number?: string | null
           status?: string | null
           subtotal_per_unit?: number | null
           tenant_id: string
@@ -527,6 +529,7 @@ export type Database = {
           notes?: string | null
           package_options?: Json | null
           price_per_gram?: number | null
+          quote_number?: string | null
           status?: string | null
           subtotal_per_unit?: number | null
           tenant_id?: string

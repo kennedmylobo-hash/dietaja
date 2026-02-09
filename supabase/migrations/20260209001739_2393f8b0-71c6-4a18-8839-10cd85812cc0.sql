@@ -1,0 +1,1 @@
+ALTER TABLE public.custom_diet_quotes ADD COLUMN quote_number TEXT;
