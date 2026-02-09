@@ -20,6 +20,7 @@ import FlavorSelectionModal from "./FlavorSelectionModal";
 import KitFlavorSelectionModal from "./KitFlavorSelectionModal";
 import PixPaymentModal from "./PixPaymentModal";
 import { toast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useMarmitaFlavors, useKitJuices, useKitSoups } from "@/hooks/useMenuData";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
@@ -350,7 +351,47 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     setStep('confirmation');
   };
 
-  // NEW: Confirm order - OPTIMIZED: Only create order, skip email until payment confirmed
+  // Insert order with automatic retry (up to 2 attempts)
+  const insertOrderWithRetry = async (payload: any, maxRetries = 2) => {
+    let lastError: unknown = null;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const { data, error } = await supabase
+        .from('orders')
+        .insert(payload)
+        .select('order_number, id')
+        .single();
+
+      if (!error && data) return { data, error: null };
+
+      lastError = error;
+      console.warn(`Order insert attempt ${attempt}/${maxRetries} failed:`, error);
+
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+    return { data: null, error: lastError };
+  };
+
+  // Log checkout failure to payment_error_logs for admin diagnosis
+  const logCheckoutError = async (error: unknown, context: Record<string, unknown>) => {
+    try {
+      await supabase.from('payment_error_logs').insert({
+        tenant_id: tenantId,
+        error_code: 'CHECKOUT_INSERT',
+        error_message: error instanceof Error ? error.message : String(error),
+        provider: 'checkout',
+        customer_email: formData?.email || null,
+        customer_phone: formData?.phone || null,
+        request_payload: context as any,
+        response_payload: (error && typeof error === 'object' && 'details' in error ? error : { raw: String(error) }) as any,
+      });
+    } catch (logErr) {
+      console.error('Failed to log checkout error:', logErr);
+    }
+  };
+
+  // NEW: Confirm order - OPTIMIZED with retry + error logging
   const handleConfirmOrder = async () => {
     if (!formData) return;
     
@@ -372,46 +413,60 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         console.error('Background account creation error:', err)
       );
 
-      // Save order to database with 'awaiting_payment' status
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          status: 'awaiting_payment',
-          payment_method: 'pending',
-          items: items.map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            type: item.type,
-            lineType: item.lineType || null,
-            flavors: item.flavors?.map(f => ({
-              name: f.name,
-              quantity: f.quantity,
-              category: f.category,
-            })),
+      const orderPayload = {
+        tenant_id: tenantId,
+        status: 'awaiting_payment',
+        payment_method: 'pending',
+        items: items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          type: item.type,
+          lineType: item.lineType || null,
+          flavors: item.flavors?.map(f => ({
+            name: f.name,
+            quantity: f.quantity,
+            category: f.category,
           })),
-          subtotal,
-          delivery_fee: deliveryFee,
-          total,
-          customer_name: formData.name,
-          customer_email: formData.email,
-          customer_phone: formData.phone,
-          delivery_option: formData.deliveryOption,
-          delivery_address: formData.address || null,
-          utm_data: getUTMParams() || null,
-          coupon_code: appliedCoupon || null,
-          discount_amount: couponDiscount,
-        })
-        .select('order_number')
-        .single();
+        })),
+        subtotal,
+        delivery_fee: deliveryFee,
+        total,
+        customer_name: formData.name,
+        customer_email: formData.email,
+        customer_phone: formData.phone,
+        delivery_option: formData.deliveryOption,
+        delivery_address: formData.address || null,
+        utm_data: getUTMParams() || null,
+        coupon_code: appliedCoupon || null,
+        discount_amount: couponDiscount,
+      };
 
-      if (orderError) {
-        console.error('Error creating order:', orderError);
+      // Save order with retry logic (2 attempts, 1s delay between)
+      const { data: orderData, error: orderError } = await insertOrderWithRetry(orderPayload);
+
+      if (orderError || !orderData) {
+        console.error('Error creating order after retries:', orderError);
+        
+        // Log the error persistently for admin diagnosis
+        await logCheckoutError(orderError, {
+          error_source: 'checkout_insert',
+          customer_name: formData.name,
+          total,
+          items_count: items.length,
+        });
+        
         toast({
           title: "Erro ao confirmar pedido",
-          description: "Tente novamente ou entre em contato via WhatsApp.",
+          description: "Ocorreu um problema. Toque para tentar novamente.",
           variant: "destructive",
+          action: (
+            <ToastAction altText="Tentar novamente" onClick={() => handleConfirmOrder()}>
+              Tentar novamente
+            </ToastAction>
+          ),
+          duration: 15000,
         });
         setIsConfirming(false);
         return;
@@ -449,17 +504,28 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       trackCheckoutComplete(total);
       celebrateCheckout();
 
-      // NOTE: Confirmation email will be sent by webhook when payment is confirmed
-      // This removes ~1-2s of latency from this step
-
       // Go to success step
       setStep('success');
     } catch (error) {
       console.error('Error confirming order:', error);
+      
+      // Log unexpected errors too
+      await logCheckoutError(error, {
+        error_source: 'checkout_unexpected',
+        customer_name: formData?.name,
+        total,
+      });
+      
       toast({
         title: "Erro ao confirmar pedido",
-        description: "Tente novamente.",
+        description: "Ocorreu um problema inesperado. Toque para tentar novamente.",
         variant: "destructive",
+        action: (
+          <ToastAction altText="Tentar novamente" onClick={() => handleConfirmOrder()}>
+            Tentar novamente
+          </ToastAction>
+        ),
+        duration: 15000,
       });
     } finally {
       setIsConfirming(false);
