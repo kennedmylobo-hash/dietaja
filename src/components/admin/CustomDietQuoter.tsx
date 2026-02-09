@@ -25,6 +25,9 @@ import jsPDF from "jspdf";
 interface QuoteItem {
   number: number;
   description: string;
+  proteinWeight: number;
+  carbWeight: number;
+  veggieWeight: number;
   totalWeight: number;
   priceOverride: number | null;
 }
@@ -76,16 +79,26 @@ export default function CustomDietQuoter() {
     }
     setItems(parsed.map(p => ({
       number: p.number, description: p.description,
-      totalWeight: p.totalWeight, priceOverride: null,
+      proteinWeight: p.proteinWeight, carbWeight: p.carbWeight,
+      veggieWeight: p.veggieWeight, totalWeight: p.totalWeight,
+      priceOverride: null,
     })));
     toast({ title: `${parsed.length} itens extraídos!` });
   };
 
   const updateItem = (idx: number, field: keyof QuoteItem, value: any) => {
-    setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+    setItems(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      const updated = { ...item, [field]: value };
+      // Recalculate totalWeight when component weights change
+      if (field === "proteinWeight" || field === "carbWeight" || field === "veggieWeight") {
+        updated.totalWeight = (updated.proteinWeight || 0) + (updated.carbWeight || 0) + (updated.veggieWeight || 0);
+      }
+      return updated;
+    }));
   };
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
-  const addItem = () => setItems(prev => [...prev, { number: prev.length + 1, description: "", totalWeight: 0, priceOverride: null }]);
+  const addItem = () => setItems(prev => [...prev, { number: prev.length + 1, description: "", proteinWeight: 0, carbWeight: 0, veggieWeight: 0, totalWeight: 0, priceOverride: null }]);
 
   const subtotalPerUnit = items.reduce((sum, item) => sum + getItemPrice(item), 0);
 
@@ -235,7 +248,9 @@ export default function CustomDietQuoter() {
     const loadedItems = (q.items as any[]) || [];
     setItems(loadedItems.map((item: any) => ({
       number: item.number || 0, description: item.description || "",
-      totalWeight: item.totalWeight || 0, priceOverride: item.priceOverride ?? null,
+      proteinWeight: item.proteinWeight || 0, carbWeight: item.carbWeight || 0,
+      veggieWeight: item.veggieWeight || 0, totalWeight: item.totalWeight || 0,
+      priceOverride: item.priceOverride ?? null,
     })));
     setShowHistory(false);
     toast({ title: "Orçamento carregado!" });
@@ -341,8 +356,11 @@ export default function CustomDietQuoter() {
                   <TableRow>
                     <TableHead className="w-10">#</TableHead>
                     <TableHead>Descrição</TableHead>
-                    <TableHead className="w-24">Peso (g)</TableHead>
-                    <TableHead className="w-32">Preço fixo</TableHead>
+                    <TableHead className="w-20">🥩 Prot (g)</TableHead>
+                    <TableHead className="w-20">🍚 Carbo (g)</TableHead>
+                    <TableHead className="w-20">🥦 Leg (g)</TableHead>
+                    <TableHead className="w-16">Total</TableHead>
+                    <TableHead className="w-28">Preço fixo</TableHead>
                     <TableHead className="w-28 text-right">Preço</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
@@ -355,14 +373,21 @@ export default function CustomDietQuoter() {
                         <Input value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} className="text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" value={item.totalWeight} onChange={(e) => updateItem(idx, "totalWeight", parseInt(e.target.value) || 0)} className="text-sm w-20" />
+                        <Input type="number" value={item.proteinWeight} onChange={(e) => updateItem(idx, "proteinWeight", parseInt(e.target.value) || 0)} className="text-sm w-16" />
                       </TableCell>
+                      <TableCell>
+                        <Input type="number" value={item.carbWeight} onChange={(e) => updateItem(idx, "carbWeight", parseInt(e.target.value) || 0)} className="text-sm w-16" />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" value={item.veggieWeight} onChange={(e) => updateItem(idx, "veggieWeight", parseInt(e.target.value) || 0)} className="text-sm w-16" />
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground font-medium">{item.totalWeight}g</TableCell>
                       <TableCell>
                         <Input
                           type="number" step="0.01" placeholder="Auto"
                           value={item.priceOverride ?? ""}
                           onChange={(e) => updateItem(idx, "priceOverride", e.target.value ? parseFloat(e.target.value) : null)}
-                          className="text-sm w-28"
+                          className="text-sm w-24"
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">{formatCurrency(getItemPrice(item))}</TableCell>

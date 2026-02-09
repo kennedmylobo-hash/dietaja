@@ -1,10 +1,13 @@
 import { Card, CardContent } from "@/components/ui/card";
-import type { PricingSettings, PackageOption } from "./PricingConfig";
+import type { PricingSettings } from "./PricingConfig";
 
 interface QuoteItem {
   number: number;
   description: string;
   totalWeight: number;
+  proteinWeight: number;
+  carbWeight: number;
+  veggieWeight: number;
   priceOverride: number | null;
 }
 
@@ -33,7 +36,6 @@ export default function FinancialSummary({
       <CardContent className="pt-6 space-y-4">
         <h3 className="font-bold text-lg">Resumo do Orçamento</h3>
 
-        {/* Per-meal summary */}
         <div className="space-y-1">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal venda ({items.length} itens):</span>
@@ -41,7 +43,6 @@ export default function FinancialSummary({
           </div>
         </div>
 
-        {/* Admin-only financial details */}
         <div className="bg-muted/60 rounded-lg p-3 space-y-1 border">
           <p className="text-xs font-semibold text-muted-foreground mb-2">🔒 Visão Financeira (admin)</p>
           <div className="flex justify-between text-sm">
@@ -62,7 +63,6 @@ export default function FinancialSummary({
           </div>
         </div>
 
-        {/* Packages */}
         <div className="border-t pt-4 space-y-2">
           <p className="font-semibold text-sm text-muted-foreground mb-2">Pacotes:</p>
           {settings.packageOptions.map((pkg) => {

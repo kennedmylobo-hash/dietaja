@@ -1738,6 +1738,8 @@ export type Database = {
       }
       tenant_diet_pricing: {
         Row: {
+          carb_cooking_loss: number | null
+          carb_cost_per_kg: number | null
           cooking_loss_percent: number
           correction_factor: number
           cost_per_gram: number
@@ -1749,11 +1751,17 @@ export type Database = {
           package_options: Json
           packaging_cost: number
           pricing_mode: string
+          protein_cooking_loss: number | null
+          protein_cost_per_kg: number | null
           raw_cost_per_kg: number
           tenant_id: string
           updated_at: string
+          veggie_cooking_loss: number | null
+          veggie_cost_per_kg: number | null
         }
         Insert: {
+          carb_cooking_loss?: number | null
+          carb_cost_per_kg?: number | null
           cooking_loss_percent?: number
           correction_factor?: number
           cost_per_gram?: number
@@ -1765,11 +1773,17 @@ export type Database = {
           package_options?: Json
           packaging_cost?: number
           pricing_mode?: string
+          protein_cooking_loss?: number | null
+          protein_cost_per_kg?: number | null
           raw_cost_per_kg?: number
           tenant_id: string
           updated_at?: string
+          veggie_cooking_loss?: number | null
+          veggie_cost_per_kg?: number | null
         }
         Update: {
+          carb_cooking_loss?: number | null
+          carb_cost_per_kg?: number | null
           cooking_loss_percent?: number
           correction_factor?: number
           cost_per_gram?: number
@@ -1781,9 +1795,13 @@ export type Database = {
           package_options?: Json
           packaging_cost?: number
           pricing_mode?: string
+          protein_cooking_loss?: number | null
+          protein_cost_per_kg?: number | null
           raw_cost_per_kg?: number
           tenant_id?: string
           updated_at?: string
+          veggie_cooking_loss?: number | null
+          veggie_cost_per_kg?: number | null
         }
         Relationships: [
           {
