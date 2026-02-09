@@ -1,56 +1,86 @@
 
 
-# Plano: Tornar o Checkout Resiliente a Falhas
+# Plano: Forcar Atualizacao para Clientes Recorrentes
 
-## Problema Identificado
+## Problema Raiz
 
-O cliente Glauber recebeu "Erro ao confirmar pedido" ao finalizar a compra. A investigacao nos logs do banco e das edge functions nao encontrou erros registrados (ja rotacionaram), e nenhum pedido foi criado para ele hoje. Isso indica que a insercao do pedido falhou (provavelmente erro de rede transitorio) e o sistema nao tem:
-- Retry automatico
-- Log persistente da falha
-- Informacao suficiente para diagnostico
-
-## Solucao Proposta
-
-### 1. Retry Automatico no Insert (CartDrawer.tsx)
-
-Adicionar logica de retry com ate 2 tentativas antes de mostrar erro ao cliente:
+O site usa um **Service Worker (PWA)** configurado para fazer cache de todos os arquivos:
 
 ```text
-Tentativa 1 -> falhou? -> aguarda 1s -> Tentativa 2 -> falhou? -> mostra erro
+globPatterns: ["**/*.{js,css,html,ico,png,jpg,jpeg,svg,webp,woff,woff2}"]
 ```
 
-### 2. Log Persistente de Falhas (CartDrawer.tsx)
+Quando voce atualiza o cardapio ou o codigo do site, clientes que ja visitaram (como o Glauber) podem estar rodando uma **versao antiga do JavaScript** guardada no cache do Service Worker. Essa versao antiga tenta interagir com o banco de dados atualizado, causando conflitos e erros silenciosos no checkout.
 
-Quando o insert falhar (mesmo apos retries), registrar o erro na tabela `payment_error_logs` para que voce possa diagnosticar no painel Admin:
+As meta tags `no-cache` no HTML nao resolvem porque o Service Worker **intercepta as requisicoes antes** do navegador checar o servidor.
 
-- Dados do erro (mensagem, codigo, detalhes)
-- Dados do cliente (nome, email, telefone)
-- Valor do pedido
-- Timestamp
+## Solucao
 
-### 3. Incluir `tenant_id` Explicitamente
+### 1. Forcar recarga quando houver nova versao (Service Worker)
 
-Passar o `tenant_id` no insert para evitar dependencia de valores default e garantir associacao correta ao tenant.
+Alterar a configuracao do PWA em `vite.config.ts` para:
+- Usar `skipWaiting: true` e `clientsClaim: true` no Workbox, forcando o novo Service Worker a assumir imediatamente (sem esperar o usuario fechar a aba)
+- Remover HTML do `globPatterns` para que o index.html nunca seja servido do cache do SW
 
-### 4. Mensagem de Erro Mais Util
+### 2. Detectar versao desatualizada no frontend
 
-Em vez de "Tente novamente ou entre em contato via WhatsApp", oferecer um botao de "Tentar novamente" e manter o contexto do pedido para que o cliente nao precise refazer tudo.
+Criar um pequeno listener em `src/main.tsx` que:
+- Detecta quando o Service Worker baixou uma atualizacao
+- Forca um `window.location.reload()` automatico para carregar o codigo novo
+- Isso garante que o cliente nunca fique preso em uma versao velha do site
+
+### 3. Adicionar versao do app para controle
+
+Incluir uma constante `APP_VERSION` que muda a cada deploy. Se a versao armazenada no localStorage for diferente da atual, limpar caches antigos e recarregar.
+
+## Resultado Esperado
+
+- Clientes recorrentes sempre rodarao a versao mais recente do site
+- Atualizacoes no cardapio, precos e checkout serao refletidas imediatamente
+- Erros causados por conflito entre codigo antigo e banco novo serao eliminados
+- A experiencia continuara rapida (cache ainda funciona, mas e invalidado corretamente)
 
 ---
 
 ## Detalhes Tecnicos
 
-### Arquivo: `src/components/CartDrawer.tsx`
+### Arquivo: `vite.config.ts`
 
-**Mudancas na funcao `handleConfirmOrder`:**
+Adicionar `skipWaiting: true` e `clientsClaim: true` na configuracao do Workbox, e adicionar `navigateFallback` para garantir que navegacoes sempre busquem o HTML atualizado:
 
-1. Extrair o insert para uma funcao auxiliar `insertOrderWithRetry` que tenta ate 2 vezes com delay de 1s entre tentativas
-2. Adicionar `tenant_id: tenantId` ao payload do insert
-3. No bloco de erro, gravar em `payment_error_logs` com `error_source: 'checkout_insert'`
-4. Substituir toast generico por toast com botao de acao "Tentar novamente" que re-executa `handleConfirmOrder`
+```text
+workbox: {
+  skipWaiting: true,
+  clientsClaim: true,
+  globPatterns: ["**/*.{js,css,ico,png,jpg,jpeg,svg,webp,woff,woff2}"],
+  // remover html do glob para nao cachear o index.html
+  navigateFallback: null,
+  ...
+}
+```
 
-### Estimativa de Impacto
-- Erros transitorios de rede serao recuperados automaticamente (~95% dos casos)
-- Falhas reais serao registradas para diagnostico futuro
-- Cliente tera melhor experiencia sem perder dados do pedido
+### Arquivo: `src/main.tsx`
+
+Adicionar deteccao de atualizacao do SW:
+
+```text
+// Ao detectar nova versao do SW, recarregar a pagina
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
+}
+```
+
+### Arquivo: `src/lib/version-check.ts` (novo)
+
+Criar constante APP_VERSION e logica de verificacao:
+- Comparar versao atual com a salva no localStorage
+- Se diferente, limpar caches do SW e recarregar
+- Atualizar localStorage com a versao nova
+
+### Arquivos afetados
+1. `vite.config.ts` - Configuracao do Service Worker
+2. `src/main.tsx` - Listener de atualizacao
+3. `src/lib/version-check.ts` - Controle de versao (novo arquivo)
 
