@@ -111,7 +111,9 @@ const parseAllIngredients = (itemName: string): string[] => {
  * the flavor has no configured sides in the DB.
  */
 export const generateDefaultSides = (itemName: string, line: 'fit' | 'fitness'): FlavorSideItem[] => {
-  const isEscondidinho = itemName.toLowerCase().includes('escondidinho');
+  const lower = itemName.toLowerCase();
+  const isEscondidinho = lower.includes('escondidinho');
+  const isMacarronada = lower.includes('macarronada') || lower.includes('macarrão');
   const allParts = parseAllIngredients(itemName);
   const protein = extractProteinName(itemName, isEscondidinho) || allParts[0] || 'Proteína';
 
@@ -119,7 +121,6 @@ export const generateDefaultSides = (itemName: string, line: 'fit' | 'fitness'):
     const carb = extractCarbName(itemName);
     const carbLabel = carb.toLowerCase().includes('aipim') ? 'Purê de aipim' : carb;
     const extras: string[] = [];
-    const lower = itemName.toLowerCase();
     if (lower.includes('mix de salada') || lower.includes('mix de legumes')) {
       extras.push(lower.includes('mix de salada') ? 'Mix de salada' : 'Mix de legumes');
     }
@@ -145,6 +146,19 @@ export const generateDefaultSides = (itemName: string, line: 'fit' | 'fitness'):
       { name: carbLabel, weight: Math.max(carbW, 0) },
       ...extras.map(e => ({ name: e, weight: extraWeight })),
     ];
+  }
+
+  // Macarronada / pasta dishes: protein (desfiado) + macarrão with sauce, NO salad
+  if (isMacarronada) {
+    // Extract sauce name if present (e.g. "ao molho bechamel", "à bolonhesa")
+    const sauceMatch = lower.match(/(?:ao\s+molho\s+\w+|à\s+\w+)/);
+    const sauceSuffix = sauceMatch ? ` ${sauceMatch[0]}` : '';
+    // For pasta dishes, protein is typically shredded
+    const pastaProtein = lower.includes('frango') ? 'Frango desfiado' : protein;
+    const carbName = `Macarrão${sauceSuffix}`;
+    return line === 'fit'
+      ? [{ name: pastaProtein, weight: 100 }, { name: carbName, weight: 200 }]
+      : [{ name: pastaProtein, weight: 150 }, { name: carbName, weight: 300 }];
   }
 
   const carb = extractCarbName(itemName);
