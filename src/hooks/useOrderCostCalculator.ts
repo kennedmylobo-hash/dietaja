@@ -1,7 +1,8 @@
-import { useMemo } from "react";
 import { useDietPricing } from "@/hooks/useDietPricing";
-import { getCostPerGram } from "@/components/admin/diet-pricing/PricingConfig";
+import { getSubcategoryCostPerGram } from "@/lib/subcategory-pricing";
+import type { SubcategoryPricing } from "@/lib/subcategory-pricing";
 import type { Json } from "@/integrations/supabase/types";
+import type { PricingSettings } from "@/components/admin/diet-pricing/PricingConfig";
 
 interface FlavorItem {
   name: string;
@@ -61,17 +62,15 @@ export interface OrderCostResult {
 }
 
 /**
- * Calculate cost for a single order's items using flavor composition data
- * and tenant pricing settings.
+ * Calculate cost for a single order's items using flavor composition data,
+ * tenant pricing settings, and subcategory pricing for granular costs.
  */
 export function calculateOrderCost(
   items: OrderItem[],
   flavorSidesMap: Record<string, Json | null>,
-  settings: ReturnType<typeof useDietPricing>["settings"]
+  settings: PricingSettings
 ): OrderCostResult {
-  const protCostPerGram = getCostPerGram(settings.proteinPricing.costPerKg, settings.proteinPricing.cookingLossPercent);
-  const carbCostPerGram = getCostPerGram(settings.carbPricing.costPerKg, settings.carbPricing.cookingLossPercent);
-  const veggieCostPerGram = getCostPerGram(settings.veggiePricing.costPerKg, settings.veggiePricing.cookingLossPercent);
+  const subcategories = settings.subcategoryPricing;
 
   let totalCost = 0;
   let totalRevenue = 0;
@@ -95,7 +94,10 @@ export function calculateOrderCost(
       let flavorCost = 0;
       for (const side of sides) {
         const cat = classifySide(side.name);
-        const costPerGram = cat === "protein" ? protCostPerGram : cat === "veggie" ? veggieCostPerGram : carbCostPerGram;
+        const fallback = cat === "protein" ? settings.proteinPricing
+          : cat === "veggie" ? settings.veggiePricing
+          : settings.carbPricing;
+        const costPerGram = getSubcategoryCostPerGram(side.name, cat, subcategories, fallback);
         flavorCost += side.weight * costPerGram;
       }
 
@@ -140,7 +142,6 @@ function findSidesData(
 
 /**
  * Hook that provides the pricing settings and calculator function.
- * Use calculateOrderCost directly with the settings from this hook.
  */
 export function useOrderCostCalculator() {
   const { settings, loaded } = useDietPricing();

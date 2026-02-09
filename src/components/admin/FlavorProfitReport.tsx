@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useOrderCostCalculator, calculateOrderCost } from "@/hooks/useOrderCostCalculator";
+import { useOrderCostCalculator } from "@/hooks/useOrderCostCalculator";
+import { getSubcategoryCostPerGram } from "@/lib/subcategory-pricing";
 import type { Json } from "@/integrations/supabase/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
 
 interface FlavorProfitReportProps {
   dateFilter: "today" | "week" | "month";
@@ -21,6 +22,27 @@ interface FlavorStats {
   margin: number;
 }
 
+// Classify ingredient name into protein/carb/veggie
+const PROTEIN_KEYWORDS = [
+  "carne", "bovina", "bovino", "frango", "peixe", "tilápia", "tilapia", "salmão",
+  "camarão", "ovo", "atum", "hambúrguer", "hamburguer", "strogonoff", "filé", "file",
+  "linguiça", "linguica", "costela", "porco", "suíno", "suino", "picanha", "alcatra",
+  "grão de bico", "grao de bico", "lentilha", "tofu", "proteína", "proteina",
+  "empanado", "grelhado", "desfiado", "moída", "moida",
+];
+const VEGGIE_KEYWORDS = [
+  "legume", "legumes", "brócolis", "brocolis", "cenoura", "abobrinha", "abóbora",
+  "vagem", "espinafre", "couve", "berinjela", "salada", "mix", "variado",
+  "beterraba", "chuchu", "quiabo",
+];
+
+function classifySide(name: string) {
+  const lower = name.toLowerCase();
+  for (const kw of PROTEIN_KEYWORDS) if (lower.includes(kw)) return "protein" as const;
+  for (const kw of VEGGIE_KEYWORDS) if (lower.includes(kw)) return "veggie" as const;
+  return "carb" as const;
+}
+
 const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
   const { settings: pricingSettings, loaded: pricingLoaded } = useOrderCostCalculator();
 
@@ -28,15 +50,9 @@ const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
     const now = new Date();
     const start = new Date();
     switch (filter) {
-      case "today":
-        start.setHours(0, 0, 0, 0);
-        break;
-      case "week":
-        start.setDate(now.getDate() - 7);
-        break;
-      case "month":
-        start.setDate(now.getDate() - 30);
-        break;
+      case "today": start.setHours(0, 0, 0, 0); break;
+      case "week": start.setDate(now.getDate() - 7); break;
+      case "month": start.setDate(now.getDate() - 30); break;
     }
     return start.toISOString();
   };
@@ -65,57 +81,11 @@ const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
     },
   });
 
-  const { data: packages } = useQuery({
-    queryKey: ["flavor-profit-packages"],
-    queryFn: async () => {
-      const { data } = await supabase.from("marmita_packages").select("quantity, unit_price, line_type");
-      return data || [];
-    },
-  });
-
   const flavorStats = useMemo(() => {
     if (!orders || !flavorSidesMap || !pricingLoaded) return [];
 
     const stats: Record<string, FlavorStats> = {};
-
-    // Helper to get unit price for a flavor based on line type
-    const getUnitPrice = (lineType: string, _quantity: number) => {
-      // Find matching package to get unit price
-      const pkg = packages?.find(p => (p.line_type || "fit") === lineType);
-      return pkg?.unit_price || 0;
-    };
-
-    const { getCostPerGram } = (() => {
-      const fn = (costPerKg: number, cookingLoss: number) => {
-        const fc = cookingLoss >= 100 ? 1 : 1 / (1 - cookingLoss / 100);
-        return (costPerKg / 1000) * fc;
-      };
-      return { getCostPerGram: fn };
-    })();
-
-    const protCost = getCostPerGram(pricingSettings.proteinPricing.costPerKg, pricingSettings.proteinPricing.cookingLossPercent);
-    const carbCost = getCostPerGram(pricingSettings.carbPricing.costPerKg, pricingSettings.carbPricing.cookingLossPercent);
-    const veggieCost = getCostPerGram(pricingSettings.veggiePricing.costPerKg, pricingSettings.veggiePricing.cookingLossPercent);
-
-    const PROTEIN_KEYWORDS = [
-      "carne", "bovina", "bovino", "frango", "peixe", "tilápia", "tilapia", "salmão",
-      "camarão", "ovo", "atum", "hambúrguer", "hamburguer", "strogonoff", "filé", "file",
-      "linguiça", "linguica", "costela", "porco", "suíno", "suino", "picanha", "alcatra",
-      "grão de bico", "grao de bico", "lentilha", "tofu", "proteína", "proteina",
-      "empanado", "grelhado", "desfiado", "moída", "moida",
-    ];
-    const VEGGIE_KEYWORDS = [
-      "legume", "legumes", "brócolis", "brocolis", "cenoura", "abobrinha", "abóbora",
-      "vagem", "espinafre", "couve", "berinjela", "salada", "mix", "variado",
-      "beterraba", "chuchu", "quiabo",
-    ];
-
-    function classifySide(name: string) {
-      const lower = name.toLowerCase();
-      for (const kw of PROTEIN_KEYWORDS) if (lower.includes(kw)) return "protein";
-      for (const kw of VEGGIE_KEYWORDS) if (lower.includes(kw)) return "veggie";
-      return "carb";
-    }
+    const subcategories = pricingSettings.subcategoryPricing;
 
     orders.forEach((order) => {
       const items = order.items as any[];
@@ -128,7 +98,6 @@ const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
           || /hipertrofia|fitness/i.test(item.name)
           ? "fitness" : "fit";
 
-        // Per-unit revenue for this item
         const totalQty = item.flavors.reduce((s: number, f: any) => s + (f.quantity || 1), 0);
         const unitRevenue = totalQty > 0 ? (item.totalPrice || 0) / totalQty : 0;
 
@@ -143,7 +112,6 @@ const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
           stats[flavorName].quantity += qty;
           stats[flavorName].revenue += unitRevenue * qty;
 
-          // Calculate cost from sides composition
           const sidesData = findSides(flavorName, flavorSidesMap);
           if (sidesData) {
             const sides = (sidesData as any)?.[lineType] as { name: string; weight: number }[] | undefined;
@@ -151,7 +119,10 @@ const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
               let flavorCost = 0;
               for (const side of sides) {
                 const cat = classifySide(side.name);
-                const cpg = cat === "protein" ? protCost : cat === "veggie" ? veggieCost : carbCost;
+                const fallback = cat === "protein" ? pricingSettings.proteinPricing
+                  : cat === "veggie" ? pricingSettings.veggiePricing
+                  : pricingSettings.carbPricing;
+                const cpg = getSubcategoryCostPerGram(side.name, cat, subcategories, fallback);
                 flavorCost += side.weight * cpg;
               }
               flavorCost += pricingSettings.packagingCost + pricingSettings.fixedCostPerMeal;
@@ -162,7 +133,6 @@ const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
       });
     });
 
-    // Calculate profit & margin
     return Object.values(stats)
       .map((s) => {
         s.profit = s.revenue - s.cost;
@@ -170,7 +140,7 @@ const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
         return s;
       })
       .sort((a, b) => b.profit - a.profit);
-  }, [orders, flavorSidesMap, pricingLoaded, pricingSettings, packages]);
+  }, [orders, flavorSidesMap, pricingLoaded, pricingSettings]);
 
   const isLoading = ordersLoading || !pricingLoaded;
 
@@ -212,13 +182,11 @@ const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-green-700 dark:text-green-400">
-              <TrendingUp className="h-4 w-4" />
-              Mais Lucrativos
+              <TrendingUp className="h-4 w-4" /> Mais Lucrativos
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -239,8 +207,7 @@ const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
         <Card className="border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-red-700 dark:text-red-400">
-              <TrendingDown className="h-4 w-4" />
-              Menos Lucrativos
+              <TrendingDown className="h-4 w-4" /> Menos Lucrativos
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -259,7 +226,6 @@ const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
         </Card>
       </div>
 
-      {/* Full table */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Lucratividade por Sabor</CardTitle>
@@ -306,7 +272,6 @@ const FlavorProfitReport = ({ dateFilter }: FlavorProfitReportProps) => {
   );
 };
 
-// Fuzzy match flavor name to sides data
 function findSides(flavorName: string, map: Record<string, Json | null>): Json | null {
   if (map[flavorName]) return map[flavorName];
   const stopWords = new Set(["com", "de", "e", "em", "ao", "a", "o", "mix", "da", "do"]);

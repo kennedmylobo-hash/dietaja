@@ -1754,6 +1754,7 @@ export type Database = {
           protein_cooking_loss: number | null
           protein_cost_per_kg: number | null
           raw_cost_per_kg: number
+          subcategory_pricing: Json | null
           tenant_id: string
           updated_at: string
           veggie_cooking_loss: number | null
@@ -1776,6 +1777,7 @@ export type Database = {
           protein_cooking_loss?: number | null
           protein_cost_per_kg?: number | null
           raw_cost_per_kg?: number
+          subcategory_pricing?: Json | null
           tenant_id: string
           updated_at?: string
           veggie_cooking_loss?: number | null
@@ -1798,6 +1800,7 @@ export type Database = {
           protein_cooking_loss?: number | null
           protein_cost_per_kg?: number | null
           raw_cost_per_kg?: number
+          subcategory_pricing?: Json | null
           tenant_id?: string
           updated_at?: string
           veggie_cooking_loss?: number | null
