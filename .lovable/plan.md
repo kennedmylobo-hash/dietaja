@@ -1,109 +1,96 @@
 
 
-# Painel de Precificacao Personalizavel - Dieta Personalizada
-
-## Problema atual
-
-O sistema atual tem apenas um campo "Preco por grama (R$)" fixo em R$ 0,08. Nao existe:
-- Visao de **custo** dos ingredientes
-- Calculo de **margem de lucro**
-- Personalizacao dos **pacotes** (dias/descontos)
-- **Taxa de embalagem** ou custos fixos por marmita
-- Possibilidade de salvar as configuracoes para nao ter que ajustar toda vez
+# Mensagem de Orcamento Formatada para WhatsApp + Botao Copiar
 
 ## O que vai mudar
 
-### 1. Secao "Regras de Precificacao" (expansivel, acima da tabela de itens)
+### 1. Nova mensagem formatada para o cliente
 
-Um card colapsavel com todas as configuracoes de preco, dividido em abas ou blocos:
+A mensagem enviada/copiada para WhatsApp sera profissional e completa, com:
 
-**Bloco A - Custos:**
-- Custo por grama dos ingredientes (R$) — o quanto GASTA em media por grama de comida
-- Taxa fixa por embalagem (R$) — custo da embalagem (marmita, tampa, etiqueta)
-- Custo fixo por refeicao (R$) — gas, mao de obra, etc (rateio)
+- Numero do orcamento gerado automaticamente (ex: `ORC-2024-0042`)
+- Data do orcamento
+- Nome do cliente
+- Lista detalhada dos itens com peso e preco
+- Subtotal por refeicao
+- Opcoes de pacotes com descontos
+- Informacoes de entrega e pagamento
 
-**Bloco B - Margem e Preco de Venda:**
-- Margem de lucro desejada (%) — ex: 50%, 100%, 200%
-- OU preco de venda por grama (R$) — o admin escolhe se quer calcular pela margem ou definir direto
-- Toggle: "Calcular pelo custo + margem" ou "Definir preco manual por grama"
+**Exemplo da mensagem:**
 
-**Bloco C - Pacotes (editavel):**
-- Tabela editavel dos pacotes (hoje fixo no codigo):
-  - Dias | Label | Desconto (%)
-  - Botao para adicionar/remover pacotes
-  - Ex: 7 dias / 0% | 14 dias / 5% | 21 dias / 8% | 28 dias / 10%
+```text
+=============================
+   RESTAURANTE NOME
+   Orcamento Dieta Personalizada
+=============================
 
-**Bloco D - Salvar Configuracao:**
-- Botao "Salvar como padrao" que persiste no banco para o tenant
-- Ao abrir a aba, carrega as configuracoes salvas automaticamente
+Orcamento N: ORC-2026-0015
+Data: 09/02/2026
+Cliente: Maria Silva
 
-### 2. Resumo financeiro aprimorado
+------------------------------
+ITENS POR REFEICAO:
+------------------------------
 
-Apos calcular o orcamento, o resumo mostra:
-- **Custo total estimado** por refeicao (custo ingredientes + embalagem + fixo)
-- **Preco de venda** por refeicao
-- **Lucro por refeicao** (venda - custo)
-- **Margem real** (%)
-- Para cada pacote: custo total, venda total, lucro total
+1. Strogonoff de grao de bico + arroz com brocolis + legumes (300g) -- R$ 24,00
+2. Hamburguer de grao de bico + macarrao ao molho branco (300g) -- R$ 24,00
 
-Isso fica visivel APENAS para o admin (nao vai no WhatsApp nem no PDF para o cliente).
+Subtotal por refeicao: R$ 48,00
 
-### 3. O que o cliente ve (WhatsApp/PDF) continua limpo
+------------------------------
+PACOTES DISPONIVEIS:
+------------------------------
 
-- Apenas preco final por item e totais dos pacotes
-- Nenhuma informacao de custo ou margem
+Kit 7 dias: R$ 336,00
+Kit 14 dias: R$ 319,20 (5% desc.)
+Kit 21 dias: R$ 309,12 (8% desc.)
+Kit 28 dias: R$ 302,40 (10% desc.)
+
+------------------------------
+INFORMACOES IMPORTANTES:
+------------------------------
+
+Entrega em ate 3 dias uteis apos confirmacao.
+Pedidos confirmados somente apos o pagamento.
+Formas de pagamento: PIX ou cartao de credito (link de pagamento).
+
+Duvidas? Estamos a disposicao!
+```
+
+A formatacao usara negrito do WhatsApp (`*texto*`) e emojis para ficar visualmente agradavel.
+
+### 2. Novo botao "Copiar Orcamento"
+
+- Adicionado na area de acoes ao lado dos botoes existentes
+- Ao clicar, gera o numero do orcamento (sequencial baseado na data + contador)
+- Copia a mensagem formatada para a area de transferencia
+- Exibe toast de confirmacao "Orcamento copiado!"
+- Icone de clipboard/copy
+
+### 3. Numero do orcamento
+
+- Formato: `ORC-AAAA-NNNN` (ano + sequencial de 4 digitos)
+- Gerado com base na contagem de orcamentos do tenant no ano atual
+- Salvo junto ao orcamento no banco quando copiado/enviado
 
 ## Detalhes tecnicos
 
-### Nova tabela: `tenant_diet_pricing` (configuracao por tenant)
+### Alteracoes em `CustomDietQuoter.tsx`
 
-```
-tenant_diet_pricing
-- id UUID PK
-- tenant_id UUID FK (unique - 1 config por tenant)
-- cost_per_gram NUMERIC DEFAULT 0.04
-- packaging_cost NUMERIC DEFAULT 1.50
-- fixed_cost_per_meal NUMERIC DEFAULT 2.00
-- pricing_mode TEXT DEFAULT 'margin' (ou 'manual')
-- margin_percent NUMERIC DEFAULT 100
-- manual_price_per_gram NUMERIC DEFAULT 0.08
-- package_options JSONB DEFAULT '[{"days":7,"label":"7 dias","discount":0},...]'
-- created_at / updated_at
-```
+1. Nova funcao `generateQuoteNumber()` que busca a contagem de orcamentos do ano atual e gera o proximo numero sequencial
+2. Nova funcao `buildFormattedMessage()` que monta a mensagem completa com todas as informacoes
+3. Novo botao "Copiar Orcamento" usando `navigator.clipboard.writeText()`
+4. Atualizar `sendWhatsApp()` para usar a mesma mensagem formatada
+5. Incluir o numero do orcamento no payload de salvamento
 
-### Alteracoes no CustomDietQuoter.tsx
+### Migracao SQL
 
-1. Adicionar state para todas as configs de precificacao
-2. Carregar configs do banco ao montar (`tenant_diet_pricing`)
-3. Novo componente interno `PricingConfig` (card colapsavel)
-4. Atualizar `getItemPrice()` para usar o modo correto (margem ou manual)
-5. Adicionar calculo de custo: `getItemCost(item) = item.totalWeight * costPerGram + packagingCost + fixedCost`
-6. Resumo financeiro com colunas de custo/venda/lucro
-7. Botao "Salvar como padrao" faz upsert na tabela `tenant_diet_pricing`
-
-### Logica de preco
-
-```
-Se modo = 'margin':
-  custoItem = (peso * custoGrama) + embalagem + custoFixo
-  precoVenda = custoItem * (1 + margem/100)
-
-Se modo = 'manual':
-  precoVenda = peso * precoManualGrama
-  custoItem = (peso * custoGrama) + embalagem + custoFixo (so para exibir lucro)
-```
+Adicionar coluna `quote_number TEXT` na tabela `custom_diet_quotes` para persistir o numero gerado.
 
 ### Arquivos alterados
 
 | Arquivo | Alteracao |
 |---|---|
-| Nova migracao SQL | Criar tabela `tenant_diet_pricing` com RLS por tenant |
-| `src/components/admin/CustomDietQuoter.tsx` | Adicionar secao de precificacao, carregar/salvar configs, resumo financeiro |
-
-### RLS
-
-```sql
-CREATE POLICY "tenant_isolation" ON tenant_diet_pricing
-  FOR ALL USING (tenant_id = get_current_tenant_id());
-```
+| Nova migracao SQL | Adicionar coluna `quote_number` em `custom_diet_quotes` |
+| `src/components/admin/CustomDietQuoter.tsx` | Funcao de mensagem formatada, botao copiar, numero do orcamento |
 
