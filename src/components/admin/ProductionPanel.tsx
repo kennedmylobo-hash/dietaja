@@ -312,16 +312,15 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
               // Iterate ALL items, classify each one
               for (let i = 0; i < flavorSides.length; i++) {
                 const ingredient = flavorSides[i];
-                // For protein (first item), use the specific name from the flavor
+                const type = classifyIngredient(ingredient.name);
+                // For the protein ingredient, use the dish name for better display
                 // e.g. "Frango em cubos" instead of generic "Frango"
-                const isProtein = i === 0;
-                const displayName = isProtein
+                const displayName = type === 'protein'
                   ? flavor.name.split(/\s+com\s+|,\s*/i)[0].trim()
                   : ingredient.name;
                 const ingredientKey = displayName.toLowerCase();
                 const existing = ingredientMap.get(ingredientKey);
                 const totalWeight = flavor.quantity * ingredient.weight;
-                const type = isProtein ? 'protein' as const : classifyIngredient(ingredient.name);
                 
                 if (existing) {
                   existing.totalWeight += totalWeight;
@@ -338,14 +337,13 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
               // Use same processing as configured path
               for (let i = 0; i < flavorSides.length; i++) {
                 const ingredient = flavorSides[i];
-                const isProtein = i === 0;
-                const displayName = isProtein
+                const type = classifyIngredient(ingredient.name);
+                const displayName = type === 'protein'
                   ? flavor.name.split(/\s+com\s+|,\s*/i)[0].trim()
                   : ingredient.name;
                 const ingredientKey = displayName.toLowerCase();
                 const existing = ingredientMap.get(ingredientKey);
                 const totalWeight = flavor.quantity * ingredient.weight;
-                const type = isProtein ? 'protein' as const : classifyIngredient(ingredient.name);
                 
                 if (existing) {
                   existing.totalWeight += totalWeight;
@@ -362,7 +360,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
             // === ASSEMBLY LIST: Build full ingredients list ===
             const lineLabel = (itemLineType === 'hipertrofia' || itemLineType === 'fitness') ? 'fitness' : 'fit';
             const allIngredients: AssemblyCombination['ingredients'] = 
-              flavorSides.map((s, i) => ({ name: s.name, weight: s.weight, type: (i === 0 ? 'protein' as const : classifyIngredient(s.name)) }));
+              flavorSides.map((s) => ({ name: s.name, weight: s.weight, type: classifyIngredient(s.name) }));
             
             const ingredientsKey = allIngredients
               .map(s => `${s.name}:${s.weight}`)
