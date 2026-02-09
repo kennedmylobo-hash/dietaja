@@ -67,11 +67,14 @@ interface KitSoup {
   name: string;
 }
 
-// Classify a side ingredient as carb or salad
-const classifyIngredient = (name: string): 'carb' | 'salad' => {
+// Classify a side ingredient as protein, carb or salad
+const classifyIngredient = (name: string): 'protein' | 'carb' | 'salad' => {
   const lower = name.toLowerCase();
-  const carbKeywords = ['arroz', 'aipim', 'batata', 'purê', 'pure', 'feijão', 'feijao', 'grãos', 'graos', 'macarrão', 'macarrao', 'nhoque', 'mandioca', 'farinha', 'risoto'];
-  return carbKeywords.some(k => lower.includes(k)) ? 'carb' : 'salad';
+  const proteinKeywords = ['frango', 'carne', 'peixe', 'tilápia', 'tilapia', 'almôndega', 'almondega', 'linguiça', 'linguica', 'bacon', 'calabresa', 'costela', 'cupim', 'charque', 'pernil', 'lombo', 'bisteca', 'filé', 'file', 'estrogonofe', 'strogonoff'];
+  if (proteinKeywords.some(k => lower.includes(k))) return 'protein';
+  const carbKeywords = ['arroz', 'aipim', 'batata', 'purê', 'pure', 'feijão', 'feijao', 'grãos', 'graos', 'macarrão', 'macarrao', 'nhoque', 'mandioca', 'farinha', 'risoto', 'molho'];
+  if (carbKeywords.some(k => lower.includes(k))) return 'carb';
+  return 'salad';
 };
 
 // For kitchen: aggregated ingredients
