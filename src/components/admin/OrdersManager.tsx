@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPhoneVariations } from "@/lib/phone";
+import { useOrderCostCalculator, calculateOrderCost } from "@/hooks/useOrderCostCalculator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +120,7 @@ interface OrdersManagerProps {
 }
 
 const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
+  const { settings: pricingSettings, loaded: pricingLoaded } = useOrderCostCalculator();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -1565,9 +1567,29 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                   <div className="flex justify-between font-bold">
                     <span>Total</span>
                     <span className="text-primary">R$ {selectedOrder.total.toFixed(2).replace('.', ',')}</span>
-                  </div>
-                </div>
-              </div>
+                   </div>
+                   {/* Estimated Cost & Margin */}
+                   {pricingLoaded && selectedOrder.items.some((i: any) => i.type === 'marmita' && i.flavors?.length) && (() => {
+                     const costResult = calculateOrderCost(selectedOrder.items, flavorSidesMap, pricingSettings);
+                     if (costResult.totalCost <= 0) return null;
+                     const marginColor = costResult.marginPercent >= 50 ? 'text-green-600' : costResult.marginPercent >= 30 ? 'text-amber-600' : 'text-red-600';
+                     return (
+                       <>
+                         <div className="flex justify-between text-sm">
+                           <span className="text-muted-foreground">Custo estimado</span>
+                           <span className="text-muted-foreground">R$ {costResult.totalCost.toFixed(2).replace('.', ',')}</span>
+                         </div>
+                         <div className="flex justify-between text-sm">
+                           <span className="text-muted-foreground">Lucro estimado</span>
+                           <span className={`font-medium ${marginColor}`}>
+                             R$ {costResult.profit.toFixed(2).replace('.', ',')} ({costResult.marginPercent.toFixed(0)}%)
+                           </span>
+                         </div>
+                       </>
+                     );
+                   })()}
+                 </div>
+               </div>
 
               {/* Dates */}
               <div className="flex justify-between text-sm text-muted-foreground">
