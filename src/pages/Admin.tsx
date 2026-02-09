@@ -65,6 +65,7 @@ import TenantSettingsEditor from "@/components/admin/TenantSettingsEditor";
 import LandingEditor from "@/components/admin/LandingEditor";
 import ShoppingList from "@/components/admin/ShoppingList";
 import CustomDietQuoter from "@/components/admin/CustomDietQuoter";
+import FlavorProfitReport from "@/components/admin/FlavorProfitReport";
 
 interface Lead {
   id: string;
@@ -729,7 +730,12 @@ const Admin = () => {
         return <WhatsAppOrderImporter />;
 
       case "kpis":
-        return <KPIDashboard dateFilter={dateFilter} />;
+        return (
+          <div className="space-y-8">
+            <KPIDashboard dateFilter={dateFilter} />
+            <FlavorProfitReport dateFilter={dateFilter} />
+          </div>
+        );
 
       case "reviews":
         return <ReviewsManager />;
