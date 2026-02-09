@@ -1,96 +1,87 @@
 
 
-# Mensagem de Orcamento Formatada para WhatsApp + Botao Copiar
+# Precos Individuais por Produto + Custo nos Pedidos do Site
 
-## O que vai mudar
+## Problema 1: Precos individuais no orcamento de dieta
 
-### 1. Nova mensagem formatada para o cliente
+Atualmente, o sistema calcula o preco de cada item automaticamente com base no peso das categorias (proteina, carboidrato, legumes) e uma margem fixa. Mas cada refeicao tem ingredientes diferentes e custos diferentes -- nao da pra usar o mesmo preco pra tudo.
 
-A mensagem enviada/copiada para WhatsApp sera profissional e completa, com:
+### Solucao
 
-- Numero do orcamento gerado automaticamente (ex: `ORC-2024-0042`)
-- Data do orcamento
-- Nome do cliente
-- Lista detalhada dos itens com peso e preco
-- Subtotal por refeicao
-- Opcoes de pacotes com descontos
-- Informacoes de entrega e pagamento
+Tornar o campo "Preco fixo" mais intuitivo na tabela de itens do orcamento:
 
-**Exemplo da mensagem:**
+- Mostrar o preco calculado automaticamente como sugestao
+- Permitir clicar no preco para editar diretamente (inline)
+- Ao editar, o valor digitado vira o preco final daquele item
+- Botao para "resetar" ao preco calculado se quiser voltar ao automatico
+- Coluna mais visivel e com melhor UX (campo clicavel em vez de input separado)
 
-```text
-=============================
-   RESTAURANTE NOME
-   Orcamento Dieta Personalizada
-=============================
+Assim, apos o parser extrair os itens, o admin pode ajustar o preco de cada um individualmente com um clique.
 
-Orcamento N: ORC-2026-0015
-Data: 09/02/2026
-Cliente: Maria Silva
+## Problema 2: Custo dos pedidos do site
 
-------------------------------
-ITENS POR REFEICAO:
-------------------------------
+Os pedidos feitos pelo site ja tem toda a informacao necessaria para calcular o custo:
+- Sabores escolhidos (com composicao de ingredientes cadastrada)
+- Quantidade de cada sabor
+- Pesos por ingrediente (proteina, carbo, legumes)
 
-1. Strogonoff de grao de bico + arroz com brocolis + legumes (300g) -- R$ 24,00
-2. Hamburguer de grao de bico + macarrao ao molho branco (300g) -- R$ 24,00
+Usando a mesma tabela de insumos (tenant_diet_pricing), podemos calcular o custo estimado de cada pedido automaticamente.
 
-Subtotal por refeicao: R$ 48,00
+### Solucao
 
-------------------------------
-PACOTES DISPONIVEIS:
-------------------------------
+Adicionar um resumo financeiro no painel de pedidos (OrdersManager) e no KPI Dashboard:
 
-Kit 7 dias: R$ 336,00
-Kit 14 dias: R$ 319,20 (5% desc.)
-Kit 21 dias: R$ 309,12 (8% desc.)
-Kit 28 dias: R$ 302,40 (10% desc.)
+**No detalhe de cada pedido:**
+- Mostrar "Custo estimado" ao lado do valor de venda
+- Mostrar margem de lucro real do pedido
+- Usar os pesos dos ingredientes (do cadastro de sabores `marmita_flavors.sides`) + custos da tabela de insumos
 
-------------------------------
-INFORMACOES IMPORTANTES:
-------------------------------
-
-Entrega em ate 3 dias uteis apos confirmacao.
-Pedidos confirmados somente apos o pagamento.
-Formas de pagamento: PIX ou cartao de credito (link de pagamento).
-
-Duvidas? Estamos a disposicao!
-```
-
-A formatacao usara negrito do WhatsApp (`*texto*`) e emojis para ficar visualmente agradavel.
-
-### 2. Novo botao "Copiar Orcamento"
-
-- Adicionado na area de acoes ao lado dos botoes existentes
-- Ao clicar, gera o numero do orcamento (sequencial baseado na data + contador)
-- Copia a mensagem formatada para a area de transferencia
-- Exibe toast de confirmacao "Orcamento copiado!"
-- Icone de clipboard/copy
-
-### 3. Numero do orcamento
-
-- Formato: `ORC-AAAA-NNNN` (ano + sequencial de 4 digitos)
-- Gerado com base na contagem de orcamentos do tenant no ano atual
-- Salvo junto ao orcamento no banco quando copiado/enviado
+**No KPI Dashboard:**
+- Card novo: "Lucro estimado" (receita - custo estimado)
+- Margem media dos pedidos
 
 ## Detalhes tecnicos
 
-### Alteracoes em `CustomDietQuoter.tsx`
+### Alteracoes na calculadora de dieta (`CustomDietQuoter.tsx`)
 
-1. Nova funcao `generateQuoteNumber()` que busca a contagem de orcamentos do ano atual e gera o proximo numero sequencial
-2. Nova funcao `buildFormattedMessage()` que monta a mensagem completa com todas as informacoes
-3. Novo botao "Copiar Orcamento" usando `navigator.clipboard.writeText()`
-4. Atualizar `sendWhatsApp()` para usar a mesma mensagem formatada
-5. Incluir o numero do orcamento no payload de salvamento
+1. Substituir o campo "Preco fixo" por um campo de preco editavel inline mais intuitivo
+2. Mostrar o preco calculado como placeholder/sugestao
+3. Ao digitar um valor, ele se torna o `priceOverride`
+4. Botao de "reset" (X) para voltar ao preco automatico
+5. Destaque visual quando o preco foi editado manualmente (badge ou cor diferente)
 
-### Migracao SQL
+### Novo hook: `useOrderCostCalculator.ts`
 
-Adicionar coluna `quote_number TEXT` na tabela `custom_diet_quotes` para persistir o numero gerado.
+Reutiliza a logica de `useDietPricing` para calcular o custo de qualquer pedido do site:
+
+```text
+Para cada sabor do pedido:
+  1. Buscar composicao do sabor (marmita_flavors.sides)
+  2. Separar proteina, carbo e legumes com seus pesos
+  3. Aplicar custos da tenant_diet_pricing (custo/kg + fator de coccao)
+  4. Somar embalagem + custo fixo
+  5. Total = soma de todos os sabores * quantidade
+```
+
+### Alteracoes no OrdersManager
+
+- No card de detalhe do pedido, adicionar linha "Custo estimado: R$ XX,XX"
+- Mostrar "Margem: XX%" ao lado
+- Usar cores (verde para margem boa, amarelo para apertada, vermelho para prejuizo)
+
+### Alteracoes no KPI Dashboard
+
+- Novo card: "Lucro Estimado" com o total de (receita - custo) dos pedidos aprovados
+- Tooltip explicando que e uma estimativa baseada na tabela de insumos
 
 ### Arquivos alterados
 
-| Arquivo | Alteracao |
+| Arquivo | O que muda |
 |---|---|
-| Nova migracao SQL | Adicionar coluna `quote_number` em `custom_diet_quotes` |
-| `src/components/admin/CustomDietQuoter.tsx` | Funcao de mensagem formatada, botao copiar, numero do orcamento |
+| `src/components/admin/CustomDietQuoter.tsx` | Campo de preco editavel inline com melhor UX |
+| `src/hooks/useOrderCostCalculator.ts` | Novo hook para calcular custo de qualquer pedido |
+| `src/components/admin/OrdersManager.tsx` | Exibir custo e margem no detalhe do pedido |
+| `src/components/admin/KPIDashboard.tsx` | Card de lucro estimado |
+
+Nenhuma migracao de banco necessaria -- tudo ja existe, so precisa conectar os dados.
 
