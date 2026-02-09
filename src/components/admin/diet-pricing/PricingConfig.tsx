@@ -19,7 +19,16 @@ import {
 } from "@/components/ui/table";
 import { Settings2, ChevronDown, ChevronUp, Plus, Trash2, Save, Loader2 } from "lucide-react";
 
+export interface CategoryPricing {
+  costPerKg: number;
+  cookingLossPercent: number;
+}
+
 export interface PricingSettings {
+  proteinPricing: CategoryPricing;
+  carbPricing: CategoryPricing;
+  veggiePricing: CategoryPricing;
+  // Legacy fields kept for backwards compat
   rawCostPerKg: number;
   cookingLossPercent: number;
   correctionFactor: number;
@@ -43,6 +52,61 @@ interface PricingConfigProps {
   onChange: (settings: PricingSettings) => void;
   onSave: () => void;
   saving: boolean;
+}
+
+function getCostPerGram(costPerKg: number, cookingLoss: number): number {
+  const fc = cookingLoss >= 100 ? 1 : 1 / (1 - cookingLoss / 100);
+  return (costPerKg / 1000) * fc;
+}
+
+function CategoryRow({
+  label,
+  emoji,
+  pricing,
+  onChange,
+}: {
+  label: string;
+  emoji: string;
+  pricing: CategoryPricing;
+  onChange: (p: CategoryPricing) => void;
+}) {
+  const costPerGram = getCostPerGram(pricing.costPerKg, pricing.cookingLossPercent);
+  const fc = pricing.cookingLossPercent >= 100 ? 1 : 1 / (1 - pricing.cookingLossPercent / 100);
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">
+        <span className="text-base mr-1">{emoji}</span> {label}
+      </TableCell>
+      <TableCell>
+        <Input
+          type="number"
+          step="0.01"
+          min="0"
+          value={pricing.costPerKg}
+          onChange={(e) => onChange({ ...pricing, costPerKg: parseFloat(e.target.value) || 0 })}
+          className="w-24 text-sm"
+        />
+      </TableCell>
+      <TableCell>
+        <Input
+          type="number"
+          step="1"
+          min="0"
+          max="90"
+          value={pricing.cookingLossPercent}
+          onChange={(e) => onChange({ ...pricing, cookingLossPercent: parseFloat(e.target.value) || 0 })}
+          className="w-20 text-sm"
+        />
+      </TableCell>
+      <TableCell className="text-right text-xs text-muted-foreground">
+        {fc.toFixed(2)}
+      </TableCell>
+      <TableCell className="text-right font-medium text-primary text-sm">
+        R$ {costPerGram.toFixed(4)}
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export default function PricingConfig({ settings, onChange, onSave, saving }: PricingConfigProps) {
@@ -90,108 +154,43 @@ export default function PricingConfig({ settings, onChange, onSave, saving }: Pr
 
         <CollapsibleContent>
           <CardContent className="space-y-6 pt-0">
-            {/* Bloco A - Custos de Ingredientes */}
+            {/* Bloco A - Tabela de Insumos por Categoria */}
             <div>
-              <h4 className="font-semibold text-sm text-muted-foreground mb-3">🥩 Custo dos Ingredientes</h4>
-              
-              {/* Presets de cocção */}
-              <div className="mb-4">
-                <Label className="text-xs mb-2 block">Preset de cocção (sugestão por IA)</Label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: "🐄 Carne bovina", loss: 35, emoji: "🐄" },
-                    { label: "🐔 Frango", loss: 25, emoji: "🐔" },
-                    { label: "🐖 Porco", loss: 30, emoji: "🐖" },
-                    { label: "🐟 Peixe", loss: 20, emoji: "🐟" },
-                    { label: "🥦 Vegetais", loss: 15, emoji: "🥦" },
-                    { label: "🍚 Grãos/Arroz", loss: 0, emoji: "🍚" },
-                  ].map((preset) => {
-                    const isActive = Math.abs(settings.cookingLossPercent - preset.loss) < 0.5;
-                    return (
-                      <Button
-                        key={preset.label}
-                        type="button"
-                        variant={isActive ? "default" : "outline"}
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => {
-                          const fc = preset.loss >= 100 ? 1 : 1 / (1 - preset.loss / 100);
-                          const costPerGram = (settings.rawCostPerKg / 1000) * fc;
-                          update({
-                            cookingLossPercent: preset.loss,
-                            correctionFactor: parseFloat(fc.toFixed(4)),
-                            costPerGram,
-                          });
-                        }}
-                      >
-                        {preset.label} ({preset.loss}%)
-                      </Button>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Clique para aplicar ou edite manualmente abaixo</p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs">Preço do kg cru (R$)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={settings.rawCostPerKg}
-                    onChange={(e) => {
-                      const rawCost = parseFloat(e.target.value) || 0;
-                      const costPerGram = (rawCost / 1000) * settings.correctionFactor;
-                      update({ rawCostPerKg: rawCost, costPerGram });
-                    }}
+              <h4 className="font-semibold text-sm text-muted-foreground mb-3">🥩 Tabela de Insumos (pré-fixada)</h4>
+              <p className="text-xs text-muted-foreground mb-3">
+                Preços e cocção por categoria. Atualize quando houver reajuste do fornecedor.
+              </p>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead className="w-28">Preço/kg cru</TableHead>
+                    <TableHead className="w-24">Cocção (%)</TableHead>
+                    <TableHead className="w-16 text-right">FC</TableHead>
+                    <TableHead className="w-28 text-right">Custo/g real</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <CategoryRow
+                    label="Proteína"
+                    emoji="🥩"
+                    pricing={settings.proteinPricing}
+                    onChange={(p) => update({ proteinPricing: p })}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Média ponderada dos ingredientes</p>
-                </div>
-                <div>
-                  <Label className="text-xs">Perda na cocção (%)</Label>
-                  <Input
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="90"
-                    value={settings.cookingLossPercent}
-                    onChange={(e) => {
-                      const loss = parseFloat(e.target.value) || 0;
-                      const fc = loss >= 100 ? 1 : 1 / (1 - loss / 100);
-                      const costPerGram = (settings.rawCostPerKg / 1000) * fc;
-                      update({ cookingLossPercent: loss, correctionFactor: parseFloat(fc.toFixed(4)), costPerGram });
-                    }}
+                  <CategoryRow
+                    label="Carboidrato"
+                    emoji="🍚"
+                    pricing={settings.carbPricing}
+                    onChange={(p) => update({ carbPricing: p })}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Peso que perde ao cozinhar</p>
-                </div>
-                <div>
-                  <Label className="text-xs">Fator de Correção (FC)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="1"
-                    value={settings.correctionFactor}
-                    onChange={(e) => {
-                      const fc = parseFloat(e.target.value) || 1;
-                      const loss = fc > 0 ? (1 - 1 / fc) * 100 : 0;
-                      const costPerGram = (settings.rawCostPerKg / 1000) * fc;
-                      update({ correctionFactor: fc, cookingLossPercent: parseFloat(loss.toFixed(1)), costPerGram });
-                    }}
+                  <CategoryRow
+                    label="Mix de Legumes"
+                    emoji="🥦"
+                    pricing={settings.veggiePricing}
+                    onChange={(p) => update({ veggiePricing: p })}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Peso bruto ÷ peso líquido</p>
-                </div>
-              </div>
-              <div className="mt-3 p-3 bg-muted/60 rounded-lg border text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Custo bruto/grama:</span>
-                  <span>R$ {(settings.rawCostPerKg / 1000).toFixed(4)}</span>
-                </div>
-                <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Custo real/grama (após cocção):</span>
-                  <span className="text-primary">R$ {settings.costPerGram.toFixed(4)}</span>
-                </div>
-              </div>
+                </TableBody>
+              </Table>
             </div>
 
             {/* Bloco B - Custos Fixos */}
@@ -223,7 +222,7 @@ export default function PricingConfig({ settings, onChange, onSave, saving }: Pr
               </div>
             </div>
 
-            {/* Bloco B - Margem */}
+            {/* Bloco C - Margem */}
             <div>
               <h4 className="font-semibold text-sm text-muted-foreground mb-3">📊 Preço de Venda</h4>
               <div className="flex items-center gap-3 mb-3">
@@ -270,7 +269,7 @@ export default function PricingConfig({ settings, onChange, onSave, saving }: Pr
               )}
             </div>
 
-            {/* Bloco C - Pacotes */}
+            {/* Bloco D - Pacotes */}
             <div>
               <h4 className="font-semibold text-sm text-muted-foreground mb-3">📦 Pacotes</h4>
               <Table>
@@ -335,7 +334,7 @@ export default function PricingConfig({ settings, onChange, onSave, saving }: Pr
               </Button>
             </div>
 
-            {/* Bloco D - Salvar */}
+            {/* Bloco E - Salvar */}
             <Button onClick={onSave} disabled={saving} className="w-full sm:w-auto">
               {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               Salvar como padrão
@@ -346,3 +345,5 @@ export default function PricingConfig({ settings, onChange, onSave, saving }: Pr
     </Collapsible>
   );
 }
+
+export { getCostPerGram };

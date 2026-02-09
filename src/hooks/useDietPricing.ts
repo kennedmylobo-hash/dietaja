@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenantId } from "@/hooks/useTenantId";
 import { toast } from "@/hooks/use-toast";
 import type { PricingSettings, PackageOption } from "@/components/admin/diet-pricing/PricingConfig";
+import { getCostPerGram } from "@/components/admin/diet-pricing/PricingConfig";
 
 const DEFAULT_PACKAGES: PackageOption[] = [
   { days: 7, label: "7 dias", discount: 0 },
@@ -12,6 +13,9 @@ const DEFAULT_PACKAGES: PackageOption[] = [
 ];
 
 const DEFAULT_SETTINGS: PricingSettings = {
+  proteinPricing: { costPerKg: 30.00, cookingLossPercent: 30 },
+  carbPricing: { costPerKg: 8.00, cookingLossPercent: 0 },
+  veggiePricing: { costPerKg: 12.00, cookingLossPercent: 15 },
   rawCostPerKg: 20.00,
   cookingLossPercent: 30,
   correctionFactor: 1.43,
@@ -23,6 +27,14 @@ const DEFAULT_SETTINGS: PricingSettings = {
   manualPricePerGram: 0.08,
   packageOptions: DEFAULT_PACKAGES,
 };
+
+interface QuoteItemWeights {
+  proteinWeight: number;
+  carbWeight: number;
+  veggieWeight: number;
+  totalWeight: number;
+  priceOverride: number | null;
+}
 
 export function useDietPricing() {
   const tenantId = useTenantId();
@@ -41,6 +53,18 @@ export function useDietPricing() {
       if (data) {
         const d = data as any;
         setSettings({
+          proteinPricing: {
+            costPerKg: d.protein_cost_per_kg ?? 30,
+            cookingLossPercent: d.protein_cooking_loss ?? 30,
+          },
+          carbPricing: {
+            costPerKg: d.carb_cost_per_kg ?? 8,
+            cookingLossPercent: d.carb_cooking_loss ?? 0,
+          },
+          veggiePricing: {
+            costPerKg: d.veggie_cost_per_kg ?? 12,
+            cookingLossPercent: d.veggie_cooking_loss ?? 15,
+          },
           rawCostPerKg: d.raw_cost_per_kg ?? DEFAULT_SETTINGS.rawCostPerKg,
           cookingLossPercent: d.cooking_loss_percent ?? DEFAULT_SETTINGS.cookingLossPercent,
           correctionFactor: d.correction_factor ?? DEFAULT_SETTINGS.correctionFactor,
@@ -73,6 +97,12 @@ export function useDietPricing() {
         margin_percent: settings.marginPercent,
         manual_price_per_gram: settings.manualPricePerGram,
         package_options: settings.packageOptions as any,
+        protein_cost_per_kg: settings.proteinPricing.costPerKg,
+        protein_cooking_loss: settings.proteinPricing.cookingLossPercent,
+        carb_cost_per_kg: settings.carbPricing.costPerKg,
+        carb_cooking_loss: settings.carbPricing.cookingLossPercent,
+        veggie_cost_per_kg: settings.veggiePricing.costPerKg,
+        veggie_cooking_loss: settings.veggiePricing.cookingLossPercent,
       };
 
       const { error } = await supabase
@@ -89,13 +119,10 @@ export function useDietPricing() {
   }, [settings, tenantId]);
 
   const getItemPrice = useCallback(
-    (item: { totalWeight: number; priceOverride: number | null }) => {
+    (item: QuoteItemWeights) => {
       if (item.priceOverride !== null && item.priceOverride > 0) return item.priceOverride;
       if (settings.pricingMode === "margin") {
-        const cost =
-          item.totalWeight * settings.costPerGram +
-          settings.packagingCost +
-          settings.fixedCostPerMeal;
+        const cost = getItemCostInternal(item);
         return cost * (1 + settings.marginPercent / 100);
       }
       return item.totalWeight * settings.manualPricePerGram;
@@ -103,15 +130,19 @@ export function useDietPricing() {
     [settings]
   );
 
-  const getItemCost = useCallback(
-    (item: { totalWeight: number }) => {
-      return (
-        item.totalWeight * settings.costPerGram +
-        settings.packagingCost +
-        settings.fixedCostPerMeal
-      );
+  const getItemCostInternal = useCallback(
+    (item: QuoteItemWeights) => {
+      const proteinCost = item.proteinWeight * getCostPerGram(settings.proteinPricing.costPerKg, settings.proteinPricing.cookingLossPercent);
+      const carbCost = item.carbWeight * getCostPerGram(settings.carbPricing.costPerKg, settings.carbPricing.cookingLossPercent);
+      const veggieCost = item.veggieWeight * getCostPerGram(settings.veggiePricing.costPerKg, settings.veggiePricing.cookingLossPercent);
+      return proteinCost + carbCost + veggieCost + settings.packagingCost + settings.fixedCostPerMeal;
     },
     [settings]
+  );
+
+  const getItemCost = useCallback(
+    (item: QuoteItemWeights) => getItemCostInternal(item),
+    [getItemCostInternal]
   );
 
   return { settings, setSettings, save, saving, loaded, getItemPrice, getItemCost };
