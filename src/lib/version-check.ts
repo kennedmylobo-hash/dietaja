@@ -1,5 +1,5 @@
 // Change this value on each meaningful deploy to force cache bust
-const APP_VERSION = '2025-02-09-v1';
+const APP_VERSION = '2025-02-10-v1';
 
 const VERSION_KEY = 'app_version';
 
