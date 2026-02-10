@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { TenantProvider } from "./contexts/TenantContext";
+import ForceUpdateBanner from "./components/ForceUpdateBanner";
 import { lazy, Suspense, useEffect } from "react";
 
 // Eager load critical pages
@@ -61,6 +62,7 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <ForceUpdateBanner />
             <BrowserRouter>
               <SpaRedirectHandler />
               <Suspense fallback={<PageLoader />}>
