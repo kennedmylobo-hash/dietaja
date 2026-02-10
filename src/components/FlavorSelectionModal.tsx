@@ -176,12 +176,14 @@ const FlavorSelectionModal = ({
         return rest;
       }
       
-      // Don't allow adding more if already at limit or stock limit
+      // Don't allow adding more if total quantity is already complete
       if (delta > 0) {
-        if (remaining <= 0) return prev;
+        const currentTotal = Object.values(prev).reduce((sum, qty) => sum + qty, 0);
+        if (currentTotal >= packageQuantity) return prev;
         if (newValue > maxStock) return prev;
         // Block adding NEW flavor if max flavors reached (but allow increasing existing)
-        if (current === 0 && isMaxFlavorsReached) return prev;
+        const currentUnique = Object.values(prev).filter(qty => qty > 0).length;
+        if (current === 0 && currentUnique >= maxFlavors) return prev;
       }
       
       return { ...prev, [flavor]: newValue };
@@ -489,9 +491,9 @@ const FlavorSelectionModal = ({
                                 <TooltipTrigger asChild>
                                   <button
                                     onClick={() => updateQuantity(flavor, 1)}
-                                    disabled={(remaining <= 0 && !isSelected) || isOutOfStock || maxReached || cannotAddNewFlavor}
+                                    disabled={isOutOfStock || maxReached || cannotAddNewFlavor || (remaining <= 0)}
                                     className={`p-1.5 rounded-full transition-colors ${
-                                      (remaining <= 0 && !isSelected) || isOutOfStock || maxReached || cannotAddNewFlavor
+                                      isOutOfStock || maxReached || cannotAddNewFlavor || (remaining <= 0)
                                         ? "bg-muted text-muted-foreground cursor-not-allowed"
                                         : "bg-terracotta hover:bg-terracotta/90 text-white"
                                     }`}
