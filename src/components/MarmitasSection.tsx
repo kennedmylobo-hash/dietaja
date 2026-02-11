@@ -62,9 +62,10 @@ interface MarmitaCarouselProps {
   onOpenFlavorModal: (marmita: Marmita) => void;
   loadingMarmita: string | null;
   isInView: boolean;
+  minFlavorOverride?: number;
 }
 
-const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita, isInView }: MarmitaCarouselProps) => {
+const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita, isInView, minFlavorOverride }: MarmitaCarouselProps) => {
   const carouselRef = useRef<HTMLDivElement>(null);
   const {
     api,
@@ -156,7 +157,7 @@ const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita
 
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
                     <Clock className="w-4 h-4" />
-                    <span>Total: R$ {marmita.totalPrice.toFixed(2).replace(".", ",")}</span>
+                    <span>A partir de R$ {(marmita.quantity * Math.min(marmita.unitPrice, minFlavorOverride ?? marmita.unitPrice)).toFixed(2).replace(".", ",")}</span>
                   </div>
 
                   <Button
@@ -223,6 +224,19 @@ const MarmitasSection = () => {
     if (!hipertrofiaData || hipertrofiaData.length === 0) return [];
     return hipertrofiaData.map(transformPackage);
   }, [hipertrofiaData]);
+
+  // Compute minimum flavor override per line
+  const minFlavorOverrideFit = useMemo(() => {
+    if (!flavorsData) return undefined;
+    const overrides = flavorsData.map(f => f.price_override_fit).filter((v): v is number => v != null && v > 0);
+    return overrides.length > 0 ? Math.min(...overrides) : undefined;
+  }, [flavorsData]);
+
+  const minFlavorOverrideFitness = useMemo(() => {
+    if (!flavorsData) return undefined;
+    const overrides = flavorsData.map(f => f.price_override_fitness).filter((v): v is number => v != null && v > 0);
+    return overrides.length > 0 ? Math.min(...overrides) : undefined;
+  }, [flavorsData]);
 
   // Group flavors by category for modal
   const flavorsByCategory = useMemo(() => {
@@ -345,6 +359,7 @@ const MarmitasSection = () => {
                 onOpenFlavorModal={handleOpenFlavorModal}
                 loadingMarmita={loadingMarmita}
                 isInView={isInView}
+                minFlavorOverride={minFlavorOverrideFit}
               />
             </motion.div>
           </div>
@@ -382,6 +397,7 @@ const MarmitasSection = () => {
                 onOpenFlavorModal={handleOpenFlavorModal}
                 loadingMarmita={loadingMarmita}
                 isInView={isInView}
+                minFlavorOverride={minFlavorOverrideFitness}
               />
             </motion.div>
           </div>
