@@ -165,7 +165,8 @@ const FlavorSelectionModal = ({
     if (leaveToUs) return;
     
     const stockData = getFlavorStock(flavor);
-    const maxStock = stockData?.stock_quantity ?? Infinity;
+    // Only enforce stock limit when show_stock is enabled
+    const maxStock = (stockData?.show_stock && stockData?.stock_quantity !== null) ? stockData.stock_quantity : Infinity;
     
     setSelections((prev) => {
       const current = prev[flavor] || 0;
@@ -417,7 +418,8 @@ const FlavorSelectionModal = ({
                       const threshold = stockData?.low_stock_threshold ?? 5;
                       const hasLowStock = stockData?.show_stock && stockData.stock_quantity !== null && stockData.stock_quantity < threshold;
                       const isOutOfStock = stockData?.show_stock && stockData.stock_quantity === 0;
-                      const maxReached = stockData?.stock_quantity !== null && qty >= (stockData?.stock_quantity ?? Infinity);
+                      // Only enforce stock cap in UI when show_stock is enabled
+                      const maxReached = stockData?.show_stock && stockData?.stock_quantity !== null && qty >= (stockData?.stock_quantity ?? Infinity);
                       const isFish = flavor === FISH_FLAVOR_NAME;
                       // Block adding new flavors if max flavors reached (unless already selected)
                       const cannotAddNewFlavor = !isSelected && isMaxFlavorsReached;
