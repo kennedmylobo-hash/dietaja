@@ -26,14 +26,17 @@ interface FlavorData {
   show_stock: boolean;
   low_stock_threshold: number | null;
   sides?: any;
+  price_override_fit?: number | null;
+  price_override_fitness?: number | null;
 }
 
 interface FlavorSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (flavors: FlavorSelection[], fishAdditional: number) => void;
+  onConfirm: (flavors: FlavorSelection[], fishAdditional: number, totalQuantity: number, calculatedTotal: number) => void;
   packageName: string;
   packageQuantity: number;
+  packageUnitPrice: number;
   packageWeight?: number;
   lineType?: string;
   isLoading?: boolean;
@@ -46,12 +49,11 @@ const FISH_FLAVOR_NAME = "Filé de peixe com alecrim e arroz";
 const FISH_SURCHARGE = 4.99;
 
 // Calculate max flavors based on package quantity
-// Rules: 7 marmitas = max 3 flavors, 14 = max 7, 21 = max 10, 28 = max 14
 const getMaxFlavors = (quantity: number): number => {
   if (quantity <= 7) return 3;
   if (quantity <= 14) return 7;
   if (quantity <= 21) return 10;
-  return 14; // 28 marmitas
+  return 14;
 };
 
 // Default fallback flavors
@@ -106,6 +108,7 @@ const FlavorSelectionModal = ({
   onConfirm,
   packageName,
   packageQuantity,
+  packageUnitPrice,
   packageWeight = 300,
   lineType = 'emagrecimento',
   isLoading = false,
@@ -116,44 +119,60 @@ const FlavorSelectionModal = ({
   const [selections, setSelections] = useState<Record<string, number>>({});
   const [leaveToUs, setLeaveToUs] = useState(false);
 
-  // Use provided flavors or fallback to defaults
   const flavorCategories = flavorsByCategory || defaultFlavorCategories;
-  
-  // Calculate max different flavors allowed
   const maxFlavors = getMaxFlavors(packageQuantity);
 
-  // Helper to get stock data for a flavor
   const getFlavorStock = (flavorName: string): FlavorData | undefined => {
     return flavorStockData.find(f => f.name === flavorName);
+  };
+
+  // Get the unit price for a specific flavor
+  const getFlavorPrice = (flavorName: string): number => {
+    const stockData = getFlavorStock(flavorName);
+    if (!stockData) return packageUnitPrice;
+    const override = lineType === 'hipertrofia' 
+      ? stockData.price_override_fitness 
+      : stockData.price_override_fit;
+    return override ?? packageUnitPrice;
   };
 
   const totalSelected = useMemo(() => {
     return Object.values(selections).reduce((sum, qty) => sum + qty, 0);
   }, [selections]);
 
-  // Count unique flavors selected
   const uniqueFlavorsCount = useMemo(() => {
     return Object.values(selections).filter(qty => qty > 0).length;
   }, [selections]);
 
-  // Calculate fish quantity and surcharge
+  // Calculate dynamic total based on per-flavor prices
+  const calculatedTotal = useMemo(() => {
+    return Object.entries(selections).reduce((sum, [flavor, qty]) => {
+      const price = getFlavorPrice(flavor);
+      // Fish surcharge is added on top
+      const isFish = flavor === FISH_FLAVOR_NAME;
+      return sum + qty * price + (isFish ? qty * FISH_SURCHARGE : 0);
+    }, 0);
+  }, [selections, flavorStockData, packageUnitPrice, lineType]);
+
   const fishQuantity = useMemo(() => {
     return selections[FISH_FLAVOR_NAME] || 0;
   }, [selections]);
-
   const fishAdditional = fishQuantity * FISH_SURCHARGE;
 
   const remaining = packageQuantity - totalSelected;
-  const isOverFlavorsLimit = uniqueFlavorsCount > maxFlavors;
-  const isComplete = (remaining === 0 && !isOverFlavorsLimit) || leaveToUs;
-  const isOverLimit = remaining < 0;
-  const isMaxFlavorsReached = uniqueFlavorsCount >= maxFlavors;
+  const isComplete = (totalSelected >= packageQuantity && uniqueFlavorsCount <= maxFlavors) || 
+                     (totalSelected >= 1 && totalSelected >= packageQuantity) || 
+                     leaveToUs;
+  const hasMinimum = totalSelected >= packageQuantity;
+  const extraCount = Math.max(0, totalSelected - packageQuantity);
+  
+  // Variety limit: only enforced within base package quantity
+  // Once over package quantity, variety limit is lifted
+  const isMaxFlavorsReached = totalSelected < packageQuantity && uniqueFlavorsCount >= maxFlavors;
 
-  // Track previous state to detect transition to max flavors reached
   const prevMaxReachedRef = useRef(false);
 
   useEffect(() => {
-    // Vibrate with warning pattern when transitioning to max flavors reached and still have items to select
     if (isMaxFlavorsReached && !prevMaxReachedRef.current && remaining > 0) {
       hapticFeedback('warning');
     }
@@ -161,11 +180,9 @@ const FlavorSelectionModal = ({
   }, [isMaxFlavorsReached, remaining]);
 
   const updateQuantity = (flavor: string, delta: number) => {
-    // Disable manual selection if "leave to us" is checked
     if (leaveToUs) return;
     
     const stockData = getFlavorStock(flavor);
-    // Only enforce stock limit when show_stock is enabled
     const maxStock = (stockData?.show_stock && stockData?.stock_quantity !== null) ? stockData.stock_quantity : Infinity;
     
     setSelections((prev) => {
@@ -177,14 +194,12 @@ const FlavorSelectionModal = ({
         return rest;
       }
       
-      // Don't allow adding more if total quantity is already complete
       if (delta > 0) {
-        const currentTotal = Object.values(prev).reduce((sum, qty) => sum + qty, 0);
-        if (currentTotal >= packageQuantity) return prev;
         if (newValue > maxStock) return prev;
-        // Block adding NEW flavor if max flavors reached (but allow increasing existing)
+        // Block adding NEW flavor if max flavors reached (only within base package quantity)
+        const currentTotal = Object.values(prev).reduce((sum, qty) => sum + qty, 0);
         const currentUnique = Object.values(prev).filter(qty => qty > 0).length;
-        if (current === 0 && currentUnique >= maxFlavors) return prev;
+        if (current === 0 && currentTotal < packageQuantity && currentUnique >= maxFlavors) return prev;
       }
       
       return { ...prev, [flavor]: newValue };
@@ -202,12 +217,11 @@ const FlavorSelectionModal = ({
     celebrateCheckout();
     
     if (leaveToUs) {
-      // Send a special "leave to us" marker
       onConfirm([{
         name: "Deixar a cargo da casa",
         quantity: packageQuantity,
         category: "Escolha da casa",
-      }], 0);
+      }], 0, packageQuantity, packageQuantity * packageUnitPrice);
       setSelections({});
       setLeaveToUs(false);
       return;
@@ -228,7 +242,7 @@ const FlavorSelectionModal = ({
       });
     });
     
-    onConfirm(flavorsArray, fishAdditional);
+    onConfirm(flavorsArray, fishAdditional, totalSelected, calculatedTotal);
     setSelections({});
     setLeaveToUs(false);
   };
@@ -249,6 +263,8 @@ const FlavorSelectionModal = ({
     return colors[color] || colors.red;
   };
 
+  const formatPrice = (value: number) => `R$ ${value.toFixed(2).replace(".", ",")}`;
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0 flex flex-col">
@@ -257,7 +273,7 @@ const FlavorSelectionModal = ({
             Escolha seus sabores
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            {packageName} • {packageQuantity} marmitas de {packageWeight}g
+            {packageName} • mín. {packageQuantity} marmitas de {packageWeight}g
           </p>
         </DialogHeader>
 
@@ -266,53 +282,55 @@ const FlavorSelectionModal = ({
           <div className="flex items-center justify-between mb-2">
             <div className="flex flex-col gap-0.5">
               <span className="text-sm font-medium">
-                {leaveToUs ? "Escolha da casa" : `${totalSelected} de ${packageQuantity} selecionadas`}
+                {leaveToUs ? "Escolha da casa" : `${totalSelected} marmita${totalSelected !== 1 ? 's' : ''} selecionada${totalSelected !== 1 ? 's' : ''}`}
               </span>
-            {!leaveToUs && (
-              <span className={`text-xs flex items-center gap-1 ${isMaxFlavorsReached ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>
-                {isMaxFlavorsReached && <AlertCircle className="w-3 h-3" />}
-                {uniqueFlavorsCount} de {maxFlavors} sabores diferentes
-                {isMaxFlavorsReached && " (máximo)"}
-              </span>
-            )}
-            </div>
-            <AnimatePresence mode="wait">
-              {isComplete ? (
-                <motion.span
-                  key="complete"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="inline-flex items-center gap-1 text-sm text-primary font-medium"
-                >
-                  <Check className="w-4 h-4" />
-                  {leaveToUs ? "Mix variado" : "Completo!"}
-                </motion.span>
-              ) : isOverLimit ? (
-                <motion.span
-                  key="over"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="inline-flex items-center gap-1 text-sm text-destructive font-medium"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                  Limite excedido
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="remaining"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-sm text-muted-foreground"
-                >
-                  Faltam {remaining}
-                </motion.span>
+              {!leaveToUs && extraCount > 0 && (
+                <span className="text-xs text-primary font-medium">
+                  📦 {packageQuantity} base + {extraCount} extra{extraCount > 1 ? 's' : ''}
+                </span>
               )}
-            </AnimatePresence>
+              {!leaveToUs && !hasMinimum && (
+                <span className={`text-xs flex items-center gap-1 ${isMaxFlavorsReached ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>
+                  {isMaxFlavorsReached && <AlertCircle className="w-3 h-3" />}
+                  {uniqueFlavorsCount} de {maxFlavors} sabores diferentes
+                  {isMaxFlavorsReached && " (máximo)"}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col items-end gap-0.5">
+              <AnimatePresence mode="wait">
+                {hasMinimum || leaveToUs ? (
+                  <motion.span
+                    key="complete"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="inline-flex items-center gap-1 text-sm text-primary font-medium"
+                  >
+                    <Check className="w-4 h-4" />
+                    {leaveToUs ? "Mix variado" : "Pronto!"}
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="remaining"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-sm text-muted-foreground"
+                  >
+                    Faltam {remaining}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              {!leaveToUs && totalSelected > 0 && (
+                <span className="text-sm font-bold text-foreground">
+                  {formatPrice(calculatedTotal)}
+                </span>
+              )}
+            </div>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <motion.div
               className={`h-full rounded-full transition-colors ${
-                isOverLimit ? "bg-destructive" : isComplete ? "bg-primary" : "bg-terracotta"
+                hasMinimum ? "bg-primary" : "bg-terracotta"
               }`}
               initial={{ width: 0 }}
               animate={{ width: leaveToUs ? "100%" : `${Math.min((totalSelected / packageQuantity) * 100, 100)}%` }}
@@ -321,7 +339,7 @@ const FlavorSelectionModal = ({
           </div>
         </div>
 
-        {/* Alert when max flavors reached but still need to complete */}
+        {/* Alert when max flavors reached but still need to complete base */}
         <AnimatePresence>
           {isMaxFlavorsReached && !leaveToUs && remaining > 0 && (
             <motion.div
@@ -337,8 +355,8 @@ const FlavorSelectionModal = ({
                     Limite de variedades atingido!
                   </p>
                   <p className="text-xs mt-0.5 opacity-90">
-                    Para {packageQuantity} marmitas, você pode escolher no máximo {maxFlavors} sabores diferentes. 
-                    Aumente a quantidade dos sabores já selecionados para completar seu pedido.
+                    Para o pacote base de {packageQuantity} marmitas, máximo {maxFlavors} sabores diferentes.
+                    Aumente a quantidade dos sabores já selecionados para completar.
                   </p>
                 </div>
               </div>
@@ -348,7 +366,7 @@ const FlavorSelectionModal = ({
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-4 space-y-6">
-            {/* Leave to us option - Highlighted with shimmer and badge */}
+            {/* Leave to us option */}
             <motion.div 
               onClick={() => handleLeaveToUsChange(!leaveToUs)}
               initial={{ opacity: 0, y: -10 }}
@@ -359,12 +377,10 @@ const FlavorSelectionModal = ({
                   : "border-primary/60 bg-gradient-to-r from-primary/5 to-primary/10 hover:border-primary"
               }`}
             >
-              {/* Shimmer animation overlay */}
               {!leaveToUs && (
                 <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
               )}
               
-              {/* Recommended badge */}
               <div className="absolute -top-0 -right-0">
                 <div className="bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-bl-lg rounded-tr-lg uppercase tracking-wide">
                   ⭐ Recomendado
@@ -418,11 +434,14 @@ const FlavorSelectionModal = ({
                       const threshold = stockData?.low_stock_threshold ?? 5;
                       const hasLowStock = stockData?.show_stock && stockData.stock_quantity !== null && stockData.stock_quantity < threshold;
                       const isOutOfStock = stockData?.show_stock && stockData.stock_quantity === 0;
-                      // Only enforce stock cap in UI when show_stock is enabled
                       const maxReached = stockData?.show_stock && stockData?.stock_quantity !== null && qty >= (stockData?.stock_quantity ?? Infinity);
                       const isFish = flavor === FISH_FLAVOR_NAME;
-                      // Block adding new flavors if max flavors reached (unless already selected)
-                      const cannotAddNewFlavor = !isSelected && isMaxFlavorsReached;
+                      const flavorPrice = getFlavorPrice(flavor);
+                      const hasCustomPrice = flavorPrice !== packageUnitPrice;
+                      
+                      // Block adding new flavors if max variety reached and still within base quantity
+                      const currentTotal = totalSelected;
+                      const cannotAddNewFlavor = !isSelected && currentTotal < packageQuantity && isMaxFlavorsReached;
                       
                       return (
                         <div
@@ -435,25 +454,30 @@ const FlavorSelectionModal = ({
                               : "border-border bg-background hover:border-terracotta/30"
                           }`}
                         >
-                          <div className="flex flex-col gap-0.5">
+                          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                             <span className={`text-sm ${isSelected ? "font-medium text-foreground" : "text-muted-foreground"}`}>
                               {isFish && <Fish className="w-3.5 h-3.5 inline mr-1 text-blue-500" />}
                               {flavor}
+                            </span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-xs font-medium ${hasCustomPrice ? 'text-primary' : 'text-muted-foreground'}`}>
+                                {formatPrice(flavorPrice)}/un
+                              </span>
                               {isFish && (
-                                <span className="ml-1.5 text-xs text-blue-600 font-medium">
+                                <span className="text-xs text-blue-600 font-medium">
                                   (+R$ 4,99/un)
                                 </span>
                               )}
-                            </span>
-                            {(() => {
-                              const flavorStock = getFlavorStock(flavor);
-                              const desc = flavorStock?.sides ? getFlavorDescription(flavorStock.sides, lineKey) : null;
-                              return desc ? (
-                                <span className="text-xs text-muted-foreground leading-tight">
-                                  {desc}
-                                </span>
-                              ) : null;
-                            })()}
+                              {(() => {
+                                const flavorStock = getFlavorStock(flavor);
+                                const desc = flavorStock?.sides ? getFlavorDescription(flavorStock.sides, lineKey) : null;
+                                return desc ? (
+                                  <span className="text-xs text-muted-foreground leading-tight">
+                                    • {desc}
+                                  </span>
+                                ) : null;
+                              })()}
+                            </div>
                             {hasLowStock && !isOutOfStock && (
                               <span className="text-xs text-destructive font-medium animate-pulse">
                                 🔥 Apenas {stockData.stock_quantity} disponíveis
@@ -466,7 +490,7 @@ const FlavorSelectionModal = ({
                             )}
                           </div>
                           
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 shrink-0">
                             {isSelected && (
                               <motion.button
                                 initial={{ opacity: 0, scale: 0.5 }}
@@ -493,9 +517,9 @@ const FlavorSelectionModal = ({
                                 <TooltipTrigger asChild>
                                   <button
                                     onClick={() => updateQuantity(flavor, 1)}
-                                    disabled={isOutOfStock || maxReached || cannotAddNewFlavor || (remaining <= 0)}
+                                    disabled={isOutOfStock || maxReached || cannotAddNewFlavor}
                                     className={`p-1.5 rounded-full transition-colors ${
-                                      isOutOfStock || maxReached || cannotAddNewFlavor || (remaining <= 0)
+                                      isOutOfStock || maxReached || cannotAddNewFlavor
                                         ? "bg-muted text-muted-foreground cursor-not-allowed"
                                         : "bg-terracotta hover:bg-terracotta/90 text-white"
                                     }`}
@@ -523,40 +547,37 @@ const FlavorSelectionModal = ({
 
         {/* Footer */}
         <div className="p-4 border-t bg-background shrink-0 space-y-3">
-          {fishAdditional > 0 && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <Fish className="w-4 h-4 text-blue-500" />
-                Adicional peixe ({fishQuantity}x)
-              </span>
-              <span className="font-medium text-blue-600">
-                + R$ {fishAdditional.toFixed(2).replace(".", ",")}
-              </span>
-            </div>
-          )}
-          {isOverFlavorsLimit && (
-            <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 rounded-lg">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>Máximo de {maxFlavors} sabores diferentes para este pacote. Remova {uniqueFlavorsCount - maxFlavors} sabor(es).</span>
+          {/* Price breakdown */}
+          {!leaveToUs && totalSelected > 0 && (
+            <div className="space-y-1">
+              {extraCount > 0 && (
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>📦 {packageQuantity} marmitas base + {extraCount} extra{extraCount > 1 ? 's' : ''}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">Total ({totalSelected} marmita{totalSelected > 1 ? 's' : ''})</span>
+                <span className="font-bold text-lg text-foreground">
+                  {formatPrice(calculatedTotal)}
+                </span>
+              </div>
             </div>
           )}
           <Button
             variant="cta"
             className="w-full"
             onClick={handleConfirm}
-            disabled={!isComplete || isLoading || isOverFlavorsLimit}
+            disabled={!hasMinimum && !leaveToUs || isLoading}
           >
             {isLoading ? (
               "Adicionando..."
-            ) : isOverFlavorsLimit ? (
-              `Limite de sabores excedido`
-            ) : isComplete ? (
+            ) : hasMinimum || leaveToUs ? (
               <>
                 <ShoppingCart className="w-4 h-4 mr-2" />
-                Adicionar ao carrinho
+                Adicionar ao carrinho • {formatPrice(leaveToUs ? packageQuantity * packageUnitPrice : calculatedTotal)}
               </>
             ) : (
-              `Selecione mais ${remaining} sabor${remaining > 1 ? "es" : ""}`
+              `Selecione mais ${remaining} marmita${remaining > 1 ? 's' : ''}`
             )}
           </Button>
         </div>

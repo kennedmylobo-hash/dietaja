@@ -27,6 +27,8 @@ export interface MarmitaFlavor {
   show_stock: boolean;
   low_stock_threshold: number | null;
   sides: Json | null;
+  price_override_fit: number | null;
+  price_override_fitness: number | null;
 }
 
 export interface KitPackage {

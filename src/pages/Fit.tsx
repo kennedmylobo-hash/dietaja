@@ -75,6 +75,8 @@ const FitContent = () => {
     show_stock: f.show_stock,
     low_stock_threshold: f.low_stock_threshold,
     sides: f.sides,
+    price_override_fit: f.price_override_fit,
+    price_override_fitness: f.price_override_fitness,
   }));
 
   const scrollToPackages = useCallback(() => {
@@ -109,7 +111,7 @@ const FitContent = () => {
     }, 300);
   };
 
-  const handleFlavorConfirm = (flavors: FlavorSelection[], fishAdditional: number) => {
+  const handleFlavorConfirm = (flavors: FlavorSelection[], fishAdditional: number, totalQuantity: number, calculatedTotal: number) => {
     if (!selectedPackage) return;
     const pkg = marmitaPackages.find(p => p.id === selectedPackage.id);
     if (!pkg) return;
@@ -117,10 +119,10 @@ const FitContent = () => {
     addItem({
       type: "marmita",
       name: pkg.name,
-      quantity: pkg.quantity,
+      quantity: totalQuantity,
       unitPrice: pkg.unit_price,
-      totalPrice: pkg.quantity * pkg.unit_price,
-      description: `${pkg.quantity}x Marmita 300g`,
+      totalPrice: calculatedTotal,
+      description: `${totalQuantity}x Marmita 300g`,
       flavors,
       fishAdditional,
       lineType: 'emagrecimento',
@@ -256,6 +258,7 @@ const FitContent = () => {
         onConfirm={handleFlavorConfirm}
         packageName={selectedPackage?.name || ""}
         packageQuantity={selectedPackage?.quantity || 0}
+        packageUnitPrice={selectedPackage ? (marmitaPackages.find(p => p.id === selectedPackage.id)?.unit_price || 0) : 0}
         packageWeight={300}
         lineType="emagrecimento"
         flavorsByCategory={flavorsByCategory}

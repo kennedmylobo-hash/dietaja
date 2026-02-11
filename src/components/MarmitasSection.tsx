@@ -245,6 +245,8 @@ const MarmitasSection = () => {
       show_stock: f.show_stock,
       low_stock_threshold: f.low_stock_threshold,
       sides: f.sides,
+      price_override_fit: f.price_override_fit,
+      price_override_fitness: f.price_override_fitness,
     }));
   }, [flavorsData]);
 
@@ -275,7 +277,7 @@ const MarmitasSection = () => {
     setIsFlavorModalOpen(true);
   };
 
-  const handleConfirmFlavors = async (flavors: FlavorSelection[], fishAdditional: number) => {
+  const handleConfirmFlavors = async (flavors: FlavorSelection[], fishAdditional: number, totalQuantity: number, calculatedTotal: number) => {
     if (!selectedMarmita) return;
     
     setLoadingMarmita(selectedMarmita.id);
@@ -286,10 +288,10 @@ const MarmitasSection = () => {
     addItem({
       type: "marmita",
       name: selectedMarmita.name,
-      quantity: selectedMarmita.quantity,
+      quantity: totalQuantity,
       unitPrice: selectedMarmita.unitPrice,
-      totalPrice: selectedMarmita.totalPrice,
-      description: `${selectedMarmita.quantity} marmitas de ${selectedMarmita.weight}g`,
+      totalPrice: calculatedTotal,
+      description: `${totalQuantity} marmitas de ${selectedMarmita.weight}g`,
       flavors: flavors,
       fishAdditional: fishAdditional,
       lineType: selectedMarmita.lineType,
@@ -300,7 +302,7 @@ const MarmitasSection = () => {
 
     toast({
       title: "Adicionado ao carrinho! 🛒",
-      description: `${selectedMarmita.name} (${selectedMarmita.quantity} marmitas de ${selectedMarmita.weight}g)`,
+      description: `${selectedMarmita.name} (${totalQuantity} marmitas de ${selectedMarmita.weight}g)`,
     });
     
     setLoadingMarmita(null);
@@ -519,6 +521,7 @@ const MarmitasSection = () => {
         onConfirm={handleConfirmFlavors}
         packageName={selectedMarmita?.name || ""}
         packageQuantity={selectedMarmita?.quantity || 7}
+        packageUnitPrice={selectedMarmita?.unitPrice || 0}
         packageWeight={selectedMarmita?.weight || 300}
         lineType={selectedMarmita?.lineType}
         isLoading={loadingMarmita !== null}
