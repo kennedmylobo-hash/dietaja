@@ -460,9 +460,6 @@ const FlavorSelectionModal = ({
                               {flavor}
                             </span>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-xs font-medium ${hasCustomPrice ? 'text-primary' : 'text-muted-foreground'}`}>
-                                {formatPrice(flavorPrice)}/un
-                              </span>
                               {isFish && (
                                 <span className="text-xs text-blue-600 font-medium">
                                   (+R$ 4,99/un)
@@ -490,7 +487,10 @@ const FlavorSelectionModal = ({
                             )}
                           </div>
                           
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className={`text-sm font-bold whitespace-nowrap ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
+                              {formatPrice(flavorPrice)}
+                            </span>
                             {isSelected && (
                               <motion.button
                                 initial={{ opacity: 0, scale: 0.5 }}
