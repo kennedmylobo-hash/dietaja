@@ -71,6 +71,38 @@ const findFlavorSides = (
   return generateDefaultSides(flavorName, lineKey);
 };
 
+/**
+ * Enriches generic ingredient names (e.g. "Frango") with context from
+ * the flavor name (e.g. "Frango à parmegiana", "Frango desfiado").
+ * This ensures production totals never lump different preparations together.
+ */
+const enrichSideName = (sideName: string, flavorName: string): string => {
+  const lowerSide = sideName.toLowerCase().trim();
+  const lowerFlavor = flavorName.toLowerCase();
+
+  const isGenericFrango = lowerSide === 'frango';
+  const isGenericCarne = lowerSide === 'carne';
+
+  if (!isGenericFrango && !isGenericCarne) return sideName;
+
+  // Parmegiana → keep full preparation name
+  if (lowerFlavor.includes('parmegiana') || lowerFlavor.includes('parmigiana')) {
+    return isGenericFrango ? 'Frango à parmegiana' : 'Carne à parmegiana';
+  }
+
+  // Pasta dishes → shredded protein
+  if (lowerFlavor.includes('macarronada') || lowerFlavor.includes('macarrão')) {
+    return isGenericFrango ? 'Frango desfiado' : 'Carne desfiada';
+  }
+
+  // Almôndega
+  if (lowerFlavor.includes('almôndega') || lowerFlavor.includes('almondega')) {
+    return isGenericCarne ? 'Almôndega' : sideName;
+  }
+
+  return sideName;
+};
+
 export const getOrderProductionLines = (
   order: OrderForProduction,
   flavorSidesMap: Record<string, Json | null>
@@ -88,12 +120,17 @@ export const getOrderProductionLines = (
 
     for (const flavor of item.flavors) {
       const sides = findFlavorSides(flavor.name, lineKey, flavorSidesMap);
+      // Enrich generic names based on dish context
+      const enrichedSides = sides.map(s => ({
+        ...s,
+        name: enrichSideName(s.name, flavor.name),
+      }));
       lines.push({
         flavorName: flavor.name,
         quantity: flavor.quantity,
         line: lineLabel,
         lineKey,
-        sides,
+        sides: enrichedSides,
       });
     }
   }
@@ -104,7 +141,7 @@ export const getOrderProductionLines = (
 // Classify ingredient for grouping
 const classifyIngredient = (name: string): 'protein' | 'carb' | 'salad' => {
   const lower = name.toLowerCase();
-  const carbKeywords = ['arroz', 'aipim', 'batata', 'purê', 'pure', 'feijão', 'feijao', 'macarrão', 'macarrao', 'nhoque', 'mandioca', 'farinha', 'risoto'];
+  const carbKeywords = ['arroz', 'aipim', 'batata', 'purê', 'pure', 'feijão', 'feijao', 'macarrão', 'macarrao', 'nhoque', 'mandioca', 'farinha', 'risoto', 'molho'];
   if (carbKeywords.some(k => lower.includes(k))) return 'carb';
   const saladKeywords = ['mix', 'salada', 'legume', 'brócolis', 'brocolis', 'chuchu', 'cenoura', 'abobrinha', 'vagem'];
   if (saladKeywords.some(k => lower.includes(k))) return 'salad';
