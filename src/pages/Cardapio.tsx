@@ -150,18 +150,15 @@ const CardapioContent = () => {
   }, [trackCTAClick]);
 
   // Handle flavor confirmation for marmitas
-  const handleFlavorConfirm = useCallback((selections: Array<{ name: string; quantity: number; category: string }>, fishAdditional: number) => {
+  const handleFlavorConfirm = useCallback((selections: Array<{ name: string; quantity: number; category: string }>, fishAdditional: number, totalQuantity: number, calculatedTotal: number) => {
     if (!pendingProduct) return;
-
-    const quantity = pendingProduct.quantity || 1;
-    const totalPrice = pendingProduct.price * quantity + fishAdditional;
 
     addItem({
       type: "marmita",
       name: pendingProduct.name,
-      quantity: quantity,
+      quantity: totalQuantity,
       unitPrice: pendingProduct.price,
-      totalPrice: totalPrice,
+      totalPrice: calculatedTotal,
       flavors: selections,
       fishAdditional: fishAdditional,
       lineType: pendingProduct.lineType,
@@ -224,6 +221,8 @@ const CardapioContent = () => {
       show_stock: f.show_stock,
       low_stock_threshold: f.low_stock_threshold,
       sides: f.sides,
+      price_override_fit: f.price_override_fit,
+      price_override_fitness: f.price_override_fitness,
     }));
   }, [marmitaFlavors]);
 
@@ -385,6 +384,7 @@ const CardapioContent = () => {
         onConfirm={handleFlavorConfirm}
         packageName={pendingProduct?.name || ""}
         packageQuantity={pendingProduct?.quantity || 7}
+        packageUnitPrice={pendingProduct?.price || 0}
         packageWeight={pendingProduct?.lineType === 'hipertrofia' ? 450 : 300}
         flavorsByCategory={flavorsByCategory}
         flavorStockData={flavorStockData}

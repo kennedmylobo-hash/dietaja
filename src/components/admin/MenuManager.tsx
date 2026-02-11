@@ -62,6 +62,8 @@ interface MarmitaFlavor {
   show_stock: boolean;
   low_stock_threshold: number | null;
   sides: any;
+  price_override_fit: number | null;
+  price_override_fitness: number | null;
 }
 
 interface CompositionModalState {
@@ -260,6 +262,8 @@ const MenuManager = () => {
             stock_quantity: flavor.stock_quantity,
             show_stock: flavor.show_stock,
             sides: flavor.sides,
+            price_override_fit: flavor.price_override_fit,
+            price_override_fitness: flavor.price_override_fitness,
           })
           .eq('id', flavor.id);
         
@@ -695,9 +699,30 @@ const MenuManager = () => {
                               </Badge>
                             )}
                           </div>
+                          <div className="flex items-center gap-1">
+                            <div className="flex flex-col gap-0.5">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="Fit R$"
+                                value={flavor.price_override_fit ?? ''}
+                                onChange={(e) => updateMarmitaFlavor(flavor.id, 'price_override_fit' as any, e.target.value === '' ? null : parseFloat(e.target.value))}
+                                className="w-20 h-7 text-xs text-center"
+                                title="Preço unitário Fit (vazio = usa preço do pacote)"
+                              />
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="Fitness R$"
+                                value={flavor.price_override_fitness ?? ''}
+                                onChange={(e) => updateMarmitaFlavor(flavor.id, 'price_override_fitness' as any, e.target.value === '' ? null : parseFloat(e.target.value))}
+                                className="w-20 h-7 text-xs text-center"
+                                title="Preço unitário Fitness (vazio = usa preço do pacote)"
+                              />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground leading-tight">R$/un</span>
+                          </div>
                           <Button
-                            variant="outline"
-                            size="sm"
                             className="h-8 text-xs gap-1 shrink-0"
                             onClick={() => setCompositionModal({
                               isOpen: true,

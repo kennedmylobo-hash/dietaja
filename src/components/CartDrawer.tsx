@@ -1423,9 +1423,15 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         <FlavorSelectionModal
           isOpen={!!editingMarmita}
           onClose={() => setEditingMarmita(null)}
-          onConfirm={handleMarmitaFlavorEditConfirm}
+          onConfirm={(flavors, fishAdditional) => {
+            if (editingMarmita) {
+              updateItemFlavors(editingMarmita.id, flavors, fishAdditional);
+              setEditingMarmita(null);
+            }
+          }}
           packageName={editingMarmita?.name || ""}
           packageQuantity={editingMarmita?.quantity || 0}
+          packageUnitPrice={editingMarmita?.unitPrice || 0}
           flavorsByCategory={flavorsByCategory}
           flavorStockData={flavorStockData}
         />

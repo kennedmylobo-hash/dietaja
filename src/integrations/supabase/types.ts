@@ -892,6 +892,8 @@ export type Database = {
           id: string
           low_stock_threshold: number | null
           name: string
+          price_override_fit: number | null
+          price_override_fitness: number | null
           show_stock: boolean
           sides: Json | null
           sort_order: number
@@ -905,6 +907,8 @@ export type Database = {
           id?: string
           low_stock_threshold?: number | null
           name: string
+          price_override_fit?: number | null
+          price_override_fitness?: number | null
           show_stock?: boolean
           sides?: Json | null
           sort_order?: number
@@ -918,6 +922,8 @@ export type Database = {
           id?: string
           low_stock_threshold?: number | null
           name?: string
+          price_override_fit?: number | null
+          price_override_fitness?: number | null
           show_stock?: boolean
           sides?: Json | null
           sort_order?: number
