@@ -79,6 +79,12 @@ const FitnessContent = () => {
     price_override_fitness: f.price_override_fitness,
   }));
 
+  // Compute minimum flavor override for fitness line
+  const minFlavorUnitPrice = (() => {
+    const overrides = flavorsRaw.map(f => f.price_override_fitness).filter((v): v is number => v != null && v > 0);
+    return overrides.length > 0 ? Math.min(...overrides) : undefined;
+  })();
+
   const scrollToPackages = useCallback(() => {
     if (packagesRef.current) {
       packagesRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -211,6 +217,7 @@ const FitnessContent = () => {
           accentColor="terracotta"
           loadingId={loadingId}
           unit="un"
+          minFlavorUnitPrice={minFlavorUnitPrice}
         />
       </div>
 

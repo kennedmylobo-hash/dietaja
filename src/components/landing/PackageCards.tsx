@@ -22,6 +22,7 @@ interface PackageCardsProps {
   accentColor?: 'primary' | 'terracotta' | 'blue';
   loadingId: string | null;
   unit?: string;
+  minFlavorUnitPrice?: number;
 }
 
 const PackageCards = ({
@@ -32,6 +33,7 @@ const PackageCards = ({
   accentColor = 'primary',
   loadingId,
   unit = "un",
+  minFlavorUnitPrice,
 }: PackageCardsProps) => {
   const colorClasses = {
     primary: {
@@ -122,7 +124,7 @@ const PackageCards = ({
                           <span className="text-sm text-muted-foreground">/{unit}</span>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Total: R$ {pkg.price.toFixed(2).replace('.', ',')}
+                          A partir de R$ {(pkg.quantity * Math.min(pkg.pricePerUnit, minFlavorUnitPrice ?? pkg.pricePerUnit)).toFixed(2).replace('.', ',')}
                         </p>
                       </div>
 
