@@ -1,32 +1,21 @@
 
 
-# Correcao: Geracao de Order Number Duplicado
+# Blindagem Total: Pedidos Sem Erro de Duplicata
 
-## Problema
-A funcao `generate_order_number()` usa `COUNT(*) + 1` para gerar numeros sequenciais. Isso causa colisao quando pedidos sao deletados (o COUNT diminui mas os numeros antigos permanecem) ou quando dois pedidos sao criados simultaneamente.
+## O que ja foi feito
+- A funcao `generate_order_number` foi corrigida para usar MAX em vez de COUNT
+- A edge function `create-asaas-pix` tem retry para erro 23505
 
-## Solucao
+## O que ainda pode falhar
+Dois clientes finalizando no exato mesmo momento podem ler o mesmo MAX antes de qualquer um inserir, gerando colisao mesmo com retry (improvavel, mas possivel).
 
-### 1. Corrigir a funcao no banco de dados
+## Solucao Definitiva: Lock no Banco de Dados
 
-Substituir `COUNT(*) + 1` por `MAX(sequencial) + 1`, extraindo o numero do ultimo order_number existente. Assim o proximo numero sera sempre maior que qualquer existente, mesmo que pedidos sejam deletados.
+Usar `pg_advisory_xact_lock` para que apenas uma transacao por vez crie pedidos para o mesmo tenant. Isso elimina 100% a possibilidade de colisao.
 
-```text
-Logica nova:
-  - Extrair a parte numerica de todos os order_numbers do tenant (ex: "DJA-0045" -> 45)
-  - Pegar o MAX + 1
-  - Se nenhum pedido existir, comecar do 1
-```
+### Passo 1 -- Migration SQL
 
-### 2. Adicionar retry no checkout (frontend)
-
-No `CheckoutForm.tsx`, caso o insert falhe com erro de chave duplicada (codigo 23505), tentar novamente automaticamente ate 2 vezes. Isso cobre o cenario raro de dois clientes finalizando no exato mesmo milissegundo.
-
-## Detalhes Tecnicos
-
-### Migration SQL
-
-Recriar a funcao trigger `generate_order_number`:
+Atualizar a funcao trigger `generate_order_number` para incluir um advisory lock:
 
 ```text
 CREATE OR REPLACE FUNCTION public.generate_order_number()
@@ -38,6 +27,9 @@ DECLARE
   prefix TEXT;
   max_seq INT;
 BEGIN
+  -- Serializa a geracao de order_number por tenant
+  PERFORM pg_advisory_xact_lock(hashtext('order_number_' || NEW.tenant_id::text));
+
   SELECT t.order_prefix INTO prefix
   FROM public.tenants t
   WHERE t.id = NEW.tenant_id;
@@ -47,9 +39,7 @@ BEGIN
   END IF;
 
   SELECT COALESCE(
-    MAX(
-      NULLIF(regexp_replace(order_number, '^.*-', ''), '')::INT
-    ),
+    MAX(NULLIF(regexp_replace(order_number, '^.*-', ''), '')::INT),
     0
   ) + 1
   INTO max_seq
@@ -62,11 +52,28 @@ END;
 $$;
 ```
 
-### Frontend -- CheckoutForm.tsx
+A unica mudanca e a linha `PERFORM pg_advisory_xact_lock(...)` no inicio. Isso garante que se dois INSERTs chegarem ao mesmo tempo, o segundo espera o primeiro terminar antes de calcular o proximo numero.
 
-Na logica de insert de pedido, adicionar um `try/catch` que detecta o erro `23505` (unique_violation) e tenta o insert novamente (maximo 2 retries com delay de 500ms).
+### Passo 2 -- Manter o retry na edge function
+
+O retry ja implementado em `create-asaas-pix` continua como camada extra de seguranca, mas com o lock ele nunca devera ser acionado.
+
+### Resultado
+
+```text
+Sem lock:
+  Cliente A: SELECT MAX -> 45  |  INSERT DJA-0046  -> OK
+  Cliente B: SELECT MAX -> 45  |  INSERT DJA-0046  -> ERRO (duplicata)
+
+Com lock:
+  Cliente A: LOCK -> SELECT MAX -> 45 -> INSERT DJA-0046 -> UNLOCK
+  Cliente B: ESPERA... -> LOCK -> SELECT MAX -> 46 -> INSERT DJA-0047 -> UNLOCK
+```
 
 ### Arquivos afetados
-1. **Migration SQL** -- funcao `generate_order_number` (banco de dados)
-2. **`src/components/CheckoutForm.tsx`** -- retry em caso de erro de chave duplicada
+1. **Migration SQL** -- adicionar `pg_advisory_xact_lock` na funcao `generate_order_number`
+2. Nenhuma mudanca no frontend ou edge function (retry ja existe como backup)
+
+### Risco
+Zero. O advisory lock e liberado automaticamente ao final da transacao e nao afeta performance em uso normal (cada lock dura milissegundos).
 
