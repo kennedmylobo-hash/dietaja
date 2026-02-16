@@ -129,32 +129,55 @@ serve(async (req) => {
       }
     }
 
-    // Create new order if no existing one found
+    // Create new order if no existing one found (with retry for duplicate order_number)
     if (!orderId) {
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          status: 'pending',
-          payment_method: 'pix',
-          items: items,
-          subtotal,
-          delivery_fee: deliveryFee,
-          total,
-          customer_name: customer.name,
-          customer_email: customer.email,
-          customer_phone: customer.phone,
-          delivery_option: delivery.option,
-          delivery_address: delivery.address || null,
-          utm_data: utm_data || null,
-          coupon_code: coupon_code || null,
-          discount_amount: discountValue + cashbackValue,
-          tenant_id: effectiveTenantId,
-        })
-        .select('id, order_number')
-        .single();
+      const orderPayload = {
+        status: 'pending',
+        payment_method: 'pix',
+        items: items,
+        subtotal,
+        delivery_fee: deliveryFee,
+        total,
+        customer_name: customer.name,
+        customer_email: customer.email,
+        customer_phone: customer.phone,
+        delivery_option: delivery.option,
+        delivery_address: delivery.address || null,
+        utm_data: utm_data || null,
+        coupon_code: coupon_code || null,
+        discount_amount: discountValue + cashbackValue,
+        tenant_id: effectiveTenantId,
+      };
 
-      if (orderError) {
-        console.error('Error creating order:', orderError);
+      let order = null;
+      let orderError = null;
+      const MAX_RETRIES = 2;
+
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        const result = await supabase
+          .from('orders')
+          .insert(orderPayload)
+          .select('id, order_number')
+          .single();
+
+        if (!result.error) {
+          order = result.data;
+          orderError = null;
+          break;
+        }
+
+        // Check for unique violation (duplicate order_number)
+        if (result.error.code === '23505' && attempt < MAX_RETRIES) {
+          console.warn(`Order insert attempt ${attempt + 1} failed with duplicate key, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 500));
+          continue;
+        }
+
+        orderError = result.error;
+      }
+
+      if (orderError || !order) {
+        console.error('Error creating order after retries:', orderError);
         throw new Error('Failed to create order');
       }
 
