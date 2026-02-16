@@ -1,86 +1,72 @@
 
 
-# Plano: Forcar Atualizacao para Clientes Recorrentes
+# Correcao: Geracao de Order Number Duplicado
 
-## Problema Raiz
-
-O site usa um **Service Worker (PWA)** configurado para fazer cache de todos os arquivos:
-
-```text
-globPatterns: ["**/*.{js,css,html,ico,png,jpg,jpeg,svg,webp,woff,woff2}"]
-```
-
-Quando voce atualiza o cardapio ou o codigo do site, clientes que ja visitaram (como o Glauber) podem estar rodando uma **versao antiga do JavaScript** guardada no cache do Service Worker. Essa versao antiga tenta interagir com o banco de dados atualizado, causando conflitos e erros silenciosos no checkout.
-
-As meta tags `no-cache` no HTML nao resolvem porque o Service Worker **intercepta as requisicoes antes** do navegador checar o servidor.
+## Problema
+A funcao `generate_order_number()` usa `COUNT(*) + 1` para gerar numeros sequenciais. Isso causa colisao quando pedidos sao deletados (o COUNT diminui mas os numeros antigos permanecem) ou quando dois pedidos sao criados simultaneamente.
 
 ## Solucao
 
-### 1. Forcar recarga quando houver nova versao (Service Worker)
+### 1. Corrigir a funcao no banco de dados
 
-Alterar a configuracao do PWA em `vite.config.ts` para:
-- Usar `skipWaiting: true` e `clientsClaim: true` no Workbox, forcando o novo Service Worker a assumir imediatamente (sem esperar o usuario fechar a aba)
-- Remover HTML do `globPatterns` para que o index.html nunca seja servido do cache do SW
+Substituir `COUNT(*) + 1` por `MAX(sequencial) + 1`, extraindo o numero do ultimo order_number existente. Assim o proximo numero sera sempre maior que qualquer existente, mesmo que pedidos sejam deletados.
 
-### 2. Detectar versao desatualizada no frontend
+```text
+Logica nova:
+  - Extrair a parte numerica de todos os order_numbers do tenant (ex: "DJA-0045" -> 45)
+  - Pegar o MAX + 1
+  - Se nenhum pedido existir, comecar do 1
+```
 
-Criar um pequeno listener em `src/main.tsx` que:
-- Detecta quando o Service Worker baixou uma atualizacao
-- Forca um `window.location.reload()` automatico para carregar o codigo novo
-- Isso garante que o cliente nunca fique preso em uma versao velha do site
+### 2. Adicionar retry no checkout (frontend)
 
-### 3. Adicionar versao do app para controle
-
-Incluir uma constante `APP_VERSION` que muda a cada deploy. Se a versao armazenada no localStorage for diferente da atual, limpar caches antigos e recarregar.
-
-## Resultado Esperado
-
-- Clientes recorrentes sempre rodarao a versao mais recente do site
-- Atualizacoes no cardapio, precos e checkout serao refletidas imediatamente
-- Erros causados por conflito entre codigo antigo e banco novo serao eliminados
-- A experiencia continuara rapida (cache ainda funciona, mas e invalidado corretamente)
-
----
+No `CheckoutForm.tsx`, caso o insert falhe com erro de chave duplicada (codigo 23505), tentar novamente automaticamente ate 2 vezes. Isso cobre o cenario raro de dois clientes finalizando no exato mesmo milissegundo.
 
 ## Detalhes Tecnicos
 
-### Arquivo: `vite.config.ts`
+### Migration SQL
 
-Adicionar `skipWaiting: true` e `clientsClaim: true` na configuracao do Workbox, e adicionar `navigateFallback` para garantir que navegacoes sempre busquem o HTML atualizado:
-
-```text
-workbox: {
-  skipWaiting: true,
-  clientsClaim: true,
-  globPatterns: ["**/*.{js,css,ico,png,jpg,jpeg,svg,webp,woff,woff2}"],
-  // remover html do glob para nao cachear o index.html
-  navigateFallback: null,
-  ...
-}
-```
-
-### Arquivo: `src/main.tsx`
-
-Adicionar deteccao de atualizacao do SW:
+Recriar a funcao trigger `generate_order_number`:
 
 ```text
-// Ao detectar nova versao do SW, recarregar a pagina
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    window.location.reload();
-  });
-}
+CREATE OR REPLACE FUNCTION public.generate_order_number()
+  RETURNS trigger
+  LANGUAGE plpgsql
+  SET search_path TO 'public'
+AS $$
+DECLARE
+  prefix TEXT;
+  max_seq INT;
+BEGIN
+  SELECT t.order_prefix INTO prefix
+  FROM public.tenants t
+  WHERE t.id = NEW.tenant_id;
+
+  IF prefix IS NULL THEN
+    prefix := 'DJA';
+  END IF;
+
+  SELECT COALESCE(
+    MAX(
+      NULLIF(regexp_replace(order_number, '^.*-', ''), '')::INT
+    ),
+    0
+  ) + 1
+  INTO max_seq
+  FROM public.orders
+  WHERE tenant_id = NEW.tenant_id;
+
+  NEW.order_number := prefix || '-' || LPAD(max_seq::TEXT, 4, '0');
+  RETURN NEW;
+END;
+$$;
 ```
 
-### Arquivo: `src/lib/version-check.ts` (novo)
+### Frontend -- CheckoutForm.tsx
 
-Criar constante APP_VERSION e logica de verificacao:
-- Comparar versao atual com a salva no localStorage
-- Se diferente, limpar caches do SW e recarregar
-- Atualizar localStorage com a versao nova
+Na logica de insert de pedido, adicionar um `try/catch` que detecta o erro `23505` (unique_violation) e tenta o insert novamente (maximo 2 retries com delay de 500ms).
 
 ### Arquivos afetados
-1. `vite.config.ts` - Configuracao do Service Worker
-2. `src/main.tsx` - Listener de atualizacao
-3. `src/lib/version-check.ts` - Controle de versao (novo arquivo)
+1. **Migration SQL** -- funcao `generate_order_number` (banco de dados)
+2. **`src/components/CheckoutForm.tsx`** -- retry em caso de erro de chave duplicada
 
