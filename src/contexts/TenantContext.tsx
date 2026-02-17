@@ -131,6 +131,15 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
 
           const orConditions = [`domain.eq.${hostname}`];
+          // Also try www variant and without www
+          if (hostname.startsWith('www.')) {
+            orConditions.push(`domain.eq.${hostname.slice(4)}`);
+          } else {
+            orConditions.push(`domain.eq.www.${hostname}`);
+          }
+          // Try matching subdomains of the same root domain (e.g. pedidos.dietajavca.com.br)
+          const rootDomain = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+          orConditions.push(`domain.ilike.%.${rootDomain}`);
           if (extractedSlug) {
             orConditions.push(`slug.eq.${extractedSlug}`);
           } else {
