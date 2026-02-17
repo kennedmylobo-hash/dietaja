@@ -1,80 +1,72 @@
 
 
-# Monte Seu Cardapio -- Pagina de cardapio personalizado com IA
+# Adicionar Precos e Selecao Fit/Fitness ao Monte Seu Cardapio
 
 ## Resumo
 
-Criar uma nova pagina `/monte-seu-cardapio` onde o cliente preenche suas preferencias alimentares (proteinas, carboidratos e mix de legumes/salada), escolhe a quantidade de marmitas (10, 20 ou 30) e recebe uma sugestao de cardapio gerada automaticamente por IA (Google Gemini via Lovable AI). Um link para essa pagina sera adicionado no rodape da landing page.
+Adicionar ao formulario de cardapio personalizado:
+1. Selecao entre **Fit (300g)** e **Fitness (450g)** com composicao diferente
+2. Exibicao do preco unitario e total baseado nos pacotes reais do banco de dados
+3. Ajuste da mensagem do WhatsApp para incluir linha e valor
 
-## Fluxo do cliente
+## Detalhes da mudanca
 
-1. No rodape da landing page, aparece um link: "Precisando de ajuda para montar seu pedido? Clique aqui"
-2. O cliente e levado para `/monte-seu-cardapio`
-3. Preenche 3 campos de texto:
-   - **Proteinas** (ex: carne moida, strogonoff de frango, almondegas)
-   - **Carboidratos** (ex: aipim, arroz integral, feijao preto)
-   - **Mix de salada/legumes** (ex: vagem, cenoura, beterraba)
-4. Escolhe a quantidade: 10, 20 ou 30 unidades
-5. Clica em "Montar meu cardapio"
-6. A IA gera uma sugestao de cardapio distribuindo os sabores escolhidos conforme as regras:
-   - 10 unidades: ate 3 sabores
-   - 20 unidades: ate 5 sabores
-   - 30 unidades: ate 10 sabores
-   - Padrao Fit: 100g proteina + 150g carboidrato + 50g mix (300g total)
-7. O cardapio aparece formatado na tela
-8. Botao para enviar o cardapio pelo WhatsApp (pre-preenchido) para finalizar o pedido
+### Composicao por linha
+- **Fit (300g)**: 100g proteina + 150g carboidrato + 50g mix
+- **Fitness (450g)**: 150g proteina + 200g carboidrato + 100g mix
 
-## O que sera criado
+### Precos (do banco de dados - tabela `marmita_packages`)
+Os pacotes reais sao 7, 14, 21 e 28 unidades. As quantidades do formulario (10, 20, 30) nao correspondem exatamente. A proposta e:
+- Trocar as opcoes de quantidade para usar os pacotes reais do banco (7, 14, 21, 28)
+- Buscar os precos direto da tabela `marmita_packages` ao carregar a pagina
+- Exibir o preco unitario e o total no card de cada opcao
 
-### 1. Edge function `generate-meal-plan`
-- Recebe as preferencias e quantidade
-- Chama o Lovable AI (Gemini) com um prompt estruturado contendo as regras de negocio
-- Retorna o cardapio sugerido em formato estruturado (JSON via tool calling)
+### Precos atuais no banco
 
-### 2. Pagina `/monte-seu-cardapio`
-- Formulario com os 3 campos de preferencia + selecao de quantidade
-- Exibicao do cardapio gerado
-- Botao WhatsApp para enviar o pedido
-- Design alinhado com o restante do site (mesma paleta, Logo, etc.)
+| Qtd | Fit (un.) | Fit (total) | Fitness (un.) | Fitness (total) |
+|-----|-----------|-------------|---------------|-----------------|
+| 7   | R$ 26,90  | R$ 188,30   | R$ 31,90      | R$ 223,30       |
+| 14  | R$ 24,90  | R$ 348,60   | R$ 29,90      | R$ 418,60       |
+| 21  | R$ 23,90  | R$ 501,90   | R$ 27,90      | R$ 585,90       |
+| 28  | R$ 22,90  | R$ 641,20   | R$ 26,90      | R$ 753,20       |
 
-### 3. Link no rodape da landing page
-- Adicionar no footer do `Index.tsx` um link discreto: "Precisando de ajuda para montar seu pedido?"
+### Regra de sabores (mantida)
+- 7 unidades: ate 3 sabores
+- 14 unidades: ate 5 sabores
+- 21 unidades: ate 7 sabores
+- 28 unidades: ate 10 sabores
+
+## Mudancas no formulario
+
+1. **Novo seletor de linha** (antes da quantidade): dois botoes "Fit 300g" e "Fitness 450g" com icones e descricao da composicao
+2. **Cards de quantidade** atualizados: mostram preco unitario e total, vindos do banco
+3. **Resultado** exibe a composicao correta (Fit ou Fitness)
+4. **Mensagem WhatsApp** inclui a linha escolhida e o valor total
+
+## Mudancas na edge function
+
+Atualizar o prompt do `generate-meal-plan` para receber o parametro `lineType` e ajustar os pesos conforme a linha:
+- Fit: 100g proteina, 150g carb, 50g mix
+- Fitness: 150g proteina, 200g carb, 100g mix
+
+## Arquivos afetados
+
+1. **`src/pages/MonteSeuCardapio.tsx`** - Adicionar selecao de linha, buscar precos do banco, exibir valores, atualizar mensagem WhatsApp
+2. **`supabase/functions/generate-meal-plan/index.ts`** - Receber `lineType` e ajustar composicao no prompt
 
 ## Detalhes tecnicos
 
-### Edge function `supabase/functions/generate-meal-plan/index.ts`
-- Usa `LOVABLE_API_KEY` (ja configurado) para chamar `https://ai.gateway.lovable.dev/v1/chat/completions`
-- Modelo: `google/gemini-3-flash-preview` (rapido e economico)
-- Prompt do sistema com as regras:
-  - Distribuir os ingredientes em combinacoes (sabores) respeitando o limite por quantidade
-  - Cada marmita: 100g proteina, 150g carboidrato, 50g mix
-  - Nomear cada sabor de forma clara
-  - Retornar via tool calling um array de sabores com nome, proteina, carboidrato, mix e quantidade
-- Sem streaming (resposta unica, rapida)
-- CORS habilitado
-- Tratamento de erros 429/402
+### Busca de precos
+- Usar `useQuery` com `supabase.from('marmita_packages').select('quantity, unit_price, line_type, weight').eq('active', true)` ao montar a pagina
+- Agrupar por `line_type` para popular os cards de quantidade com preco
 
-### Pagina `src/pages/MonteSeuCardapio.tsx`
-- Formulario com `react-hook-form` + Zod
-- Campos textarea para proteinas, carboidratos e mix
-- Radio group ou botoes para quantidade (10, 20, 30)
-- Estado de loading enquanto a IA processa
-- Exibicao do resultado em cards
-- Botao WhatsApp com mensagem pre-montada contendo o cardapio completo
-- Usa `useTenantConfig` para branding e WhatsApp number
+### Estado adicional
+- `selectedLine`: `'fit' | 'fitness'` (default: `'fit'`)
+- Ao trocar a linha, atualizar os precos exibidos nos cards de quantidade
 
-### Rota no `App.tsx`
-- Adicionar `Route path="/monte-seu-cardapio"`
+### Calculo do total
+- `total = selectedQuantity * unitPrice` (do pacote correspondente)
+- Exibir no resumo antes do botao WhatsApp
 
-### Footer do `Index.tsx`
-- Adicionar link com icone: "Precisando de ajuda para montar seu pedido? Clique aqui"
-
-### `supabase/config.toml`
-- Adicionar configuracao da nova function com `verify_jwt = false` (pagina publica)
-
-### Arquivos afetados
-1. `supabase/functions/generate-meal-plan/index.ts` (novo)
-2. `src/pages/MonteSeuCardapio.tsx` (novo)
-3. `src/App.tsx` (adicionar rota)
-4. `src/pages/Index.tsx` (link no rodape)
-
+### Mensagem WhatsApp atualizada
+Incluir a linha (Fit 300g ou Fitness 450g) e o valor total estimado na mensagem
