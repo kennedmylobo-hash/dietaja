@@ -26,6 +26,7 @@ const formSchema = z.object({
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
   cpf: z.string().optional(),
+  paymentMethod: z.enum(["pix", "whatsapp"]).optional(),
   deliveryOption: z.enum(["pickup", "delivery"]),
   address: z.string().optional(),
   saveData: z.boolean().optional(),
@@ -37,6 +38,23 @@ const formSchema = z.object({
 }, {
   message: "Endereço completo é obrigatório para entrega",
   path: ["address"],
+}).superRefine((data, ctx) => {
+  if (data.paymentMethod === "pix") {
+    const cpfDigits = data.cpf?.replace(/\D/g, '') || '';
+    if (!cpfDigits || cpfDigits.length !== 11) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "CPF é obrigatório para pagamento PIX",
+        path: ["cpf"],
+      });
+    } else if (!validateCPF(cpfDigits)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "CPF inválido. Verifique os números.",
+        path: ["cpf"],
+      });
+    }
+  }
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -52,7 +70,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
-  const [cpfError, setCpfError] = useState<string | null>(null);
+  
   
   // Ref to prevent double-click submissions
   const isSubmittingRef = useRef(false);
@@ -76,6 +94,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     handleSubmit,
     watch,
     control,
+    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -89,6 +108,12 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
 
   const emailValue = watch("email");
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "whatsapp" | null>(null);
+
+  // Sync paymentMethod state with form value for Zod validation
+  const handlePaymentMethodChange = (value: "pix" | "whatsapp") => {
+    setPaymentMethod(value);
+    setValue("paymentMethod", value);
+  };
   
   // Update watchedEmail when email changes (for cashback lookup)
   useEffect(() => {
@@ -152,20 +177,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
       return;
     }
     
-    // CPF is required for PIX payments
     const cpfValue = data.cpf?.replace(/\D/g, '') || '';
-    
-    if (!cpfValue || cpfValue.length !== 11) {
-      setCpfError('CPF é obrigatório para pagamento PIX');
-      return;
-    }
-    
-    if (!validateCPF(cpfValue)) {
-      setCpfError('CPF inválido. Verifique os números.');
-      return;
-    }
-    
-    setCpfError(null);
     
     isSubmittingRef.current = true;
     setIsLoading(true);
@@ -429,7 +441,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
         <Label className="text-sm font-medium">Forma de pagamento</Label>
         <RadioGroup
           value={paymentMethod || ""}
-          onValueChange={(value) => setPaymentMethod(value as "pix" | "whatsapp")}
+          onValueChange={(value) => handlePaymentMethodChange(value as "pix" | "whatsapp")}
           className="grid grid-cols-2 gap-3"
         >
           <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'pix' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
@@ -466,14 +478,13 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
                 value={formatCPF(field.value || '')}
                 onChange={(e) => {
                   field.onChange(formatCPF(e.target.value));
-                  setCpfError(null);
                 }}
-                className={`mt-1 ${cpfError ? 'border-destructive' : ''}`}
+                className={`mt-1 ${errors.cpf ? 'border-destructive' : ''}`}
               />
             )}
           />
-          {cpfError && (
-            <p className="text-xs text-destructive mt-1">{cpfError}</p>
+          {errors.cpf && (
+            <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>
           )}
         </div>
       )}

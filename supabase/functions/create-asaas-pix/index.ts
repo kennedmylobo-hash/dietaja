@@ -64,6 +64,47 @@ serve(async (req) => {
     const { items, customer, delivery, utm_data, coupon_code, discount_amount, cashback, order_id, tenant_id } = body;
     const effectiveTenantId = tenant_id || '00000000-0000-0000-0000-000000000001';
 
+    // Server-side CPF validation - reject before creating order or calling Asaas
+    const cpfDigits = customer.cpf?.replace(/\D/g, '') || '';
+    if (!cpfDigits || cpfDigits.length !== 11) {
+      console.error('CPF missing or wrong length:', cpfDigits.length);
+      return new Response(
+        JSON.stringify({ success: false, error: 'CPF é obrigatório para pagamento PIX.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (/^(\d)\1+$/.test(cpfDigits)) {
+      console.error('CPF with all same digits:', cpfDigits);
+      return new Response(
+        JSON.stringify({ success: false, error: 'CPF inválido. Verifique os números.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    // Validate CPF check digits
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += parseInt(cpfDigits[i]) * (10 - i);
+    let rem = (sum * 10) % 11;
+    if (rem === 10 || rem === 11) rem = 0;
+    if (rem !== parseInt(cpfDigits[9])) {
+      console.error('CPF failed first check digit');
+      return new Response(
+        JSON.stringify({ success: false, error: 'CPF inválido. Verifique os números.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    sum = 0;
+    for (let i = 0; i < 10; i++) sum += parseInt(cpfDigits[i]) * (11 - i);
+    rem = (sum * 10) % 11;
+    if (rem === 10 || rem === 11) rem = 0;
+    if (rem !== parseInt(cpfDigits[10])) {
+      console.error('CPF failed second check digit');
+      return new Response(
+        JSON.stringify({ success: false, error: 'CPF inválido. Verifique os números.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    console.log('CPF validation passed:', cpfDigits);
+
     // Resolve tenant-specific Asaas credentials
     const asaasCredentials = await getAsaasCredentials(supabase, effectiveTenantId);
     const asaasApiKey = asaasCredentials.apiKey;
