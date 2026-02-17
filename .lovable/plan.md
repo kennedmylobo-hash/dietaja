@@ -1,34 +1,80 @@
 
 
-# Validacao de CPF obrigatoria no checkout PIX
+# Monte Seu Cardapio -- Pagina de cardapio personalizado com IA
 
-## Problema
-O campo CPF so aparece quando PIX e selecionado, mas a validacao acontece apenas no momento do clique em "Gerar PIX" (validacao imperativa). Isso permite que CPFs invalidos cheguem ao Asaas, causando erros como o do Kennedy.
+## Resumo
 
-## O que sera feito
+Criar uma nova pagina `/monte-seu-cardapio` onde o cliente preenche suas preferencias alimentares (proteinas, carboidratos e mix de legumes/salada), escolhe a quantidade de marmitas (10, 20 ou 30) e recebe uma sugestao de cardapio gerada automaticamente por IA (Google Gemini via Lovable AI). Um link para essa pagina sera adicionado no rodape da landing page.
 
-### 1. Validacao no formulario (frontend)
-- Mover a validacao de CPF para o schema Zod, com validacao condicional: quando o metodo de pagamento for PIX, o CPF sera obrigatorio e validado pelo algoritmo oficial
-- O campo CPF mostrara erro inline em tempo real (ao sair do campo), nao apenas ao clicar em "Gerar PIX"
-- Remover o estado manual `cpfError` e usar os erros do react-hook-form
+## Fluxo do cliente
 
-### 2. Validacao na edge function (backend)
-- Adicionar validacao de CPF na edge function `create-asaas-pix` antes de enviar ao Asaas
-- Se o CPF for invalido ou ausente, retornar erro 400 imediatamente, sem criar pedido nem chamar a API do Asaas
+1. No rodape da landing page, aparece um link: "Precisando de ajuda para montar seu pedido? Clique aqui"
+2. O cliente e levado para `/monte-seu-cardapio`
+3. Preenche 3 campos de texto:
+   - **Proteinas** (ex: carne moida, strogonoff de frango, almondegas)
+   - **Carboidratos** (ex: aipim, arroz integral, feijao preto)
+   - **Mix de salada/legumes** (ex: vagem, cenoura, beterraba)
+4. Escolhe a quantidade: 10, 20 ou 30 unidades
+5. Clica em "Montar meu cardapio"
+6. A IA gera uma sugestao de cardapio distribuindo os sabores escolhidos conforme as regras:
+   - 10 unidades: ate 3 sabores
+   - 20 unidades: ate 5 sabores
+   - 30 unidades: ate 10 sabores
+   - Padrao Fit: 100g proteina + 150g carboidrato + 50g mix (300g total)
+7. O cardapio aparece formatado na tela
+8. Botao para enviar o cardapio pelo WhatsApp (pre-preenchido) para finalizar o pedido
 
-## Detalhes Tecnicos
+## O que sera criado
 
-### CheckoutForm.tsx
-- Atualizar o schema Zod para incluir `paymentMethod` e usar `.superRefine()` para exigir CPF valido quando `paymentMethod === "pix"`
-- Adicionar `paymentMethod` ao formulario via `setValue` quando o usuario selecionar
-- O campo CPF continuara aparecendo apenas quando PIX for selecionado, mas agora com validacao integrada ao react-hook-form
-- Remover o estado `cpfError` e a validacao manual dentro de `handlePixPayment`
+### 1. Edge function `generate-meal-plan`
+- Recebe as preferencias e quantidade
+- Chama o Lovable AI (Gemini) com um prompt estruturado contendo as regras de negocio
+- Retorna o cardapio sugerido em formato estruturado (JSON via tool calling)
 
-### create-asaas-pix/index.ts
-- Adicionar checagem no inicio: se `customer.cpf` estiver ausente ou falhar na validacao de digito verificador, retornar `{ success: false, error: "CPF invalido" }` com status 400
-- Reutilizar o mesmo algoritmo de validacao que existe em `src/lib/cpf.ts`
+### 2. Pagina `/monte-seu-cardapio`
+- Formulario com os 3 campos de preferencia + selecao de quantidade
+- Exibicao do cardapio gerado
+- Botao WhatsApp para enviar o pedido
+- Design alinhado com o restante do site (mesma paleta, Logo, etc.)
+
+### 3. Link no rodape da landing page
+- Adicionar no footer do `Index.tsx` um link discreto: "Precisando de ajuda para montar seu pedido?"
+
+## Detalhes tecnicos
+
+### Edge function `supabase/functions/generate-meal-plan/index.ts`
+- Usa `LOVABLE_API_KEY` (ja configurado) para chamar `https://ai.gateway.lovable.dev/v1/chat/completions`
+- Modelo: `google/gemini-3-flash-preview` (rapido e economico)
+- Prompt do sistema com as regras:
+  - Distribuir os ingredientes em combinacoes (sabores) respeitando o limite por quantidade
+  - Cada marmita: 100g proteina, 150g carboidrato, 50g mix
+  - Nomear cada sabor de forma clara
+  - Retornar via tool calling um array de sabores com nome, proteina, carboidrato, mix e quantidade
+- Sem streaming (resposta unica, rapida)
+- CORS habilitado
+- Tratamento de erros 429/402
+
+### Pagina `src/pages/MonteSeuCardapio.tsx`
+- Formulario com `react-hook-form` + Zod
+- Campos textarea para proteinas, carboidratos e mix
+- Radio group ou botoes para quantidade (10, 20, 30)
+- Estado de loading enquanto a IA processa
+- Exibicao do resultado em cards
+- Botao WhatsApp com mensagem pre-montada contendo o cardapio completo
+- Usa `useTenantConfig` para branding e WhatsApp number
+
+### Rota no `App.tsx`
+- Adicionar `Route path="/monte-seu-cardapio"`
+
+### Footer do `Index.tsx`
+- Adicionar link com icone: "Precisando de ajuda para montar seu pedido? Clique aqui"
+
+### `supabase/config.toml`
+- Adicionar configuracao da nova function com `verify_jwt = false` (pagina publica)
 
 ### Arquivos afetados
-1. `src/components/CheckoutForm.tsx` -- schema Zod + remocao de validacao manual
-2. `supabase/functions/create-asaas-pix/index.ts` -- validacao server-side
+1. `supabase/functions/generate-meal-plan/index.ts` (novo)
+2. `src/pages/MonteSeuCardapio.tsx` (novo)
+3. `src/App.tsx` (adicionar rota)
+4. `src/pages/Index.tsx` (link no rodape)
 
