@@ -30,6 +30,7 @@ const Avaliar = lazy(() => import("./pages/Avaliar"));
 const ClubeDietaJa = lazy(() => import("./pages/ClubeDietaJa"));
 const SuperAdmin = lazy(() => import("./pages/SuperAdmin"));
 const PedidoJa = lazy(() => import("./pages/PedidoJa"));
+const MonteSeuCardapio = lazy(() => import("./pages/MonteSeuCardapio"));
 
 // Simple loading fallback
 const PageLoader = () => (
@@ -86,6 +87,7 @@ const App = () => (
                   <Route path="/clubedietaja" element={<ClubeDietaJa />} />
                   <Route path="/super-admin" element={<SuperAdmin />} />
                   <Route path="/pedidoja" element={<PedidoJa />} />
+                  <Route path="/monte-seu-cardapio" element={<MonteSeuCardapio />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

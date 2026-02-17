@@ -298,6 +298,12 @@ const IndexContent = () => {
             <p className="text-xs text-muted-foreground mt-2">
               A solução que cuida de você enquanto você cuida da sua vida.
             </p>
+            <a
+              href="/monte-seu-cardapio"
+              className="mt-4 text-sm text-primary hover:text-primary/80 underline underline-offset-4 transition-colors"
+            >
+              🤖 Precisando de ajuda para montar seu pedido? Clique aqui
+            </a>
           </div>
         </footer>
       </div>
