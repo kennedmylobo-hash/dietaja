@@ -1,33 +1,45 @@
 
+# Fix: Trigger generate_order_number Ignorando Pedidos Antigos por RLS
 
-# Blindagem Total: Pedidos Sem Erro de Duplicata
+## Causa Raiz Encontrada
 
-## O que ja foi feito
-- A funcao `generate_order_number` foi corrigida para usar MAX em vez de COUNT
-- A edge function `create-asaas-pix` tem retry para erro 23505
+A funcao `generate_order_number()` roda com as permissoes do usuario que fez o INSERT (anon/cliente). A politica RLS "Recent orders viewable" so permite ver pedidos dos ultimos 5 minutos.
 
-## O que ainda pode falhar
-Dois clientes finalizando no exato mesmo momento podem ler o mesmo MAX antes de qualquer um inserir, gerando colisao mesmo com retry (improvavel, mas possivel).
+Resultado: quando o trigger calcula `MAX(order_number)`, ele so enxerga pedidos recentes. Se nao houver pedidos nos ultimos 5 minutos, MAX retorna 0, e ele tenta criar `DJA-0001` -- que ja existe. Erro 23505.
 
-## Solucao Definitiva: Lock no Banco de Dados
+```text
+Fluxo do bug:
+  1. Cliente Bianca clica "Confirmar pedido"
+  2. INSERT na tabela orders (usuario anon)
+  3. Trigger generate_order_number dispara
+  4. SELECT MAX(order_number) ... WHERE tenant_id = X
+     -> RLS filtra: anon so ve pedidos dos ultimos 5 min
+     -> Nenhum pedido recente -> MAX = NULL -> COALESCE = 0
+  5. order_number = 'DJA-0001'
+  6. ERRO: DJA-0001 ja existe! (unique constraint)
+```
 
-Usar `pg_advisory_xact_lock` para que apenas uma transacao por vez crie pedidos para o mesmo tenant. Isso elimina 100% a possibilidade de colisao.
+## Correcao
 
-### Passo 1 -- Migration SQL
+Alterar a funcao `generate_order_number()` para `SECURITY DEFINER`. Isso faz a funcao rodar com as permissoes do dono da tabela (postgres), ignorando RLS. Assim o SELECT ve TODOS os pedidos e calcula o MAX correto.
 
-Atualizar a funcao trigger `generate_order_number` para incluir um advisory lock:
+Unica mudanca: adicionar `SECURITY DEFINER` na definicao da funcao.
+
+## Detalhes Tecnicos
+
+### Migration SQL
 
 ```text
 CREATE OR REPLACE FUNCTION public.generate_order_number()
   RETURNS trigger
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO 'public'
 AS $$
 DECLARE
   prefix TEXT;
   max_seq INT;
 BEGIN
-  -- Serializa a geracao de order_number por tenant
   PERFORM pg_advisory_xact_lock(hashtext('order_number_' || NEW.tenant_id::text));
 
   SELECT t.order_prefix INTO prefix
@@ -52,28 +64,9 @@ END;
 $$;
 ```
 
-A unica mudanca e a linha `PERFORM pg_advisory_xact_lock(...)` no inicio. Isso garante que se dois INSERTs chegarem ao mesmo tempo, o segundo espera o primeiro terminar antes de calcular o proximo numero.
-
-### Passo 2 -- Manter o retry na edge function
-
-O retry ja implementado em `create-asaas-pix` continua como camada extra de seguranca, mas com o lock ele nunca devera ser acionado.
-
-### Resultado
-
-```text
-Sem lock:
-  Cliente A: SELECT MAX -> 45  |  INSERT DJA-0046  -> OK
-  Cliente B: SELECT MAX -> 45  |  INSERT DJA-0046  -> ERRO (duplicata)
-
-Com lock:
-  Cliente A: LOCK -> SELECT MAX -> 45 -> INSERT DJA-0046 -> UNLOCK
-  Cliente B: ESPERA... -> LOCK -> SELECT MAX -> 46 -> INSERT DJA-0047 -> UNLOCK
-```
-
 ### Arquivos afetados
-1. **Migration SQL** -- adicionar `pg_advisory_xact_lock` na funcao `generate_order_number`
-2. Nenhuma mudanca no frontend ou edge function (retry ja existe como backup)
+1. **Migration SQL** -- adicionar `SECURITY DEFINER` na funcao `generate_order_number`
+2. Nenhuma mudanca em codigo frontend ou edge function
 
 ### Risco
-Zero. O advisory lock e liberado automaticamente ao final da transacao e nao afeta performance em uso normal (cada lock dura milissegundos).
-
+Zero. `SECURITY DEFINER` e o padrao recomendado para triggers que precisam acessar dados completos da tabela. O `SET search_path TO 'public'` ja esta presente, garantindo seguranca contra search_path injection.
