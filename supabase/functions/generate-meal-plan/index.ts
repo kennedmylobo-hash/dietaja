@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { proteins, carbs, mix, quantity } = await req.json();
+    const { proteins, carbs, mix, quantity, lineType } = await req.json();
 
     if (!proteins || !carbs || !mix || !quantity) {
       return new Response(
@@ -26,14 +26,21 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const maxFlavors = quantity <= 10 ? 3 : quantity <= 20 ? 5 : 10;
+    const isFitness = lineType === "hipertrofia";
+    const proteinG = isFitness ? 150 : 100;
+    const carbG = isFitness ? 200 : 150;
+    const mixG = isFitness ? 100 : 50;
+    const totalWeight = proteinG + carbG + mixG;
+    const lineName = isFitness ? "Fitness" : "Fit";
+
+    const maxFlavors = quantity <= 7 ? 3 : quantity <= 14 ? 5 : quantity <= 21 ? 7 : 10;
 
     const systemPrompt = `Você é um nutricionista especialista em marmitas fitness. O cliente informou suas preferências e você deve montar um cardápio de marmitas.
 
 REGRAS OBRIGATÓRIAS:
 - Total de marmitas: ${quantity} unidades
 - Máximo de sabores diferentes: ${maxFlavors}
-- Cada marmita segue o padrão Fit: 100g proteína + 150g carboidrato + 50g mix de legumes/salada = 300g total
+- Cada marmita segue o padrão ${lineName}: ${proteinG}g proteína + ${carbG}g carboidrato + ${mixG}g mix de legumes/salada = ${totalWeight}g total
 - Distribua as ${quantity} marmitas entre os sabores de forma equilibrada
 - Use APENAS os ingredientes que o cliente informou, não invente outros
 - Dê um nome criativo e claro para cada sabor (ex: "Strogonoff com Arroz Integral e Mix de Legumes")

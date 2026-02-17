@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Sparkles, Send, UtensilsCrossed, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,20 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
+
+type LineType = "emagrecimento" | "hipertrofia";
+
+const LINE_CONFIG: Record<LineType, { label: string; weight: number; emoji: string; protein: number; carb: number; mix: number; description: string }> = {
+  emagrecimento: { label: "Fit", weight: 300, emoji: "🥗", protein: 100, carb: 150, mix: 50, description: "100g proteína + 150g carboidrato + 50g mix" },
+  hipertrofia: { label: "Fitness", weight: 450, emoji: "💪", protein: 150, carb: 200, mix: 100, description: "150g proteína + 200g carboidrato + 100g mix" },
+};
+
+const getMaxFlavors = (qty: number) => {
+  if (qty <= 7) return 3;
+  if (qty <= 14) return 5;
+  if (qty <= 21) return 7;
+  return 10;
+};
 
 const formSchema = z.object({
   proteins: z.string().trim().min(3, "Informe pelo menos uma proteína").max(500),
@@ -37,21 +52,44 @@ const MonteSeuCardapio = () => {
   const [loading, setLoading] = useState(false);
   const [flavors, setFlavors] = useState<Flavor[] | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<number | null>(null);
+  const [selectedLine, setSelectedLine] = useState<LineType>("emagrecimento");
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-  } = useForm<FormData>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
   });
 
-  const quantities = [
-    { value: 10, label: "10 marmitas", flavors: "até 3 sabores" },
-    { value: 20, label: "20 marmitas", flavors: "até 5 sabores" },
-    { value: 30, label: "30 marmitas", flavors: "até 10 sabores" },
-  ];
+  const { data: packages } = useQuery({
+    queryKey: ["marmita-packages-cardapio"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("marmita_packages")
+        .select("quantity, unit_price, line_type, weight")
+        .eq("active", true)
+        .order("quantity");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const packagesByLine = useMemo(() => {
+    if (!packages) return {};
+    const map: Record<string, { quantity: number; unit_price: number }[]> = {};
+    for (const p of packages) {
+      const lt = p.line_type || "emagrecimento";
+      if (!map[lt]) map[lt] = [];
+      const exists = map[lt].find((x) => x.quantity === p.quantity);
+      if (!exists) map[lt].push({ quantity: p.quantity, unit_price: p.unit_price });
+    }
+    return map;
+  }, [packages]);
+
+  const currentPackages = packagesByLine[selectedLine] || [];
+
+  const selectedPackage = currentPackages.find((p) => p.quantity === selectedQuantity);
+  const unitPrice = selectedPackage?.unit_price ?? 0;
+  const totalPrice = selectedQuantity ? selectedQuantity * unitPrice : 0;
+
+  const lineConfig = LINE_CONFIG[selectedLine];
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
@@ -64,6 +102,7 @@ const MonteSeuCardapio = () => {
           carbs: data.carbs,
           mix: data.mix,
           quantity: data.quantity,
+          lineType: selectedLine,
         },
       });
 
@@ -95,9 +134,11 @@ const MonteSeuCardapio = () => {
   const handleWhatsApp = () => {
     if (!flavors || !selectedQuantity) return;
 
+    const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
     let message = `Oi 😊\nMontei meu cardápio personalizado no site da *${brand.name}*!\n\n`;
-    message += `📋 *CARDÁPIO - ${selectedQuantity} MARMITAS (Padrão Fit 300g)*\n`;
-    message += `_(100g proteína + 150g carboidrato + 50g mix)_\n\n`;
+    message += `📋 *CARDÁPIO - ${selectedQuantity} MARMITAS ${lineConfig.label} (${lineConfig.weight}g)*\n`;
+    message += `_(${lineConfig.description})_\n\n`;
 
     flavors.forEach((f, i) => {
       message += `*${i + 1}. ${f.name}* (${f.quantity}x)\n`;
@@ -106,6 +147,7 @@ const MonteSeuCardapio = () => {
       message += `   🥗 ${f.mix}\n\n`;
     });
 
+    message += `💰 *Valor: ${fmt(totalPrice)}* (${fmt(unitPrice)}/un.)\n\n`;
     message += `Pode me confirmar o pedido?`;
 
     window.open(
@@ -122,7 +164,6 @@ const MonteSeuCardapio = () => {
       </Helmet>
 
       <div className="min-h-screen bg-background">
-        {/* Header */}
         <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
           <div className="container px-6 py-4 flex items-center gap-4">
             <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -133,7 +174,6 @@ const MonteSeuCardapio = () => {
         </header>
 
         <main className="container px-6 py-8 max-w-2xl mx-auto">
-          {/* Title */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
               <Sparkles className="w-4 h-4" />
@@ -147,109 +187,97 @@ const MonteSeuCardapio = () => {
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Ingredient fields */}
             <div className="space-y-4">
               <div>
-                <Label htmlFor="proteins" className="text-base font-semibold flex items-center gap-2">
-                  🥩 Proteínas que você gosta
-                </Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Ex: carne moída, strogonoff de frango, almôndegas, frango desfiado
-                </p>
-                <Textarea
-                  id="proteins"
-                  placeholder="Digite as proteínas separadas por vírgula..."
-                  {...register("proteins")}
-                  className="min-h-[80px]"
-                />
-                {errors.proteins && (
-                  <p className="text-sm text-destructive mt-1">{errors.proteins.message}</p>
-                )}
+                <Label htmlFor="proteins" className="text-base font-semibold flex items-center gap-2">🥩 Proteínas que você gosta</Label>
+                <p className="text-xs text-muted-foreground mb-2">Ex: carne moída, strogonoff de frango, almôndegas, frango desfiado</p>
+                <Textarea id="proteins" placeholder="Digite as proteínas separadas por vírgula..." {...register("proteins")} className="min-h-[80px]" />
+                {errors.proteins && <p className="text-sm text-destructive mt-1">{errors.proteins.message}</p>}
               </div>
-
               <div>
-                <Label htmlFor="carbs" className="text-base font-semibold flex items-center gap-2">
-                  🍚 Carboidratos que você gosta
-                </Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Ex: aipim, arroz integral, feijão preto, batata doce
-                </p>
-                <Textarea
-                  id="carbs"
-                  placeholder="Digite os carboidratos separados por vírgula..."
-                  {...register("carbs")}
-                  className="min-h-[80px]"
-                />
-                {errors.carbs && (
-                  <p className="text-sm text-destructive mt-1">{errors.carbs.message}</p>
-                )}
+                <Label htmlFor="carbs" className="text-base font-semibold flex items-center gap-2">🍚 Carboidratos que você gosta</Label>
+                <p className="text-xs text-muted-foreground mb-2">Ex: aipim, arroz integral, feijão preto, batata doce</p>
+                <Textarea id="carbs" placeholder="Digite os carboidratos separados por vírgula..." {...register("carbs")} className="min-h-[80px]" />
+                {errors.carbs && <p className="text-sm text-destructive mt-1">{errors.carbs.message}</p>}
               </div>
-
               <div>
-                <Label htmlFor="mix" className="text-base font-semibold flex items-center gap-2">
-                  🥗 Mix de legumes/salada
-                </Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Ex: vagem, cenoura, beterraba, brócolis, abobrinha
-                </p>
-                <Textarea
-                  id="mix"
-                  placeholder="Digite os legumes/saladas separados por vírgula..."
-                  {...register("mix")}
-                  className="min-h-[80px]"
-                />
-                {errors.mix && (
-                  <p className="text-sm text-destructive mt-1">{errors.mix.message}</p>
-                )}
+                <Label htmlFor="mix" className="text-base font-semibold flex items-center gap-2">🥗 Mix de legumes/salada</Label>
+                <p className="text-xs text-muted-foreground mb-2">Ex: vagem, cenoura, beterraba, brócolis, abobrinha</p>
+                <Textarea id="mix" placeholder="Digite os legumes/saladas separados por vírgula..." {...register("mix")} className="min-h-[80px]" />
+                {errors.mix && <p className="text-sm text-destructive mt-1">{errors.mix.message}</p>}
+              </div>
+            </div>
+
+            {/* Line type selection */}
+            <div>
+              <Label className="text-base font-semibold mb-3 block">🍽️ Qual linha deseja?</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {(Object.entries(LINE_CONFIG) as [LineType, typeof LINE_CONFIG[LineType]][]).map(([key, config]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      setSelectedLine(key);
+                      setSelectedQuantity(null);
+                      setValue("quantity", undefined as any);
+                    }}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                      selectedLine === key
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-card hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">{config.emoji}</div>
+                    <div className="font-bold text-foreground">{config.label} <span className="text-sm font-normal text-muted-foreground">({config.weight}g)</span></div>
+                    <div className="text-xs text-muted-foreground mt-1">{config.description}</div>
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* Quantity Selection */}
             <div>
-              <Label className="text-base font-semibold mb-3 block">
-                📦 Quantas marmitas deseja?
-              </Label>
-              <div className="grid grid-cols-3 gap-3">
-                {quantities.map((q) => (
-                  <button
-                    key={q.value}
-                    type="button"
-                    onClick={() => {
-                      setSelectedQuantity(q.value);
-                      setValue("quantity", q.value);
-                    }}
-                    className={`p-4 rounded-xl border-2 text-center transition-all ${
-                      selectedQuantity === q.value
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-card hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="text-xl font-bold">{q.value}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{q.flavors}</div>
-                  </button>
-                ))}
+              <Label className="text-base font-semibold mb-3 block">📦 Quantas marmitas deseja?</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {currentPackages.map((pkg) => {
+                  const total = pkg.quantity * pkg.unit_price;
+                  const maxFlav = getMaxFlavors(pkg.quantity);
+                  return (
+                    <button
+                      key={pkg.quantity}
+                      type="button"
+                      onClick={() => {
+                        setSelectedQuantity(pkg.quantity);
+                        setValue("quantity", pkg.quantity);
+                      }}
+                      className={`p-4 rounded-xl border-2 text-center transition-all ${
+                        selectedQuantity === pkg.quantity
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-card hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="text-xl font-bold">{pkg.quantity}</div>
+                      <div className="text-xs text-muted-foreground">até {maxFlav} sabores</div>
+                      <div className="mt-2 text-sm font-semibold text-foreground">
+                        R$ {pkg.unit_price.toFixed(2).replace(".", ",")}/un.
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Total: R$ {total.toFixed(2).replace(".", ",")}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-              {errors.quantity && (
-                <p className="text-sm text-destructive mt-2">{errors.quantity.message}</p>
-              )}
+              {errors.quantity && <p className="text-sm text-destructive mt-2">{errors.quantity.message}</p>}
             </div>
 
-            <Button
-              type="submit"
-              className="w-full h-12 text-base gap-2"
-              disabled={loading}
-            >
+            <Button type="submit" className="w-full h-12 text-base gap-2" disabled={loading}>
               {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Gerando cardápio...
-                </>
+                <><Loader2 className="w-5 h-5 animate-spin" /> Gerando cardápio...</>
               ) : (
-                <>
-                  <UtensilsCrossed className="w-5 h-5" />
-                  Montar meu cardápio
-                </>
+                <><UtensilsCrossed className="w-5 h-5" /> Montar meu cardápio</>
               )}
             </Button>
           </form>
@@ -257,11 +285,9 @@ const MonteSeuCardapio = () => {
           {/* Results */}
           {flavors && (
             <div className="mt-10 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <h2 className="text-xl font-bold text-center text-foreground">
-                🎉 Seu Cardápio Personalizado
-              </h2>
+              <h2 className="text-xl font-bold text-center text-foreground">🎉 Seu Cardápio Personalizado</h2>
               <p className="text-center text-sm text-muted-foreground">
-                Padrão Fit: 100g proteína + 150g carboidrato + 50g mix = 300g
+                Padrão {lineConfig.label}: {lineConfig.description} = {lineConfig.weight}g
               </p>
 
               <div className="space-y-3">
@@ -272,9 +298,9 @@ const MonteSeuCardapio = () => {
                         <div className="flex-1">
                           <h3 className="font-semibold text-foreground">{flavor.name}</h3>
                           <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                            <p>🥩 {flavor.protein} (100g)</p>
-                            <p>🍚 {flavor.carb} (150g)</p>
-                            <p>🥗 {flavor.mix} (50g)</p>
+                            <p>🥩 {flavor.protein} ({lineConfig.protein}g)</p>
+                            <p>🍚 {flavor.carb} ({lineConfig.carb}g)</p>
+                            <p>🥗 {flavor.mix} ({lineConfig.mix}g)</p>
                           </div>
                         </div>
                         <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-full text-sm whitespace-nowrap">
@@ -285,6 +311,19 @@ const MonteSeuCardapio = () => {
                   </Card>
                 ))}
               </div>
+
+              {/* Price summary */}
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="p-4 text-center">
+                  <p className="text-sm text-muted-foreground">Valor estimado do pedido</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">
+                    R$ {totalPrice.toFixed(2).replace(".", ",")}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {selectedQuantity}x {lineConfig.label} {lineConfig.weight}g — R$ {unitPrice.toFixed(2).replace(".", ",")}/un.
+                  </p>
+                </CardContent>
+              </Card>
 
               <Button
                 onClick={handleWhatsApp}
