@@ -1,58 +1,34 @@
 
 
-# Fix: Adicionar SECURITY DEFINER ao trigger generate_order_number
+# Validacao de CPF obrigatoria no checkout PIX
 
 ## Problema
-A funcao `generate_order_number()` NAO tem `SECURITY DEFINER`. O advisory lock foi aplicado, mas sem SECURITY DEFINER o RLS continua filtrando pedidos antigos. Resultado: MAX retorna 0 e tenta criar DJA-0001, que ja existe.
+O campo CPF so aparece quando PIX e selecionado, mas a validacao acontece apenas no momento do clique em "Gerar PIX" (validacao imperativa). Isso permite que CPFs invalidos cheguem ao Asaas, causando erros como o do Kennedy.
 
-## Correcao
-Uma unica migration SQL para recriar a funcao com `SECURITY DEFINER`.
+## O que sera feito
+
+### 1. Validacao no formulario (frontend)
+- Mover a validacao de CPF para o schema Zod, com validacao condicional: quando o metodo de pagamento for PIX, o CPF sera obrigatorio e validado pelo algoritmo oficial
+- O campo CPF mostrara erro inline em tempo real (ao sair do campo), nao apenas ao clicar em "Gerar PIX"
+- Remover o estado manual `cpfError` e usar os erros do react-hook-form
+
+### 2. Validacao na edge function (backend)
+- Adicionar validacao de CPF na edge function `create-asaas-pix` antes de enviar ao Asaas
+- Se o CPF for invalido ou ausente, retornar erro 400 imediatamente, sem criar pedido nem chamar a API do Asaas
 
 ## Detalhes Tecnicos
 
-### Migration SQL
+### CheckoutForm.tsx
+- Atualizar o schema Zod para incluir `paymentMethod` e usar `.superRefine()` para exigir CPF valido quando `paymentMethod === "pix"`
+- Adicionar `paymentMethod` ao formulario via `setValue` quando o usuario selecionar
+- O campo CPF continuara aparecendo apenas quando PIX for selecionado, mas agora com validacao integrada ao react-hook-form
+- Remover o estado `cpfError` e a validacao manual dentro de `handlePixPayment`
 
-Recriar a funcao adicionando `SECURITY DEFINER`:
-
-```text
-CREATE OR REPLACE FUNCTION public.generate_order_number()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  SECURITY DEFINER
-  SET search_path TO 'public'
-AS $$
-DECLARE
-  prefix TEXT;
-  max_seq INT;
-BEGIN
-  PERFORM pg_advisory_xact_lock(hashtext('order_number_' || NEW.tenant_id::text));
-
-  SELECT t.order_prefix INTO prefix
-  FROM public.tenants t
-  WHERE t.id = NEW.tenant_id;
-
-  IF prefix IS NULL THEN
-    prefix := 'DJA';
-  END IF;
-
-  SELECT COALESCE(
-    MAX(NULLIF(regexp_replace(order_number, '^.*-', ''), '')::INT),
-    0
-  ) + 1
-  INTO max_seq
-  FROM public.orders
-  WHERE tenant_id = NEW.tenant_id;
-
-  NEW.order_number := prefix || '-' || LPAD(max_seq::TEXT, 4, '0');
-  RETURN NEW;
-END;
-$$;
-```
+### create-asaas-pix/index.ts
+- Adicionar checagem no inicio: se `customer.cpf` estiver ausente ou falhar na validacao de digito verificador, retornar `{ success: false, error: "CPF invalido" }` com status 400
+- Reutilizar o mesmo algoritmo de validacao que existe em `src/lib/cpf.ts`
 
 ### Arquivos afetados
-1. **Migration SQL** -- adicionar `SECURITY DEFINER` na funcao
-2. Nenhuma mudanca em codigo frontend ou edge function
-
-### Risco
-Zero. `SECURITY DEFINER` com `SET search_path TO 'public'` e o padrao seguro recomendado para triggers que precisam acessar dados completos.
+1. `src/components/CheckoutForm.tsx` -- schema Zod + remocao de validacao manual
+2. `supabase/functions/create-asaas-pix/index.ts` -- validacao server-side
 
