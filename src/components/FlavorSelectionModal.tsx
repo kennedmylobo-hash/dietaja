@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -116,6 +116,7 @@ const FlavorSelectionModal = ({
   flavorsByCategory,
   flavorStockData = [],
 }: FlavorSelectionModalProps) => {
+  const navigate = useNavigate();
   const lineKey = mapLineTypeToKey(lineType);
   const [selections, setSelections] = useState<Record<string, number>>({});
   const [leaveToUs, setLeaveToUs] = useState(false);
@@ -404,22 +405,24 @@ const FlavorSelectionModal = ({
             </motion.div>
 
             {/* AI option */}
-            <Link to={`/monte-seu-cardapio?linha=${lineType === 'hipertrofia' ? 'hipertrofia' : 'emagrecimento'}`} className="block">
-              <motion.div
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-purple-300 bg-purple-50 hover:border-purple-400 cursor-pointer transition-all"
-              >
-                <Sparkles className="w-5 h-5 text-purple-500 flex-shrink-0" />
-                <div>
-                  <span className="font-semibold text-foreground">
-                    ✨ Liste o que gosta e montamos pra você
-                  </span>
-                  <p className="text-sm text-muted-foreground">
-                    Diga seus ingredientes preferidos e a IA monta seu cardápio
-                  </p>
-                </div>
-              </motion.div>
-            </Link>
+            <motion.div
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                onClose();
+                navigate(`/monte-seu-cardapio?linha=${lineType === 'hipertrofia' ? 'hipertrofia' : 'emagrecimento'}`);
+              }}
+              className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/30 hover:border-purple-400 dark:hover:border-purple-600 cursor-pointer transition-all"
+            >
+              <Sparkles className="w-5 h-5 text-purple-500 dark:text-purple-400 flex-shrink-0" />
+              <div>
+                <span className="font-semibold text-foreground">
+                  ✨ Liste o que gosta e montamos pra você
+                </span>
+                <p className="text-sm text-muted-foreground">
+                  Diga seus ingredientes preferidos e a IA monta seu cardápio
+                </p>
+              </div>
+            </motion.div>
 
             {/* Divider */}
             <div className="flex items-center gap-3">
