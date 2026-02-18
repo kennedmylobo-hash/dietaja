@@ -449,8 +449,8 @@ const MonteSeuCardapioContent = () => {
                     }`}
                   >
                     <div className="text-2xl mb-1">{config.emoji}</div>
-                    <div className="font-bold text-foreground">{config.label} <span className="text-sm font-normal text-muted-foreground">({config.weight}g)</span></div>
-                    <div className="text-sm font-semibold text-primary mt-1.5">{config.objective}</div>
+                    <div className="text-sm font-semibold text-primary">{config.objective}</div>
+                    <div className="font-bold text-foreground mt-1">{config.label} <span className="text-sm font-normal text-muted-foreground">({config.weight}g)</span></div>
                     <div className="text-xs text-muted-foreground mt-1">{config.description}</div>
                   </button>
                 ))}
