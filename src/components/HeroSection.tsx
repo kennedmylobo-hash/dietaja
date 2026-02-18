@@ -103,6 +103,7 @@ const HeroSection = () => {
             <div className="flex items-center gap-2 text-white/80">
               <CheckCircle2 className="w-4 h-4 text-primary" />
               <span className="font-medium">{socialProofSatisfaction}</span>
+            </div>
           </div>
 
           <Link to="/monte-seu-cardapio" className="block animate-fade-in mt-2">
@@ -114,7 +115,6 @@ const HeroSection = () => {
               Diga o que gosta e preparamos pra você
             </p>
           </Link>
-          </div>
         </div>
       </div>
     </section>
