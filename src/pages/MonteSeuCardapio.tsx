@@ -24,9 +24,9 @@ import { SoftIdentificationModal } from "@/components/SoftIdentificationModal";
 
 type LineType = "emagrecimento" | "hipertrofia";
 
-const LINE_CONFIG: Record<LineType, { label: string; weight: number; emoji: string; protein: number; carb: number; mix: number; description: string }> = {
-  emagrecimento: { label: "Fit", weight: 300, emoji: "🥗", protein: 100, carb: 150, mix: 50, description: "100g proteína + 150g carboidrato + 50g mix" },
-  hipertrofia: { label: "Fitness", weight: 450, emoji: "💪", protein: 150, carb: 200, mix: 100, description: "150g proteína + 200g carboidrato + 100g mix" },
+const LINE_CONFIG: Record<LineType, { label: string; weight: number; emoji: string; protein: number; carb: number; mix: number; description: string; objective: string }> = {
+  emagrecimento: { label: "Fit", weight: 300, emoji: "🥗", protein: 100, carb: 150, mix: 50, description: "100g proteína + 150g carboidrato + 50g mix", objective: "Ideal para definição e emagrecimento" },
+  hipertrofia: { label: "Fitness", weight: 450, emoji: "💪", protein: 150, carb: 200, mix: 100, description: "150g proteína + 200g carboidrato + 100g mix", objective: "Ideal para ganho de massa e hipertrofia" },
 };
 
 const getMaxFlavors = (qty: number) => {
@@ -450,7 +450,8 @@ const MonteSeuCardapioContent = () => {
                   >
                     <div className="text-2xl mb-1">{config.emoji}</div>
                     <div className="font-bold text-foreground">{config.label} <span className="text-sm font-normal text-muted-foreground">({config.weight}g)</span></div>
-                    <div className="text-xs text-muted-foreground mt-1">{config.description}</div>
+                    <div className="text-xs font-medium text-primary mt-1">{config.objective}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{config.description}</div>
                   </button>
                 ))}
               </div>
