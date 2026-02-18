@@ -1,25 +1,52 @@
 
 
-# Remover Chips de Ingredientes da Interface do Cliente
+# Corrigir Timeout do Áudio - Monte Seu Cardápio
 
-## Resumo
+## Problema Raiz
 
-Remover os chips/badges de ingredientes clicaveis que aparecem abaixo dos campos de texto na pagina "Monte Seu Cardapio". A filtragem de ingredientes continua funcionando no backend (edge functions), mas o cliente nao vera a lista de ingredientes disponiveis na tela.
+A edge function `parse-voice-preferences` está enviando uma lista de ingredientes com **muitos nomes duplicados** para a IA. Nos logs, a lista de proteínas tem ~70 itens, sendo que muitos são repetidos (ex: "Estrogonofe de frango com arroz e mix de salada" aparece 3x). Isso gera um prompt enorme que demora ~21 segundos só para a IA processar, estourando o timeout de 30s do frontend.
 
-## O que sera removido
+## Correções
 
-- A query `useQuery` que busca `marmita_flavors` e `marmita_sides` para exibir os chips
-- A funcao `handleChipClick` que adicionava ingredientes ao clicar
-- A funcao `renderChips` que renderizava os badges
-- As 3 chamadas `renderChips()` abaixo dos campos de proteinas, carboidratos e mix
-- O import do `Badge` (se nao for usado em outro lugar do arquivo)
+### 1. Deduplicar ingredientes na edge function (causa raiz)
 
-## O que permanece intacto
+Usar `Set` para eliminar duplicatas antes de montar o prompt. Isso reduz drasticamente o tamanho da lista enviada à IA.
 
-- Filtragem de ingredientes no backend (edge functions `parse-voice-preferences` e `generate-meal-plan`)
-- Cache de ingredientes nas edge functions
-- Todos os outros elementos da pagina (formulario, audio, resultados, botoes)
+**Arquivos**: 
+- `supabase/functions/parse-voice-preferences/index.ts`
+- `supabase/functions/generate-meal-plan/index.ts` (mesma correção)
 
-## Arquivo afetado
+Onde: na funcao `fetchAvailableIngredients`, ao montar as listas:
 
-`src/pages/MonteSeuCardapio.tsx` -- remover codigo dos chips e a query associada
+```text
+// Antes:
+const proteins = flavors.map((f) => f.name);
+
+// Depois:
+const proteins = [...new Set(flavors.map((f) => f.name))];
+```
+
+Aplicar o mesmo para `carbSides`, `mixSides` e `finalMix`.
+
+### 2. Aumentar timeout do frontend para 45s
+
+30 segundos é apertado considerando cold start da edge function + query ao banco + chamada à IA. Aumentar para 45s como margem de segurança.
+
+**Arquivo**: `src/pages/MonteSeuCardapio.tsx` (linha 95)
+
+```text
+setTimeout(() => reject(new Error("timeout")), 45000)
+```
+
+## Resultado Esperado
+
+- Lista de proteínas reduzida de ~70 para ~25-30 itens únicos
+- Prompt da IA significativamente menor
+- Tempo de resposta da IA cai de ~21s para ~5-10s
+- Timeout do frontend com margem confortável
+
+## Arquivos afetados
+
+1. `supabase/functions/parse-voice-preferences/index.ts` — deduplicar com Set
+2. `supabase/functions/generate-meal-plan/index.ts` — deduplicar com Set
+3. `src/pages/MonteSeuCardapio.tsx` — aumentar timeout para 45s
