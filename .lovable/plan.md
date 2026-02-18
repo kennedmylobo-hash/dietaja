@@ -1,61 +1,57 @@
 
 
-# Corrigir destaque ativo da navegacao mobile entre secoes
+# Acelerar processamento de voz no Monte Seu Cardapio
 
 ## Problema
 
-O `useActiveSection` usa `intersectionRatio` para determinar qual secao esta ativa. Porem, as secoes `marmitas-fit` e `marmitas-fitness` sao muito altas (contém carrosséis completos), fazendo com que o `intersectionRatio` seja sempre muito baixo e quase igual para ambas. Isso impede que o destaque mude corretamente ao rolar entre elas.
+O processamento do audio demora ~20 segundos porque:
+
+1. A edge function `parse-voice-preferences` envia uma lista ENORME de "proteinas" no prompt da IA -- mas sao nomes completos de pratos (ex: "Carne moida com salada de legumes e graos"), nao ingredientes individuais
+2. Isso infla o prompt para milhares de tokens, tornando a resposta lenta mesmo com o modelo `gemini-2.5-flash-lite`
+3. O cold start da edge function + consulta ao banco adiciona mais ~1-2s
 
 ## Solucao
 
-Reescrever a logica do `useActiveSection` para usar **posicao do topo do elemento** em vez de `intersectionRatio`. A secao ativa sera aquela cujo topo esta mais proximo (mas acima) da linha de offset no viewport. Isso funciona de forma confiavel independente do tamanho da secao.
+Duas otimizacoes combinadas que devem reduzir o tempo de ~20s para ~3-5s:
+
+### 1. Extrair palavras-chave de proteina em vez de nomes completos de pratos
+
+Na edge function `parse-voice-preferences`, em vez de enviar todos os nomes de pratos como "proteinas disponiveis", extrair apenas as palavras-chave unicas de proteina (frango, carne, peixe, almondega, estrogonofe, etc). Isso reduz o prompt de ~800 tokens para ~50 tokens.
+
+### 2. Simplificar o prompt da IA
+
+Com listas curtas de ingredientes reais, o prompt fica menor e a resposta vem muito mais rapido.
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/hooks/useActiveSection.ts`
+### Arquivo: `supabase/functions/parse-voice-preferences/index.ts`
 
-Substituir a abordagem de `IntersectionObserver` + `intersectionRatio` por um listener de scroll que:
+Alterar a funcao `fetchAvailableIngredients` para:
+- Em vez de usar os nomes completos dos pratos de `marmita_flavors`, extrair palavras-chave de proteina unicas
+- Consultar `marmita_sides` separando por categoria corretamente (carboidrato vs vegetal/leguminosa)
+- Retornar listas curtas e limpas
 
-1. A cada evento de scroll, percorre todos os `sectionIds`
-2. Para cada um, pega `getBoundingClientRect().top`
-3. A secao ativa e aquela cujo topo ja passou da linha de offset (top <= offset) e esta mais perto dela (maior top entre os que passaram)
-4. Usa `requestAnimationFrame` para evitar jank
-5. Mantém a mesma interface publica (`sectionIds`, `offset`, retorna `string | null`)
+```typescript
+// ANTES (prompt enorme):
+// proteins: "Carne moída com salada de legumes e grãos, Almôndegas de carne bovina com aipim..."
+// (800+ tokens)
 
-Nova logica (simplificada):
-
-```
-useEffect(() => {
-  const handleScroll = () => {
-    let activeId: string | null = null;
-    let closestDistance = -Infinity;
-
-    sectionIds.forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const top = el.getBoundingClientRect().top - offset;
-      // Section passed the offset line and is closest to it
-      if (top <= 0 && top > closestDistance) {
-        closestDistance = top;
-        activeId = id;
-      }
-    });
-
-    setActiveSection(activeId);
-  };
-
-  window.addEventListener("scroll", handleScroll, { passive: true });
-  handleScroll(); // initial check
-  return () => window.removeEventListener("scroll", handleScroll);
-}, [sectionIds, offset]);
+// DEPOIS (prompt enxuto):
+// proteins: "frango, carne bovina, carne moída, almôndegas, estrogonofe, peixe, carne suína"
+// (~20 tokens)
 ```
 
-### Arquivos afetados
+Logica de extracao de palavras-chave:
+- Criar um dicionario de palavras-chave de proteina comuns (frango, carne, peixe, salmao, almondega, estrogonofe, etc.)
+- Percorrer os nomes dos pratos e extrair as que aparecem
+- Para sides: separar por categoria real do banco (carboidrato, vegetal, leguminosa)
 
-- `src/hooks/useActiveSection.ts` (unico arquivo)
+### Arquivo: `src/pages/MonteSeuCardapio.tsx`
 
-### Por que isso resolve
+Nenhuma alteracao necessaria no frontend -- a otimizacao e 100% no backend.
 
-- Secoes grandes ou pequenas funcionam igualmente, pois a logica depende apenas da posicao do topo
-- Ao rolar de `marmitas-fit` para `marmitas-fitness`, o topo de `marmitas-fitness` cruza a linha de offset e imediatamente assume o destaque
-- Sem dependencia de `IntersectionObserver` thresholds que nao funcionam bem para elementos muito altos
+### Resultado esperado
+
+- Prompt da IA reduzido de ~1000 tokens para ~200 tokens
+- Tempo de resposta da IA de ~20s para ~2-4s
+- Experiencia do usuario muito mais fluida
