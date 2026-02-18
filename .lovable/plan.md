@@ -1,60 +1,58 @@
 
-# Adicionar opcao "IA monta pra voce" no Modal de Sabores
 
-## O que sera feito
+# Melhorias e Problemas Identificados
 
-Adicionar uma segunda opcao entre "Deixar a cargo da casa" e a selecao manual no FlavorSelectionModal, que redireciona o usuario para a pagina `/monte-seu-cardapio` com a linha (fit/fitness) pre-selecionada.
+## 1. BUG: Parametro `?linha=` nao e lido (CRITICO)
 
-## Layout no modal
+Quando o usuario clica em "Liste o que gosta e montamos pra voce" no FlavorSelectionModal, ele e redirecionado para `/monte-seu-cardapio?linha=hipertrofia` (ou emagrecimento), mas a pagina **ignora esse parametro**. O `selectedLine` sempre inicia como `"emagrecimento"`.
 
-```text
-┌─────────────────────────────────────────────┐
-│  🍽️ Deixar a cargo da casa        ⭐ RECOMENDADO │
-│  Montamos um mix variado com nossos sabores │
-└─────────────────────────────────────────────┘
+**Correcao**: No `MonteSeuCardapioContent`, ler `useSearchParams()` e usar o valor de `linha` como estado inicial do `selectedLine`.
 
-┌─────────────────────────────────────────────┐
-│  ✨ Diga o que gosta e montamos pra voce    │
-│  Liste seus ingredientes preferidos e a IA  │
-│  monta seu cardapio ideal                   │
-└─────────────────────────────────────────────┘
-
-          ──── ou escolha manualmente ────
-
-  Carnes (15)
-  ...
+```
+const [searchParams] = useSearchParams();
+const initialLine = searchParams.get("linha") === "hipertrofia" ? "hipertrofia" : "emagrecimento";
+const [selectedLine, setSelectedLine] = useState<LineType>(initialLine);
 ```
 
-## Detalhes tecnicos
+---
+
+## 2. BUG: Modal nao fecha ao clicar na opcao IA
+
+O `Link` no FlavorSelectionModal redireciona, mas o modal continua aberto em background. Isso pode causar estado inconsistente quando o usuario voltar.
+
+**Correcao**: Envolver o clique com `onClose()` antes da navegacao. Trocar `Link` por `useNavigate` com chamada manual:
+
+```
+const navigate = useNavigate();
+
+<motion.div onClick={() => { onClose(); navigate(`/monte-seu-cardapio?linha=...`); }}>
+```
+
+---
+
+## 3. MELHORIA: Feedback visual de "dark mode" na opcao IA
+
+A opcao IA usa cores fixas (`bg-purple-50`, `border-purple-300`) que podem ficar estranhas em dark mode. Usar variaveis do tema para melhor compatibilidade.
+
+---
+
+## 4. MELHORIA: Scroll para a selecao de linha quando vem do modal
+
+Quando o usuario vem do modal, os campos de ingredientes estarao vazios. Seria mais intuitivo o scroll comecar direto na area de voz/ingredientes em vez do topo, ja que o usuario ja sabe qual linha quer.
+
+---
+
+## Resumo das alteracoes
+
+### Arquivo: `src/pages/MonteSeuCardapio.tsx`
+- Importar `useSearchParams` de `react-router-dom`
+- Ler `?linha=` e usar como estado inicial de `selectedLine`
 
 ### Arquivo: `src/components/FlavorSelectionModal.tsx`
+- Trocar `Link` por `useNavigate`
+- Chamar `onClose()` antes de navegar
+- Ajustar cores para compatibilidade com dark mode (usar `bg-purple-50 dark:bg-purple-950/30` etc.)
 
-1. Importar `Link` de `react-router-dom`
-2. O componente recebe `lineType` como prop (ja existente: `'emagrecimento'` ou `'hipertrofia'`)
-3. Apos o bloco "Deixar a cargo da casa" (linha ~403) e antes do divider (linha ~406), adicionar um novo bloco:
-
-```text
-<Link to={`/monte-seu-cardapio?linha=${lineType}`} className="block">
-  <motion.div className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-purple-300 bg-purple-50 hover:border-purple-400 cursor-pointer transition-all">
-    <Sparkles className="w-5 h-5 text-purple-500" />
-    <div>
-      <span className="font-semibold text-foreground">
-        Liste o que gosta e montamos pra voce
-      </span>
-      <p className="text-sm text-muted-foreground">
-        Diga seus ingredientes preferidos e a IA monta seu cardapio
-      </p>
-    </div>
-  </motion.div>
-</Link>
-```
-
-### Comportamento
-
-- Ao clicar, o modal fecha e o usuario e redirecionado para `/monte-seu-cardapio?linha=emagrecimento` ou `/monte-seu-cardapio?linha=hipertrofia`
-- A pagina Monte Seu Cardapio ja sabe lidar com a linha selecionada
-- Nao altera nenhuma outra funcionalidade do modal
-
-### Arquivo afetado
-
-Apenas `src/components/FlavorSelectionModal.tsx`
+### Arquivos afetados
+- `src/components/FlavorSelectionModal.tsx`
+- `src/pages/MonteSeuCardapio.tsx`
