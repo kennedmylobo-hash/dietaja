@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Sparkles, Send, UtensilsCrossed, ArrowLeft } from "lucide-react";
+import { Loader2, Sparkles, Send, UtensilsCrossed, ArrowLeft, Mic, MicOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -47,16 +47,115 @@ interface Flavor {
   quantity: number;
 }
 
+const speechSupported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
 const MonteSeuCardapio = () => {
   const { brand, contact } = useTenantConfig();
   const [loading, setLoading] = useState(false);
   const [flavors, setFlavors] = useState<Flavor[] | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<number | null>(null);
   const [selectedLine, setSelectedLine] = useState<LineType>("emagrecimento");
+  const [isRecording, setIsRecording] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [interimText, setInterimText] = useState("");
+  const recognitionRef = useRef<any>(null);
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
   });
+
+  const stopRecording = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsRecording(false);
+  }, []);
+
+  const parseTranscript = useCallback(async (transcript: string) => {
+    if (!transcript || transcript.trim().length < 5) {
+      toast.error("Não consegui entender. Tente falar novamente.");
+      return;
+    }
+    setIsParsing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("parse-voice-preferences", {
+        body: { transcript },
+      });
+      if (error) {
+        console.error("Parse error:", error);
+        toast.error("Erro ao processar. Tente novamente.");
+        return;
+      }
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+      if (data?.proteins) setValue("proteins", data.proteins);
+      if (data?.carbs) setValue("carbs", data.carbs);
+      if (data?.mix) setValue("mix", data.mix);
+      toast.success("Preferências preenchidas! Confira e ajuste se quiser. ✅");
+    } catch (err) {
+      console.error("Parse voice error:", err);
+      toast.error("Erro de conexão. Tente novamente.");
+    } finally {
+      setIsParsing(false);
+      setInterimText("");
+    }
+  }, [setValue]);
+
+  const startRecording = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "pt-BR";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    let finalTranscript = "";
+
+    recognition.onresult = (event: any) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += t + " ";
+        } else {
+          interim += t;
+        }
+      }
+      setInterimText(finalTranscript + interim);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error !== "aborted") {
+        toast.error("Erro no microfone. Verifique as permissões.");
+      }
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      if (finalTranscript.trim()) {
+        parseTranscript(finalTranscript.trim());
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsRecording(true);
+    setInterimText("");
+  }, [parseTranscript]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
 
   const { data: packages } = useQuery({
     queryKey: ["marmita-packages-cardapio"],
@@ -188,6 +287,52 @@ const MonteSeuCardapio = () => {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Voice input */}
+            {speechSupported && (
+              <div
+                onClick={isRecording ? stopRecording : isParsing ? undefined : startRecording}
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  isRecording
+                    ? "border-destructive bg-destructive/10"
+                    : isParsing
+                    ? "border-muted bg-muted/50 cursor-wait"
+                    : "border-primary/30 bg-primary/5 hover:border-primary hover:bg-primary/10"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-full ${isRecording ? "bg-destructive/20 animate-pulse" : "bg-primary/10"}`}>
+                    {isRecording ? (
+                      <MicOff className="w-6 h-6 text-destructive" />
+                    ) : (
+                      <Mic className={`w-6 h-6 ${isParsing ? "text-muted-foreground" : "text-primary"}`} />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground text-sm">
+                      {isRecording
+                        ? "🔴 Ouvindo... toque para parar"
+                        : isParsing
+                        ? "Processando seu áudio..."
+                        : "🎙️ Prefere falar? Toque aqui!"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {isRecording
+                        ? "Fale suas proteínas, carboidratos e legumes favoritos"
+                        : isParsing
+                        ? "Extraindo suas preferências com IA..."
+                        : "Diga o que você gosta e preenchemos pra você"}
+                    </p>
+                  </div>
+                  {isParsing && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
+                </div>
+                {interimText && (
+                  <div className="mt-3 p-2 bg-background rounded-lg border border-border">
+                    <p className="text-xs text-muted-foreground italic">"{interimText}"</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Ingredient fields */}
             <div className="space-y-4">
               <div>
