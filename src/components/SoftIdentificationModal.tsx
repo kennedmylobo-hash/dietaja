@@ -90,11 +90,9 @@ export const SoftIdentificationModal = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && onSkip) onSkip(); }}>
       <DialogContent 
         className="sm:max-w-md mx-4 rounded-2xl animate-enter"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader className="text-center pb-2">
           <div className="mx-auto mb-3 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
