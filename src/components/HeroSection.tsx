@@ -1,5 +1,7 @@
 import { useRef, useEffect } from "react";
-import { Star, CheckCircle2 } from "lucide-react";
+import { Star, CheckCircle2, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import produtosPoster from "@/assets/produtos-detox.jpg";
 import { useLandingContent } from "@/hooks/useLandingContent";
@@ -101,7 +103,17 @@ const HeroSection = () => {
             <div className="flex items-center gap-2 text-white/80">
               <CheckCircle2 className="w-4 h-4 text-primary" />
               <span className="font-medium">{socialProofSatisfaction}</span>
-            </div>
+          </div>
+
+          <Link to="/monte-seu-cardapio" className="block animate-fade-in mt-2">
+            <Button variant="cta" size="lg" className="w-full sm:w-auto">
+              <Sparkles className="w-5 h-5" />
+              Monte suas marmitas do seu jeito
+            </Button>
+            <p className="text-sm text-muted-foreground/70 mt-2">
+              Conte o que você gosta e montamos pra você
+            </p>
+          </Link>
           </div>
         </div>
       </div>
