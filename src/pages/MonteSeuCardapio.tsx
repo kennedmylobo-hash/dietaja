@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Sparkles, Send, UtensilsCrossed, ArrowLeft, Mic, MicOff, ShoppingBag, RefreshCw } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 
@@ -58,10 +58,12 @@ const speechSupported = typeof window !== "undefined" && ("SpeechRecognition" in
 const MonteSeuCardapioContent = () => {
   const { brand, contact } = useTenantConfig();
   const { addItem, itemCount, showIdentificationModal, setShowIdentificationModal, customerInfo, setCustomerInfo, confirmAddItem } = useCart();
+  const [searchParams] = useSearchParams();
+  const initialLine = searchParams.get("linha") === "hipertrofia" ? "hipertrofia" : "emagrecimento";
   const [loading, setLoading] = useState(false);
   const [flavors, setFlavors] = useState<Flavor[] | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<number | null>(null);
-  const [selectedLine, setSelectedLine] = useState<LineType>("emagrecimento");
+  const [selectedLine, setSelectedLine] = useState<LineType>(initialLine);
   const [isRecording, setIsRecording] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [interimText, setInterimText] = useState("");
