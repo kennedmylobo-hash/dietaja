@@ -1,72 +1,86 @@
 
-
-# Adicionar Precos e Selecao Fit/Fitness ao Monte Seu Cardapio
+# Adicionar Entrada por Audio ao Monte Seu Cardapio
 
 ## Resumo
 
-Adicionar ao formulario de cardapio personalizado:
-1. Selecao entre **Fit (300g)** e **Fitness (450g)** com composicao diferente
-2. Exibicao do preco unitario e total baseado nos pacotes reais do banco de dados
-3. Ajuste da mensagem do WhatsApp para incluir linha e valor
+Adicionar um botao de microfone na pagina `/monte-seu-cardapio` que permite ao cliente falar suas preferencias em vez de digitar. O audio e transcrito pelo navegador (Web Speech API) e depois enviado para a IA extrair automaticamente as proteinas, carboidratos e mix, preenchendo o formulario automaticamente.
 
-## Detalhes da mudanca
+## Fluxo do cliente
 
-### Composicao por linha
-- **Fit (300g)**: 100g proteina + 150g carboidrato + 50g mix
-- **Fitness (450g)**: 150g proteina + 200g carboidrato + 100g mix
+1. O cliente clica no botao "Falar suas preferencias" (abaixo do titulo, antes dos campos de texto)
+2. O microfone e ativado e aparece uma indicacao visual de que esta gravando
+3. O cliente fala algo como: "Eu gosto de carne moida, strogonoff de frango, almondegas. De carboidrato eu gosto de aipim, arroz integral e feijao preto. E de salada eu gosto de vagem, cenoura e beterraba"
+4. Ao parar de falar (ou clicar para parar), o texto transcrito e enviado para uma edge function
+5. A IA (Gemini) extrai e separa as preferencias em 3 categorias: proteinas, carboidratos e mix
+6. Os campos do formulario sao preenchidos automaticamente
+7. O cliente pode editar se quiser, escolher a linha/quantidade e prosseguir normalmente
 
-### Precos (do banco de dados - tabela `marmita_packages`)
-Os pacotes reais sao 7, 14, 21 e 28 unidades. As quantidades do formulario (10, 20, 30) nao correspondem exatamente. A proposta e:
-- Trocar as opcoes de quantidade para usar os pacotes reais do banco (7, 14, 21, 28)
-- Buscar os precos direto da tabela `marmita_packages` ao carregar a pagina
-- Exibir o preco unitario e o total no card de cada opcao
+## Como funciona tecnicamente
 
-### Precos atuais no banco
+### Transcricao: Web Speech API (gratis, no navegador)
+- Usa a API nativa do navegador (`webkitSpeechRecognition` / `SpeechRecognition`)
+- Funciona em Chrome, Edge, Safari (cobre a maioria dos usuarios mobile)
+- Nao consome creditos da Lovable AI
+- Se o navegador nao suportar, o botao fica oculto
 
-| Qtd | Fit (un.) | Fit (total) | Fitness (un.) | Fitness (total) |
-|-----|-----------|-------------|---------------|-----------------|
-| 7   | R$ 26,90  | R$ 188,30   | R$ 31,90      | R$ 223,30       |
-| 14  | R$ 24,90  | R$ 348,60   | R$ 29,90      | R$ 418,60       |
-| 21  | R$ 23,90  | R$ 501,90   | R$ 27,90      | R$ 585,90       |
-| 28  | R$ 22,90  | R$ 641,20   | R$ 26,90      | R$ 753,20       |
+### Extracao: Edge function `parse-voice-preferences`
+- Recebe o texto transcrito
+- Usa Lovable AI (Gemini Flash) com tool calling para separar em 3 categorias
+- Retorna JSON: `{ proteins: "...", carbs: "...", mix: "..." }`
+- Rapido e economico (1 chamada curta por audio)
 
-### Regra de sabores (mantida)
-- 7 unidades: ate 3 sabores
-- 14 unidades: ate 5 sabores
-- 21 unidades: ate 7 sabores
-- 28 unidades: ate 10 sabores
+## O que sera criado/modificado
 
-## Mudancas no formulario
+### 1. Nova edge function: `parse-voice-preferences`
+- Recebe `{ transcript: string }`
+- Prompt curto pedindo para extrair proteinas, carboidratos e mix do texto livre
+- Retorna as 3 categorias separadas via tool calling
+- Tratamento de erro para 429/402
 
-1. **Novo seletor de linha** (antes da quantidade): dois botoes "Fit 300g" e "Fitness 450g" com icones e descricao da composicao
-2. **Cards de quantidade** atualizados: mostram preco unitario e total, vindos do banco
-3. **Resultado** exibe a composicao correta (Fit ou Fitness)
-4. **Mensagem WhatsApp** inclui a linha escolhida e o valor total
+### 2. Pagina `MonteSeuCardapio.tsx` atualizada
+- Novo botao com icone de microfone antes dos campos de texto
+- Estado de gravacao com indicacao visual (icone pulsando, texto "Ouvindo...")
+- Apos transcricao, chama a edge function para extrair as preferencias
+- Preenche os 3 campos automaticamente com `setValue()`
+- Fallback: se o navegador nao suportar, o botao nao aparece
 
-## Mudancas na edge function
-
-Atualizar o prompt do `generate-meal-plan` para receber o parametro `lineType` e ajustar os pesos conforme a linha:
-- Fit: 100g proteina, 150g carb, 50g mix
-- Fitness: 150g proteina, 200g carb, 100g mix
-
-## Arquivos afetados
-
-1. **`src/pages/MonteSeuCardapio.tsx`** - Adicionar selecao de linha, buscar precos do banco, exibir valores, atualizar mensagem WhatsApp
-2. **`supabase/functions/generate-meal-plan/index.ts`** - Receber `lineType` e ajustar composicao no prompt
+### 3. Config.toml atualizado
+- Adicionar `parse-voice-preferences` com `verify_jwt = false`
 
 ## Detalhes tecnicos
 
-### Busca de precos
-- Usar `useQuery` com `supabase.from('marmita_packages').select('quantity, unit_price, line_type, weight').eq('active', true)` ao montar a pagina
-- Agrupar por `line_type` para popular os cards de quantidade com preco
+### Web Speech API no React
 
-### Estado adicional
-- `selectedLine`: `'fit' | 'fitness'` (default: `'fit'`)
-- Ao trocar a linha, atualizar os precos exibidos nos cards de quantidade
+```text
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = new SpeechRecognition();
+recognition.lang = "pt-BR";
+recognition.continuous = true;
+recognition.interimResults = true;
 
-### Calculo do total
-- `total = selectedQuantity * unitPrice` (do pacote correspondente)
-- Exibir no resumo antes do botao WhatsApp
+recognition.onresult = (event) => {
+  // Pega o texto final transcrito
+};
 
-### Mensagem WhatsApp atualizada
-Incluir a linha (Fit 300g ou Fitness 450g) e o valor total estimado na mensagem
+recognition.start(); // Inicia gravacao
+recognition.stop();  // Para gravacao
+```
+
+### Edge function `parse-voice-preferences`
+
+Prompt do sistema:
+- "O usuario descreveu por audio os ingredientes que gosta para marmitas fitness. Extraia e separe em 3 categorias: proteinas, carboidratos e mix de legumes/salada."
+- Tool calling retorna `{ proteins, carbs, mix }` como strings separadas por virgula
+
+### Interface do botao
+
+- Card destacado com icone de microfone e texto "Prefere falar? Grave um audio!"
+- Quando gravando: icone pulsando em vermelho, texto "Ouvindo... fale suas preferencias"
+- Apos processar: toast de sucesso e campos preenchidos
+- Se navegador nao suportar: card nao aparece (verificacao com `'webkitSpeechRecognition' in window`)
+
+## Arquivos afetados
+
+1. `supabase/functions/parse-voice-preferences/index.ts` (novo)
+2. `src/pages/MonteSeuCardapio.tsx` (adicionar botao de audio e logica)
+3. `supabase/config.toml` (adicionar nova function)
