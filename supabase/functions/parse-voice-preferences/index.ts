@@ -1,10 +1,46 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+async function fetchAvailableIngredients() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const [flavorsRes, sidesRes] = await Promise.all([
+    supabase.from("marmita_flavors").select("name, category").eq("active", true),
+    supabase.from("marmita_sides").select("name, category").eq("active", true),
+  ]);
+
+  const flavors = flavorsRes.data || [];
+  const sides = sidesRes.data || [];
+
+  const proteins = flavors.map((f) => f.name);
+
+  const carbSides = sides
+    .filter((s) => s.category === "acompanhamento")
+    .map((s) => s.name);
+
+  const mixSides = sides
+    .filter((s) => s.category === "salada" || s.category === "legumes" || s.category === "mix")
+    .map((s) => s.name);
+
+  // If no mix sides found from category filter, include all non-carb sides
+  const finalMix = mixSides.length > 0 ? mixSides : sides
+    .filter((s) => s.category !== "acompanhamento")
+    .map((s) => s.name);
+
+  return {
+    proteins: proteins.length > 0 ? proteins.join(", ") : "frango, carne, peixe",
+    carbs: carbSides.length > 0 ? carbSides.join(", ") : "arroz, feijão, batata doce",
+    mix: finalMix.length > 0 ? finalMix.join(", ") : "legumes, salada",
+  };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -27,6 +63,23 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Fetch available ingredients from database
+    const available = await fetchAvailableIngredients();
+    console.log("Available ingredients:", JSON.stringify(available));
+
+    const systemPrompt = `O usuário descreveu por áudio os ingredientes que gosta para marmitas fitness. Extraia e separe em 3 categorias: proteínas, carboidratos e mix de legumes/salada.
+
+IMPORTANTE - INGREDIENTES DISPONÍVEIS (use APENAS estes):
+Proteínas: ${available.proteins}
+Carboidratos: ${available.carbs}
+Mix de legumes/salada: ${available.mix}
+
+REGRAS:
+- Se o usuário mencionar ingredientes que NÃO estão na lista acima, IGNORE-OS completamente.
+- Retorne APENAS ingredientes que existem na lista acima.
+- Retorne cada categoria como uma string com os itens separados por vírgula.
+- Se nenhum ingrediente mencionado existe na categoria, retorne string vazia.`;
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -36,11 +89,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
         messages: [
-          {
-            role: "system",
-            content:
-              "O usuário descreveu por áudio os ingredientes que gosta para marmitas fitness. Extraia e separe em 3 categorias: proteínas (carnes, frangos, peixes etc), carboidratos (arroz, feijão, batata, aipim etc) e mix de legumes/salada (verduras, legumes). Retorne cada categoria como uma string com os itens separados por vírgula. Se o usuário não mencionou itens de alguma categoria, retorne string vazia.",
-          },
+          { role: "system", content: systemPrompt },
           { role: "user", content: transcript },
         ],
         tools: [
@@ -48,21 +97,21 @@ serve(async (req) => {
             type: "function",
             function: {
               name: "extract_preferences",
-              description: "Extrai as preferências alimentares separadas em 3 categorias.",
+              description: "Extrai as preferências alimentares separadas em 3 categorias, usando APENAS ingredientes da lista disponível.",
               parameters: {
                 type: "object",
                 properties: {
                   proteins: {
                     type: "string",
-                    description: "Proteínas separadas por vírgula (ex: carne moída, frango desfiado)",
+                    description: "Proteínas separadas por vírgula (apenas da lista disponível)",
                   },
                   carbs: {
                     type: "string",
-                    description: "Carboidratos separados por vírgula (ex: arroz integral, batata doce)",
+                    description: "Carboidratos separados por vírgula (apenas da lista disponível)",
                   },
                   mix: {
                     type: "string",
-                    description: "Mix de legumes/salada separados por vírgula (ex: brócolis, cenoura)",
+                    description: "Mix de legumes/salada separados por vírgula (apenas da lista disponível)",
                   },
                 },
                 required: ["proteins", "carbs", "mix"],
