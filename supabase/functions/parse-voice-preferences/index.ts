@@ -13,6 +13,7 @@ serve(async (req) => {
 
   try {
     const { transcript } = await req.json();
+    console.log("Received transcript:", transcript?.substring(0, 100));
 
     if (!transcript || typeof transcript !== "string" || transcript.trim().length < 5) {
       return new Response(
@@ -74,6 +75,7 @@ serve(async (req) => {
       }),
     });
 
+    console.log("AI gateway response status:", response.status);
     if (!response.ok) {
       const status = response.status;
       const text = await response.text();
