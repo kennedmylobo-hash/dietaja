@@ -1,74 +1,114 @@
 
-# Integrar "Monte Seu Cardapio" ao Carrinho e Checkout
+# Melhorias e Otimizacoes - Monte Seu Cardapio
 
-## Resumo
+## 1. Feedback quando todos os ingredientes sao ignorados
 
-Adicionar um botao "Adicionar ao Carrinho" na pagina Monte Seu Cardapio, ao lado do botao do WhatsApp. Ao clicar, o cardapio gerado pela IA sera transformado em um item do carrinho, e o cliente segue o fluxo normal de checkout (identificacao, entrega/retirada, pagamento PIX).
+**Problema**: Se o cliente falar apenas ingredientes que nao existem no catalogo (ex: "salmao, file mignon, grao de bico"), os campos ficam vazios sem explicacao.
 
-## O que muda para o cliente
+**Melhoria**: Detectar quando a IA retornou tudo vazio e mostrar um toast explicativo: "Nao encontramos esses ingredientes no nosso catalogo. Tente novamente com outros ingredientes!"
 
-1. Apos gerar o cardapio, o cliente vera dois botoes:
-   - **"Adicionar ao Carrinho"** (botao principal, cor primaria) -- segue pro checkout no site
-   - **"Enviar pelo WhatsApp"** (botao secundario, verde WhatsApp) -- funciona como hoje
+**Arquivo**: `src/pages/MonteSeuCardapio.tsx` (no `parseTranscript`, checar se proteins/carbs/mix vieram vazios)
 
-2. Ao clicar em "Adicionar ao Carrinho":
-   - O cardapio vira um item do tipo `marmita` no carrinho
-   - Os sabores gerados pela IA sao mapeados como `FlavorSelection[]`
-   - O carrinho abre automaticamente (CartDrawer)
-   - O cliente preenche dados, escolhe entrega e paga via PIX normalmente
+---
+
+## 2. Scroll automatico para o resultado apos gerar o cardapio
+
+**Problema**: Quando o cardapio e gerado, o resultado aparece abaixo do botao mas o cliente pode nao ver se a tela nao rolar.
+
+**Melhoria**: Adicionar um `useRef` na secao de resultados e fazer `scrollIntoView` apos `setFlavors`.
+
+**Arquivo**: `src/pages/MonteSeuCardapio.tsx`
+
+---
+
+## 3. Botao "Gerar novamente" para refazer o cardapio sem preencher tudo de novo
+
+**Problema**: Se o cliente nao gostar do resultado, precisa rolar ate o botao "Montar meu cardapio" e clicar de novo.
+
+**Melhoria**: Adicionar um botao "Nao gostei, gerar outro" na secao de resultados que resubmete o formulario com os mesmos dados.
+
+**Arquivo**: `src/pages/MonteSeuCardapio.tsx`
+
+---
+
+## 4. Mostrar ingredientes disponiveis como sugestoes (chips clicaveis)
+
+**Problema**: O cliente pode nao saber quais ingredientes estao disponiveis e digitar algo que sera ignorado.
+
+**Melhoria**: Buscar os ingredientes do banco e mostrar como chips/tags clicaveis abaixo de cada campo. Ao clicar, o ingrediente e adicionado ao textarea.
+
+**Arquivos**: 
+- `src/pages/MonteSeuCardapio.tsx` (UI dos chips + query para buscar ingredientes)
+- Usa a mesma query de `marmita_flavors` e `marmita_sides` ja existente no backend
+
+---
+
+## 5. Cache dos ingredientes disponiveis nas edge functions
+
+**Problema**: Ambas edge functions (`parse-voice-preferences` e `generate-meal-plan`) fazem uma query ao banco toda vez que sao chamadas para buscar ingredientes disponiveis.
+
+**Melhoria**: Como os ingredientes mudam raramente, adicionar um cache em memoria com TTL de 5 minutos para evitar queries repetitivas.
+
+**Arquivos**:
+- `supabase/functions/parse-voice-preferences/index.ts`
+- `supabase/functions/generate-meal-plan/index.ts`
+
+---
+
+## 6. Loading skeleton nos pacotes de quantidade
+
+**Problema**: Enquanto os pacotes carregam do banco, a secao de quantidade fica vazia sem feedback visual.
+
+**Melhoria**: Mostrar skeletons de loading enquanto a query de pacotes esta carregando.
+
+**Arquivo**: `src/pages/MonteSeuCardapio.tsx`
+
+---
+
+## Resumo de prioridade
+
+| Melhoria | Impacto | Esforco |
+|----------|---------|---------|
+| 1. Feedback ingredientes vazios | Alto | Baixo |
+| 2. Scroll para resultado | Alto | Baixo |
+| 3. Botao "Gerar novamente" | Medio | Baixo |
+| 4. Chips de ingredientes | Alto | Medio |
+| 5. Cache nas edge functions | Baixo | Baixo |
+| 6. Loading skeleton | Baixo | Baixo |
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/pages/MonteSeuCardapio.tsx`
-
-1. **Importar o hook do carrinho**:
-   - `import { useCart } from "@/components/CartContext"`
-
-2. **Importar CartDrawer e CartFloatingButton** para ter acesso ao carrinho nessa pagina
-
-3. **Criar funcao `handleAddToCart`**:
-   - Mapeia os `flavors` gerados pela IA para o formato `FlavorSelection[]` do carrinho
-   - Cria um `CartItem` com:
-     - `type: "marmita"`
-     - `name: "Cardápio Personalizado - {lineConfig.label} {lineConfig.weight}g"`
-     - `quantity: selectedQuantity`
-     - `unitPrice: unitPrice`
-     - `totalPrice: totalPrice`
-     - `lineType: selectedLine`
-     - `flavors: flavorSelections` (mapeados dos sabores da IA)
-   - Chama `addItem()` do CartContext
-   - Abre o CartDrawer
-
-4. **Adicionar botao na UI** (dentro da secao de resultados, antes do botao WhatsApp):
-
+### Melhoria 1 - Feedback vazio
+No `parseTranscript`, apos receber a resposta:
 ```text
-[Adicionar ao Carrinho]  -- botao primario, ShoppingBag icon
-[Enviar pelo WhatsApp]   -- botao secundario (como esta hoje)
+if (!data.proteins && !data.carbs && !data.mix) {
+  toast.warning("Nao encontramos esses ingredientes no nosso catalogo. Tente com outros!");
+  return;
+}
 ```
 
-5. **Garantir que CartProvider envolve essa pagina** (verificar no App.tsx se ja esta la -- provavelmente sim pois e global)
+### Melhoria 2 - Scroll resultado
+Novo `resultsRef = useRef()` na div de resultados, com `scrollIntoView` no callback de sucesso do `onSubmit`.
 
-### Mapeamento de sabores
+### Melhoria 3 - Botao regenerar
+Um botao que chama `handleSubmit(onSubmit)()` novamente, posicionado junto aos botoes de acao.
 
-Os sabores da IA vem no formato:
+### Melhoria 4 - Chips de ingredientes
+Nova query `useQuery` para buscar `marmita_flavors` e `marmita_sides` ativos. Renderizar como badges clicaveis que fazem append no textarea correspondente via `setValue`.
+
+### Melhoria 5 - Cache
+Variavel global no escopo do modulo da edge function:
 ```text
-{ name: "Estrogonofe de Frango", protein: "Frango desfiado", carb: "Arroz", mix: "Legumes", quantity: 3 }
+let cachedIngredients = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 ```
 
-Precisam ser convertidos para `FlavorSelection[]`:
-```text
-{ name: "Estrogonofe de Frango", quantity: 3, category: "proteina" }
-```
-
-O `name` do flavor sera o nome composto (ex: "Estrogonofe de Frango") e a `category` sera mapeada da tabela `marmita_flavors` (proteina). Como os sabores da IA ja tem a proteina como componente principal, usaremos `category: "proteina"` como padrao.
-
-### Descricao do item no carrinho
-
-Para que o cliente veja os detalhes no carrinho, o campo `description` do CartItem tera um resumo:
-```text
-"3x Estrogonofe de Frango, 2x Carne Moída com Aipim, 2x Frango Grelhado..."
-```
+### Melhoria 6 - Skeleton
+Usar o componente `Skeleton` existente no projeto para mostrar 4 cards placeholder enquanto `isLoading` dos pacotes.
 
 ## Arquivos afetados
 
-1. `src/pages/MonteSeuCardapio.tsx` -- Adicionar botao "Adicionar ao Carrinho", importar useCart, criar handleAddToCart
+1. `src/pages/MonteSeuCardapio.tsx` - Melhorias 1, 2, 3, 4 e 6
+2. `supabase/functions/parse-voice-preferences/index.ts` - Melhoria 5
+3. `supabase/functions/generate-meal-plan/index.ts` - Melhoria 5
