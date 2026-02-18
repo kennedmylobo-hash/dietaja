@@ -58,7 +58,9 @@ const MonteSeuCardapio = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [interimText, setInterimText] = useState("");
+  const [highlightNextStep, setHighlightNextStep] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const lineSectionRef = useRef<HTMLDivElement>(null);
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -99,7 +101,12 @@ const MonteSeuCardapio = () => {
       if (data?.proteins) setValue("proteins", data.proteins);
       if (data?.carbs) setValue("carbs", data.carbs);
       if (data?.mix) setValue("mix", data.mix);
-      toast.success("Preferências preenchidas! Confira e ajuste se quiser. ✅");
+      toast.success("Preferências preenchidas! Agora escolha a linha e quantidade abaixo ⬇️");
+      setHighlightNextStep(true);
+      setTimeout(() => {
+        lineSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+      setTimeout(() => setHighlightNextStep(false), 4000);
     } catch (err: any) {
       console.error("Parse voice error:", err);
       if (err?.message === "timeout") {
@@ -365,7 +372,7 @@ const MonteSeuCardapio = () => {
             </div>
 
             {/* Line type selection */}
-            <div>
+            <div ref={lineSectionRef} className={`transition-all duration-500 rounded-xl p-1 ${highlightNextStep ? "ring-2 ring-primary ring-offset-2 animate-pulse" : ""}`}>
               <Label className="text-base font-semibold mb-3 block">🍽️ Qual linha deseja?</Label>
               <div className="grid grid-cols-2 gap-3">
                 {(Object.entries(LINE_CONFIG) as [LineType, typeof LINE_CONFIG[LineType]][]).map(([key, config]) => (
