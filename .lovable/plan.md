@@ -1,58 +1,58 @@
 
 
-# Melhorias e Problemas Identificados
+# Navegacao mobile com atalhos para cada linha de produto
 
-## 1. BUG: Parametro `?linha=` nao e lido (CRITICO)
+## Problema atual
 
-Quando o usuario clica em "Liste o que gosta e montamos pra voce" no FlavorSelectionModal, ele e redirecionado para `/monte-seu-cardapio?linha=hipertrofia` (ou emagrecimento), mas a pagina **ignora esse parametro**. O `selectedLine` sempre inicia como `"emagrecimento"`.
+A navegacao mobile na pagina principal (`/`) tem apenas 4 itens: **Kits Detox**, **Marmitas**, **Dieta**, **FAQ**. Clicar em "Marmitas" rola para o inicio da secao inteira, sem diferenciar entre Emagrecimento e Hipertrofia.
 
-**Correcao**: No `MonteSeuCardapioContent`, ler `useSearchParams()` e usar o valor de `linha` como estado inicial do `selectedLine`.
+## O que sera feito
 
-```
-const [searchParams] = useSearchParams();
-const initialLine = searchParams.get("linha") === "hipertrofia" ? "hipertrofia" : "emagrecimento";
-const [selectedLine, setSelectedLine] = useState<LineType>(initialLine);
-```
+Separar a navegacao mobile em 3 atalhos de produto + os itens existentes:
 
----
-
-## 2. BUG: Modal nao fecha ao clicar na opcao IA
-
-O `Link` no FlavorSelectionModal redireciona, mas o modal continua aberto em background. Isso pode causar estado inconsistente quando o usuario voltar.
-
-**Correcao**: Envolver o clique com `onClose()` antes da navegacao. Trocar `Link` por `useNavigate` com chamada manual:
-
-```
-const navigate = useNavigate();
-
-<motion.div onClick={() => { onClose(); navigate(`/monte-seu-cardapio?linha=...`); }}>
+```text
+┌──────────┬──────────────┬──────────────┬───────┬─────┐
+│ 🥤 Detox │ 🥗 Emagrecer │ 💪 Massa     │ 🥗 AI │ ❓  │
+└──────────┴──────────────┴──────────────┴───────┴─────┘
 ```
 
----
+- **Detox** → rola para secao `#kits` (kits detox)
+- **Emagrecer** → rola para secao `#marmitas-fit` (marmitas 300g emagrecimento)
+- **Massa** → rola para secao `#marmitas-fitness` (marmitas 450g hipertrofia)
+- **Dieta** e **FAQ** permanecem
 
-## 3. MELHORIA: Feedback visual de "dark mode" na opcao IA
+## Detalhes tecnicos
 
-A opcao IA usa cores fixas (`bg-purple-50`, `border-purple-300`) que podem ficar estranhas em dark mode. Usar variaveis do tema para melhor compatibilidade.
+### Arquivo 1: `src/components/MarmitasSection.tsx`
 
----
+Adicionar IDs nas divs das sub-secoes para que o scroll funcione:
 
-## 4. MELHORIA: Scroll para a selecao de linha quando vem do modal
+- Na div da secao Emagrecimento (~linha 332): adicionar `id="marmitas-fit"`
+- Na div da secao Hipertrofia (~linha 369): adicionar `id="marmitas-fitness"`
 
-Quando o usuario vem do modal, os campos de ingredientes estarao vazios. Seria mais intuitivo o scroll comecar direto na area de voz/ingredientes em vez do topo, ja que o usuario ja sabe qual linha quer.
+### Arquivo 2: `src/components/SideNavigation.tsx`
 
----
+Atualizar o array `navItems` para incluir os novos destinos:
 
-## Resumo das alteracoes
+```
+const navItems = [
+  { id: "kits", label: "Detox", icon: Droplets },
+  { id: "marmitas-fit", label: "Emagrecer", icon: Salad },
+  { id: "marmitas-fitness", label: "Massa", icon: Dumbbell },
+  { id: "dieta-personalizada", label: "Dieta", icon: Sparkles },
+  { id: "faq", label: "FAQ", icon: HelpCircle },
+];
+```
 
-### Arquivo: `src/pages/MonteSeuCardapio.tsx`
-- Importar `useSearchParams` de `react-router-dom`
-- Ler `?linha=` e usar como estado inicial de `selectedLine`
+- Importar `Dumbbell` e `Sparkles` de `lucide-react`
+- Remover o antigo item "Marmitas" (UtensilsCrossed) e substituir pelos dois novos
+- Ajustar `useActiveSection` que ja recebe os `sectionIds` automaticamente do array
 
-### Arquivo: `src/components/FlavorSelectionModal.tsx`
-- Trocar `Link` por `useNavigate`
-- Chamar `onClose()` antes de navegar
-- Ajustar cores para compatibilidade com dark mode (usar `bg-purple-50 dark:bg-purple-950/30` etc.)
+### Arquivo 3: `src/pages/Index.tsx`
+
+Adicionar os novos IDs ao array de secoes observadas pelo `useActiveSection` (se necessario), mas como o `SideNavigation` ja gerencia seu proprio scroll spy internamente, nenhuma mudanca deve ser necessaria aqui.
 
 ### Arquivos afetados
-- `src/components/FlavorSelectionModal.tsx`
-- `src/pages/MonteSeuCardapio.tsx`
+- `src/components/MarmitasSection.tsx` (adicionar IDs)
+- `src/components/SideNavigation.tsx` (atualizar nav items)
+
