@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Sparkles, Send, UtensilsCrossed, ArrowLeft, Mic, MicOff } from "lucide-react";
+import { Loader2, Sparkles, Send, UtensilsCrossed, ArrowLeft, Mic, MicOff, ShoppingBag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -15,6 +15,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
+import { CartProvider, useCart, FlavorSelection } from "@/components/CartContext";
+import CartDrawer from "@/components/CartDrawer";
+import CartFloatingButton from "@/components/CartFloatingButton";
+import { SoftIdentificationModal } from "@/components/SoftIdentificationModal";
 
 type LineType = "emagrecimento" | "hipertrofia";
 
@@ -49,8 +53,9 @@ interface Flavor {
 
 const speechSupported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
-const MonteSeuCardapio = () => {
+const MonteSeuCardapioContent = () => {
   const { brand, contact } = useTenantConfig();
+  const { addItem, itemCount, showIdentificationModal, setShowIdentificationModal, customerInfo, setCustomerInfo, confirmAddItem } = useCart();
   const [loading, setLoading] = useState(false);
   const [flavors, setFlavors] = useState<Flavor[] | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<number | null>(null);
@@ -59,6 +64,7 @@ const MonteSeuCardapio = () => {
   const [isParsing, setIsParsing] = useState(false);
   const [interimText, setInterimText] = useState("");
   const [highlightNextStep, setHighlightNextStep] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const recognitionRef = useRef<any>(null);
   const lineSectionRef = useRef<HTMLDivElement>(null);
 
@@ -245,6 +251,36 @@ const MonteSeuCardapio = () => {
       setLoading(false);
     }
   };
+
+  const handleAddToCart = useCallback(() => {
+    if (!flavors || !selectedQuantity) return;
+
+    // Map AI flavors to FlavorSelection[]
+    const flavorSelections: FlavorSelection[] = flavors.map((f) => ({
+      name: f.name,
+      quantity: f.quantity,
+      category: "proteina",
+    }));
+
+    // Build description string
+    const description = flavors
+      .map((f) => `${f.quantity}x ${f.name}`)
+      .join(", ");
+
+    addItem({
+      type: "marmita",
+      name: `Cardápio Personalizado - ${lineConfig.label} ${lineConfig.weight}g`,
+      quantity: selectedQuantity,
+      unitPrice,
+      totalPrice,
+      description,
+      flavors: flavorSelections,
+      lineType: selectedLine,
+    });
+
+    // Open cart drawer after adding
+    setTimeout(() => setIsCartOpen(true), 300);
+  }, [flavors, selectedQuantity, lineConfig, unitPrice, totalPrice, selectedLine, addItem]);
 
   const handleWhatsApp = () => {
     if (!flavors || !selectedQuantity) return;
@@ -486,19 +522,49 @@ const MonteSeuCardapio = () => {
                 </CardContent>
               </Card>
 
-              <Button
-                onClick={handleWhatsApp}
-                className="w-full h-12 text-base gap-2 bg-[#25D366] hover:bg-[#20BD5A] text-white"
-              >
-                <Send className="w-5 h-5" />
-                Enviar pedido pelo WhatsApp
-              </Button>
+              {/* Action buttons */}
+              <div className="space-y-3">
+                <Button
+                  onClick={handleAddToCart}
+                  className="w-full h-12 text-base gap-2"
+                >
+                  <ShoppingBag className="w-5 h-5" />
+                  Adicionar ao Carrinho
+                </Button>
+
+                <Button
+                  onClick={handleWhatsApp}
+                  variant="outline"
+                  className="w-full h-12 text-base gap-2 border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white"
+                >
+                  <Send className="w-5 h-5" />
+                  Enviar pelo WhatsApp
+                </Button>
+              </div>
             </div>
           )}
         </main>
+
+        {/* Cart components */}
+        <CartFloatingButton onClick={() => setIsCartOpen(true)} />
+        <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} onCheckout={() => {}} />
+        <SoftIdentificationModal
+          open={showIdentificationModal}
+          onConfirm={(name, phone, email) => {
+            setCustomerInfo({ name, phone, email, cartId: customerInfo.cartId });
+            confirmAddItem();
+            setTimeout(() => setIsCartOpen(true), 300);
+          }}
+        />
       </div>
     </>
   );
 };
+
+const MonteSeuCardapio = () => (
+  <CartProvider>
+    <MonteSeuCardapioContent />
+  </CartProvider>
+);
 
 export default MonteSeuCardapio;
