@@ -1,65 +1,74 @@
 
-
-# Filtrar Ingredientes do Audio pela Base de Dados
+# Integrar "Monte Seu Cardapio" ao Carrinho e Checkout
 
 ## Resumo
 
-Atualizar a funcao `parse-voice-preferences` para consultar os ingredientes disponíveis no banco de dados e instruir a IA a retornar apenas os que existem no catalogo. Ingredientes que o cliente mencionar mas que nao existem (ex: salmao, file mignon, grao de bico) serao ignorados silenciosamente.
+Adicionar um botao "Adicionar ao Carrinho" na pagina Monte Seu Cardapio, ao lado do botao do WhatsApp. Ao clicar, o cardapio gerado pela IA sera transformado em um item do carrinho, e o cliente segue o fluxo normal de checkout (identificacao, entrega/retirada, pagamento PIX).
 
-## Como funciona hoje
+## O que muda para o cliente
 
-A IA recebe o texto transcrito e extrai qualquer ingrediente mencionado, mesmo que a empresa nao trabalhe com ele. Isso pode gerar cardapios impossiveis de produzir.
+1. Apos gerar o cardapio, o cliente vera dois botoes:
+   - **"Adicionar ao Carrinho"** (botao principal, cor primaria) -- segue pro checkout no site
+   - **"Enviar pelo WhatsApp"** (botao secundario, verde WhatsApp) -- funciona como hoje
 
-## Como vai funcionar
+2. Ao clicar em "Adicionar ao Carrinho":
+   - O cardapio vira um item do tipo `marmita` no carrinho
+   - Os sabores gerados pela IA sao mapeados como `FlavorSelection[]`
+   - O carrinho abre automaticamente (CartDrawer)
+   - O cliente preenche dados, escolhe entrega e paga via PIX normalmente
 
-1. A edge function `parse-voice-preferences` vai consultar o banco de dados (`marmita_flavors` e `marmita_sides`) para montar a lista de ingredientes disponiveis
-2. Essa lista e passada no prompt do sistema para a IA, com instrucao clara: "Retorne APENAS ingredientes desta lista"
-3. Se o cliente mencionar algo fora da lista (ex: salmao, grao de bico), a IA simplesmente ignora
-4. A mesma logica sera aplicada na funcao `generate-meal-plan` para garantir consistencia
+## Detalhes tecnicos
 
-## Ingredientes disponiveis atuais (extraidos do banco)
+### Arquivo: `src/pages/MonteSeuCardapio.tsx`
 
-**Proteinas** (da tabela `marmita_flavors`):
-- Carne moida, carne bovina em cubos, estrogonofe de carne, almôndegas, carne suina, peixe
-- Frango desfiado, frango em cubos, frango grelhado, estrogonofe de frango, frango a parmegiana
+1. **Importar o hook do carrinho**:
+   - `import { useCart } from "@/components/CartContext"`
 
-**Carboidratos** (das tabelas `marmita_flavors` + `marmita_sides`):
-- Arroz, aipim, batata doce, feijao, macarrao/espaguete, pure
+2. **Importar CartDrawer e CartFloatingButton** para ter acesso ao carrinho nessa pagina
 
-**Mix/Legumes** (da tabela `marmita_sides`):
-- Legumes, mix de salada, salada de legumes
+3. **Criar funcao `handleAddToCart`**:
+   - Mapeia os `flavors` gerados pela IA para o formato `FlavorSelection[]` do carrinho
+   - Cria um `CartItem` com:
+     - `type: "marmita"`
+     - `name: "Cardápio Personalizado - {lineConfig.label} {lineConfig.weight}g"`
+     - `quantity: selectedQuantity`
+     - `unitPrice: unitPrice`
+     - `totalPrice: totalPrice`
+     - `lineType: selectedLine`
+     - `flavors: flavorSelections` (mapeados dos sabores da IA)
+   - Chama `addItem()` do CartContext
+   - Abre o CartDrawer
 
-## Mudancas tecnicas
-
-### 1. Edge function `parse-voice-preferences` (principal mudanca)
-
-- Importar o client Supabase com service role para consultar as tabelas
-- Buscar nomes distintos de `marmita_flavors` (ativos) e `marmita_sides` (ativos)
-- Extrair palavras-chave de proteinas e carboidratos dos nomes dos sabores
-- Montar lista de ingredientes permitidos e incluir no prompt do sistema
-- Exemplo de prompt atualizado:
+4. **Adicionar botao na UI** (dentro da secao de resultados, antes do botao WhatsApp):
 
 ```text
-INGREDIENTES DISPONÍVEIS (use APENAS estes):
-Proteínas: carne moída, carne bovina em cubos, estrogonofe de carne, almôndegas, carne suína, peixe, frango desfiado, frango em cubos, frango grelhado, estrogonofe de frango, frango à parmegiana
-Carboidratos: arroz, aipim, batata doce, feijão, macarrão, purê
-Mix: legumes, mix de salada, salada de legumes
-
-Se o usuário mencionar ingredientes que NÃO estão nesta lista, IGNORE-OS completamente. Retorne apenas ingredientes da lista acima.
+[Adicionar ao Carrinho]  -- botao primario, ShoppingBag icon
+[Enviar pelo WhatsApp]   -- botao secundario (como esta hoje)
 ```
 
-### 2. Edge function `generate-meal-plan` (consistencia)
+5. **Garantir que CartProvider envolve essa pagina** (verificar no App.tsx se ja esta la -- provavelmente sim pois e global)
 
-- Mesma logica: buscar ingredientes do banco e incluir no prompt
-- A IA so vai montar combinacoes com ingredientes que existem no catalogo
+### Mapeamento de sabores
 
-### 3. Sem mudancas no frontend
+Os sabores da IA vem no formato:
+```text
+{ name: "Estrogonofe de Frango", protein: "Frango desfiado", carb: "Arroz", mix: "Legumes", quantity: 3 }
+```
 
-- O fluxo no `MonteSeuCardapio.tsx` permanece o mesmo
-- Se todos os ingredientes forem ignorados (cliente so falou coisas fora do catalogo), a IA retorna strings vazias e o toast de sucesso aparece mas os campos ficam vazios - o que e o comportamento correto
+Precisam ser convertidos para `FlavorSelection[]`:
+```text
+{ name: "Estrogonofe de Frango", quantity: 3, category: "proteina" }
+```
+
+O `name` do flavor sera o nome composto (ex: "Estrogonofe de Frango") e a `category` sera mapeada da tabela `marmita_flavors` (proteina). Como os sabores da IA ja tem a proteina como componente principal, usaremos `category: "proteina"` como padrao.
+
+### Descricao do item no carrinho
+
+Para que o cliente veja os detalhes no carrinho, o campo `description` do CartItem tera um resumo:
+```text
+"3x Estrogonofe de Frango, 2x Carne Moída com Aipim, 2x Frango Grelhado..."
+```
 
 ## Arquivos afetados
 
-1. `supabase/functions/parse-voice-preferences/index.ts` - Adicionar consulta ao banco e lista de ingredientes no prompt
-2. `supabase/functions/generate-meal-plan/index.ts` - Adicionar mesma logica de filtro por ingredientes disponiveis
-
+1. `src/pages/MonteSeuCardapio.tsx` -- Adicionar botao "Adicionar ao Carrinho", importar useCart, criar handleAddToCart
