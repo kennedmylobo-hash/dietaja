@@ -7,11 +7,20 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Cache ingredients in memory (5 min TTL)
+let cachedIngredients: any = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 5 * 60 * 1000;
+
 async function fetchAvailableIngredients() {
+  const now = Date.now();
+  if (cachedIngredients && (now - cacheTimestamp) < CACHE_TTL) {
+    return cachedIngredients;
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
-
   const [flavorsRes, sidesRes] = await Promise.all([
     supabase.from("marmita_flavors").select("name, category").eq("active", true),
     supabase.from("marmita_sides").select("name, category").eq("active", true),
@@ -34,11 +43,15 @@ async function fetchAvailableIngredients() {
     .filter((s) => s.category !== "acompanhamento")
     .map((s) => s.name);
 
-  return {
+  const result = {
     proteins: proteins.length > 0 ? proteins.join(", ") : "frango, carne, peixe",
     carbs: carbSides.length > 0 ? carbSides.join(", ") : "arroz, feijão, batata doce",
     mix: finalMix.length > 0 ? finalMix.join(", ") : "legumes, salada",
   };
+
+  cachedIngredients = result;
+  cacheTimestamp = now;
+  return result;
 }
 
 serve(async (req) => {

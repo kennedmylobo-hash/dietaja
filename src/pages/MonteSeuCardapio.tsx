@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Sparkles, Send, UtensilsCrossed, ArrowLeft, Mic, MicOff, ShoppingBag } from "lucide-react";
+import { Loader2, Sparkles, Send, UtensilsCrossed, ArrowLeft, Mic, MicOff, ShoppingBag, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { CartProvider, useCart, FlavorSelection } from "@/components/CartContext";
@@ -67,10 +69,36 @@ const MonteSeuCardapioContent = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const recognitionRef = useRef<any>(null);
   const lineSectionRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, getValues, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
   });
+
+  // Melhoria 4: Fetch available ingredients for chips
+  const { data: availableIngredients } = useQuery({
+    queryKey: ["available-ingredients-chips"],
+    queryFn: async () => {
+      const [flavorsRes, sidesRes] = await Promise.all([
+        supabase.from("marmita_flavors").select("name, category").eq("active", true).order("sort_order"),
+        supabase.from("marmita_sides").select("name, category").eq("active", true).order("sort_order"),
+      ]);
+      const proteins = (flavorsRes.data || []).map((f) => f.name);
+      const sides = sidesRes.data || [];
+      const carbs = sides.filter((s) => s.category === "acompanhamento").map((s) => s.name);
+      const mix = sides.filter((s) => s.category !== "acompanhamento").map((s) => s.name);
+      return { proteins, carbs, mix };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const handleChipClick = useCallback((field: "proteins" | "carbs" | "mix", ingredient: string) => {
+    const current = getValues(field) || "";
+    const items = current.split(",").map((s) => s.trim()).filter(Boolean);
+    if (items.includes(ingredient)) return; // already added
+    const newValue = items.length > 0 ? `${current}, ${ingredient}` : ingredient;
+    setValue(field, newValue);
+  }, [getValues, setValue]);
 
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) {
@@ -104,6 +132,13 @@ const MonteSeuCardapioContent = () => {
         toast.error(data.error);
         return;
       }
+
+      // Melhoria 1: Feedback when all ingredients are empty
+      if (!data?.proteins && !data?.carbs && !data?.mix) {
+        toast.warning("Não encontramos esses ingredientes no nosso catálogo. Tente com outros!");
+        return;
+      }
+
       if (data?.proteins) setValue("proteins", data.proteins);
       if (data?.carbs) setValue("carbs", data.carbs);
       if (data?.mix) setValue("mix", data.mix);
@@ -179,7 +214,7 @@ const MonteSeuCardapioContent = () => {
     };
   }, []);
 
-  const { data: packages } = useQuery({
+  const { data: packages, isLoading: packagesLoading } = useQuery({
     queryKey: ["marmita-packages-cardapio"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -241,6 +276,11 @@ const MonteSeuCardapioContent = () => {
       if (result?.flavors) {
         setFlavors(result.flavors);
         toast.success("Cardápio gerado com sucesso! 🎉");
+
+        // Melhoria 2: Auto-scroll to results
+        setTimeout(() => {
+          resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 300);
       } else {
         toast.error("Resposta inesperada. Tente novamente.");
       }
@@ -252,17 +292,20 @@ const MonteSeuCardapioContent = () => {
     }
   };
 
+  // Melhoria 3: Regenerate handler
+  const handleRegenerate = useCallback(() => {
+    handleSubmit(onSubmit)();
+  }, [handleSubmit]);
+
   const handleAddToCart = useCallback(() => {
     if (!flavors || !selectedQuantity) return;
 
-    // Map AI flavors to FlavorSelection[]
     const flavorSelections: FlavorSelection[] = flavors.map((f) => ({
       name: f.name,
       quantity: f.quantity,
       category: "proteina",
     }));
 
-    // Build description string
     const description = flavors
       .map((f) => `${f.quantity}x ${f.name}`)
       .join(", ");
@@ -278,7 +321,6 @@ const MonteSeuCardapioContent = () => {
       lineType: selectedLine,
     });
 
-    // Open cart drawer after adding
     setTimeout(() => setIsCartOpen(true), 300);
   }, [flavors, selectedQuantity, lineConfig, unitPrice, totalPrice, selectedLine, addItem]);
 
@@ -304,6 +346,25 @@ const MonteSeuCardapioContent = () => {
     window.open(
       `https://wa.me/${contact.whatsapp}?text=${encodeURIComponent(message)}`,
       "_blank"
+    );
+  };
+
+  // Helper to render ingredient chips
+  const renderChips = (field: "proteins" | "carbs" | "mix", items: string[]) => {
+    if (!items || items.length === 0) return null;
+    return (
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        {items.map((item) => (
+          <Badge
+            key={item}
+            variant="outline"
+            className="cursor-pointer hover:bg-primary/10 hover:border-primary transition-colors text-xs"
+            onClick={() => handleChipClick(field, item)}
+          >
+            + {item}
+          </Badge>
+        ))}
+      </div>
     );
   };
 
@@ -385,25 +446,28 @@ const MonteSeuCardapioContent = () => {
               </div>
             )}
 
-            {/* Ingredient fields */}
+            {/* Ingredient fields with chips */}
             <div className="space-y-4">
               <div>
                 <Label htmlFor="proteins" className="text-base font-semibold flex items-center gap-2">🥩 Proteínas que você gosta</Label>
                 <p className="text-xs text-muted-foreground mb-2">Ex: carne moída, strogonoff de frango, almôndegas, frango desfiado</p>
                 <Textarea id="proteins" placeholder="Digite as proteínas separadas por vírgula..." {...register("proteins")} className="min-h-[80px]" />
                 {errors.proteins && <p className="text-sm text-destructive mt-1">{errors.proteins.message}</p>}
+                {renderChips("proteins", availableIngredients?.proteins || [])}
               </div>
               <div>
                 <Label htmlFor="carbs" className="text-base font-semibold flex items-center gap-2">🍚 Carboidratos que você gosta</Label>
                 <p className="text-xs text-muted-foreground mb-2">Ex: aipim, arroz integral, feijão preto, batata doce</p>
                 <Textarea id="carbs" placeholder="Digite os carboidratos separados por vírgula..." {...register("carbs")} className="min-h-[80px]" />
                 {errors.carbs && <p className="text-sm text-destructive mt-1">{errors.carbs.message}</p>}
+                {renderChips("carbs", availableIngredients?.carbs || [])}
               </div>
               <div>
                 <Label htmlFor="mix" className="text-base font-semibold flex items-center gap-2">🥗 Mix de legumes/salada</Label>
                 <p className="text-xs text-muted-foreground mb-2">Ex: vagem, cenoura, beterraba, brócolis, abobrinha</p>
                 <Textarea id="mix" placeholder="Digite os legumes/saladas separados por vírgula..." {...register("mix")} className="min-h-[80px]" />
                 {errors.mix && <p className="text-sm text-destructive mt-1">{errors.mix.message}</p>}
+                {renderChips("mix", availableIngredients?.mix || [])}
               </div>
             </div>
 
@@ -434,39 +498,47 @@ const MonteSeuCardapioContent = () => {
               </div>
             </div>
 
-            {/* Quantity Selection */}
+            {/* Quantity Selection with skeleton loading */}
             <div>
               <Label className="text-base font-semibold mb-3 block">📦 Quantas marmitas deseja?</Label>
-              <div className="grid grid-cols-2 gap-3">
-                {currentPackages.map((pkg) => {
-                  const total = pkg.quantity * pkg.unit_price;
-                  const maxFlav = getMaxFlavors(pkg.quantity);
-                  return (
-                    <button
-                      key={pkg.quantity}
-                      type="button"
-                      onClick={() => {
-                        setSelectedQuantity(pkg.quantity);
-                        setValue("quantity", pkg.quantity);
-                      }}
-                      className={`p-4 rounded-xl border-2 text-center transition-all ${
-                        selectedQuantity === pkg.quantity
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-card hover:border-primary/50"
-                      }`}
-                    >
-                      <div className="text-xl font-bold">{pkg.quantity}</div>
-                      <div className="text-xs text-muted-foreground">até {maxFlav} sabores</div>
-                      <div className="mt-2 text-sm font-semibold text-foreground">
-                        R$ {pkg.unit_price.toFixed(2).replace(".", ",")}/un.
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Total: R$ {total.toFixed(2).replace(".", ",")}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+              {packagesLoading ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className="h-[120px] rounded-xl" />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {currentPackages.map((pkg) => {
+                    const total = pkg.quantity * pkg.unit_price;
+                    const maxFlav = getMaxFlavors(pkg.quantity);
+                    return (
+                      <button
+                        key={pkg.quantity}
+                        type="button"
+                        onClick={() => {
+                          setSelectedQuantity(pkg.quantity);
+                          setValue("quantity", pkg.quantity);
+                        }}
+                        className={`p-4 rounded-xl border-2 text-center transition-all ${
+                          selectedQuantity === pkg.quantity
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-card hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="text-xl font-bold">{pkg.quantity}</div>
+                        <div className="text-xs text-muted-foreground">até {maxFlav} sabores</div>
+                        <div className="mt-2 text-sm font-semibold text-foreground">
+                          R$ {pkg.unit_price.toFixed(2).replace(".", ",")}/un.
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Total: R$ {total.toFixed(2).replace(".", ",")}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               {errors.quantity && <p className="text-sm text-destructive mt-2">{errors.quantity.message}</p>}
             </div>
 
@@ -481,7 +553,7 @@ const MonteSeuCardapioContent = () => {
 
           {/* Results */}
           {flavors && (
-            <div className="mt-10 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div ref={resultsRef} className="mt-10 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <h2 className="text-xl font-bold text-center text-foreground">🎉 Seu Cardápio Personalizado</h2>
               <p className="text-center text-sm text-muted-foreground">
                 Padrão {lineConfig.label}: {lineConfig.description} = {lineConfig.weight}g
@@ -539,6 +611,21 @@ const MonteSeuCardapioContent = () => {
                 >
                   <Send className="w-5 h-5" />
                   Enviar pelo WhatsApp
+                </Button>
+
+                {/* Melhoria 3: Regenerate button */}
+                <Button
+                  onClick={handleRegenerate}
+                  variant="ghost"
+                  className="w-full h-10 text-sm gap-2 text-muted-foreground"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  Não gostei, gerar outro cardápio
                 </Button>
               </div>
             </div>
