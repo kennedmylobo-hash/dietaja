@@ -92,7 +92,7 @@ const MonteSeuCardapioContent = () => {
     setIsParsing(true);
     try {
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 30000)
+        setTimeout(() => reject(new Error("timeout")), 45000)
       );
       const result = await Promise.race([
         supabase.functions.invoke("parse-voice-preferences", { body: { transcript } }),
