@@ -1,10 +1,45 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+async function fetchAvailableIngredients() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const [flavorsRes, sidesRes] = await Promise.all([
+    supabase.from("marmita_flavors").select("name, category").eq("active", true),
+    supabase.from("marmita_sides").select("name, category").eq("active", true),
+  ]);
+
+  const flavors = flavorsRes.data || [];
+  const sides = sidesRes.data || [];
+
+  const proteins = flavors.map((f) => f.name);
+
+  const carbSides = sides
+    .filter((s) => s.category === "acompanhamento")
+    .map((s) => s.name);
+
+  const mixSides = sides
+    .filter((s) => s.category === "salada" || s.category === "legumes" || s.category === "mix")
+    .map((s) => s.name);
+
+  const finalMix = mixSides.length > 0 ? mixSides : sides
+    .filter((s) => s.category !== "acompanhamento")
+    .map((s) => s.name);
+
+  return {
+    proteins: proteins.length > 0 ? proteins.join(", ") : "frango, carne, peixe",
+    carbs: carbSides.length > 0 ? carbSides.join(", ") : "arroz, feijão, batata doce",
+    mix: finalMix.length > 0 ? finalMix.join(", ") : "legumes, salada",
+  };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -26,6 +61,10 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Fetch available ingredients from database
+    const available = await fetchAvailableIngredients();
+    console.log("Available ingredients for meal plan:", JSON.stringify(available));
+
     const isFitness = lineType === "hipertrofia";
     const proteinG = isFitness ? 150 : 100;
     const carbG = isFitness ? 200 : 150;
@@ -42,9 +81,15 @@ REGRAS OBRIGATÓRIAS:
 - Máximo de sabores diferentes: ${maxFlavors}
 - Cada marmita segue o padrão ${lineName}: ${proteinG}g proteína + ${carbG}g carboidrato + ${mixG}g mix de legumes/salada = ${totalWeight}g total
 - Distribua as ${quantity} marmitas entre os sabores de forma equilibrada
-- Use APENAS os ingredientes que o cliente informou, não invente outros
 - Dê um nome criativo e claro para cada sabor (ex: "Strogonoff com Arroz Integral e Mix de Legumes")
 - A soma das quantidades de todos os sabores deve ser exatamente ${quantity}
+
+INGREDIENTES DISPONÍVEIS NO CATÁLOGO (use APENAS estes):
+Proteínas: ${available.proteins}
+Carboidratos: ${available.carbs}
+Mix: ${available.mix}
+
+IMPORTANTE: Use APENAS ingredientes que existem no catálogo acima. Se o cliente mencionou ingredientes que NÃO estão no catálogo, substitua por opções similares do catálogo ou ignore-os.
 
 PREFERÊNCIAS DO CLIENTE:
 - Proteínas: ${proteins}
@@ -91,15 +136,15 @@ Monte o cardápio usando a função suggest_meal_plan.`;
                           },
                           protein: {
                             type: "string",
-                            description: "Proteína usada (100g)",
+                            description: "Proteína usada",
                           },
                           carb: {
                             type: "string",
-                            description: "Carboidrato usado (150g)",
+                            description: "Carboidrato usado",
                           },
                           mix: {
                             type: "string",
-                            description: "Mix de legumes/salada (50g)",
+                            description: "Mix de legumes/salada",
                           },
                           quantity: {
                             type: "number",
