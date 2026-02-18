@@ -1,86 +1,57 @@
 
-# Adicionar Entrada por Audio ao Monte Seu Cardapio
 
-## Resumo
+# Corrigir Processamento de Audio Travando
 
-Adicionar um botao de microfone na pagina `/monte-seu-cardapio` que permite ao cliente falar suas preferencias em vez de digitar. O audio e transcrito pelo navegador (Web Speech API) e depois enviado para a IA extrair automaticamente as proteinas, carboidratos e mix, preenchendo o formulario automaticamente.
+## Problema
 
-## Fluxo do cliente
+O audio e capturado corretamente pelo navegador, mas ao enviar para a funcao de backend (`parse-voice-preferences`), a chamada trava sem retornar resposta. O spinner fica girando indefinidamente em "Processando seu audio...".
 
-1. O cliente clica no botao "Falar suas preferencias" (abaixo do titulo, antes dos campos de texto)
-2. O microfone e ativado e aparece uma indicacao visual de que esta gravando
-3. O cliente fala algo como: "Eu gosto de carne moida, strogonoff de frango, almondegas. De carboidrato eu gosto de aipim, arroz integral e feijao preto. E de salada eu gosto de vagem, cenoura e beterraba"
-4. Ao parar de falar (ou clicar para parar), o texto transcrito e enviado para uma edge function
-5. A IA (Gemini) extrai e separa as preferencias em 3 categorias: proteinas, carboidratos e mix
-6. Os campos do formulario sao preenchidos automaticamente
-7. O cliente pode editar se quiser, escolher a linha/quantidade e prosseguir normalmente
+Causas provaveis:
+- A chamada ao gateway de IA pode estar demorando mais que o timeout da funcao
+- Se a funcao falha silenciosamente, o `supabase.functions.invoke` pode nao rejeitar a promise, deixando o UI travado
 
-## Como funciona tecnicamente
+## Solucao
 
-### Transcricao: Web Speech API (gratis, no navegador)
-- Usa a API nativa do navegador (`webkitSpeechRecognition` / `SpeechRecognition`)
-- Funciona em Chrome, Edge, Safari (cobre a maioria dos usuarios mobile)
-- Nao consome creditos da Lovable AI
-- Se o navegador nao suportar, o botao fica oculto
+### 1. Adicionar timeout no frontend (`MonteSeuCardapio.tsx`)
 
-### Extracao: Edge function `parse-voice-preferences`
-- Recebe o texto transcrito
-- Usa Lovable AI (Gemini Flash) com tool calling para separar em 3 categorias
-- Retorna JSON: `{ proteins: "...", carbs: "...", mix: "..." }`
-- Rapido e economico (1 chamada curta por audio)
+Envolver a chamada `supabase.functions.invoke` com um timeout de 30 segundos usando `AbortController` ou `Promise.race`. Se a resposta nao chegar a tempo, mostrar um toast de erro e resetar o estado.
 
-## O que sera criado/modificado
+### 2. Adicionar logging na edge function (`parse-voice-preferences`)
 
-### 1. Nova edge function: `parse-voice-preferences`
-- Recebe `{ transcript: string }`
-- Prompt curto pedindo para extrair proteinas, carboidratos e mix do texto livre
-- Retorna as 3 categorias separadas via tool calling
-- Tratamento de erro para 429/402
+Adicionar `console.log` no inicio da funcao e antes/depois da chamada ao gateway de IA para facilitar debug futuro.
 
-### 2. Pagina `MonteSeuCardapio.tsx` atualizada
-- Novo botao com icone de microfone antes dos campos de texto
-- Estado de gravacao com indicacao visual (icone pulsando, texto "Ouvindo...")
-- Apos transcricao, chama a edge function para extrair as preferencias
-- Preenche os 3 campos automaticamente com `setValue()`
-- Fallback: se o navegador nao suportar, o botao nao aparece
+### 3. Tratar erro de rede na funcao `parseTranscript`
 
-### 3. Config.toml atualizado
-- Adicionar `parse-voice-preferences` com `verify_jwt = false`
+O `catch` atual pode nao capturar todos os cenarios (ex: timeout de rede, resposta vazia). Garantir que qualquer falha reseta `isParsing` e mostra feedback ao usuario.
 
 ## Detalhes tecnicos
 
-### Web Speech API no React
+### Mudanca no `MonteSeuCardapio.tsx`
+
+Na funcao `parseTranscript`:
+- Usar `Promise.race` com um timeout de 30 segundos
+- Se o timeout disparar, mostrar toast "Demorou demais. Tente novamente."
+- Garantir que o `finally` sempre executa (ja existe, mas reforcar)
 
 ```text
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const recognition = new SpeechRecognition();
-recognition.lang = "pt-BR";
-recognition.continuous = true;
-recognition.interimResults = true;
+const timeoutPromise = new Promise((_, reject) =>
+  setTimeout(() => reject(new Error("timeout")), 30000)
+);
 
-recognition.onresult = (event) => {
-  // Pega o texto final transcrito
-};
-
-recognition.start(); // Inicia gravacao
-recognition.stop();  // Para gravacao
+const result = await Promise.race([
+  supabase.functions.invoke("parse-voice-preferences", { body: { transcript } }),
+  timeoutPromise,
+]);
 ```
 
-### Edge function `parse-voice-preferences`
+### Mudanca na edge function `parse-voice-preferences`
 
-Prompt do sistema:
-- "O usuario descreveu por audio os ingredientes que gosta para marmitas fitness. Extraia e separe em 3 categorias: proteinas, carboidratos e mix de legumes/salada."
-- Tool calling retorna `{ proteins, carbs, mix }` como strings separadas por virgula
+Adicionar logs:
+- `console.log("Received transcript:", transcript.substring(0, 100))`
+- `console.log("AI gateway response status:", response.status)`
 
-### Interface do botao
+### Arquivos afetados
 
-- Card destacado com icone de microfone e texto "Prefere falar? Grave um audio!"
-- Quando gravando: icone pulsando em vermelho, texto "Ouvindo... fale suas preferencias"
-- Apos processar: toast de sucesso e campos preenchidos
-- Se navegador nao suportar: card nao aparece (verificacao com `'webkitSpeechRecognition' in window`)
+1. `src/pages/MonteSeuCardapio.tsx` - Timeout e tratamento de erro melhorado
+2. `supabase/functions/parse-voice-preferences/index.ts` - Logs de debug
 
-## Arquivos afetados
-
-1. `supabase/functions/parse-voice-preferences/index.ts` (novo)
-2. `src/pages/MonteSeuCardapio.tsx` (adicionar botao de audio e logica)
-3. `supabase/config.toml` (adicionar nova function)
