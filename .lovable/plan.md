@@ -1,57 +1,33 @@
 
 
-# Corrigir Processamento de Audio Travando
+# Guiar o Cliente ao Proximo Passo Apos Audio
 
-## Problema
+## Resumo
 
-O audio e capturado corretamente pelo navegador, mas ao enviar para a funcao de backend (`parse-voice-preferences`), a chamada trava sem retornar resposta. O spinner fica girando indefinidamente em "Processando seu audio...".
+Apos o audio preencher os campos automaticamente, o sistema vai:
+1. Rolar a tela suavemente ate a secao "Qual linha deseja?" para o cliente ver o proximo passo
+2. Mostrar um destaque visual temporario (pulso/brilho) na secao de linha e quantidade
+3. Atualizar o toast de sucesso para incluir a instrucao do proximo passo
 
-Causas provaveis:
-- A chamada ao gateway de IA pode estar demorando mais que o timeout da funcao
-- Se a funcao falha silenciosamente, o `supabase.functions.invoke` pode nao rejeitar a promise, deixando o UI travado
+## O que muda
 
-## Solucao
+### No `src/pages/MonteSeuCardapio.tsx`
 
-### 1. Adicionar timeout no frontend (`MonteSeuCardapio.tsx`)
-
-Envolver a chamada `supabase.functions.invoke` com um timeout de 30 segundos usando `AbortController` ou `Promise.race`. Se a resposta nao chegar a tempo, mostrar um toast de erro e resetar o estado.
-
-### 2. Adicionar logging na edge function (`parse-voice-preferences`)
-
-Adicionar `console.log` no inicio da funcao e antes/depois da chamada ao gateway de IA para facilitar debug futuro.
-
-### 3. Tratar erro de rede na funcao `parseTranscript`
-
-O `catch` atual pode nao capturar todos os cenarios (ex: timeout de rede, resposta vazia). Garantir que qualquer falha reseta `isParsing` e mostra feedback ao usuario.
+1. **Adicionar ref na secao de linha**: Um `useRef` na div da selecao de linha para poder rolar ate ela
+2. **Scroll automatico apos preenchimento**: Apos o `setValue` dos 3 campos pelo audio, chamar `scrollIntoView` com comportamento suave para a secao de linha
+3. **Destaque visual temporario**: Adicionar um estado `highlightNextStep` que ativa uma animacao de borda pulsando na secao de linha/quantidade por 3 segundos
+4. **Toast atualizado**: Mudar a mensagem de sucesso de "Preferencias preenchidas! Confira e ajuste se quiser." para "Preferencias preenchidas! Agora escolha a linha e quantidade abaixo"
 
 ## Detalhes tecnicos
 
-### Mudanca no `MonteSeuCardapio.tsx`
+- Novo `useRef` para a secao de linha (`lineSectionRef`)
+- Novo estado `highlightNextStep` (boolean, default false)
+- Apos preencher os campos com sucesso no `parseTranscript`:
+  - `setHighlightNextStep(true)`
+  - `setTimeout` de 300ms para `scrollIntoView({ behavior: "smooth", block: "center" })`
+  - `setTimeout` de 4000ms para `setHighlightNextStep(false)`
+- Classe condicional na div da secao de linha: quando `highlightNextStep` esta ativo, adicionar `ring-2 ring-primary ring-offset-2 animate-pulse` por 3-4 segundos
 
-Na funcao `parseTranscript`:
-- Usar `Promise.race` com um timeout de 30 segundos
-- Se o timeout disparar, mostrar toast "Demorou demais. Tente novamente."
-- Garantir que o `finally` sempre executa (ja existe, mas reforcar)
+## Arquivo afetado
 
-```text
-const timeoutPromise = new Promise((_, reject) =>
-  setTimeout(() => reject(new Error("timeout")), 30000)
-);
-
-const result = await Promise.race([
-  supabase.functions.invoke("parse-voice-preferences", { body: { transcript } }),
-  timeoutPromise,
-]);
-```
-
-### Mudanca na edge function `parse-voice-preferences`
-
-Adicionar logs:
-- `console.log("Received transcript:", transcript.substring(0, 100))`
-- `console.log("AI gateway response status:", response.status)`
-
-### Arquivos afetados
-
-1. `src/pages/MonteSeuCardapio.tsx` - Timeout e tratamento de erro melhorado
-2. `supabase/functions/parse-voice-preferences/index.ts` - Logs de debug
-
+1. `src/pages/MonteSeuCardapio.tsx` - Adicionar ref, scroll, destaque e toast atualizado
