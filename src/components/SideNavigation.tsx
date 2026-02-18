@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
-import { Droplets, UtensilsCrossed, Salad, HelpCircle } from "lucide-react";
+import { Droplets, Salad, Dumbbell, Sparkles, HelpCircle } from "lucide-react";
 import { useActiveSection } from "@/hooks/useActiveSection";
 import { cn } from "@/lib/utils";
 import { hapticFeedback } from "@/lib/haptics";
 
 const navItems = [
-  { id: "kits", label: "Kits Detox", icon: Droplets },
-  { id: "marmitas", label: "Marmitas", icon: UtensilsCrossed },
-  { id: "dieta-personalizada", label: "Dieta", icon: Salad },
+  { id: "kits", label: "Detox", icon: Droplets },
+  { id: "marmitas-fit", label: "Emagrecer", icon: Salad },
+  { id: "marmitas-fitness", label: "Massa", icon: Dumbbell },
+  { id: "dieta-personalizada", label: "Dieta", icon: Sparkles },
   { id: "faq", label: "FAQ", icon: HelpCircle },
 ];
 

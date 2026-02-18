@@ -329,7 +329,7 @@ const MarmitasSection = () => {
       <div className="container px-4 md:px-6">
         {/* SEÇÃO 1: Emagrecimento 300g */}
         {marmitasEmagrecimento.length > 0 && (
-          <div className="mb-16 md:mb-24">
+          <div id="marmitas-fit" className="mb-16 md:mb-24">
             <motion.div
               className="text-center mb-8 md:mb-12"
               initial={{ opacity: 0, y: 20 }}
@@ -367,7 +367,7 @@ const MarmitasSection = () => {
 
         {/* SEÇÃO 2: Hipertrofia 450g */}
         {marmitasHipertrofia.length > 0 && (
-          <div className="mb-12 md:mb-16">
+          <div id="marmitas-fitness" className="mb-12 md:mb-16">
             <motion.div
               className="text-center mb-8 md:mb-12"
               initial={{ opacity: 0, y: 20 }}
