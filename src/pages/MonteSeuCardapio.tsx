@@ -79,9 +79,14 @@ const MonteSeuCardapio = () => {
     }
     setIsParsing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("parse-voice-preferences", {
-        body: { transcript },
-      });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 30000)
+      );
+      const result = await Promise.race([
+        supabase.functions.invoke("parse-voice-preferences", { body: { transcript } }),
+        timeoutPromise,
+      ]) as { data: any; error: any };
+      const { data, error } = result;
       if (error) {
         console.error("Parse error:", error);
         toast.error("Erro ao processar. Tente novamente.");
@@ -95,9 +100,13 @@ const MonteSeuCardapio = () => {
       if (data?.carbs) setValue("carbs", data.carbs);
       if (data?.mix) setValue("mix", data.mix);
       toast.success("Preferências preenchidas! Confira e ajuste se quiser. ✅");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Parse voice error:", err);
-      toast.error("Erro de conexão. Tente novamente.");
+      if (err?.message === "timeout") {
+        toast.error("Demorou demais. Tente novamente.");
+      } else {
+        toast.error("Erro de conexão. Tente novamente.");
+      }
     } finally {
       setIsParsing(false);
       setInterimText("");
