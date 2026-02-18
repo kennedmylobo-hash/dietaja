@@ -29,19 +29,19 @@ async function fetchAvailableIngredients() {
   const flavors = flavorsRes.data || [];
   const sides = sidesRes.data || [];
 
-  const proteins = flavors.map((f) => f.name);
+  const proteins = [...new Set(flavors.map((f) => f.name))];
 
-  const carbSides = sides
+  const carbSides = [...new Set(sides
     .filter((s) => s.category === "acompanhamento")
-    .map((s) => s.name);
+    .map((s) => s.name))];
 
-  const mixSides = sides
+  const mixSides = [...new Set(sides
     .filter((s) => s.category === "salada" || s.category === "legumes" || s.category === "mix")
-    .map((s) => s.name);
+    .map((s) => s.name))];
 
-  const finalMix = mixSides.length > 0 ? mixSides : sides
+  const finalMix = mixSides.length > 0 ? mixSides : [...new Set(sides
     .filter((s) => s.category !== "acompanhamento")
-    .map((s) => s.name);
+    .map((s) => s.name))];
 
   const result = {
     proteins: proteins.length > 0 ? proteins.join(", ") : "frango, carne, peixe",
