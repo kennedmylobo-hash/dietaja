@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
@@ -71,34 +71,10 @@ const MonteSeuCardapioContent = () => {
   const lineSectionRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const { register, handleSubmit, setValue, getValues, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
   });
 
-  // Melhoria 4: Fetch available ingredients for chips
-  const { data: availableIngredients } = useQuery({
-    queryKey: ["available-ingredients-chips"],
-    queryFn: async () => {
-      const [flavorsRes, sidesRes] = await Promise.all([
-        supabase.from("marmita_flavors").select("name, category").eq("active", true).order("sort_order"),
-        supabase.from("marmita_sides").select("name, category").eq("active", true).order("sort_order"),
-      ]);
-      const proteins = (flavorsRes.data || []).map((f) => f.name);
-      const sides = sidesRes.data || [];
-      const carbs = sides.filter((s) => s.category === "acompanhamento").map((s) => s.name);
-      const mix = sides.filter((s) => s.category !== "acompanhamento").map((s) => s.name);
-      return { proteins, carbs, mix };
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const handleChipClick = useCallback((field: "proteins" | "carbs" | "mix", ingredient: string) => {
-    const current = getValues(field) || "";
-    const items = current.split(",").map((s) => s.trim()).filter(Boolean);
-    if (items.includes(ingredient)) return; // already added
-    const newValue = items.length > 0 ? `${current}, ${ingredient}` : ingredient;
-    setValue(field, newValue);
-  }, [getValues, setValue]);
 
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) {
@@ -349,24 +325,6 @@ const MonteSeuCardapioContent = () => {
     );
   };
 
-  // Helper to render ingredient chips
-  const renderChips = (field: "proteins" | "carbs" | "mix", items: string[]) => {
-    if (!items || items.length === 0) return null;
-    return (
-      <div className="flex flex-wrap gap-1.5 mt-2">
-        {items.map((item) => (
-          <Badge
-            key={item}
-            variant="outline"
-            className="cursor-pointer hover:bg-primary/10 hover:border-primary transition-colors text-xs"
-            onClick={() => handleChipClick(field, item)}
-          >
-            + {item}
-          </Badge>
-        ))}
-      </div>
-    );
-  };
 
   return (
     <>
@@ -453,21 +411,21 @@ const MonteSeuCardapioContent = () => {
                 <p className="text-xs text-muted-foreground mb-2">Ex: carne moída, strogonoff de frango, almôndegas, frango desfiado</p>
                 <Textarea id="proteins" placeholder="Digite as proteínas separadas por vírgula..." {...register("proteins")} className="min-h-[80px]" />
                 {errors.proteins && <p className="text-sm text-destructive mt-1">{errors.proteins.message}</p>}
-                {renderChips("proteins", availableIngredients?.proteins || [])}
+                
               </div>
               <div>
                 <Label htmlFor="carbs" className="text-base font-semibold flex items-center gap-2">🍚 Carboidratos que você gosta</Label>
                 <p className="text-xs text-muted-foreground mb-2">Ex: aipim, arroz integral, feijão preto, batata doce</p>
                 <Textarea id="carbs" placeholder="Digite os carboidratos separados por vírgula..." {...register("carbs")} className="min-h-[80px]" />
                 {errors.carbs && <p className="text-sm text-destructive mt-1">{errors.carbs.message}</p>}
-                {renderChips("carbs", availableIngredients?.carbs || [])}
+                
               </div>
               <div>
                 <Label htmlFor="mix" className="text-base font-semibold flex items-center gap-2">🥗 Mix de legumes/salada</Label>
                 <p className="text-xs text-muted-foreground mb-2">Ex: vagem, cenoura, beterraba, brócolis, abobrinha</p>
                 <Textarea id="mix" placeholder="Digite os legumes/saladas separados por vírgula..." {...register("mix")} className="min-h-[80px]" />
                 {errors.mix && <p className="text-sm text-destructive mt-1">{errors.mix.message}</p>}
-                {renderChips("mix", availableIngredients?.mix || [])}
+                
               </div>
             </div>
 
