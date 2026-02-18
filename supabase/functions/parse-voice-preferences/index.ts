@@ -7,10 +7,31 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Common protein keywords to extract from dish names
+const PROTEIN_KEYWORDS = [
+  "frango", "carne bovina", "carne moída", "carne suína", "peixe",
+  "salmão", "tilápia", "camarão", "atum", "almôndegas", "almondega",
+  "estrogonofe", "strogonoff", "escondidinho", "parmegiana",
+  "porco", "linguiça", "costela", "filé",
+];
+
 // Cache ingredients in memory (5 min TTL)
 let cachedIngredients: any = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 5 * 60 * 1000;
+
+function extractProteinKeywords(dishNames: string[]): string[] {
+  const found = new Set<string>();
+  for (const dish of dishNames) {
+    const lower = dish.toLowerCase();
+    for (const kw of PROTEIN_KEYWORDS) {
+      if (lower.includes(kw.toLowerCase())) {
+        found.add(kw);
+      }
+    }
+  }
+  return found.size > 0 ? [...found] : ["frango", "carne", "peixe"];
+}
 
 async function fetchAvailableIngredients() {
   const now = Date.now();
@@ -22,32 +43,28 @@ async function fetchAvailableIngredients() {
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
   const [flavorsRes, sidesRes] = await Promise.all([
-    supabase.from("marmita_flavors").select("name, category").eq("active", true),
+    supabase.from("marmita_flavors").select("name").eq("active", true),
     supabase.from("marmita_sides").select("name, category").eq("active", true),
   ]);
 
   const flavors = flavorsRes.data || [];
   const sides = sidesRes.data || [];
 
-  const proteins = [...new Set(flavors.map((f) => f.name))];
+  // Extract just protein keywords instead of full dish names
+  const proteins = extractProteinKeywords(flavors.map((f) => f.name));
 
   const carbSides = [...new Set(sides
     .filter((s) => s.category === "acompanhamento")
     .map((s) => s.name))];
 
   const mixSides = [...new Set(sides
-    .filter((s) => s.category === "salada" || s.category === "legumes" || s.category === "mix")
-    .map((s) => s.name))];
-
-  // If no mix sides found from category filter, include all non-carb sides
-  const finalMix = mixSides.length > 0 ? mixSides : [...new Set(sides
     .filter((s) => s.category !== "acompanhamento")
     .map((s) => s.name))];
 
   const result = {
-    proteins: proteins.length > 0 ? proteins.join(", ") : "frango, carne, peixe",
+    proteins: proteins.join(", "),
     carbs: carbSides.length > 0 ? carbSides.join(", ") : "arroz, feijão, batata doce",
-    mix: finalMix.length > 0 ? finalMix.join(", ") : "legumes, salada",
+    mix: mixSides.length > 0 ? mixSides.join(", ") : "legumes, salada",
   };
 
   cachedIngredients = result;
