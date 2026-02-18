@@ -108,10 +108,10 @@ const HeroSection = () => {
           <Link to="/monte-seu-cardapio" className="block animate-fade-in mt-2">
             <Button variant="cta" size="lg" className="w-full sm:w-auto">
               <Sparkles className="w-5 h-5" />
-              Monte suas marmitas do seu jeito
+              Monte com seus itens preferidos
             </Button>
             <p className="text-sm text-muted-foreground/70 mt-2">
-              Conte o que você gosta e montamos pra você
+              Diga o que gosta e preparamos pra você
             </p>
           </Link>
           </div>
