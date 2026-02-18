@@ -1,58 +1,61 @@
 
 
-# Navegacao mobile com atalhos para cada linha de produto
+# Corrigir destaque ativo da navegacao mobile entre secoes
 
-## Problema atual
+## Problema
 
-A navegacao mobile na pagina principal (`/`) tem apenas 4 itens: **Kits Detox**, **Marmitas**, **Dieta**, **FAQ**. Clicar em "Marmitas" rola para o inicio da secao inteira, sem diferenciar entre Emagrecimento e Hipertrofia.
+O `useActiveSection` usa `intersectionRatio` para determinar qual secao esta ativa. Porem, as secoes `marmitas-fit` e `marmitas-fitness` sao muito altas (contém carrosséis completos), fazendo com que o `intersectionRatio` seja sempre muito baixo e quase igual para ambas. Isso impede que o destaque mude corretamente ao rolar entre elas.
 
-## O que sera feito
+## Solucao
 
-Separar a navegacao mobile em 3 atalhos de produto + os itens existentes:
-
-```text
-┌──────────┬──────────────┬──────────────┬───────┬─────┐
-│ 🥤 Detox │ 🥗 Emagrecer │ 💪 Massa     │ 🥗 AI │ ❓  │
-└──────────┴──────────────┴──────────────┴───────┴─────┘
-```
-
-- **Detox** → rola para secao `#kits` (kits detox)
-- **Emagrecer** → rola para secao `#marmitas-fit` (marmitas 300g emagrecimento)
-- **Massa** → rola para secao `#marmitas-fitness` (marmitas 450g hipertrofia)
-- **Dieta** e **FAQ** permanecem
+Reescrever a logica do `useActiveSection` para usar **posicao do topo do elemento** em vez de `intersectionRatio`. A secao ativa sera aquela cujo topo esta mais proximo (mas acima) da linha de offset no viewport. Isso funciona de forma confiavel independente do tamanho da secao.
 
 ## Detalhes tecnicos
 
-### Arquivo 1: `src/components/MarmitasSection.tsx`
+### Arquivo: `src/hooks/useActiveSection.ts`
 
-Adicionar IDs nas divs das sub-secoes para que o scroll funcione:
+Substituir a abordagem de `IntersectionObserver` + `intersectionRatio` por um listener de scroll que:
 
-- Na div da secao Emagrecimento (~linha 332): adicionar `id="marmitas-fit"`
-- Na div da secao Hipertrofia (~linha 369): adicionar `id="marmitas-fitness"`
+1. A cada evento de scroll, percorre todos os `sectionIds`
+2. Para cada um, pega `getBoundingClientRect().top`
+3. A secao ativa e aquela cujo topo ja passou da linha de offset (top <= offset) e esta mais perto dela (maior top entre os que passaram)
+4. Usa `requestAnimationFrame` para evitar jank
+5. Mantém a mesma interface publica (`sectionIds`, `offset`, retorna `string | null`)
 
-### Arquivo 2: `src/components/SideNavigation.tsx`
-
-Atualizar o array `navItems` para incluir os novos destinos:
+Nova logica (simplificada):
 
 ```
-const navItems = [
-  { id: "kits", label: "Detox", icon: Droplets },
-  { id: "marmitas-fit", label: "Emagrecer", icon: Salad },
-  { id: "marmitas-fitness", label: "Massa", icon: Dumbbell },
-  { id: "dieta-personalizada", label: "Dieta", icon: Sparkles },
-  { id: "faq", label: "FAQ", icon: HelpCircle },
-];
+useEffect(() => {
+  const handleScroll = () => {
+    let activeId: string | null = null;
+    let closestDistance = -Infinity;
+
+    sectionIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const top = el.getBoundingClientRect().top - offset;
+      // Section passed the offset line and is closest to it
+      if (top <= 0 && top > closestDistance) {
+        closestDistance = top;
+        activeId = id;
+      }
+    });
+
+    setActiveSection(activeId);
+  };
+
+  window.addEventListener("scroll", handleScroll, { passive: true });
+  handleScroll(); // initial check
+  return () => window.removeEventListener("scroll", handleScroll);
+}, [sectionIds, offset]);
 ```
-
-- Importar `Dumbbell` e `Sparkles` de `lucide-react`
-- Remover o antigo item "Marmitas" (UtensilsCrossed) e substituir pelos dois novos
-- Ajustar `useActiveSection` que ja recebe os `sectionIds` automaticamente do array
-
-### Arquivo 3: `src/pages/Index.tsx`
-
-Adicionar os novos IDs ao array de secoes observadas pelo `useActiveSection` (se necessario), mas como o `SideNavigation` ja gerencia seu proprio scroll spy internamente, nenhuma mudanca deve ser necessaria aqui.
 
 ### Arquivos afetados
-- `src/components/MarmitasSection.tsx` (adicionar IDs)
-- `src/components/SideNavigation.tsx` (atualizar nav items)
 
+- `src/hooks/useActiveSection.ts` (unico arquivo)
+
+### Por que isso resolve
+
+- Secoes grandes ou pequenas funcionam igualmente, pois a logica depende apenas da posicao do topo
+- Ao rolar de `marmitas-fit` para `marmitas-fitness`, o topo de `marmitas-fitness` cruza a linha de offset e imediatamente assume o destaque
+- Sem dependencia de `IntersectionObserver` thresholds que nao funcionam bem para elementos muito altos
