@@ -145,7 +145,7 @@ const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita
                     {marmita.name}
                   </h3>
                   <p className="text-xs sm:text-sm text-muted-foreground mb-3">
-                    {marmita.quantity} marmitas de {marmita.weight}g
+                    Marmitas de {marmita.weight}g
                   </p>
 
                   <div className="flex items-baseline gap-2 mb-4">
