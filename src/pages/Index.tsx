@@ -107,15 +107,7 @@ const IndexContent = () => {
     const total = getTotal();
     const itemsCount = items.length;
 
-    // Track Contact and InitiateCheckout events
-    if (typeof window !== 'undefined' && (window as any).fbq) {
-      (window as any).fbq('track', 'Contact');
-      (window as any).fbq('track', 'InitiateCheckout', {
-        value: total,
-        currency: 'BRL',
-        num_items: itemsCount
-      });
-    }
+    // Events consolidated: InitiateCheckout in CartContext, Purchase in PagamentoSucesso
 
     let message = `Oi 😊\nVi o site da *${brand.name}* e quero cuidar melhor da minha alimentação.\n\n`;
     

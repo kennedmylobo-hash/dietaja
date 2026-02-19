@@ -399,14 +399,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     hapticFeedback('medium');
 
     try {
-      // Track InitiateCheckout immediately (non-blocking)
-      if (typeof window !== 'undefined' && window.fbq) {
-        window.fbq('track', 'InitiateCheckout', {
-          value: total,
-          currency: 'BRL',
-          num_items: items.length,
-        });
-      }
+      // InitiateCheckout is tracked in CartContext.tsx (single source)
 
       // Create account in background (don't wait)
       createCustomerAccount(formData).catch(err => 
