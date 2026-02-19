@@ -1,30 +1,32 @@
 
-# Corrigir Preview de Links e Resposta HTTP
+# Trocar domínio de pedidos.dietajavca.com.br para www.dietajavca.com.br
 
-## Problemas identificados
+## Resumo
+Remover todas as referencias ao subdominio `pedidos.dietajavca.com.br` e substituir por `www.dietajavca.com.br` em todo o projeto.
 
-1. **O Facebook Debugger mostra dados antigos** -- o `index.html` ja foi corrigido no codigo, mas a versao publicada no dominio `pedidos.dietajavca.com.br` pode nao ter sido atualizada ainda.
+## Alteracoes
 
-2. **Codigo de resposta HTTP 418** -- o servidor que serve `www.dietajavca.com.br` esta retornando um codigo invalido. Isso impede crawlers de ler as meta tags corretamente. Esse problema e de DNS/hosting e nao do codigo do Lovable.
+### 1. index.html
+- Linha `og:url`: de `https://pedidos.dietajavca.com.br` para `https://www.dietajavca.com.br`
+- Linha `og:image`: de `https://pedidos.dietajavca.com.br/og-image.jpg` para `https://www.dietajavca.com.br/og-image.jpg`
 
-3. **PWA manifest ainda tem "PedidoJa"** -- o arquivo `vite.config.ts` contem `short_name: "PedidoJá"` e `name: "Sua Loja - Alimentação Saudável"` no manifest do PWA.
+### 2. src/config/site.ts
+- `domain`: de `pedidos.dietajavca.com.br` para `www.dietajavca.com.br`
+- `canonical`: de `https://pedidos.dietajavca.com.br` para `https://www.dietajavca.com.br`
+- `ogImage`: de `https://pedidos.dietajavca.com.br/og-image.jpg` para `https://www.dietajavca.com.br/og-image.jpg`
 
-## O que sera feito no codigo
+### 3. Banco de dados (tabela tenants)
+- Atualizar o campo `domain` do tenant `dietaja` de `pedidos.dietajavca.com.br` para `www.dietajavca.com.br`
 
-### Arquivo: `vite.config.ts`
-Atualizar o manifest do PWA:
-- `name`: "Dieta Ja - Alimentacao Saudavel Pronta"
-- `short_name`: "Dieta Ja"
-- `description`: "Marmitas saudaveis e kits detox prontos para sua rotina"
+### 4. Dominio customizado no Lovable
+- Apos as alteracoes, voce precisa conectar `www.dietajavca.com.br` como dominio customizado no Lovable (em Settings > Domains)
+- Se o dominio `pedidos.dietajavca.com.br` ainda estiver conectado la, remova-o
+- Configure o DNS do `www.dietajavca.com.br` apontando um registro A para `185.158.133.1`
 
-## O que voce precisa fazer manualmente
+## O que NAO sera alterado
+- O arquivo `TenantContext.tsx` tem apenas um comentario mencionando `pedidos.dietajavca.com.br` como exemplo -- a logica de deteccao por hostname ja funciona de forma generica e nao precisa de mudanca
 
-1. **Publicar o projeto** -- clique em "Publish" no Lovable para que as alteracoes do `index.html` cheguem ao dominio real
-2. **Limpar cache do Facebook** -- apos publicar, volte ao Facebook Sharing Debugger e clique em "Extrair novamente" / "Scrape Again"
-3. **Verificar o hosting de `www.dietajavca.com.br`** -- o codigo HTTP 418 indica problema no servidor que faz o redirecionamento de `www.dietajavca.com.br` para `pedidos.dietajavca.com.br`. Verifique nas configuracoes de DNS ou no provedor de hosting se esse redirecionamento esta correto
-
-## Detalhes tecnicos
-
-### Arquivo: `vite.config.ts`
-- Localizar o bloco `manifest` dentro do plugin PWA (linhas ~51-55)
-- Substituir `name`, `short_name` e `description` pelos dados da Dieta Ja
+## Apos publicar
+1. Publique o projeto no Lovable
+2. No Facebook Sharing Debugger, faca "Scrape Again" com `https://www.dietajavca.com.br`
+3. Atualize os links dos seus anuncios para usar `www.dietajavca.com.br`
