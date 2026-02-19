@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.parse-voice-preferences]
 verify_jwt = false
+
+[functions.meta-capi]
+verify_jwt = false
