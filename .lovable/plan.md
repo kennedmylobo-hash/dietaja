@@ -1,46 +1,30 @@
 
+# Corrigir Preview de Links e Resposta HTTP
 
-# Corrigir Meta Tags para Crawlers (WhatsApp/Facebook/Google)
+## Problemas identificados
 
-## Problema
-Bots e crawlers (WhatsApp, Facebook, Google) nao executam JavaScript. Eles leem o HTML cru do `index.html`, que mostra titulos e descricoes genericas da plataforma em vez dos dados do tenant real ("Dieta Ja").
+1. **O Facebook Debugger mostra dados antigos** -- o `index.html` ja foi corrigido no codigo, mas a versao publicada no dominio `pedidos.dietajavca.com.br` pode nao ter sido atualizada ainda.
 
-O React Helmet so corrige isso apos o JS carregar no navegador do usuario -- bots nao esperam isso.
+2. **Codigo de resposta HTTP 418** -- o servidor que serve `www.dietajavca.com.br` esta retornando um codigo invalido. Isso impede crawlers de ler as meta tags corretamente. Esse problema e de DNS/hosting e nao do codigo do Lovable.
 
-## Solucao proposta
+3. **PWA manifest ainda tem "PedidoJa"** -- o arquivo `vite.config.ts` contem `short_name: "PedidoJá"` e `name: "Sua Loja - Alimentação Saudável"` no manifest do PWA.
 
-Como o deploy principal e para o tenant "Dieta Ja" (dominio `pedidos.dietajavca.com.br`), a abordagem mais pratica e atualizar o `index.html` com os dados reais desse tenant.
+## O que sera feito no codigo
 
-### Alteracoes no `index.html`
+### Arquivo: `vite.config.ts`
+Atualizar o manifest do PWA:
+- `name`: "Dieta Ja - Alimentacao Saudavel Pronta"
+- `short_name`: "Dieta Ja"
+- `description`: "Marmitas saudaveis e kits detox prontos para sua rotina"
 
-Atualizar as meta tags estaticas com os dados do tenant "Dieta Ja":
+## O que voce precisa fazer manualmente
 
-- `<title>` -> "Dieta Ja | Alimentacao Saudavel Pronta em Vitoria da Conquista"
-- `og:title` -> "Dieta Ja | Alimentacao Saudavel Pronta em Vitoria da Conquista"
-- `description` e `og:description` -> "Marmitas saudaveis e kits detox prontos para sua rotina em Vitoria da Conquista - BA. Peca online com Pix e receba com praticidade."
-- `og:url` -> "https://pedidos.dietajavca.com.br"
-- `og:image` -> URL da imagem OG do tenant (se existir) ou `/og-image.jpg`
-
-### Alteracoes no `src/config/site.ts`
-
-Atualizar os fallbacks do `siteConfig` para refletir os dados da Dieta Ja, garantindo que o SEO default seja sempre consistente:
-
-- `brand.name` -> "Dieta Ja"
-- `brand.slogan` -> "Alimentacao Saudavel Pronta"
-- `seo.title` -> "Dieta Ja | Alimentacao Saudavel Pronta em Vitoria da Conquista"
+1. **Publicar o projeto** -- clique em "Publish" no Lovable para que as alteracoes do `index.html` cheguem ao dominio real
+2. **Limpar cache do Facebook** -- apos publicar, volte ao Facebook Sharing Debugger e clique em "Extrair novamente" / "Scrape Again"
+3. **Verificar o hosting de `www.dietajavca.com.br`** -- o codigo HTTP 418 indica problema no servidor que faz o redirecionamento de `www.dietajavca.com.br` para `pedidos.dietajavca.com.br`. Verifique nas configuracoes de DNS ou no provedor de hosting se esse redirecionamento esta correto
 
 ## Detalhes tecnicos
 
-### Arquivo: `index.html`
-- Linha do title: substituir por "Dieta Ja | Alimentacao Saudavel Pronta em Vitoria da Conquista"
-- Meta description: incluir cidade e estado
-- og:title, og:description, og:url: atualizar com dados do tenant
-- Remover referencia a "author" vazio
-
-### Arquivo: `src/config/site.ts`
-- Atualizar valores de fallback do `siteConfig` para corresponder ao tenant principal
-- Isso garante que mesmo sem banco, o site mostra dados corretos
-
-## Limitacao conhecida
-Para uma solucao verdadeiramente multi-tenant (cada dominio mostrando meta tags diferentes para bots), seria necessario um proxy/edge middleware que injete as tags dinamicamente. Isso pode ser implementado futuramente como uma edge function que serve HTML customizado por dominio. Por agora, a solucao direta resolve o problema imediato da campanha.
-
+### Arquivo: `vite.config.ts`
+- Localizar o bloco `manifest` dentro do plugin PWA (linhas ~51-55)
+- Substituir `name`, `short_name` e `description` pelos dados da Dieta Ja
