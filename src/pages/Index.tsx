@@ -3,10 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Logo from "@/components/Logo";
 import HeroSection from "@/components/HeroSection";
-// Lazy load below-fold components that are eagerly imported
-const PromoBannersSection = lazy(() => import("@/components/PromoBannersSection"));
-const SideNavigation = lazy(() => import("@/components/SideNavigation"));
-const MobileNavCards = lazy(() => import("@/components/MobileNavCards"));
+import PromoBannersSection from "@/components/PromoBannersSection";
+import SideNavigation from "@/components/SideNavigation";
+import MobileNavCards from "@/components/MobileNavCards";
 // Lazy load below-fold sections for mobile/4G performance
 const IdentificationSection = lazy(() => import("@/components/IdentificationSection"));
 const SolutionSection = lazy(() => import("@/components/SolutionSection"));
@@ -15,10 +14,9 @@ const ProductGallerySection = lazy(() => import("@/components/ProductGallerySect
 const KitsSection = lazy(() => import("@/components/KitsSection"));
 const MarmitasSection = lazy(() => import("@/components/MarmitasSection"));
 const ValueSection = lazy(() => import("@/components/ValueSection"));
-// Lazy load non-critical floating components
-const WhatsAppFloatingButton = lazy(() => import("@/components/WhatsAppFloatingButton"));
-const MobileStickyBar = lazy(() => import("@/components/MobileStickyBar"));
-const SalesNotification = lazy(() => import("@/components/SalesNotification"));
+import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
+import MobileStickyBar from "@/components/MobileStickyBar";
+import SalesNotification from "@/components/SalesNotification";
 import { CartProvider, useCart } from "@/components/CartContext";
 import CartFloatingButton from "@/components/CartFloatingButton";
 import CartDrawer from "@/components/CartDrawer";
@@ -185,21 +183,15 @@ const IndexContent = () => {
         </header>
 
         {/* Side Navigation - appears after scrolling past Hero */}
-        <Suspense fallback={null}>
-          <SideNavigation />
-        </Suspense>
+        <SideNavigation />
 
         {/* Main content */}
         <main className="pt-16 lg:pl-0">
           <div ref={heroRef}>
             <HeroSection />
           </div>
-          <Suspense fallback={null}>
-            <PromoBannersSection />
-          </Suspense>
-          <Suspense fallback={null}>
-            <MobileNavCards />
-          </Suspense>
+          <PromoBannersSection />
+          <MobileNavCards />
           <Suspense fallback={<div className="py-12"><CustomDietSkeleton /></div>}>
             <div ref={identificationRef}>
               <IdentificationSection />
@@ -282,19 +274,13 @@ const IndexContent = () => {
         />
 
         {/* Floating WhatsApp Button */}
-        <Suspense fallback={null}>
-          <WhatsAppFloatingButton />
-        </Suspense>
+        <WhatsAppFloatingButton />
 
         {/* Sales Notifications */}
-        <Suspense fallback={null}>
-          <SalesNotification />
-        </Suspense>
+        <SalesNotification />
 
         {/* Mobile Sticky CTA */}
-        <Suspense fallback={null}>
-          <MobileStickyBar onCtaClick={() => setCartOpen(true)} />
-        </Suspense>
+        <MobileStickyBar onCtaClick={() => setCartOpen(true)} />
 
         {/* Footer */}
         <footer className="py-8 bg-card border-t border-border">
