@@ -378,14 +378,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   
   const trackCheckoutComplete = useCallback((total: number) => {
     trackCartEvent('checkout_complete', { total });
-    
-    // Meta Pixel Purchase
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'Purchase', {
-        value: total,
-        currency: 'BRL'
-      });
-    }
+    // Purchase event is tracked ONLY in PagamentoSucesso.tsx (with CAPI deduplication)
   }, [trackCartEvent]);
 
   // Mark cart as converted when order is completed
