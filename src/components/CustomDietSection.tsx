@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,7 @@ const CustomDietSection = ({ whatsappNumber }: CustomDietSectionProps) => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
             transition={{ duration: 0.5, delay: 0.5 }}
+            className="space-y-4"
           >
             <Button onClick={handleWhatsAppClick} variant="cta" size="default" className="gap-2">
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -85,9 +87,19 @@ const CustomDietSection = ({ whatsappNumber }: CustomDietSectionProps) => {
               </svg>
               <span>{buttonText}</span>
             </Button>
-            <p className="text-xs text-muted-foreground mt-3">
+            <p className="text-xs text-muted-foreground">
               Solicite um orçamento sem compromisso
             </p>
+
+            <Link to="/monte-seu-cardapio" className="block">
+              <Button variant="outline" size="default" className="gap-2 border-primary/30 hover:bg-primary/5">
+                <Sparkles className="w-4 h-4 text-primary" />
+                Monte com seus itens preferidos
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Diga o que gosta e preparamos pra você
+              </p>
+            </Link>
           </motion.div>
         </motion.div>
       </div>

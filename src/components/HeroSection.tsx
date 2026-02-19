@@ -1,6 +1,5 @@
 import { useRef, useEffect } from "react";
-import { Star, CheckCircle2, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Star, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import produtosPoster from "@/assets/produtos-detox.jpg";
@@ -106,15 +105,6 @@ const HeroSection = () => {
             </div>
           </div>
 
-          <Link to="/monte-seu-cardapio" className="block animate-fade-in mt-2">
-            <Button variant="cta" size="lg" className="w-full sm:w-auto">
-              <Sparkles className="w-5 h-5" />
-              Monte com seus itens preferidos
-            </Button>
-            <p className="text-sm text-muted-foreground/70 mt-2">
-              Diga o que gosta e preparamos pra você
-            </p>
-          </Link>
         </div>
       </div>
     </section>
