@@ -96,19 +96,34 @@ const PagamentoSucesso = () => {
     return () => clearInterval(interval);
   }, [realStatus, orderId]);
 
-  // Track Purchase event - Meta Pixel & GA4
+  // Track Purchase event - Meta Pixel (browser) + CAPI (server) + GA4
   useEffect(() => {
     if (realStatus !== 'approved' || !orderId) return;
     
-    // Track Purchase event - Meta Pixel
+    // Generate unique event_id for deduplication between browser and server
+    const eventId = crypto.randomUUID();
+    
+    // Track Purchase event - Meta Pixel (browser-side)
     if (typeof window !== 'undefined' && window.fbq) {
       window.fbq('track', 'Purchase', {
         value: order?.total || 0,
         currency: 'BRL',
         content_type: 'product',
         order_id: orderId,
-      });
+      }, { eventID: eventId });
     }
+    
+    // Track Purchase event - CAPI (server-side) with same event_id
+    supabase.functions.invoke('meta-capi', {
+      body: {
+        event_name: 'Purchase',
+        event_id: eventId,
+        value: order?.total || 0,
+        currency: 'BRL',
+        customer_email: order?.customer_name || '', // will be improved when order data includes email
+        source_url: window.location.href,
+      }
+    }).catch(err => console.error('Meta CAPI error:', err));
     
     // Track Purchase event - GA4
     if (typeof window !== 'undefined' && window.gtag) {

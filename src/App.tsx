@@ -8,6 +8,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { TenantProvider } from "./contexts/TenantContext";
 import ForceUpdateBanner from "./components/ForceUpdateBanner";
 import { lazy, Suspense, useEffect } from "react";
+import MetaPixel from "./components/MetaPixel";
 
 // Eager load critical pages
 import Index from "./pages/Index";
@@ -64,6 +65,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <ForceUpdateBanner />
+            <MetaPixel />
             <BrowserRouter>
               <SpaRedirectHandler />
               <Suspense fallback={<PageLoader />}>
