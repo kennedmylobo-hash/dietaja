@@ -9,7 +9,7 @@ import { celebrateCheckout } from "@/lib/confetti";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const Obrigado = () => {
-  const { brand, urls } = useTenantConfig();
+  const { brand, contact, urls } = useTenantConfig();
   const params = new URLSearchParams(window.location.search);
   const total = parseFloat(params.get("total") || "0");
   const itemsCount = parseInt(params.get("items") || "0");
@@ -182,15 +182,25 @@ const Obrigado = () => {
             </div>
           </motion.div>
 
-          {/* Back Button */}
+          {/* WhatsApp CTA */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1 }}
-            className="text-center"
+            className="text-center space-y-3"
           >
+            <a
+              href={`https://wa.me/${contact.whatsapp}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button size="lg" className="w-full max-w-xs gap-2 bg-[hsl(142,70%,45%)] hover:bg-[hsl(142,70%,38%)] text-white">
+                <MessageCircle className="w-5 h-5" />
+                Abrir WhatsApp
+              </Button>
+            </a>
             <Link to="/">
-              <Button variant="outline" size="lg">
+              <Button variant="outline" size="lg" className="w-full max-w-xs mt-3">
                 Voltar ao site
               </Button>
             </Link>
