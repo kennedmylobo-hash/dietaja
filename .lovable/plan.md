@@ -1,61 +1,50 @@
 
 
-# Implementar Meta Pixel + Conversions API (CAPI)
+# Corrigir Eventos Duplicados do Meta Pixel
 
-## Problema atual
+## Problema encontrado
 
-O codigo ja tem chamadas `fbq('track', 'Purchase')`, `fbq('track', 'AddToCart')` etc em mais de 10 arquivos, mas o **script base do Meta Pixel nunca foi carregado**. Isso significa que nenhum evento esta chegando ao Meta Ads. Alem disso, nao existe rastreamento server-side (CAPI), que e essencial para escalar trafego pago com precisao.
+O evento `Purchase` esta sendo disparado em dois lugares:
+- `src/components/CartContext.tsx` (linha ~384) -- dentro de uma funcao trackPurchase no contexto do carrinho
+- `src/pages/PagamentoSucesso.tsx` (linha ~108) -- quando o pagamento e confirmado como aprovado
+
+O local correto e **apenas** em `PagamentoSucesso.tsx`, pois e onde o pagamento foi realmente confirmado. O disparo no CartContext acontece antes da confirmacao real, gerando eventos falsos.
+
+Tambem ha duplicacao de `InitiateCheckout` entre CartContext, CartDrawer e Index.
 
 ## O que sera feito
 
-### 1. Salvar o Pixel ID no banco de dados
-- Atualizar o campo `facebook_pixel_id` do tenant ativo para `513273131671539`
+### 1. Remover `Purchase` duplicado do CartContext
+- Remover o `fbq('track', 'Purchase')` de `src/components/CartContext.tsx`
+- Manter apenas o de `PagamentoSucesso.tsx` que ja inclui deduplicacao via CAPI
 
-### 2. Inicializar o Meta Pixel no frontend
-- Criar um componente `MetaPixel` que injeta o script base do Facebook Pixel dinamicamente
-- Usa o `facebook_pixel_id` do tenant (vindo do `useTenantConfig`)
-- Carrega apenas uma vez, quando o Pixel ID esta disponivel
-- Inclui o snippet padrao: `fbq('init', pixelId)` + `fbq('track', 'PageView')`
+### 2. Consolidar `InitiateCheckout`
+- Manter `InitiateCheckout` apenas no `CartContext.tsx` (funcao de checkout)
+- Remover duplicatas em `CartDrawer.tsx` e `Index.tsx`
 
-### 3. Criar Edge Function `meta-capi` (Conversions API server-side)
-- Nova funcao que envia eventos diretamente para a API do Meta via servidor
-- Sera chamada na pagina `PagamentoSucesso` quando o pagamento for aprovado
-- Envia o evento `Purchase` com valor, moeda, email (hashed), telefone (hashed) e IP do cliente
-- Deduplica com o evento do browser usando `event_id` compartilhado
-
-### 4. Integrar a CAPI na pagina de pagamento aprovado
-- No `PagamentoSucesso.tsx`, quando `realStatus === 'approved'`, chamar a edge function `meta-capi` em paralelo ao `fbq('track', 'Purchase')`
-- Passar o mesmo `event_id` para deduplicacao
-
-### 5. Configurar o token de acesso
-- Sera necessario adicionar o secret `META_CONVERSIONS_API_TOKEN` (token gerado no Gerenciador de Eventos do Meta)
+### 3. Revisar `AddToCart`
+- Verificar se `AddToCart` no CartContext ja cobre todos os cenarios
+- Remover duplicatas em paginas individuais (Fit, Fitness, Detox) que tambem disparam `AddToCart` ao selecionar pacote -- esses podem ser mantidos pois representam interacoes diferentes (selecao de pacote vs adicao ao carrinho)
 
 ## Detalhes tecnicos
 
-### Novo componente: `src/components/MetaPixel.tsx`
-- Usa `useEffect` para injetar o script `connect.facebook.net/en_US/fbevents.js` no `<head>`
-- Inicializa com `fbq('init', pixelId)` e dispara `PageView`
-- Renderizado no `App.tsx` dentro do `TenantProvider`
+### Arquivo: `src/components/CartContext.tsx`
+- Remover bloco `fbq('track', 'Purchase')` (linhas ~382-387)
+- Manter `fbq('track', 'AddToCart')` e `fbq('track', 'InitiateCheckout')`
 
-### Nova Edge Function: `supabase/functions/meta-capi/index.ts`
-- Recebe: `event_name`, `event_id`, `value`, `currency`, `customer_email`, `customer_phone`, `source_url`, `tenant_id`
-- Busca o `facebook_pixel_id` do tenant no banco
-- Faz hash SHA-256 do email e telefone (exigencia do Meta)
-- Envia POST para `https://graph.facebook.com/v21.0/{pixel_id}/events`
-- Usa o secret `META_CONVERSIONS_API_TOKEN`
+### Arquivo: `src/components/CartDrawer.tsx`
+- Remover `fbq('track', 'InitiateCheckout')` duplicado (linhas ~402-409)
 
-### Arquivo: `src/pages/PagamentoSucesso.tsx`
-- Gerar `event_id` unico (UUID) para cada Purchase
-- Passar para `fbq('track', 'Purchase', data, { eventID: eventId })`
-- Chamar `supabase.functions.invoke('meta-capi', { body: { ... } })` com o mesmo `event_id`
+### Arquivo: `src/pages/Index.tsx`
+- Remover `fbq('track', 'InitiateCheckout')` e `fbq('track', 'Contact')` duplicados (linhas ~111-118)
 
-### Arquivo: `supabase/config.toml`
-- Adicionar `[functions.meta-capi]` com `verify_jwt = false`
+### Nenhuma alteracao em:
+- `PagamentoSucesso.tsx` -- este e o local correto e unico para Purchase + CAPI
+- `MetaPixel.tsx` -- inicializacao esta correta
+- Paginas Fit/Fitness/Detox -- AddToCart nessas paginas rastreia a selecao do pacote, que e uma acao diferente
 
-## Sequencia de implementacao
-1. Adicionar secret `META_CONVERSIONS_API_TOKEN`
-2. Salvar Pixel ID no banco do tenant
-3. Criar componente `MetaPixel` e adicionar no `App.tsx`
-4. Criar edge function `meta-capi`
-5. Atualizar `PagamentoSucesso.tsx` para enviar CAPI + deduplicacao
+## Resultado esperado
+- Cada Purchase contado apenas 1 vez (com deduplicacao browser + CAPI)
+- InitiateCheckout disparado apenas ao iniciar o fluxo de checkout real
+- Dados mais precisos no Meta Ads para otimizacao de campanhas
 
