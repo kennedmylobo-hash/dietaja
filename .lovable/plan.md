@@ -1,57 +1,34 @@
 
+# Atualizar menu mobile de navegacao
 
-# Acelerar processamento de voz no Monte Seu Cardapio
+## O que muda
 
-## Problema
+### 1. SideNavigation (menu flutuante que aparece ao rolar)
+- Renomear "Massa" para "Hipertrofia" no item que aponta para `marmitas-fitness`
+- Manter os demais labels iguais (Detox, Emagrecer, Dieta, FAQ)
 
-O processamento do audio demora ~20 segundos porque:
+### 2. Cards de navegacao na pagina inicial (mobile)
+Adicionar uma secao de cards explicativos abaixo do hero, visivel apenas no mobile, com 3 cards:
 
-1. A edge function `parse-voice-preferences` envia uma lista ENORME de "proteinas" no prompt da IA -- mas sao nomes completos de pratos (ex: "Carne moida com salada de legumes e graos"), nao ingredientes individuais
-2. Isso infla o prompt para milhares de tokens, tornando a resposta lenta mesmo com o modelo `gemini-2.5-flash-lite`
-3. O cold start da edge function + consulta ao banco adiciona mais ~1-2s
+| Card | Titulo | Descricao curta | Ancora |
+|------|--------|-----------------|--------|
+| Kit Detox | Kit Detox | Sucos e sopas funcionais para desintoxicar | #kits |
+| Kit Emagrecimento | Kit de Marmitas Emagrecimento | Marmitas fit 300g para perder peso | #marmitas-fit |
+| Kit Hipertrofia | Kit de Marmitas Hipertrofia | Marmitas fitness 450g para ganho de massa | #marmitas-fitness |
 
-## Solucao
-
-Duas otimizacoes combinadas que devem reduzir o tempo de ~20s para ~3-5s:
-
-### 1. Extrair palavras-chave de proteina em vez de nomes completos de pratos
-
-Na edge function `parse-voice-preferences`, em vez de enviar todos os nomes de pratos como "proteinas disponiveis", extrair apenas as palavras-chave unicas de proteina (frango, carne, peixe, almondega, estrogonofe, etc). Isso reduz o prompt de ~800 tokens para ~50 tokens.
-
-### 2. Simplificar o prompt da IA
-
-Com listas curtas de ingredientes reais, o prompt fica menor e a resposta vem muito mais rapido.
+Cada card ao clicar faz scroll suave ate a secao correspondente.
 
 ## Detalhes tecnicos
 
-### Arquivo: `supabase/functions/parse-voice-preferences/index.ts`
+### Arquivo: `src/components/SideNavigation.tsx`
+- Linha 11: trocar `label: "Massa"` por `label: "Hipertrofia"`
 
-Alterar a funcao `fetchAvailableIngredients` para:
-- Em vez de usar os nomes completos dos pratos de `marmita_flavors`, extrair palavras-chave de proteina unicas
-- Consultar `marmita_sides` separando por categoria corretamente (carboidrato vs vegetal/leguminosa)
-- Retornar listas curtas e limpas
+### Novo componente ou secao inline em `src/pages/Index.tsx`
+- Adicionar 3 cards responsivos logo apos o `PromoBannersSection`
+- Visivel apenas em mobile (`md:hidden`)
+- Layout: coluna vertical com 3 cards com icone, titulo e descricao curta
+- Estilo consistente com o design existente (bg-card, rounded-xl, border, sombra leve)
+- Ao clicar, scroll suave para a secao correspondente
 
-```typescript
-// ANTES (prompt enorme):
-// proteins: "Carne moída com salada de legumes e grãos, Almôndegas de carne bovina com aipim..."
-// (800+ tokens)
-
-// DEPOIS (prompt enxuto):
-// proteins: "frango, carne bovina, carne moída, almôndegas, estrogonofe, peixe, carne suína"
-// (~20 tokens)
-```
-
-Logica de extracao de palavras-chave:
-- Criar um dicionario de palavras-chave de proteina comuns (frango, carne, peixe, salmao, almondega, estrogonofe, etc.)
-- Percorrer os nomes dos pratos e extrair as que aparecem
-- Para sides: separar por categoria real do banco (carboidrato, vegetal, leguminosa)
-
-### Arquivo: `src/pages/MonteSeuCardapio.tsx`
-
-Nenhuma alteracao necessaria no frontend -- a otimizacao e 100% no backend.
-
-### Resultado esperado
-
-- Prompt da IA reduzido de ~1000 tokens para ~200 tokens
-- Tempo de resposta da IA de ~20s para ~2-4s
-- Experiencia do usuario muito mais fluida
+### Arquivo: `src/components/cardapio/MobileNav.tsx`
+- Atualizar categorias: trocar "Fit 300g" por "Emagrecimento" e "Fitness 450g" por "Hipertrofia"
