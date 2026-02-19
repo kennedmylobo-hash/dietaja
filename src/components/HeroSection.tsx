@@ -1,8 +1,7 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Star, CheckCircle2, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import produtosPoster from "@/assets/produtos-detox.jpg";
 import { useLandingContent } from "@/hooks/useLandingContent";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
@@ -10,7 +9,16 @@ import { useTenantConfig } from "@/hooks/useTenantConfig";
 const HeroSection = () => {
   const { location } = useTenantConfig();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
   const { content, isVisible } = useLandingContent("hero");
+
+  // Defer video loading until after LCP (poster image)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setVideoLoaded(true);
+    }, 2500); // Load video after LCP window
+    return () => clearTimeout(timer);
+  }, []);
 
   // Only play video when visible in viewport
   useEffect(() => {
@@ -28,7 +36,7 @@ const HeroSection = () => {
     );
     observer.observe(video);
     return () => observer.disconnect();
-  }, []);
+  }, [videoLoaded]);
 
   if (!isVisible) return null;
 
@@ -47,17 +55,30 @@ const HeroSection = () => {
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
       <div className="absolute inset-0 z-0">
-        <video
-          ref={videoRef}
-          src={produtosVideo}
-          poster={produtosPoster}
-          loop
-          muted
-          playsInline
-          preload="none"
+        {/* Poster image as LCP element - loaded eagerly with high priority */}
+        <img
+          src={produtosPoster}
+          alt="Produtos saudáveis Dieta Já"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: 'center 15%' }}
+          loading="eager"
+          fetchPriority="high"
+          decoding="async"
         />
+        {/* Video loads after LCP window to avoid blocking */}
+        {videoLoaded && (
+          <video
+            ref={videoRef}
+            src={new URL("@/assets/produtos-detox-video.mp4", import.meta.url).href}
+            poster={produtosPoster}
+            loop
+            muted
+            playsInline
+            preload="metadata"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ objectPosition: 'center 15%' }}
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
       </div>
 
