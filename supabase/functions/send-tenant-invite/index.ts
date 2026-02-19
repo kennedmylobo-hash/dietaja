@@ -121,7 +121,7 @@ serve(async (req) => {
           <tr>
             <td style="padding: 30px 40px 40px; border-top: 1px solid #eee;">
               <p style="margin: 0; color: #bbb; font-size: 11px; text-align: center;">
-                PedidoJá — Plataforma de gestão de restaurantes
+                Dieta Já — Alimentação Saudável
               </p>
             </td>
           </tr>
@@ -139,7 +139,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `PedidoJá <noreply@pedidoja.com.br>`,
+        from: `Dieta Já <noreply@dietajavca.com.br>`,
         to: [email],
         subject: `Bem-vindo ao ${brand_name} — Crie sua senha`,
         html: emailHtml,

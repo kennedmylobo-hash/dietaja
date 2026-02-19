@@ -137,7 +137,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sending email to ${data.customer_email}`);
 
     const { data: emailResponse, error } = await resend.emails.send({
-      from: `${branding.brand_name} <noreply@pedidoja.com.br>`,
+      from: `${branding.brand_name} <noreply@dietajavca.com.br>`,
       to: [data.customer_email],
       subject: `Pedido #${data.order_number} - Aguardando Pagamento 🛒`,
       html,

@@ -1,5 +1,5 @@
 /**
- * Configurações FALLBACK do site (plataforma PedidoJá).
+ * Configurações FALLBACK do site (Dieta Já).
  * 
  * Estes valores são usados APENAS quando nenhum tenant está ativo.
  * Os dados reais de cada restaurante vêm do banco via TenantContext / useTenantConfig.
