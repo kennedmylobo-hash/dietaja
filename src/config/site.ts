@@ -26,9 +26,9 @@ export const siteConfig = {
   },
 
   urls: {
-    domain: "pedidos.dietajavca.com.br",
-    canonical: "https://pedidos.dietajavca.com.br",
-    ogImage: "https://pedidos.dietajavca.com.br/og-image.jpg",
+    domain: "www.dietajavca.com.br",
+    canonical: "https://www.dietajavca.com.br",
+    ogImage: "https://www.dietajavca.com.br/og-image.jpg",
   },
 
   analytics: {
