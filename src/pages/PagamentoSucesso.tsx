@@ -202,10 +202,11 @@ const PagamentoSucesso = () => {
 
             <div className="bg-sage-light/30 rounded-lg p-4 mb-6">
               <p className="text-sm font-medium text-foreground mb-2">📅 Próximos passos</p>
-              <ul className="text-sm text-muted-foreground text-left space-y-1">
-                <li>• Você receberá uma confirmação por email</li>
-                <li>• Entrega/retirada na próxima quarta-feira</li>
-                <li>• Dúvidas? Entre em contato pelo WhatsApp</li>
+              <ul className="text-sm text-muted-foreground text-left space-y-2">
+                <li>✅ Pagamento confirmado com sucesso</li>
+                <li>🍽️ Seu pedido ficará pronto em até <strong className="text-foreground">72 horas úteis</strong></li>
+                <li>📲 Assim que estiver pronto, entraremos em contato — podendo ficar pronto antes!</li>
+                <li>💬 Dúvidas? Fale conosco pelo WhatsApp</li>
               </ul>
             </div>
 
