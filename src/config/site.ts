@@ -7,15 +7,15 @@
 
 export const siteConfig = {
   brand: {
-    name: "Meu Restaurante",
-    nameFormatted: "MeuRestaurante",
+    name: "Dieta Já",
+    nameFormatted: "DietaJá",
     slogan: "Alimentação Saudável Pronta",
     twitterHandle: "",
   },
 
   location: {
-    city: "",
-    state: "",
+    city: "Vitória da Conquista",
+    state: "BA",
     pickupNeighborhood: "",
     deliveryFee: 10,
   },
@@ -26,9 +26,9 @@ export const siteConfig = {
   },
 
   urls: {
-    domain: "",
-    canonical: "",
-    ogImage: "",
+    domain: "pedidos.dietajavca.com.br",
+    canonical: "https://pedidos.dietajavca.com.br",
+    ogImage: "https://pedidos.dietajavca.com.br/og-image.jpg",
   },
 
   analytics: {
@@ -36,8 +36,8 @@ export const siteConfig = {
   },
 
   seo: {
-    title: "PedidoJá | Seu Restaurante Online",
-    description: "Plataforma completa para restaurantes. Cardápio digital, pedidos online e gestão integrada.",
+    title: "Dieta Já | Alimentação Saudável Pronta em Vitória da Conquista",
+    description: "Marmitas saudáveis e kits detox prontos para sua rotina em Vitória da Conquista - BA. Peça online com Pix e receba com praticidade.",
   },
 
   theme: {
