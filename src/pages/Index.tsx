@@ -5,6 +5,7 @@ import Logo from "@/components/Logo";
 import HeroSection from "@/components/HeroSection";
 import PromoBannersSection from "@/components/PromoBannersSection";
 import SideNavigation from "@/components/SideNavigation";
+import MobileNavCards from "@/components/MobileNavCards";
 // Lazy load below-fold sections for mobile/4G performance
 const IdentificationSection = lazy(() => import("@/components/IdentificationSection"));
 const SolutionSection = lazy(() => import("@/components/SolutionSection"));
@@ -198,6 +199,7 @@ const IndexContent = () => {
             <HeroSection />
           </div>
           <PromoBannersSection />
+          <MobileNavCards />
           <Suspense fallback={<div className="py-12"><CustomDietSkeleton /></div>}>
             <div ref={identificationRef}>
               <IdentificationSection />
