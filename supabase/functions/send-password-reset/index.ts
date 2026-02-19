@@ -153,7 +153,7 @@ const handler = async (req: Request): Promise<Response> => {
                 Precisa de ajuda? Entre em contato pelo WhatsApp ${branding.whatsapp_formatted}
               </p>
               <p style="margin: 8px 0 0; color: #bbb; font-size: 11px; text-align: center;">
-                PedidoJá — Plataforma de gestão de restaurantes
+                Dieta Já — Alimentação Saudável
               </p>
             </td>
           </tr>
