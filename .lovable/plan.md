@@ -1,50 +1,46 @@
 
 
-# Corrigir Eventos Duplicados do Meta Pixel
+# Corrigir Meta Tags para Crawlers (WhatsApp/Facebook/Google)
 
-## Problema encontrado
+## Problema
+Bots e crawlers (WhatsApp, Facebook, Google) nao executam JavaScript. Eles leem o HTML cru do `index.html`, que mostra titulos e descricoes genericas da plataforma em vez dos dados do tenant real ("Dieta Ja").
 
-O evento `Purchase` esta sendo disparado em dois lugares:
-- `src/components/CartContext.tsx` (linha ~384) -- dentro de uma funcao trackPurchase no contexto do carrinho
-- `src/pages/PagamentoSucesso.tsx` (linha ~108) -- quando o pagamento e confirmado como aprovado
+O React Helmet so corrige isso apos o JS carregar no navegador do usuario -- bots nao esperam isso.
 
-O local correto e **apenas** em `PagamentoSucesso.tsx`, pois e onde o pagamento foi realmente confirmado. O disparo no CartContext acontece antes da confirmacao real, gerando eventos falsos.
+## Solucao proposta
 
-Tambem ha duplicacao de `InitiateCheckout` entre CartContext, CartDrawer e Index.
+Como o deploy principal e para o tenant "Dieta Ja" (dominio `pedidos.dietajavca.com.br`), a abordagem mais pratica e atualizar o `index.html` com os dados reais desse tenant.
 
-## O que sera feito
+### Alteracoes no `index.html`
 
-### 1. Remover `Purchase` duplicado do CartContext
-- Remover o `fbq('track', 'Purchase')` de `src/components/CartContext.tsx`
-- Manter apenas o de `PagamentoSucesso.tsx` que ja inclui deduplicacao via CAPI
+Atualizar as meta tags estaticas com os dados do tenant "Dieta Ja":
 
-### 2. Consolidar `InitiateCheckout`
-- Manter `InitiateCheckout` apenas no `CartContext.tsx` (funcao de checkout)
-- Remover duplicatas em `CartDrawer.tsx` e `Index.tsx`
+- `<title>` -> "Dieta Ja | Alimentacao Saudavel Pronta em Vitoria da Conquista"
+- `og:title` -> "Dieta Ja | Alimentacao Saudavel Pronta em Vitoria da Conquista"
+- `description` e `og:description` -> "Marmitas saudaveis e kits detox prontos para sua rotina em Vitoria da Conquista - BA. Peca online com Pix e receba com praticidade."
+- `og:url` -> "https://pedidos.dietajavca.com.br"
+- `og:image` -> URL da imagem OG do tenant (se existir) ou `/og-image.jpg`
 
-### 3. Revisar `AddToCart`
-- Verificar se `AddToCart` no CartContext ja cobre todos os cenarios
-- Remover duplicatas em paginas individuais (Fit, Fitness, Detox) que tambem disparam `AddToCart` ao selecionar pacote -- esses podem ser mantidos pois representam interacoes diferentes (selecao de pacote vs adicao ao carrinho)
+### Alteracoes no `src/config/site.ts`
+
+Atualizar os fallbacks do `siteConfig` para refletir os dados da Dieta Ja, garantindo que o SEO default seja sempre consistente:
+
+- `brand.name` -> "Dieta Ja"
+- `brand.slogan` -> "Alimentacao Saudavel Pronta"
+- `seo.title` -> "Dieta Ja | Alimentacao Saudavel Pronta em Vitoria da Conquista"
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/components/CartContext.tsx`
-- Remover bloco `fbq('track', 'Purchase')` (linhas ~382-387)
-- Manter `fbq('track', 'AddToCart')` e `fbq('track', 'InitiateCheckout')`
+### Arquivo: `index.html`
+- Linha do title: substituir por "Dieta Ja | Alimentacao Saudavel Pronta em Vitoria da Conquista"
+- Meta description: incluir cidade e estado
+- og:title, og:description, og:url: atualizar com dados do tenant
+- Remover referencia a "author" vazio
 
-### Arquivo: `src/components/CartDrawer.tsx`
-- Remover `fbq('track', 'InitiateCheckout')` duplicado (linhas ~402-409)
+### Arquivo: `src/config/site.ts`
+- Atualizar valores de fallback do `siteConfig` para corresponder ao tenant principal
+- Isso garante que mesmo sem banco, o site mostra dados corretos
 
-### Arquivo: `src/pages/Index.tsx`
-- Remover `fbq('track', 'InitiateCheckout')` e `fbq('track', 'Contact')` duplicados (linhas ~111-118)
-
-### Nenhuma alteracao em:
-- `PagamentoSucesso.tsx` -- este e o local correto e unico para Purchase + CAPI
-- `MetaPixel.tsx` -- inicializacao esta correta
-- Paginas Fit/Fitness/Detox -- AddToCart nessas paginas rastreia a selecao do pacote, que e uma acao diferente
-
-## Resultado esperado
-- Cada Purchase contado apenas 1 vez (com deduplicacao browser + CAPI)
-- InitiateCheckout disparado apenas ao iniciar o fluxo de checkout real
-- Dados mais precisos no Meta Ads para otimizacao de campanhas
+## Limitacao conhecida
+Para uma solucao verdadeiramente multi-tenant (cada dominio mostrando meta tags diferentes para bots), seria necessario um proxy/edge middleware que injete as tags dinamicamente. Isso pode ser implementado futuramente como uma edge function que serve HTML customizado por dominio. Por agora, a solucao direta resolve o problema imediato da campanha.
 
