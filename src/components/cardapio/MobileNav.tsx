@@ -8,8 +8,8 @@ interface NavCategory {
 
 const NAV_CATEGORIES: NavCategory[] = [
   { id: "kits", shortName: "Detox", icon: "🥤" },
-  { id: "fit", shortName: "Fit 300g", icon: "🥗" },
-  { id: "fitness", shortName: "Fitness 450g", icon: "💪" },
+  { id: "fit", shortName: "Emagrecimento", icon: "🥗" },
+  { id: "fitness", shortName: "Hipertrofia", icon: "💪" },
 ];
 
 interface MobileNavProps {

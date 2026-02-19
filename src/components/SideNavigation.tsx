@@ -8,7 +8,7 @@ import { hapticFeedback } from "@/lib/haptics";
 const navItems = [
   { id: "kits", label: "Detox", icon: Droplets },
   { id: "marmitas-fit", label: "Emagrecer", icon: Salad },
-  { id: "marmitas-fitness", label: "Massa", icon: Dumbbell },
+  { id: "marmitas-fitness", label: "Hipertrofia", icon: Dumbbell },
   { id: "dieta-personalizada", label: "Dieta", icon: Sparkles },
   { id: "faq", label: "FAQ", icon: HelpCircle },
 ];
