@@ -49,9 +49,9 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       manifest: {
-        name: "Sua Loja - Alimentação Saudável",
-        short_name: "PedidoJá",
-        description: "Alimentação Saudável Pronta - Peça Online",
+        name: "Dieta Já - Alimentação Saudável Pronta",
+        short_name: "Dieta Já",
+        description: "Marmitas saudáveis e kits detox prontos para sua rotina",
         theme_color: "#22c55e",
         background_color: "#ffffff",
         display: "standalone",
