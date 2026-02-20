@@ -1,32 +1,35 @@
 
-# Trocar domínio de pedidos.dietajavca.com.br para www.dietajavca.com.br
 
-## Resumo
-Remover todas as referencias ao subdominio `pedidos.dietajavca.com.br` e substituir por `www.dietajavca.com.br` em todo o projeto.
+# Corrigir erro nas paginas /fit, /fitness e /detox no dominio publicado
 
-## Alteracoes
+## Diagnostico
 
-### 1. index.html
-- Linha `og:url`: de `https://pedidos.dietajavca.com.br` para `https://www.dietajavca.com.br`
-- Linha `og:image`: de `https://pedidos.dietajavca.com.br/og-image.jpg` para `https://www.dietajavca.com.br/og-image.jpg`
+Identifiquei **2 problemas** que estao causando o erro "Ops! Algo deu errado" para os clientes:
 
-### 2. src/config/site.ts
-- `domain`: de `pedidos.dietajavca.com.br` para `www.dietajavca.com.br`
-- `canonical`: de `https://pedidos.dietajavca.com.br` para `https://www.dietajavca.com.br`
-- `ogImage`: de `https://pedidos.dietajavca.com.br/og-image.jpg` para `https://www.dietajavca.com.br/og-image.jpg`
+### Problema 1: Dominio no banco de dados nao foi atualizado
+O campo `domain` na tabela `tenants` ainda esta como `pedidos.dietajavca.com.br` em vez de `www.dietajavca.com.br`. Isso foi planejado na migracao anterior mas **nao foi executado**.
 
-### 3. Banco de dados (tabela tenants)
-- Atualizar o campo `domain` do tenant `dietaja` de `pedidos.dietajavca.com.br` para `www.dietajavca.com.br`
+Quando o cliente acessa `www.dietajavca.com.br/fit`, o `TenantContext` tenta encontrar o tenant pelo hostname `www.dietajavca.com.br`, mas no banco consta `pedidos.dietajavca.com.br`. A logica de fallback tenta variantes (sem www, com ilike), mas pode estar falhando ou retornando dados inesperados, causando o erro.
 
-### 4. Dominio customizado no Lovable
-- Apos as alteracoes, voce precisa conectar `www.dietajavca.com.br` como dominio customizado no Lovable (em Settings > Domains)
-- Se o dominio `pedidos.dietajavca.com.br` ainda estiver conectado la, remova-o
-- Configure o DNS do `www.dietajavca.com.br` apontando um registro A para `185.158.133.1`
+### Problema 2: Projeto pode nao ter sido publicado
+A URL publicada atual e `diet-on-demand.lovable.app`. Se o dominio customizado `www.dietajavca.com.br` nao estiver configurado no Lovable, os clientes nao conseguem acessar.
 
-## O que NAO sera alterado
-- O arquivo `TenantContext.tsx` tem apenas um comentario mencionando `pedidos.dietajavca.com.br` como exemplo -- a logica de deteccao por hostname ja funciona de forma generica e nao precisa de mudanca
+## Solucao
 
-## Apos publicar
-1. Publique o projeto no Lovable
-2. No Facebook Sharing Debugger, faca "Scrape Again" com `https://www.dietajavca.com.br`
-3. Atualize os links dos seus anuncios para usar `www.dietajavca.com.br`
+### 1. Atualizar o dominio no banco de dados
+Executar SQL para atualizar o tenant:
+```sql
+UPDATE tenants 
+SET domain = 'www.dietajavca.com.br' 
+WHERE slug = 'dietaja';
+```
+
+### 2. Melhorar o ErrorBoundary com mais informacoes de debug
+Adicionar logging do erro real no `ErrorBoundary` para facilitar diagnostico futuro, mostrando o erro no console de forma mais detalhada.
+
+### 3. Apos implementar
+- Publicar o projeto no Lovable
+- Configurar `www.dietajavca.com.br` como dominio customizado (Settings > Domains)
+- DNS: apontar `www.dietajavca.com.br` com registro A para `185.158.133.1`
+- Testar as 3 rotas: `/fit`, `/fitness`, `/detox`
+
