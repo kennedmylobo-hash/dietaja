@@ -22,7 +22,12 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught:", error, errorInfo);
+    console.error("🔴 ErrorBoundary caught an error:");
+    console.error("Message:", error.message);
+    console.error("Stack:", error.stack);
+    console.error("Component stack:", errorInfo.componentStack);
+    console.error("Current URL:", window.location.href);
+    console.error("Hostname:", window.location.hostname);
     
     // Track error with Meta Pixel if available
     if (typeof window !== 'undefined' && (window as any).fbq) {
