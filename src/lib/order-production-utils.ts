@@ -1,5 +1,6 @@
 import type { Json } from "@/integrations/supabase/types";
 import { getFlavorSidesForLine, generateDefaultSides, FlavorSideItem } from "@/lib/flavor-description";
+import { normalizeVeggieName } from "@/lib/ingredient-normalization";
 
 interface FlavorItem {
   name: string;
@@ -156,7 +157,7 @@ export const generateOrderProductionHTML = (
   const ingredientTotals: Record<string, { weight: number; type: string }> = {};
   for (const line of productionLines) {
     for (const side of line.sides) {
-      const key = side.name;
+      const key = classifyIngredient(side.name) === 'salad' ? normalizeVeggieName(side.name) : side.name;
       const totalW = side.weight * line.quantity;
       if (ingredientTotals[key]) {
         ingredientTotals[key].weight += totalW;

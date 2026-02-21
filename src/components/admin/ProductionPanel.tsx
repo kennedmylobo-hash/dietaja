@@ -16,6 +16,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { formatDateShort } from "@/lib/print-utils";
 import { generateLabelsA7 } from "@/lib/label-utils";
+import { normalizeVeggieName } from "@/lib/ingredient-normalization";
 
 interface FlavorItem {
   name: string;
@@ -315,9 +316,10 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 const type = classifyIngredient(ingredient.name);
                 // For the protein ingredient, use the dish name for better display
                 // e.g. "Frango em cubos" instead of generic "Frango"
-                const displayName = type === 'protein'
+                const rawDisplayName = type === 'protein'
                   ? flavor.name.split(/\s+com\s+|,\s*/i)[0].trim()
                   : ingredient.name;
+                const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName) : rawDisplayName;
                 const ingredientKey = displayName.toLowerCase();
                 const existing = ingredientMap.get(ingredientKey);
                 const totalWeight = flavor.quantity * ingredient.weight;
@@ -338,9 +340,10 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
               for (let i = 0; i < flavorSides.length; i++) {
                 const ingredient = flavorSides[i];
                 const type = classifyIngredient(ingredient.name);
-                const displayName = type === 'protein'
+                const rawDisplayName2 = type === 'protein'
                   ? flavor.name.split(/\s+com\s+|,\s*/i)[0].trim()
                   : ingredient.name;
+                const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName2) : rawDisplayName2;
                 const ingredientKey = displayName.toLowerCase();
                 const existing = ingredientMap.get(ingredientKey);
                 const totalWeight = flavor.quantity * ingredient.weight;
