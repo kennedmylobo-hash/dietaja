@@ -144,8 +144,7 @@ export const generateThermalTicketHTML = (
   }).join('');
 
   const outrosRows = outros.map(item =>
-    `<tr><td style="padding:3px 0;font-size:14px;font-weight:bold;">${item.quantity}x ${item.name}</td>
-     <td style="text-align:right;font-size:13px;">${fmtMoney(item.totalPrice)}</td></tr>`
+    `<tr><td style="padding:3px 0;font-size:14px;font-weight:bold;">${item.quantity}x ${item.name}</td></tr>`
   ).join('');
 
   const deliveryText = order.delivery_option === 'delivery'
@@ -235,23 +234,6 @@ ${outros.length > 0 ? `
 </div>
 ` : ''}
 
-<div class="divider"></div>
-
-<!-- VALORES -->
-<table>
-  <tr>
-    <td style="font-size:13px;">Subtotal</td>
-    <td style="text-align:right;font-size:13px;">${fmtMoney(order.subtotal)}</td>
-  </tr>
-  ${order.delivery_fee > 0 ? `<tr>
-    <td style="font-size:13px;">Entrega</td>
-    <td style="text-align:right;font-size:13px;">${fmtMoney(order.delivery_fee)}</td>
-  </tr>` : ''}
-</table>
-${discountLine}
-<div style="font-size:20px;font-weight:bold;text-align:right;margin-top:4px;">
-  TOTAL: ${fmtMoney(order.total)}
-</div>
 
 ${hasIngredients ? `
 <div class="divider"></div>
