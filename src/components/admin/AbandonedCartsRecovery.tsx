@@ -15,6 +15,9 @@ import {
   DollarSign,
   Gift,
   Trash2,
+  Calendar,
+  Repeat,
+  Wifi,
 } from "lucide-react";
 import {
   Dialog,
@@ -60,6 +63,7 @@ const AbandonedCartsRecovery = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCart, setSelectedCart] = useState<AbandonedCart | null>(null);
   const [dismissingCartId, setDismissingCartId] = useState<string | null>(null);
+  const [accessCounts, setAccessCounts] = useState<Record<string, number>>({});
   const { brand } = useTenantConfig();
 
   const dismissCart = async (cartId: string) => {
@@ -116,6 +120,19 @@ const AbandonedCartsRecovery = () => {
       const cartPhoneSuffix = getPhoneSuffix(cart.phone, 10);
       return !convertedPhones.has(cartPhoneSuffix);
     });
+
+    // Count total accesses per phone (all statuses)
+    const { data: allCartsData } = await supabase
+      .from('carts')
+      .select('phone')
+      .not('items', 'eq', '[]');
+
+    const counts: Record<string, number> = {};
+    (allCartsData || []).forEach(c => {
+      const suffix = getPhoneSuffix(c.phone, 10);
+      counts[suffix] = (counts[suffix] || 0) + 1;
+    });
+    setAccessCounts(counts);
 
     setCarts(filteredCarts as unknown as AbandonedCart[]);
     setIsLoading(false);
@@ -177,13 +194,32 @@ const AbandonedCartsRecovery = () => {
     return `${minutes}m`;
   };
 
-  const getStatusBadge = (cart: AbandonedCart) => {
+  const formatDateTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    });
+  };
+
+  const isOnline = (cart: AbandonedCart) => {
     const diff = Date.now() - new Date(cart.last_activity_at).getTime();
-    const hours = diff / (1000 * 60 * 60);
-    
+    return diff < 3 * 60 * 1000; // active within last 3 minutes
+  };
+
+  const getAccessCount = (phone: string) => {
+    const suffix = getPhoneSuffix(phone, 10);
+    return accessCounts[suffix] || 1;
+  };
+
+  const getStatusBadge = (cart: AbandonedCart) => {
+    if (isOnline(cart)) {
+      return <Badge className="bg-green-500/10 text-green-600">🟢 Online</Badge>;
+    }
     if (cart.status === 'abandoned') {
       return <Badge className="bg-orange-500/10 text-orange-600">🛒 Abandonado</Badge>;
     }
+    const diff = Date.now() - new Date(cart.last_activity_at).getTime();
+    const hours = diff / (1000 * 60 * 60);
     if (hours > 1) {
       return <Badge className="bg-yellow-500/10 text-yellow-600">⏳ Inativo</Badge>;
     }
@@ -315,30 +351,42 @@ const AbandonedCartsRecovery = () => {
             >
               <CardContent className="py-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                      <User className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{cart.name || 'Cliente'}</p>
-                        {getStatusBadge(cart)}
-                        {cart.whatsapp_sent_at && (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-600 text-xs">
-                            <MessageCircle className="w-3 h-3 mr-1" />
-                            {getTimeSince(cart.whatsapp_sent_at)} atrás
-                          </Badge>
+                    <div className="flex items-center gap-4">
+                      <div className="relative w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                        <User className="w-5 h-5 text-muted-foreground" />
+                        {isOnline(cart) && (
+                          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background animate-pulse" />
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Phone className="w-3 h-3" />
-                        {cart.phone}
-                        <span className="mx-1">•</span>
-                        <Clock className="w-3 h-3" />
-                        {getTimeSince(cart.last_activity_at)}
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium">{cart.name || 'Cliente'}</p>
+                          {getStatusBadge(cart)}
+                          {getAccessCount(cart.phone) > 1 && (
+                            <Badge variant="outline" className="text-xs">
+                              <Repeat className="w-3 h-3 mr-1" />
+                              {getAccessCount(cart.phone)}x acessos
+                            </Badge>
+                          )}
+                          {cart.whatsapp_sent_at && (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600 text-xs">
+                              <MessageCircle className="w-3 h-3 mr-1" />
+                              {getTimeSince(cart.whatsapp_sent_at)} atrás
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Phone className="w-3 h-3" />
+                          {cart.phone}
+                          <span className="mx-1">•</span>
+                          <Calendar className="w-3 h-3" />
+                          {formatDateTime(cart.created_at)}
+                          <span className="mx-1">•</span>
+                          <Clock className="w-3 h-3" />
+                          {getTimeSince(cart.last_activity_at)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="font-semibold">
@@ -413,12 +461,28 @@ const AbandonedCartsRecovery = () => {
                   <p className="font-medium">{selectedCart.email || '-'}</p>
                 </div>
                 <div>
+                  <p className="text-muted-foreground">Criado em</p>
+                  <p className="font-medium">{formatDateTime(selectedCart.created_at)}</p>
+                </div>
+                <div>
                   <p className="text-muted-foreground">Última atividade</p>
-                  <p className="font-medium">{getTimeSince(selectedCart.last_activity_at)} atrás</p>
+                  <p className="font-medium">{formatDateTime(selectedCart.last_activity_at)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Status</p>
-                  {getStatusBadge(selectedCart)}
+                  <div className="flex items-center gap-1">
+                    {getStatusBadge(selectedCart)}
+                    {isOnline(selectedCart) && (
+                      <Badge className="bg-green-500/10 text-green-600 text-xs">
+                        <Wifi className="w-3 h-3 mr-1" />
+                        Agora
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Acessos</p>
+                  <p className="font-medium">{getAccessCount(selectedCart.phone)}x</p>
                 </div>
               </div>
 
