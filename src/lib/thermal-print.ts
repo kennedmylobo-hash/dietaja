@@ -104,28 +104,33 @@ export const generateThermalTicketHTML = (
   const outros = order.items.filter(i => i.type !== 'marmita');
 
   let totalMarmitas = 0;
-  // Accumulate ingredient totals across the whole order
   const ingredientTotals: Record<string, number> = {};
 
-  const marmitaRows = marmitas.map(item => {
+  // Group marmitas by line type (fit/fitness)
+  interface MarmitaGroup { lineKey: 'fit' | 'fitness'; lineLabel: string; rows: string[]; }
+  const groupMap: Record<string, MarmitaGroup> = {};
+
+  for (const item of marmitas) {
     const lineKey: 'fit' | 'fitness' =
       (item.lineType === 'hipertrofia' || item.lineType === 'fitness' || /hipertrofia|fitness/i.test(item.name))
         ? 'fitness' : 'fit';
     const lineLabel = lineKey === 'fitness' ? 'FITNESS 450g' : 'FIT 300g';
 
+    if (!groupMap[lineKey]) groupMap[lineKey] = { lineKey, lineLabel, rows: [] };
+
     if (!item.flavors?.length) {
       totalMarmitas += item.quantity;
-      return `<tr><td colspan="2" style="padding:4px 0;border-bottom:1px dashed #ccc;font-size:15px;font-weight:bold;">
-        ${item.quantity}x ${item.name} <span style="font-size:10px;color:#888;">${lineLabel}</span>
-      </td></tr>`;
+      groupMap[lineKey].rows.push(`<div style="padding:3px 0;border-bottom:1px dashed #ddd;font-size:14px;font-weight:bold;">
+        ${item.quantity}x ${item.name}
+      </div>`);
+      continue;
     }
 
-    return item.flavors.map(f => {
+    for (const f of item.flavors) {
       totalMarmitas += f.quantity;
       const sides = findFlavorSides(f.name, lineKey, flavorSidesMap);
       const enrichedSides = sides.map(s => ({ ...s, name: enrichSideName(s.name, f.name) }));
 
-      // Accumulate totals
       for (const s of enrichedSides) {
         const totalW = s.weight * f.quantity;
         ingredientTotals[s.name] = (ingredientTotals[s.name] || 0) + totalW;
@@ -135,13 +140,20 @@ export const generateThermalTicketHTML = (
         `<div style="font-size:11px;color:#444;margin-left:12px;">⚖️ ${s.weight}g ${s.name}</div>`
       ).join('');
 
-      return `<tr><td colspan="2" style="padding:3px 0;border-bottom:1px dashed #ddd;">
+      groupMap[lineKey].rows.push(`<div style="padding:3px 0;border-bottom:1px dashed #ddd;">
         <div style="font-size:14px;font-weight:bold;">${f.quantity}x ${f.name}</div>
-        <div style="float:right;font-size:10px;color:#888;margin-top:-16px;">${lineLabel}</div>
         ${sidesText}
-      </td></tr>`;
-    }).join('');
-  }).join('');
+      </div>`);
+    }
+  }
+
+  // Render grouped marmitas
+  const marmitaGroupsHtml = Object.values(groupMap).map(g => `
+    <div style="background:#444;color:#fff;padding:2px 6px;font-size:12px;font-weight:bold;margin-top:4px;">
+      ${g.lineLabel}
+    </div>
+    ${g.rows.join('')}
+  `).join('');
 
   const outrosRows = outros.map(item =>
     `<tr><td style="padding:3px 0;font-size:14px;font-weight:bold;">${item.quantity}x ${item.name}</td></tr>`
@@ -216,9 +228,7 @@ ${marmitas.length > 0 ? `
   <div style="background:#000;color:#fff;padding:4px 6px;font-size:14px;font-weight:bold;text-align:center;letter-spacing:1px;">
     🍱 MARMITAS (${totalMarmitas})
   </div>
-  <table style="margin-top:4px;">
-    ${marmitaRows}
-  </table>
+  ${marmitaGroupsHtml}
 </div>
 ` : ''}
 
