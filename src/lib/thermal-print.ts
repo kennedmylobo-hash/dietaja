@@ -79,18 +79,30 @@ const findFlavorSides = (
   return generateDefaultSides(flavorName, lineKey);
 };
 
-const enrichSideName = (sideName: string, flavorName: string): string => {
+const enrichSideNameForKitchen = (sideName: string, flavorName: string): string => {
   const lowerSide = sideName.toLowerCase().trim();
   const lowerFlavor = flavorName.toLowerCase();
   const isGenericFrango = lowerSide === 'frango';
-  const isGenericCarne = lowerSide === 'carne';
+  const isGenericCarne = lowerSide === 'carne' || lowerSide === 'carne bovina';
   if (!isGenericFrango && !isGenericCarne) return sideName;
+
   if (lowerFlavor.includes('parmegiana') || lowerFlavor.includes('parmigiana'))
     return isGenericFrango ? 'Frango à parmegiana' : 'Carne à parmegiana';
   if (lowerFlavor.includes('macarronada') || lowerFlavor.includes('macarrão'))
     return isGenericFrango ? 'Frango desfiado' : 'Carne desfiada';
   if (lowerFlavor.includes('almôndega') || lowerFlavor.includes('almondega'))
     return isGenericCarne ? 'Almôndega' : sideName;
+  if (lowerFlavor.includes('em cubos'))
+    return isGenericFrango ? 'Frango em cubos' : 'Carne em cubos';
+  if (lowerFlavor.includes('moída') || lowerFlavor.includes('moida'))
+    return isGenericCarne ? 'Carne moída' : sideName;
+  if (lowerFlavor.includes('desfiado') || lowerFlavor.includes('desfiada'))
+    return isGenericFrango ? 'Frango desfiado' : 'Carne desfiada';
+  if (lowerFlavor.includes('grelhado') || lowerFlavor.includes('grelhada'))
+    return isGenericFrango ? 'Frango grelhado' : 'Carne grelhada';
+  if (lowerFlavor.includes('strogonoff') || lowerFlavor.includes('estrogonofe'))
+    return isGenericFrango ? 'Frango (estrogonofe)' : 'Carne (estrogonofe)';
+
   return sideName;
 };
 
@@ -129,14 +141,16 @@ export const generateThermalTicketHTML = (
     for (const f of item.flavors) {
       totalMarmitas += f.quantity;
       const sides = findFlavorSides(f.name, lineKey, flavorSidesMap);
-      const enrichedSides = sides.map(s => ({ ...s, name: enrichSideName(s.name, f.name) }));
+      // Kitchen display: enriched names (e.g. "Frango em cubos")
+      const kitchenSides = sides.map(s => ({ ...s, name: enrichSideNameForKitchen(s.name, f.name) }));
 
-      for (const s of enrichedSides) {
+      // Totals: use original generic names for purchasing/calculation
+      for (const s of sides) {
         const totalW = s.weight * f.quantity;
         ingredientTotals[s.name] = (ingredientTotals[s.name] || 0) + totalW;
       }
 
-      const sidesText = enrichedSides.map(s =>
+      const sidesText = kitchenSides.map(s =>
         `<div style="font-size:11px;color:#444;margin-left:12px;">⚖️ ${s.weight}g ${s.name}</div>`
       ).join('');
 
