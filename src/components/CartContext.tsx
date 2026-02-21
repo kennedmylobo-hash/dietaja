@@ -156,6 +156,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         .from('carts')
         .select('id')
         .eq('phone', info.phone)
+        .eq('status', 'active')
         .maybeSingle();
 
       let cartId = existingCart?.id;
@@ -389,7 +390,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       await supabase
         .from('carts')
         .update({ status: 'converted' })
-        .eq('phone', customerInfo.phone);
+        .eq('phone', customerInfo.phone)
+        .eq('status', 'active');
     } catch (e) {
       console.error('Error marking cart as converted:', e);
     }
