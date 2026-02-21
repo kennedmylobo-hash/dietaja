@@ -151,7 +151,7 @@ export const generateThermalTicketHTML = (
       }
 
       const sidesText = kitchenSides.map(s =>
-        `<div style="font-size:11px;color:#444;margin-left:12px;">⚖️ ${s.weight}g ${s.name}</div>`
+        `<div style="font-size:12px;color:#222;margin-left:12px;">⚖️ ${s.weight}g ${s.name}</div>`
       ).join('');
 
       groupMap[lineKey].rows.push(`<div style="padding:3px 0;border-bottom:1px dashed #ddd;">
@@ -197,6 +197,7 @@ export const generateThermalTicketHTML = (
     width: 80mm;
     padding: 6mm 4mm;
     font-size: 13px;
+    font-weight: bold;
     line-height: 1.3;
     color: #000;
   }
