@@ -141,13 +141,16 @@ export const generateThermalTicketHTML = (
     for (const f of item.flavors) {
       totalMarmitas += f.quantity;
 
-      // Detect custom diet items: flavor name already contains weight specs like "150g carne"
-      const isCustomDiet = /\d+\s*g\s+\w/i.test(f.name);
+      // Detect custom diet items: flavor name contains weight specs like "150g carne"
+      // Also check item.name as fallback since some importers store the full description there
+      const dietSource = f.name || '';
+      const isCustomDiet = /\d+\s*g\s+/i.test(dietSource);
 
       if (isCustomDiet) {
         // Custom diet: ingredients are already in the name, parse them for totals
-        const parts = f.name.split(/\+/).map(p => p.trim());
-        for (const part of parts) {
+        // Split by "+" and strip leading "com " prefix
+        const rawParts = dietSource.split(/\+/).map(p => p.trim().replace(/^com\s+/i, ''));
+        for (const part of rawParts) {
           const wMatch = part.match(/(\d+)\s*g\s+(.+)/i);
           if (wMatch) {
             const ingName = wMatch[2].trim();
@@ -156,10 +159,11 @@ export const generateThermalTicketHTML = (
           }
         }
 
-        // Display as-is without separate sides
+        // Display exactly as sent (strip leading "com ")
+        const displayParts = rawParts.filter(p => /\d+\s*g\s+/i.test(p));
         groupMap[lineKey].rows.push(`<div style="padding:3px 0;border-bottom:1px dashed #ddd;">
           <div style="font-size:14px;font-weight:bold;">${f.quantity}x Dieta personalizada</div>
-          ${parts.map(p => `<div style="font-size:12px;color:#222;margin-left:12px;">⚖️ ${p}</div>`).join('')}
+          ${displayParts.map(p => `<div style="font-size:12px;color:#222;margin-left:12px;">⚖️ ${p}</div>`).join('')}
         </div>`);
       } else {
         // Standard marmita: resolve sides from flavor map
