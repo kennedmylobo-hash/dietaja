@@ -188,12 +188,15 @@ export const generateThermalTicketHTML = (
   }
 
   // Render grouped marmitas
-  const marmitaGroupsHtml = Object.values(groupMap).map(g => `
-    <div style="background:#444;color:#fff;padding:2px 6px;font-size:12px;font-weight:bold;margin-top:4px;">
-      ${g.lineLabel}
+  const marmitaGroupsHtml = Object.values(groupMap).map(g => {
+    const groupQty = g.rows.length; // approximate; real count below
+    return `
+    <div style="border-top:2px solid #000;border-bottom:1px solid #000;padding:3px 0;margin-top:6px;text-align:center;">
+      <div style="font-size:16px;font-weight:bold;letter-spacing:1px;">📦 ${g.lineLabel}</div>
     </div>
     ${g.rows.join('')}
-  `).join('');
+  `;
+  }).join('');
 
   const outrosRows = outros.map(item =>
     `<tr><td style="padding:3px 0;font-size:14px;font-weight:bold;">${item.quantity}x ${item.name}</td></tr>`
@@ -266,8 +269,9 @@ export const generateThermalTicketHTML = (
 <!-- ITENS - MARMITAS -->
 ${marmitas.length > 0 ? `
 <div style="margin-bottom:4px;">
-  <div style="background:#000;color:#fff;padding:4px 6px;font-size:14px;font-weight:bold;text-align:center;letter-spacing:1px;">
-    🍱 MARMITAS (${totalMarmitas})
+  <div style="border:2px solid #000;padding:4px 6px;text-align:center;">
+    <div style="font-size:18px;font-weight:bold;letter-spacing:1px;">🍱 MARMITAS</div>
+    <div style="font-size:16px;font-weight:bold;">TOTAL: ${totalMarmitas} unidades</div>
   </div>
   ${marmitaGroupsHtml}
 </div>
@@ -276,7 +280,7 @@ ${marmitas.length > 0 ? `
 <!-- OUTROS ITENS -->
 ${outros.length > 0 ? `
 <div style="margin-top:4px;">
-  <div style="background:#000;color:#fff;padding:4px 6px;font-size:14px;font-weight:bold;text-align:center;">
+  <div style="border:2px solid #000;padding:4px 6px;text-align:center;font-size:14px;font-weight:bold;">
     📦 OUTROS
   </div>
   <table style="margin-top:4px;">
@@ -290,7 +294,7 @@ ${hasIngredients ? `
 <div class="divider"></div>
 <!-- TOTAL INGREDIENTES -->
 <div>
-  <div style="background:#000;color:#fff;padding:4px 6px;font-size:12px;font-weight:bold;text-align:center;letter-spacing:1px;">
+  <div style="border:2px solid #000;padding:4px 6px;text-align:center;font-size:12px;font-weight:bold;letter-spacing:1px;">
     ⚖️ TOTAL INGREDIENTES
   </div>
   <div style="margin-top:4px;font-size:12px;">
