@@ -2,6 +2,7 @@
 
 import type { Json } from "@/integrations/supabase/types";
 import { getFlavorSidesForLine, generateDefaultSides, FlavorSideItem } from "@/lib/flavor-description";
+import { normalizeVeggieName, normalizeProteinName, classifyIngredientName } from "@/lib/ingredient-normalization";
 
 interface FlavorDetail {
   name: string;
@@ -116,7 +117,7 @@ export const generateThermalTicketHTML = (
   const outros = order.items.filter(i => i.type !== 'marmita');
 
   let totalMarmitas = 0;
-  const ingredientTotals: Record<string, number> = {};
+  const ingredientTotals: Record<string, { weight: number; type: 'protein' | 'carb' | 'salad' }> = {};
 
   // Group marmitas by line type (fit/fitness)
   interface MarmitaGroup { lineKey: 'fit' | 'fitness'; lineLabel: string; rows: string[]; }
@@ -153,9 +154,18 @@ export const generateThermalTicketHTML = (
         for (const part of rawParts) {
           const wMatch = part.match(/(\d+)\s*g\s+(.+)/i);
           if (wMatch) {
-            const ingName = wMatch[2].trim();
+            const rawIngName = wMatch[2].trim();
+            const ingType = classifyIngredientName(rawIngName);
+            const ingName = ingType === 'protein' ? normalizeProteinName(rawIngName)
+              : ingType === 'salad' ? normalizeVeggieName(rawIngName)
+              : rawIngName.charAt(0).toUpperCase() + rawIngName.slice(1);
             const ingWeight = parseInt(wMatch[1]);
-            ingredientTotals[ingName] = (ingredientTotals[ingName] || 0) + ingWeight * f.quantity;
+            const existing = ingredientTotals[ingName];
+            if (existing) {
+              existing.weight += ingWeight * f.quantity;
+            } else {
+              ingredientTotals[ingName] = { weight: ingWeight * f.quantity, type: ingType };
+            }
           }
         }
 
@@ -172,7 +182,13 @@ export const generateThermalTicketHTML = (
 
         for (const s of sides) {
           const totalW = s.weight * f.quantity;
-          ingredientTotals[s.name] = (ingredientTotals[s.name] || 0) + totalW;
+          const normName = classifyIngredientName(s.name) === 'salad' ? normalizeVeggieName(s.name) : s.name;
+          const existing = ingredientTotals[normName];
+          if (existing) {
+            existing.weight += totalW;
+          } else {
+            ingredientTotals[normName] = { weight: totalW, type: classifyIngredientName(s.name) };
+          }
         }
 
         const sidesText = kitchenSides.map(s =>
@@ -210,11 +226,26 @@ export const generateThermalTicketHTML = (
     ? `<div style="font-size:13px;">Desconto${order.coupon_code ? ` (${order.coupon_code})` : ''}: -${fmtMoney(order.discount_amount)}</div>`
     : '';
 
-  // Build ingredient totals footer
+  // Build ingredient totals footer grouped by category
   const hasIngredients = Object.keys(ingredientTotals).length > 0;
-  const ingredientLines = Object.entries(ingredientTotals)
-    .map(([name, weight]) => `<div style="padding:1px 0;">• ${weight}g ${name}</div>`)
-    .join('');
+  const groupedTotals: Record<'protein' | 'carb' | 'salad', { name: string; weight: number }[]> = {
+    protein: [], carb: [], salad: [],
+  };
+  for (const [name, { weight, type }] of Object.entries(ingredientTotals)) {
+    groupedTotals[type].push({ name, weight });
+  }
+  // Sort each group by weight desc
+  for (const arr of Object.values(groupedTotals)) arr.sort((a, b) => b.weight - a.weight);
+
+  const renderGroup = (emoji: string, title: string, items: { name: string; weight: number }[]) =>
+    items.length > 0
+      ? `<div style="margin-top:3px;font-size:11px;font-weight:bold;text-decoration:underline;">${emoji} ${title}</div>` +
+        items.map(i => `<div style="padding:1px 0;font-size:12px;">• ${i.weight}g ${i.name}</div>`).join('')
+      : '';
+
+  const ingredientLines = renderGroup('🥩', 'PROTEÍNAS', groupedTotals.protein)
+    + renderGroup('🍚', 'CARBOIDRATOS', groupedTotals.carb)
+    + renderGroup('🥗', 'LEGUMES', groupedTotals.salad);
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Pedido ${orderNum}</title>
