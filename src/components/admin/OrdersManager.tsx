@@ -67,6 +67,7 @@ import { toast } from "@/hooks/use-toast";
 import { printOrderTicket } from "@/lib/print-utils";
 import { printOrderProduction, generateOrderProductionWhatsApp } from "@/lib/order-production-utils";
 import { shareViaWhatsApp } from "@/lib/print-utils";
+import { printThermalTicket } from "@/lib/thermal-print";
 
 interface FlavorItem {
   name: string;
@@ -1782,7 +1783,16 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                   onClick={() => printOrderTicket(selectedOrder)}
                 >
                   <Printer className="w-4 h-4 mr-2" />
-                  Imprimir Ficha
+                  Imprimir Ficha (A4)
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => printThermalTicket(selectedOrder)}
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  🖨️ Térmica i9 (Cozinha)
                 </Button>
 
                 {/* Production ticket buttons - only for marmita orders */}
