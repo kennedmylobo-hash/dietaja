@@ -1,5 +1,8 @@
 // Thermal printer (i9 80mm) optimized print utilities for kitchen use
 
+import type { Json } from "@/integrations/supabase/types";
+import { getFlavorSidesForLine, generateDefaultSides, FlavorSideItem } from "@/lib/flavor-description";
+
 interface FlavorDetail {
   name: string;
   quantity: number;
@@ -47,35 +50,97 @@ const fmtMoney = (v: number): string =>
 const fmtDate = (d: string): string =>
   new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-export const generateThermalTicketHTML = (order: ThermalOrder, brandName = 'DIETA JÁ'): string => {
-  const orderNum = order.order_number || order.id.slice(0, 8);
+// --- Sides resolution (same logic as order-production-utils) ---
+const stopWords = new Set(['com', 'de', 'e', 'em', 'ao', 'a', 'o', 'mix', 'da', 'do']);
+const extractWords = (str: string) =>
+  str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .split(/[\s,]+/).filter(w => w.length > 1 && !stopWords.has(w));
 
-  // Build items — grouped by type for kitchen clarity
+const findFlavorSides = (
+  flavorName: string,
+  lineKey: 'fit' | 'fitness',
+  flavorSidesMap: Record<string, Json | null>
+): FlavorSideItem[] => {
+  let sidesData = flavorSidesMap[flavorName] ?? null;
+  if (!sidesData) {
+    const targetWords = extractWords(flavorName);
+    let bestMatch = '';
+    let bestScore = 0;
+    for (const key of Object.keys(flavorSidesMap)) {
+      const keyWords = extractWords(key);
+      const overlap = targetWords.filter(w => keyWords.includes(w)).length;
+      const score = overlap / Math.max(targetWords.length, keyWords.length);
+      if (score > bestScore && score >= 0.5) { bestScore = score; bestMatch = key; }
+    }
+    if (bestMatch) sidesData = flavorSidesMap[bestMatch];
+  }
+  const items = sidesData ? getFlavorSidesForLine(sidesData, lineKey) : null;
+  if (items && items.length > 0) return items;
+  return generateDefaultSides(flavorName, lineKey);
+};
+
+const enrichSideName = (sideName: string, flavorName: string): string => {
+  const lowerSide = sideName.toLowerCase().trim();
+  const lowerFlavor = flavorName.toLowerCase();
+  const isGenericFrango = lowerSide === 'frango';
+  const isGenericCarne = lowerSide === 'carne';
+  if (!isGenericFrango && !isGenericCarne) return sideName;
+  if (lowerFlavor.includes('parmegiana') || lowerFlavor.includes('parmigiana'))
+    return isGenericFrango ? 'Frango à parmegiana' : 'Carne à parmegiana';
+  if (lowerFlavor.includes('macarronada') || lowerFlavor.includes('macarrão'))
+    return isGenericFrango ? 'Frango desfiado' : 'Carne desfiada';
+  if (lowerFlavor.includes('almôndega') || lowerFlavor.includes('almondega'))
+    return isGenericCarne ? 'Almôndega' : sideName;
+  return sideName;
+};
+
+export const generateThermalTicketHTML = (
+  order: ThermalOrder,
+  flavorSidesMap: Record<string, Json | null> = {},
+  brandName = 'DIETA JÁ'
+): string => {
+  const orderNum = order.order_number || order.id.slice(0, 8);
   const marmitas = order.items.filter(i => i.type === 'marmita');
   const outros = order.items.filter(i => i.type !== 'marmita');
 
   let totalMarmitas = 0;
+  // Accumulate ingredient totals across the whole order
+  const ingredientTotals: Record<string, number> = {};
 
   const marmitaRows = marmitas.map(item => {
-    const lineLabel = (item.lineType === 'hipertrofia' || item.lineType === 'fitness' || /hipertrofia|fitness/i.test(item.name))
-      ? 'FITNESS 450g' : 'FIT 300g';
+    const lineKey: 'fit' | 'fitness' =
+      (item.lineType === 'hipertrofia' || item.lineType === 'fitness' || /hipertrofia|fitness/i.test(item.name))
+        ? 'fitness' : 'fit';
+    const lineLabel = lineKey === 'fitness' ? 'FITNESS 450g' : 'FIT 300g';
 
     if (!item.flavors?.length) {
       totalMarmitas += item.quantity;
-      return `<tr><td colspan="2" style="padding:4px 0;border-bottom:1px dashed #ccc;font-size:16px;font-weight:bold;">
-        ${item.quantity}x ${item.name} <span style="font-size:11px;color:#888;">${lineLabel}</span>
+      return `<tr><td colspan="2" style="padding:4px 0;border-bottom:1px dashed #ccc;font-size:15px;font-weight:bold;">
+        ${item.quantity}x ${item.name} <span style="font-size:10px;color:#888;">${lineLabel}</span>
       </td></tr>`;
     }
 
-    const flavorLines = item.flavors.map(f => {
+    return item.flavors.map(f => {
       totalMarmitas += f.quantity;
-      return `<tr>
-        <td style="padding:2px 0 2px 8px;font-size:15px;font-weight:bold;">${f.quantity}x ${f.name}</td>
-        <td style="text-align:right;font-size:11px;color:#888;white-space:nowrap;">${lineLabel}</td>
-      </tr>`;
-    }).join('');
+      const sides = findFlavorSides(f.name, lineKey, flavorSidesMap);
+      const enrichedSides = sides.map(s => ({ ...s, name: enrichSideName(s.name, f.name) }));
 
-    return flavorLines;
+      // Accumulate totals
+      for (const s of enrichedSides) {
+        const totalW = s.weight * f.quantity;
+        ingredientTotals[s.name] = (ingredientTotals[s.name] || 0) + totalW;
+      }
+
+      const sidesText = enrichedSides.map(s =>
+        `<div style="font-size:11px;color:#444;margin-left:12px;">⚖️ ${s.weight}g ${s.name}</div>`
+      ).join('');
+
+      return `<tr><td colspan="2" style="padding:3px 0;border-bottom:1px dashed #ddd;">
+        <div style="font-size:14px;font-weight:bold;">${f.quantity}x ${f.name}</div>
+        <div style="float:right;font-size:10px;color:#888;margin-top:-16px;">${lineLabel}</div>
+        ${sidesText}
+      </td></tr>`;
+    }).join('');
   }).join('');
 
   const outrosRows = outros.map(item =>
@@ -90,6 +155,12 @@ export const generateThermalTicketHTML = (order: ThermalOrder, brandName = 'DIET
   const discountLine = order.discount_amount && order.discount_amount > 0
     ? `<div style="font-size:13px;">Desconto${order.coupon_code ? ` (${order.coupon_code})` : ''}: -${fmtMoney(order.discount_amount)}</div>`
     : '';
+
+  // Build ingredient totals footer
+  const hasIngredients = Object.keys(ingredientTotals).length > 0;
+  const ingredientLines = Object.entries(ingredientTotals)
+    .map(([name, weight]) => `<div style="padding:1px 0;">• ${weight}g ${name}</div>`)
+    .join('');
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Pedido ${orderNum}</title>
@@ -111,15 +182,9 @@ export const generateThermalTicketHTML = (order: ThermalOrder, brandName = 'DIET
   .med { font-size: 16px; font-weight: bold; }
   table { width: 100%; border-collapse: collapse; }
   .check-row { display: flex; gap: 10px; justify-content: center; margin-top: 6px; }
-  .check-item { 
-    display: flex; align-items: center; gap: 4px; font-size: 14px; font-weight: bold;
-  }
-  .check-box {
-    width: 16px; height: 16px; border: 2px solid #000; display: inline-block;
-  }
-  @media print {
-    body { width: 80mm; padding: 2mm 3mm; }
-  }
+  .check-item { display: flex; align-items: center; gap: 4px; font-size: 14px; font-weight: bold; }
+  .check-box { width: 16px; height: 16px; border: 2px solid #000; display: inline-block; }
+  @media print { body { width: 80mm; padding: 2mm 3mm; } }
 </style>
 </head><body>
 
@@ -188,6 +253,19 @@ ${discountLine}
   TOTAL: ${fmtMoney(order.total)}
 </div>
 
+${hasIngredients ? `
+<div class="divider"></div>
+<!-- TOTAL INGREDIENTES -->
+<div>
+  <div style="background:#000;color:#fff;padding:4px 6px;font-size:12px;font-weight:bold;text-align:center;letter-spacing:1px;">
+    ⚖️ TOTAL INGREDIENTES
+  </div>
+  <div style="margin-top:4px;font-size:12px;">
+    ${ingredientLines}
+  </div>
+</div>
+` : ''}
+
 <div class="divider"></div>
 
 <!-- CHECKLIST COZINHA -->
@@ -204,8 +282,12 @@ ${discountLine}
 </body></html>`;
 };
 
-export const printThermalTicket = (order: ThermalOrder, brandName = 'DIETA JÁ'): void => {
-  const html = generateThermalTicketHTML(order, brandName);
+export const printThermalTicket = (
+  order: ThermalOrder,
+  flavorSidesMap: Record<string, Json | null> = {},
+  brandName = 'DIETA JÁ'
+): void => {
+  const html = generateThermalTicketHTML(order, flavorSidesMap, brandName);
   const w = window.open('', '_blank', 'width=320,height=600');
   if (!w) {
     alert('Habilite pop-ups para imprimir.');
