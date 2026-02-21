@@ -68,6 +68,17 @@ export function parseDietMessage(text: string): ParsedDietItem[] {
   let currentItem: { num: number; text: string } | null = null;
 
   for (const line of lines) {
+    // Format: "8 marmitas com 150g carne em cubos + 100g arroz branco + 100g feijão"
+    const marmitaMatch = line.match(/^(\d+)\s*marmitas?\s+(?:com\s+)?(.*)/i);
+    if (marmitaMatch) {
+      if (currentItem) {
+        items.push(parseItem(currentItem.num, currentItem.text));
+      }
+      currentItem = { num: parseInt(marmitaMatch[1]), text: marmitaMatch[2] };
+      continue;
+    }
+
+    // Format: "1) ..." or "1. ..." or "1- ..."
     const numberMatch = line.match(/^(\d+)\s*[-.)]\s*(.*)/);
     if (numberMatch) {
       if (currentItem) {
@@ -89,10 +100,11 @@ export function parseDietMessage(text: string): ParsedDietItem[] {
 function parseItem(num: number, text: string): ParsedDietItem {
   const ingredients: ParsedIngredient[] = [];
 
-  const regex = /([^(+\n]+?)\s*\((\d+)\s*g?\)/gi;
+  // Format 1: "ingrediente (150g)" or "ingrediente (150)"
+  const regexParens = /([^(+\n]+?)\s*\((\d+)\s*g?\)/gi;
   let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(text)) !== null) {
+  while ((match = regexParens.exec(text)) !== null) {
     const name = match[1]
       .replace(/^\s*[+,]\s*/, '')
       .replace(/\s*com\s*$/, '')
@@ -105,6 +117,27 @@ function parseItem(num: number, text: string): ParsedDietItem {
         weightGrams: parseInt(match[2]),
         category: classifyIngredient(name),
       });
+    }
+  }
+
+  // Format 2: "150g carne em cubos + 100g arroz branco" (weight before name)
+  if (ingredients.length === 0) {
+    const parts = text.split(/\+/).map(p => p.trim()).filter(Boolean);
+    for (const part of parts) {
+      const wMatch = part.match(/^(\d+)\s*g\s+(.+)/i);
+      if (wMatch) {
+        const name = wMatch[2]
+          .replace(/^\s*de\s+/i, '')
+          .replace(/\s*com\s*$/, '')
+          .trim();
+        if (name) {
+          ingredients.push({
+            name,
+            weightGrams: parseInt(wMatch[1]),
+            category: classifyIngredient(name),
+          });
+        }
+      }
     }
   }
 
