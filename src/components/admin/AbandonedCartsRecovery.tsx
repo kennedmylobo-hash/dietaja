@@ -14,6 +14,7 @@ import {
   Phone,
   DollarSign,
   Gift,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -21,6 +22,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 
 interface CartItem {
@@ -48,7 +59,24 @@ const AbandonedCartsRecovery = () => {
   const [carts, setCarts] = useState<AbandonedCart[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCart, setSelectedCart] = useState<AbandonedCart | null>(null);
+  const [dismissingCartId, setDismissingCartId] = useState<string | null>(null);
   const { brand } = useTenantConfig();
+
+  const dismissCart = async (cartId: string) => {
+    const { error } = await supabase
+      .from('carts')
+      .update({ status: 'dismissed' })
+      .eq('id', cartId);
+
+    if (error) {
+      toast({ title: "Erro ao dispensar carrinho", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Carrinho dispensado" });
+      if (selectedCart?.id === cartId) setSelectedCart(null);
+      setCarts(prev => prev.filter(c => c.id !== cartId));
+    }
+    setDismissingCartId(null);
+  };
 
   const fetchAbandonedCarts = async () => {
     setIsLoading(true);
@@ -344,6 +372,17 @@ const AbandonedCartsRecovery = () => {
                       <Gift className="w-4 h-4 mr-1" />
                       Oferta 10%
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 border-red-600/30 hover:bg-red-500/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDismissingCartId(cart.id);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -427,11 +466,40 @@ const AbandonedCartsRecovery = () => {
                   <Gift className="w-4 h-4 mr-2" />
                   Oferta 10%
                 </Button>
+                <Button
+                  variant="outline"
+                  className="text-red-600 border-red-600/30 hover:bg-red-500/10"
+                  onClick={() => setDismissingCartId(selectedCart.id)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Dispensar
+                </Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Dismiss Confirmation */}
+      <AlertDialog open={!!dismissingCartId} onOpenChange={() => setDismissingCartId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Dispensar carrinho?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O carrinho será removido da listagem, mas os dados continuam salvos no banco.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => dismissingCartId && dismissCart(dismissingCartId)}
+            >
+              Dispensar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
