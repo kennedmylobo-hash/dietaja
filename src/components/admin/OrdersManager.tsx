@@ -1789,7 +1789,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => printThermalTicket(selectedOrder)}
+                  onClick={() => printThermalTicket(selectedOrder, flavorSidesMap)}
                 >
                   <Printer className="w-4 h-4 mr-2" />
                   🖨️ Térmica i9 (Cozinha)
