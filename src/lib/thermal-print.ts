@@ -140,24 +140,46 @@ export const generateThermalTicketHTML = (
 
     for (const f of item.flavors) {
       totalMarmitas += f.quantity;
-      const sides = findFlavorSides(f.name, lineKey, flavorSidesMap);
-      // Kitchen display: enriched names (e.g. "Frango em cubos")
-      const kitchenSides = sides.map(s => ({ ...s, name: enrichSideNameForKitchen(s.name, f.name) }));
 
-      // Totals: use original generic names for purchasing/calculation
-      for (const s of sides) {
-        const totalW = s.weight * f.quantity;
-        ingredientTotals[s.name] = (ingredientTotals[s.name] || 0) + totalW;
+      // Detect custom diet items: flavor name already contains weight specs like "150g carne"
+      const isCustomDiet = /\d+\s*g\s+\w/i.test(f.name);
+
+      if (isCustomDiet) {
+        // Custom diet: ingredients are already in the name, parse them for totals
+        const parts = f.name.split(/\+/).map(p => p.trim());
+        for (const part of parts) {
+          const wMatch = part.match(/(\d+)\s*g\s+(.+)/i);
+          if (wMatch) {
+            const ingName = wMatch[2].trim();
+            const ingWeight = parseInt(wMatch[1]);
+            ingredientTotals[ingName] = (ingredientTotals[ingName] || 0) + ingWeight * f.quantity;
+          }
+        }
+
+        // Display as-is without separate sides
+        groupMap[lineKey].rows.push(`<div style="padding:3px 0;border-bottom:1px dashed #ddd;">
+          <div style="font-size:14px;font-weight:bold;">${f.quantity}x Dieta personalizada</div>
+          ${parts.map(p => `<div style="font-size:12px;color:#222;margin-left:12px;">⚖️ ${p}</div>`).join('')}
+        </div>`);
+      } else {
+        // Standard marmita: resolve sides from flavor map
+        const sides = findFlavorSides(f.name, lineKey, flavorSidesMap);
+        const kitchenSides = sides.map(s => ({ ...s, name: enrichSideNameForKitchen(s.name, f.name) }));
+
+        for (const s of sides) {
+          const totalW = s.weight * f.quantity;
+          ingredientTotals[s.name] = (ingredientTotals[s.name] || 0) + totalW;
+        }
+
+        const sidesText = kitchenSides.map(s =>
+          `<div style="font-size:12px;color:#222;margin-left:12px;">⚖️ ${s.weight}g ${s.name}</div>`
+        ).join('');
+
+        groupMap[lineKey].rows.push(`<div style="padding:3px 0;border-bottom:1px dashed #ddd;">
+          <div style="font-size:14px;font-weight:bold;">${f.quantity}x ${f.name}</div>
+          ${sidesText}
+        </div>`);
       }
-
-      const sidesText = kitchenSides.map(s =>
-        `<div style="font-size:12px;color:#222;margin-left:12px;">⚖️ ${s.weight}g ${s.name}</div>`
-      ).join('');
-
-      groupMap[lineKey].rows.push(`<div style="padding:3px 0;border-bottom:1px dashed #ddd;">
-        <div style="font-size:14px;font-weight:bold;">${f.quantity}x ${f.name}</div>
-        ${sidesText}
-      </div>`);
     }
   }
 
