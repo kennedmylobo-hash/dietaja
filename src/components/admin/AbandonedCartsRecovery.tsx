@@ -450,7 +450,7 @@ const AbandonedCartsRecovery = () => {
           </DialogHeader>
           
           {selectedCart && (
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0 overflow-hidden">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-muted-foreground">WhatsApp</p>
@@ -489,14 +489,14 @@ const AbandonedCartsRecovery = () => {
               <div className="border rounded-lg p-3 space-y-2">
                 <p className="font-medium text-sm">Itens no carrinho:</p>
                 {selectedCart.items?.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span>{item.quantity}x {item.name}</span>
-                    <span>R$ {(item.totalPrice || 0).toFixed(2).replace('.', ',')}</span>
+                  <div key={idx} className="flex justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate">{item.quantity}x {item.name}</span>
+                    <span className="flex-shrink-0 whitespace-nowrap font-medium">R$ {(item.totalPrice || 0).toFixed(2).replace('.', ',')}</span>
                   </div>
                 ))}
-                <div className="border-t pt-2 mt-2 flex justify-between font-semibold">
+                <div className="border-t pt-2 mt-2 flex justify-between gap-2 font-semibold">
                   <span>Total</span>
-                  <span>R$ {(selectedCart.subtotal || 0).toFixed(2).replace('.', ',')}</span>
+                  <span className="flex-shrink-0">R$ {(selectedCart.subtotal || 0).toFixed(2).replace('.', ',')}</span>
                 </div>
               </div>
 
@@ -515,7 +515,7 @@ const AbandonedCartsRecovery = () => {
                 </div>
               )}
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   className="flex-1 bg-green-600 hover:bg-green-700"
                   onClick={() => openWhatsAppRecovery(selectedCart)}
