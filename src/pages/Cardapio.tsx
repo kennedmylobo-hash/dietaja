@@ -105,7 +105,7 @@ const CardapioContent = () => {
 
   // Get cheapest package for each line
   const getDefaultMarmitaPackage = useCallback((lineType: string) => {
-    const pkgs = (marmitaPackages || []).filter(p => p.line_type === lineType).sort((a, b) => a.unit_price - b.unit_price);
+    const pkgs = (marmitaPackages || []).filter(p => p.line_type === lineType).sort((a, b) => a.quantity - b.quantity);
     return pkgs[0] || null;
   }, [marmitaPackages]);
 
