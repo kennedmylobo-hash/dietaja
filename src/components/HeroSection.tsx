@@ -6,12 +6,14 @@ import produtosVideo from "@/assets/produtos-detox-video.mp4";
 import produtosPoster from "@/assets/produtos-detox.jpg";
 import { useLandingContent } from "@/hooks/useLandingContent";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
+import { useABTest } from "@/hooks/useABTest";
 
 const HeroSection = () => {
   const { location } = useTenantConfig();
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const { content, isVisible } = useLandingContent("hero");
+  const { getVariantValue } = useABTest();
 
   // Only play video when visible in viewport
   useEffect(() => {
@@ -33,10 +35,14 @@ const HeroSection = () => {
 
   if (!isVisible) return null;
 
-  // Fallback to hardcoded content
-  const title = content?.title ?? "Coma melhor mesmo sem tempo —";
-  const titleHighlight = content?.title_highlight ?? "e sinta seu corpo responder.";
-  const subtitle = content?.subtitle ?? "Alimentação saudável pronta para quem tem rotina corrida em";
+  // Fallback to hardcoded content, with A/B test override
+  const baseTitle = content?.title ?? "Coma melhor mesmo sem tempo —";
+  const baseTitleHighlight = content?.title_highlight ?? "e sinta seu corpo responder.";
+  const baseSubtitle = content?.subtitle ?? "Alimentação saudável pronta para quem tem rotina corrida em";
+
+  const title = getVariantValue("hero_title") ?? baseTitle;
+  const titleHighlight = getVariantValue("hero_title_highlight") ?? baseTitleHighlight;
+  const subtitle = getVariantValue("hero_subtitle") ?? baseSubtitle;
   const badges = content?.badges ?? [
     { emoji: "📍", text: "Retirada grátis" },
     { emoji: "⚡", text: "Pronto em 3 min" },
@@ -112,7 +118,7 @@ const HeroSection = () => {
             className="animate-fade-in text-base sm:text-lg px-8 py-6 rounded-full shadow-lg"
             onClick={() => navigate("/cardapio")}
           >
-            Alimentação saudável a partir de R$ 22,90 por refeição
+            {getVariantValue("hero_cta") ?? "Alimentação saudável a partir de R$ 22,90 por refeição"}
           </Button>
 
         </div>
