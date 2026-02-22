@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Star, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import produtosVideo from "@/assets/produtos-detox-video.mp4";
@@ -8,6 +9,7 @@ import { useTenantConfig } from "@/hooks/useTenantConfig";
 
 const HeroSection = () => {
   const { location } = useTenantConfig();
+  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const { content, isVisible } = useLandingContent("hero");
 
@@ -108,9 +110,9 @@ const HeroSection = () => {
           <Button
             size="lg"
             className="animate-fade-in text-base sm:text-lg px-8 py-6 rounded-full shadow-lg"
-            onClick={() => document.getElementById("kits")?.scrollIntoView({ behavior: "smooth" })}
+            onClick={() => navigate("/fit")}
           >
-            Ver kits a partir de R$ 89,90
+            Melhore sua alimentação por menos de R$ 22,90 por refeição
           </Button>
 
         </div>
