@@ -15,14 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Play, Pause, Trophy, Trash2, FlaskConical } from "lucide-react";
+import { Plus, Play, Pause, Trophy, Trash2, FlaskConical, Sparkles, Loader2 } from "lucide-react";
 import ABTestReport from "./ABTestReport";
 
 const TARGET_OPTIONS = [
-  { value: "hero_title", label: "Hero — Título" },
-  { value: "hero_subtitle", label: "Hero — Subtítulo" },
-  { value: "hero_cta", label: "Hero — Botão CTA" },
-  { value: "hero_title_highlight", label: "Hero — Destaque do título" },
+  { value: "hero_title", label: "Hero — Título", contentKey: "title" },
+  { value: "hero_subtitle", label: "Hero — Subtítulo", contentKey: "subtitle" },
+  { value: "hero_cta", label: "Hero — Botão CTA", contentKey: "cta_text" },
+  { value: "hero_title_highlight", label: "Hero — Destaque do título", contentKey: "title_highlight" },
 ];
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -49,6 +49,7 @@ export default function ABTestManager() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   // Form state
   const [name, setName] = useState("");
@@ -72,21 +73,21 @@ export default function ABTestManager() {
   });
 
   const createTest = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (overrides: { name: string; target: string; a: string; b: string; status: string } | undefined) => {
       const { error } = await supabase.from("ab_tests" as any).insert({
         tenant_id: tenantId,
-        name,
-        target_section: targetSection,
-        variant_a_value: variantA,
-        variant_b_value: variantB,
-        traffic_split: trafficSplit,
-        status: "paused",
+        name: overrides?.name || name,
+        target_section: overrides?.target || targetSection,
+        variant_a_value: overrides?.a || variantA,
+        variant_b_value: overrides?.b || variantB,
+        traffic_split: 50,
+        status: overrides?.status || "paused",
       } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ab-tests"] });
-      toast({ title: "Teste criado!", description: "Ative quando estiver pronto." });
+      toast({ title: "Teste criado!", description: "Teste ativado automaticamente." });
       resetForm();
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -121,6 +122,73 @@ export default function ABTestManager() {
     },
   });
 
+  const handleGenerateWithAI = async () => {
+    setIsGeneratingAI(true);
+    try {
+      // Fetch current hero content from tenant_landing_content
+      const { data: heroContent } = await supabase
+        .from("tenant_landing_content")
+        .select("content")
+        .eq("tenant_id", tenantId)
+        .eq("section_key", "hero")
+        .maybeSingle();
+
+      const content = (heroContent?.content as any) || {};
+
+      // Generate for each hero section that has content
+      const sections = TARGET_OPTIONS.filter(opt => {
+        const val = content[opt.contentKey];
+        return val && typeof val === "string" && val.trim().length > 0;
+      });
+
+      if (sections.length === 0) {
+        toast({
+          title: "Sem conteúdo no Hero",
+          description: "Configure o conteúdo do Hero primeiro no editor de landing page.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Pick the first available section (title preferred)
+      const section = sections.find(s => s.value === "hero_title") || sections[0];
+      const currentText = content[section.contentKey];
+
+      // Call edge function
+      const { data: fnData, error: fnError } = await supabase.functions.invoke("generate-ab-variant", {
+        body: { currentContent: currentText, targetSection: section.value },
+      });
+
+      if (fnError) throw fnError;
+      if (fnData?.error) throw new Error(fnData.error);
+
+      const generatedText = fnData.generatedText;
+
+      // Create and activate test immediately
+      await createTest.mutateAsync({
+        name: `IA: ${section.label}`,
+        target: section.value,
+        a: currentText,
+        b: generatedText,
+        status: "active",
+      });
+
+      toast({
+        title: "🤖 Teste A/B criado com IA!",
+        description: `Variante B gerada e teste ativado automaticamente para "${section.label}".`,
+      });
+    } catch (e: any) {
+      console.error("AI generation error:", e);
+      toast({
+        title: "Erro ao gerar com IA",
+        description: e.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
   const resetForm = () => {
     setShowForm(false);
     setName("");
@@ -146,16 +214,30 @@ export default function ABTestManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <FlaskConical className="h-6 w-6" /> Testes A/B
           </h2>
           <p className="text-sm text-muted-foreground">Teste variações e veja qual converte mais</p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)}>
-          <Plus className="h-4 w-4 mr-2" /> Novo Teste
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleGenerateWithAI}
+            disabled={isGeneratingAI}
+            className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
+          >
+            {isGeneratingAI ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-2" />
+            )}
+            {isGeneratingAI ? "Gerando..." : "Gerar com IA"}
+          </Button>
+          <Button variant="outline" onClick={() => setShowForm(!showForm)}>
+            <Plus className="h-4 w-4 mr-2" /> Manual
+          </Button>
+        </div>
       </div>
 
       {/* Create form */}
@@ -192,12 +274,8 @@ export default function ABTestManager() {
                 <Input placeholder="Texto novo a testar" value={variantB} onChange={(e) => setVariantB(e.target.value)} />
               </div>
             </div>
-            <div className="space-y-2 max-w-xs">
-              <Label>Tráfego para variante B (%)</Label>
-              <Input type="number" min={10} max={90} value={trafficSplit} onChange={(e) => setTrafficSplit(Number(e.target.value))} />
-            </div>
             <div className="flex gap-2">
-              <Button onClick={() => createTest.mutate()} disabled={!name || !targetSection || !variantA || !variantB}>
+              <Button onClick={() => createTest.mutate(undefined)} disabled={!name || !targetSection || !variantA || !variantB}>
                 Criar teste
               </Button>
               <Button variant="ghost" onClick={resetForm}>Cancelar</Button>
@@ -213,7 +291,19 @@ export default function ABTestManager() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <FlaskConical className="h-12 w-12 mx-auto mb-4 opacity-30" />
-            <p>Nenhum teste A/B ainda. Crie um para começar!</p>
+            <p className="mb-4">Nenhum teste A/B ainda.</p>
+            <Button
+              onClick={handleGenerateWithAI}
+              disabled={isGeneratingAI}
+              className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
+            >
+              {isGeneratingAI ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              {isGeneratingAI ? "Gerando..." : "Gerar primeiro teste com IA"}
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -227,9 +317,14 @@ export default function ABTestManager() {
                 <CardContent className="pt-6">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold">{test.name}</h3>
                         <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                        {test.name.startsWith("IA:") && (
+                          <Badge variant="outline" className="border-violet-500 text-violet-600">
+                            <Sparkles className="h-3 w-3 mr-1" /> Gerado por IA
+                          </Badge>
+                        )}
                         {test.winner && (
                           <Badge variant="default" className="bg-amber-500">
                             <Trophy className="h-3 w-3 mr-1" /> Variante {test.winner.toUpperCase()} venceu

@@ -1,10 +1,11 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useEffect, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantId } from "@/hooks/useTenantId";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Users, ShoppingCart, TrendingUp, DollarSign, Repeat, BarChart3 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { Trophy, Users, ShoppingCart, TrendingUp, DollarSign, Repeat, BarChart3, Bot } from "lucide-react";
 
 interface ABTest {
   id: string;
@@ -28,6 +29,13 @@ interface VariantStats {
   retentionRate: number;
 }
 
+const TARGET_CONTENT_KEY: Record<string, string> = {
+  hero_title: "title",
+  hero_subtitle: "subtitle",
+  hero_cta: "cta_text",
+  hero_title_highlight: "title_highlight",
+};
+
 // Z-test for two proportions
 function calculateConfidence(nA: number, cA: number, nB: number, cB: number): number {
   if (nA < 10 || nB < 10) return 0;
@@ -37,7 +45,6 @@ function calculateConfidence(nA: number, cA: number, nB: number, cB: number): nu
   const se = Math.sqrt(pPool * (1 - pPool) * (1 / nA + 1 / nB));
   if (se === 0) return 0;
   const z = Math.abs(pB - pA) / se;
-  // Approximate normal CDF
   const t = 1 / (1 + 0.2316419 * z);
   const d = 0.3989423 * Math.exp(-z * z / 2);
   const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
@@ -46,8 +53,9 @@ function calculateConfidence(nA: number, cA: number, nB: number, cB: number): nu
 
 export default function ABTestReport({ test }: { test: ABTest }) {
   const tenantId = useTenantId();
+  const queryClient = useQueryClient();
+  const autoWinnerTriggered = useRef(false);
 
-  // Fetch analytics events for this test
   const { data: events } = useQuery({
     queryKey: ["ab-report-events", test.id],
     queryFn: async () => {
@@ -61,7 +69,6 @@ export default function ABTestReport({ test }: { test: ABTest }) {
     },
   });
 
-  // Fetch orders
   const { data: orders } = useQuery({
     queryKey: ["ab-report-orders", test.id],
     queryFn: async () => {
@@ -74,10 +81,53 @@ export default function ABTestReport({ test }: { test: ABTest }) {
     },
   });
 
+  // Auto-winner mutation
+  const declareWinner = useMutation({
+    mutationFn: async ({ winner, winnerValue }: { winner: string; winnerValue: string }) => {
+      // 1. Update ab_test
+      const { error: testError } = await supabase
+        .from("ab_tests" as any)
+        .update({ status: "completed", winner, ended_at: new Date().toISOString() } as any)
+        .eq("id", test.id);
+      if (testError) throw testError;
+
+      // 2. If winner is B, apply winning content to tenant_landing_content
+      if (winner === "b") {
+        const contentKey = TARGET_CONTENT_KEY[test.target_section];
+        if (contentKey) {
+          const { data: existing } = await supabase
+            .from("tenant_landing_content")
+            .select("content")
+            .eq("tenant_id", tenantId)
+            .eq("section_key", "hero")
+            .maybeSingle();
+
+          const currentContent = (existing?.content as any) || {};
+          const updatedContent = { ...currentContent, [contentKey]: winnerValue };
+
+          await supabase
+            .from("tenant_landing_content")
+            .upsert({
+              tenant_id: tenantId,
+              section_key: "hero",
+              content: updatedContent,
+            } as any, { onConflict: "tenant_id,section_key" });
+        }
+      }
+    },
+    onSuccess: (_, { winner }) => {
+      queryClient.invalidateQueries({ queryKey: ["ab-tests"] });
+      queryClient.invalidateQueries({ queryKey: ["landing-content"] });
+      toast({
+        title: "🏆 Vencedor declarado automaticamente!",
+        description: `Variante ${winner.toUpperCase()} venceu com confiança ≥ 95%. ${winner === "b" ? "O conteúdo vencedor foi aplicado." : "O conteúdo original permanece."}`,
+      });
+    },
+  });
+
   const stats = useMemo(() => {
     if (!events || !orders) return null;
 
-    // Filter events for this test
     const testEvents = events.filter((e: any) => {
       const meta = e.metadata as any;
       return meta?.test_id === test.id;
@@ -92,7 +142,6 @@ export default function ABTestReport({ test }: { test: ABTest }) {
       else if (meta?.variant === "b") sessionsB.add(e.session_id);
     });
 
-    // Filter orders that have ab data
     const ordersWithAB = orders.filter((o: any) => {
       const utm = o.utm_data as any;
       return utm?.ab_test_id === test.id;
@@ -104,7 +153,6 @@ export default function ABTestReport({ test }: { test: ABTest }) {
     const revenueA = ordersA.reduce((s: number, o: any) => s + Number(o.total), 0);
     const revenueB = ordersB.reduce((s: number, o: any) => s + Number(o.total), 0);
 
-    // Retention: customers with 2+ orders
     const countRetention = (orderList: any[]) => {
       const emailCounts: Record<string, number> = {};
       orderList.forEach((o) => { emailCounts[o.customer_email] = (emailCounts[o.customer_email] || 0) + 1; });
@@ -136,6 +184,17 @@ export default function ABTestReport({ test }: { test: ABTest }) {
     return { a, b, confidence };
   }, [events, orders, test.id]);
 
+  // Auto-declare winner when confidence >= 95% and enough visitors
+  useEffect(() => {
+    if (!stats || test.status !== "active" || autoWinnerTriggered.current) return;
+    if (stats.confidence >= 95 && stats.a.visitors >= 100 && stats.b.visitors >= 100) {
+      autoWinnerTriggered.current = true;
+      const winner = stats.b.conversionRate > stats.a.conversionRate ? "b" : "a";
+      const winnerValue = winner === "b" ? test.variant_b_value : test.variant_a_value;
+      declareWinner.mutate({ winner, winnerValue });
+    }
+  }, [stats, test.status]);
+
   const formatCurrency = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -146,6 +205,8 @@ export default function ABTestReport({ test }: { test: ABTest }) {
   };
 
   if (!stats) return <div className="text-muted-foreground">Carregando relatório...</div>;
+
+  const isAutoCompleted = test.status === "completed" && test.name.startsWith("IA:");
 
   const metrics = [
     { icon: Users, label: "Visitantes", a: stats.a.visitors.toString(), b: stats.b.visitors.toString(), diff: pctDiff(stats.a.visitors, stats.b.visitors), better: stats.b.visitors > stats.a.visitors ? "b" : stats.a.visitors > stats.b.visitors ? "a" : null },
@@ -162,6 +223,11 @@ export default function ABTestReport({ test }: { test: ABTest }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5" /> Relatório: {test.name}
+            {isAutoCompleted && (
+              <Badge variant="outline" className="border-violet-500 text-violet-600">
+                <Bot className="h-3 w-3 mr-1" /> Encerrado automaticamente
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex gap-2 text-sm text-muted-foreground">
             <span>A: "{test.variant_a_value.substring(0, 60)}"</span>
@@ -185,6 +251,14 @@ export default function ABTestReport({ test }: { test: ABTest }) {
               )}
             </div>
           </div>
+
+          {/* Auto-winner info */}
+          {test.status === "active" && stats.a.visitors < 100 && (
+            <div className="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-sm text-blue-700 dark:text-blue-300">
+              ⏳ O teste será encerrado automaticamente quando atingir ≥ 100 visitantes por variante e confiança ≥ 95%.
+              Faltam {Math.max(0, 100 - stats.a.visitors)} visitantes para A e {Math.max(0, 100 - stats.b.visitors)} para B.
+            </div>
+          )}
 
           {/* Metrics table */}
           <div className="overflow-x-auto">
