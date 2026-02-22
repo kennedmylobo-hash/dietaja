@@ -112,7 +112,7 @@ const HeroSection = () => {
             className="animate-fade-in text-base sm:text-lg px-8 py-6 rounded-full shadow-lg"
             onClick={() => navigate("/fit")}
           >
-            Melhore sua alimentação por menos de R$ 22,90 por refeição
+            Alimentação saudável a partir de R$ 22,90 por refeição
           </Button>
 
         </div>
