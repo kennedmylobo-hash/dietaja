@@ -127,15 +127,16 @@ const Admin = () => {
       if (session) {
         // Verify admin role with retry (RLS may need a moment after session restore)
         let adminRole = null;
-        for (let attempt = 0; attempt < 3; attempt++) {
-          const { data: roles } = await supabase
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const { data: roles, error: rolesError } = await supabase
             .from('user_roles')
             .select('role, tenant_id')
             .eq('user_id', session.user.id);
           
+          console.log(`[Admin] Session restore role check attempt ${attempt + 1}:`, { roles, rolesError });
           adminRole = roles?.find((r: any) => r.role === 'admin' || r.role === 'super_admin');
           if (adminRole) break;
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 800 * (attempt + 1)));
         }
 
         if (adminRole) {
@@ -424,16 +425,17 @@ const Admin = () => {
 
       // Check admin role with retry (RLS may need a moment after fresh login)
       let adminRole = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const { data: roles } = await supabase
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const { data: roles, error: rolesError } = await supabase
           .from('user_roles')
           .select('role, tenant_id')
           .eq('user_id', data.user.id);
 
+        console.log(`[Admin] Role check attempt ${attempt + 1}:`, { roles, rolesError });
         adminRole = roles?.find((r: any) => r.role === 'admin' || r.role === 'super_admin');
         if (adminRole) break;
-        // Wait briefly before retrying
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Wait before retrying - increase delay each attempt
+        await new Promise(resolve => setTimeout(resolve, 800 * (attempt + 1)));
       }
 
       if (!adminRole) {
