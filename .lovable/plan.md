@@ -1,116 +1,58 @@
 
+# Teste A/B 100% Automatico com IA
 
-# Sistema de Teste A/B Automatico com Relatorio no Painel Admin
+## O que vai mudar
 
-## Resumo
+O sistema de Teste A/B vai ganhar duas funcionalidades novas:
 
-O sistema vai funcionar 100% automatico: voce cria o teste no painel, e ele roda sozinho. O relatorio atualiza em tempo real mostrando qual variante esta ganhando, taxa de retencao, vendas, e confianca estatistica.
+### 1. Botao "Gerar com IA" no painel
+- Um botao no ABTestManager que, ao clicar, usa IA para analisar o conteudo atual do Hero (titulo, subtitulo, CTA) e gerar automaticamente uma variante B otimizada para conversao
+- A IA vai considerar o nicho de marmitas/alimentacao saudavel e criar textos persuasivos
+- O teste ja e criado e ativado automaticamente com split 50/50
 
-## Como vai funcionar para voce
-
-1. No painel admin, em "Analytics", aparece uma nova opcao: **Teste A/B**
-2. Voce cria um teste escolhendo o que quer testar (titulo do Hero, texto do CTA, etc.)
-3. Define o texto da variante A (atual) e variante B (nova)
-4. Ativa o teste e pronto - ele roda sozinho
-5. O relatorio mostra em tempo real:
-   - Visitantes de cada variante
-   - Pedidos de cada variante
-   - Taxa de conversao (%) de cada uma
-   - Receita total por variante
-   - Ticket medio por variante
-   - Taxa de retencao (clientes que voltaram)
-   - Qual variante esta ganhando com indicador visual
-   - Confianca estatistica (ex: "92% de certeza que B e melhor")
-
-## O que aparece no relatorio
-
-| Metrica | Variante A | Variante B | Diferenca |
-|---------|-----------|-----------|-----------|
-| Visitantes | 1.200 | 1.180 | - |
-| Pedidos | 48 | 67 | +39% |
-| Conversao | 4.0% | 5.7% | +42% |
-| Receita | R$ 4.320 | R$ 6.030 | +39% |
-| Ticket Medio | R$ 90 | R$ 90 | 0% |
-| Retencao | 12% | 18% | +50% |
-| Confianca | - | - | 94% |
+### 2. Auto-declaracao de vencedor
+- O sistema verifica periodicamente (a cada vez que o relatorio e aberto, ou via polling a cada 30 min no painel) se um teste atingiu confianca estatistica >= 95% com minimo de 100 visitantes por variante
+- Quando atinge, o teste e encerrado automaticamente, o vencedor e declarado, e o conteudo vencedor e aplicado permanentemente na `tenant_landing_content`
+- O admin recebe uma notificacao (toast) quando um teste e concluido automaticamente
 
 ---
 
 ## Detalhes tecnicos
 
-### 1. Nova tabela `ab_tests`
+### Edge Function: `generate-ab-variant`
+- Recebe o conteudo atual (titulo, subtitulo, CTA) e o target_section
+- Usa Lovable AI (google/gemini-3-flash-preview) para gerar uma variante B otimizada
+- Retorna o texto sugerido
+- Prompt focado em copywriting para conversao no nicho de alimentacao saudavel
 
-Armazena testes configurados pelo admin:
-- `id`, `tenant_id`, `name`
-- `target_section` (hero_title, hero_subtitle, cta_text)
-- `variant_a_value` (texto atual)
-- `variant_b_value` (texto novo)
-- `status` (active / paused / completed)
-- `traffic_split` (default 50 - porcentagem para variante B)
-- `winner` (null, a, b)
-- `created_at`, `ended_at`
+### ABTestManager.tsx - Mudancas
+- Novo botao "Gerar com IA" que:
+  1. Busca o conteudo atual do Hero da `tenant_landing_content`
+  2. Chama a edge function `generate-ab-variant`
+  3. Cria o teste automaticamente com variante A (atual) e B (gerada pela IA)
+  4. Ativa o teste imediatamente
+- Estado de loading enquanto IA gera
 
-RLS: admin pode gerenciar (ALL) com `has_role + tenant_id`; leitura publica para testes ativos.
-
-### 2. Hook `useABTest.ts`
-
-- Busca testes ativos para o tenant (1 query, cacheada com react-query)
-- Sorteia variante 50/50, salva em `localStorage` com chave `ab_test_{test_id}`
-- Retorna `getVariantValue(targetSection)` que devolve o texto correto
-- Grava evento `ab_variant_assigned` na `analytics_events` com `metadata: { test_id, variant }` (apenas 1x por sessao)
-
-### 3. Integracao com analytics e pedidos
-
-- `useAnalytics.ts`: todos os eventos incluem `metadata.ab_test_id` e `metadata.ab_variant` quando teste ativo
-- `CartContext.tsx`: ao criar pedido, inclui `ab_test_id` e `ab_variant` no campo `utm_data` (jsonb)
-- Zero impacto em performance: apenas adiciona 2 campos ao objeto existente
-
-### 4. Componente `ABTestManager.tsx` (Admin)
-
-- Lista testes existentes (ativos, pausados, finalizados)
-- Formulario para criar novo teste
-- Botoes para ativar/pausar/encerrar e declarar vencedor
-- Historico de testes anteriores
-
-### 5. Componente `ABTestReport.tsx` (Admin)
-
-- Busca `analytics_events` filtrando por `metadata->ab_test_id`
-- Busca `orders` filtrando por `utm_data->ab_test_id`
-- Calcula para cada variante:
-  - Sessoes unicas (visitantes)
-  - Pedidos confirmados
-  - Taxa de conversao
-  - Receita total
-  - Ticket medio
-  - Taxa de retencao (clientes com 2+ pedidos)
-  - Confianca estatistica (teste Z para proporcoes)
-- Exibe cards comparativos com badge "Ganhando" na melhor variante
-- Grafico de conversao diaria por variante
-
-### 6. Consumo nas paginas
-
-- `HeroSection.tsx`: usa `useABTest` para pegar titulo/subtitulo alternativo
-- Fallback seguro: se nao ha teste ativo, mostra o conteudo original (variante A)
+### ABTestReport.tsx - Auto-Winner
+- Adicionar logica que verifica: se `confidence >= 95` e ambas variantes tem `>= 100 visitantes`, chama mutation para encerrar teste e declarar vencedor
+- Quando vencedor e B, atualiza `tenant_landing_content` com o texto vencedor (para que vire o novo "padrao")
+- Badge especial "Encerrado automaticamente" para testes auto-concluidos
 
 ### Arquivos a criar
-
-- `src/hooks/useABTest.ts`
-- `src/components/admin/ABTestManager.tsx`
-- `src/components/admin/ABTestReport.tsx`
-- Migracao SQL para tabela `ab_tests`
+- `supabase/functions/generate-ab-variant/index.ts` - Edge function com IA
 
 ### Arquivos a modificar
+- `src/components/admin/ABTestManager.tsx` - Botao "Gerar com IA" e auto-ativacao
+- `src/components/admin/ABTestReport.tsx` - Logica de auto-winner com aplicacao do conteudo vencedor
 
-- `src/components/HeroSection.tsx` - consumir variante
-- `src/hooks/useAnalytics.ts` - incluir ab_variant nos eventos
-- `src/components/CartContext.tsx` - incluir ab_variant no pedido
-- `src/components/admin/AdminSidebar.tsx` - nova opcao "Teste A/B" no menu
-- `src/pages/Admin.tsx` - renderizar ABTestManager/Report
-
-### Impacto em performance
-
-- 1 query extra no carregamento (cacheada por 5 min)
-- localStorage para nao repetir atribuicao
-- Nenhuma biblioteca nova
-- Zero alteracao no fluxo de checkout existente
-
+### Fluxo completo
+1. Admin clica "Gerar com IA"
+2. Sistema busca conteudo atual do Hero
+3. IA gera variante B otimizada
+4. Teste e criado e ativado automaticamente (50/50)
+5. Visitantes sao distribuidos entre A e B
+6. Quando confianca >= 95% com dados suficientes, sistema automaticamente:
+   - Declara o vencedor
+   - Se B venceu, atualiza o conteudo permanente
+   - Encerra o teste
+7. Admin ve no painel qual ganhou e pode gerar outro teste
