@@ -255,13 +255,13 @@ const CardapioContent = () => {
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:pb-0 md:grid md:grid-cols-3 md:overflow-visible max-w-5xl mx-auto scrollbar-hide">
               {lines.map((line, i) => {
                 const Icon = line.icon;
                 return (
                   <motion.div
                     key={line.slug}
-                    className={`group relative flex flex-col rounded-2xl border ${line.borderColor} bg-gradient-to-b ${line.color} p-4 sm:p-6 text-left transition-all hover:shadow-lg`}
+                    className={`group relative flex flex-col rounded-2xl border ${line.borderColor} bg-gradient-to-b ${line.color} p-4 sm:p-6 text-left transition-all hover:shadow-lg min-w-[80vw] snap-center md:min-w-0`}
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: i * 0.1 }}
