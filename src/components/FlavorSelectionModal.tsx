@@ -184,7 +184,10 @@ const FlavorSelectionModal = ({
     const next = sortedTiers.find(t => t.minQuantity > totalSelected && t.unitPrice < currentPrice);
     if (!next) return null;
     const unitsNeeded = next.minQuantity - totalSelected;
-    return { unitsNeeded, unitPrice: next.unitPrice, minQuantity: next.minQuantity };
+    const totalAtNextTier = next.minQuantity;
+    const savingPerUnit = currentPrice - next.unitPrice;
+    const totalSaving = savingPerUnit * totalAtNextTier;
+    return { unitsNeeded, unitPrice: next.unitPrice, minQuantity: next.minQuantity, totalSaving };
   }, [totalSelected, sortedTiers, packageUnitPrice]);
 
   // Calculate dynamic total based on per-flavor prices with tier pricing
@@ -399,8 +402,8 @@ const FlavorSelectionModal = ({
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/10 border border-primary/20 text-sm">
                   <TrendingDown className="w-4 h-4 text-primary shrink-0" />
                   <span className="text-foreground">
-                    <strong className="text-primary">+{nextTier.unitsNeeded} un</strong> para pagar{' '}
-                    <strong className="text-primary">{formatPrice(nextTier.unitPrice)}/un</strong>
+                    <strong className="text-primary">+{nextTier.unitsNeeded} marmitas</strong> para ganhar{' '}
+                    <strong className="text-primary">{formatPrice(nextTier.totalSaving)}</strong> de desconto
                   </span>
                 </div>
               </motion.div>
