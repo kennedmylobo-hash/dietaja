@@ -376,7 +376,7 @@ const FlavorSelectionModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0 flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[100dvh] sm:max-h-[90vh] h-[100dvh] sm:h-auto p-0 gap-0 flex flex-col sm:rounded-lg rounded-none">
         <DialogHeader className="p-4 pb-2 border-b bg-background shrink-0">
           <DialogTitle className="text-lg font-bold">
             Escolha seus sabores
@@ -699,9 +699,9 @@ const FlavorSelectionModal = ({
                                 initial={{ opacity: 0, scale: 0.5 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 onClick={() => updateQuantity(flavor, -1)}
-                                className="p-1.5 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+                                className="p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors"
                               >
-                                <Minus className="w-3.5 h-3.5" />
+                                <Minus className="w-4 h-4" />
                               </motion.button>
                             )}
                             
@@ -721,13 +721,13 @@ const FlavorSelectionModal = ({
                                   <button
                                     onClick={() => updateQuantity(flavor, 1)}
                                     disabled={isOutOfStock || maxReached || cannotAddNewFlavor}
-                                    className={`p-1.5 rounded-full transition-colors ${
+                                    className={`p-2 rounded-full transition-colors ${
                                       isOutOfStock || maxReached || cannotAddNewFlavor
                                         ? "bg-muted text-muted-foreground cursor-not-allowed"
                                         : "bg-terracotta hover:bg-terracotta/90 text-white"
                                     }`}
                                   >
-                                    <Plus className="w-3.5 h-3.5" />
+                                    <Plus className="w-4 h-4" />
                                   </button>
                                 </TooltipTrigger>
                                 {cannotAddNewFlavor && (
@@ -749,7 +749,7 @@ const FlavorSelectionModal = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t bg-background shrink-0 space-y-3">
+        <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t bg-background shrink-0 space-y-3">
           {/* Price breakdown */}
           {!leaveToUs && totalSelected > 0 && (
             <div className="space-y-1">
