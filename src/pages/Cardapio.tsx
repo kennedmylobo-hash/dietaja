@@ -12,9 +12,12 @@ import CartDrawer from "@/components/CartDrawer";
 import FlavorSelectionModal from "@/components/FlavorSelectionModal";
 import KitFlavorSelectionModal from "@/components/KitFlavorSelectionModal";
 import { useMarmitaPackages, useMarmitaFlavors, useKitPackages, useKitSoups, useKitJuices } from "@/hooks/useMenuData";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Check } from "lucide-react";
 import marmita1 from "@/assets/marmita-1.png";
 import marmita2 from "@/assets/marmita-2.png";
-import produtosDetox from "@/assets/produtos-detox.jpg";
+import detoxVideo from "@/assets/produtos-detox-video.mp4";
+import detoxPoster from "@/assets/produtos-detox.jpg";
 
 const lines = [
   {
@@ -25,7 +28,9 @@ const lines = [
     price: "R$ 22,90",
     priceLabel: "a partir de",
     icon: Leaf,
-    image: marmita1,
+    image: marmita1 as string | undefined,
+    video: undefined as string | undefined,
+    videoPoster: undefined as string | undefined,
     color: "from-emerald-500/20 to-emerald-600/5",
     borderColor: "border-emerald-500/30",
     iconColor: "text-emerald-600",
@@ -42,7 +47,9 @@ const lines = [
     price: "R$ 27,90",
     priceLabel: "a partir de",
     icon: Dumbbell,
-    image: marmita2,
+    image: marmita2 as string | undefined,
+    video: undefined as string | undefined,
+    videoPoster: undefined as string | undefined,
     color: "from-amber-500/20 to-amber-600/5",
     borderColor: "border-amber-500/30",
     iconColor: "text-amber-600",
@@ -56,10 +63,12 @@ const lines = [
     title: "Kit DETOX",
     subtitle: "Sucos & Sopas",
     description: "Programa completo com sucos funcionais e sopas nutritivas para desintoxicar o corpo.",
-    price: "R$ 89,90",
-    priceLabel: "a partir de",
+    price: "R$ 199,00",
+    priceLabel: "a partir de (3 dias)",
     icon: Droplets,
-    image: produtosDetox,
+    image: undefined as string | undefined,
+    video: detoxVideo,
+    videoPoster: detoxPoster,
     color: "from-primary/20 to-primary/5",
     borderColor: "border-primary/30",
     iconColor: "text-primary",
@@ -78,7 +87,9 @@ const CardapioContent = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const [flavorModalOpen, setFlavorModalOpen] = useState(false);
   const [kitFlavorModalOpen, setKitFlavorModalOpen] = useState(false);
+  const [kitPackagePickerOpen, setKitPackagePickerOpen] = useState(false);
   const [selectedLine, setSelectedLine] = useState<typeof lines[0] | null>(null);
+  const [selectedKitPackage, setSelectedKitPackage] = useState<any>(null);
 
   // Fetch data for modals
   const { data: marmitaPackages } = useMarmitaPackages();
@@ -87,24 +98,30 @@ const CardapioContent = () => {
   const { data: kitSoups } = useKitSoups();
   const { data: kitJuices } = useKitJuices();
 
+  // Sort kit packages by days
+  const sortedKitPackages = useMemo(() => {
+    return (kitPackages || []).sort((a, b) => a.days - b.days);
+  }, [kitPackages]);
+
   // Get cheapest package for each line
   const getDefaultMarmitaPackage = useCallback((lineType: string) => {
     const pkgs = (marmitaPackages || []).filter(p => p.line_type === lineType).sort((a, b) => a.unit_price - b.unit_price);
     return pkgs[0] || null;
   }, [marmitaPackages]);
 
-  const getDefaultKitPackage = useCallback(() => {
-    const kits = (kitPackages || []).sort((a, b) => a.price - b.price);
-    return kits[0] || null;
-  }, [kitPackages]);
-
   const handleChooseFlavors = useCallback((line: typeof lines[0]) => {
     setSelectedLine(line);
     if (line.type === "kit") {
-      setKitFlavorModalOpen(true);
+      setKitPackagePickerOpen(true);
     } else {
       setFlavorModalOpen(true);
     }
+  }, []);
+
+  const handleKitPackageSelected = useCallback((kit: any) => {
+    setSelectedKitPackage(kit);
+    setKitPackagePickerOpen(false);
+    setKitFlavorModalOpen(true);
   }, []);
 
   const handleFlavorConfirm = useCallback((selections: Array<{ name: string; quantity: number; category: string }>, fishAdditional: number, totalQuantity: number, calculatedTotal: number) => {
@@ -131,9 +148,7 @@ const CardapioContent = () => {
     juiceSelections: Array<{ name: string; quantity: number; category?: string }>,
     soupSelections: Array<{ name: string; quantity: number; category?: string }>
   ) => {
-    if (!selectedLine) return;
-    const kit = getDefaultKitPackage();
-    if (!kit) return;
+    if (!selectedLine || !selectedKitPackage) return;
 
     const allFlavors = [
       ...juiceSelections.map(j => ({ name: j.name, quantity: j.quantity, category: "sucos" })),
@@ -142,16 +157,17 @@ const CardapioContent = () => {
 
     addItem({
       type: "kit",
-      name: kit.name,
+      name: selectedKitPackage.name,
       quantity: 1,
-      unitPrice: kit.price,
-      totalPrice: kit.price,
+      unitPrice: selectedKitPackage.price,
+      totalPrice: selectedKitPackage.price,
       flavors: allFlavors,
     });
 
     setKitFlavorModalOpen(false);
     setSelectedLine(null);
-  }, [selectedLine, getDefaultKitPackage, addItem]);
+    setSelectedKitPackage(null);
+  }, [selectedLine, selectedKitPackage, addItem]);
 
   // Prepare flavor data
   const flavorsByCategory = useMemo(() => {
@@ -194,7 +210,6 @@ const CardapioContent = () => {
   }, [kitSoups]);
 
   const selectedPkg = selectedLine?.lineType ? getDefaultMarmitaPackage(selectedLine.lineType) : null;
-  const selectedKit = selectedLine?.type === "kit" ? getDefaultKitPackage() : null;
 
   return (
     <>
@@ -244,12 +259,24 @@ const CardapioContent = () => {
                     </span>
 
                     <div className="w-full aspect-[4/3] rounded-xl overflow-hidden mb-5 bg-muted/30">
-                      <img
-                        src={line.image}
-                        alt={line.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        loading="lazy"
-                      />
+                      {line.video ? (
+                        <video
+                          src={line.video}
+                          poster={line.videoPoster}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={line.image}
+                          alt={line.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2 mb-2">
@@ -317,14 +344,47 @@ const CardapioContent = () => {
         lineType={selectedLine?.lineType}
       />
 
+      {/* Kit Package Picker Dialog */}
+      <Dialog open={kitPackagePickerOpen} onOpenChange={(open) => { if (!open) { setKitPackagePickerOpen(false); setSelectedLine(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Escolha a duração do seu Kit Detox</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            {sortedKitPackages.map((kit) => (
+              <button
+                key={kit.id}
+                onClick={() => handleKitPackageSelected(kit)}
+                className="w-full flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
+              >
+                <div>
+                  <p className="font-semibold text-foreground">{kit.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {kit.days * 4} sucos • {kit.days * 2} sopas
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-foreground">
+                    R$ {kit.price.toFixed(0)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    = R$ {(kit.price / kit.days).toFixed(2).replace('.', ',')}/dia
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Kit Flavor Modal */}
       <KitFlavorSelectionModal
         isOpen={kitFlavorModalOpen}
-        onClose={() => { setKitFlavorModalOpen(false); setSelectedLine(null); }}
+        onClose={() => { setKitFlavorModalOpen(false); setSelectedLine(null); setSelectedKitPackage(null); }}
         onConfirm={handleKitFlavorConfirm}
-        kitName={selectedKit?.name || ""}
-        juiceQuantity={(selectedKit?.days || 3) * 4}
-        soupQuantity={(selectedKit?.days || 3) * 2}
+        kitName={selectedKitPackage?.name || ""}
+        juiceQuantity={(selectedKitPackage?.days || 3) * 4}
+        soupQuantity={(selectedKitPackage?.days || 3) * 2}
         juiceFlavorsData={juiceData}
         soupFlavorsData={soupData}
       />
