@@ -9,6 +9,7 @@ import { hapticFeedback } from "@/lib/haptics";
 import { useCarouselWithProgress } from "@/hooks/useCarouselWithProgress";
 import { CarouselDots } from "./CarouselDots";
 import FlavorSelectionModal from "./FlavorSelectionModal";
+import type { PricingTier } from "./FlavorSelectionModal";
 import { useMarmitaEmagrecimento, useMarmitaHipertrofia, useMarmitaFlavors, MarmitaPackage } from "@/hooks/useMenuData";
 import {
   Carousel,
@@ -264,6 +265,18 @@ const MarmitasSection = () => {
     }));
   }, [flavorsData]);
 
+  // Build pricing tiers from packages for progressive discount
+  const pricingTiersForLine = useMemo(() => {
+    return (packages: Marmita[]): PricingTier[] => {
+      if (!packages || packages.length === 0) return [];
+      return packages
+        .map(p => ({ minQuantity: p.quantity, unitPrice: p.unitPrice }))
+        .sort((a, b) => a.minQuantity - b.minQuantity);
+    };
+  }, []);
+
+  const emagrecimentoTiers = useMemo(() => pricingTiersForLine(marmitasEmagrecimento), [marmitasEmagrecimento, pricingTiersForLine]);
+  const hipertrofiaTiers = useMemo(() => pricingTiersForLine(marmitasHipertrofia), [marmitasHipertrofia, pricingTiersForLine]);
   // Group flavors by category for display
   const saboresCarnes = useMemo(() => 
     flavorsData?.filter(f => f.category === 'carnes').map(f => f.name) || [], [flavorsData]);
@@ -543,6 +556,7 @@ const MarmitasSection = () => {
         isLoading={loadingMarmita !== null}
         flavorsByCategory={flavorsByCategory}
         flavorStockData={flavorStockData}
+        pricingTiers={selectedMarmita?.lineType === 'hipertrofia' ? hipertrofiaTiers : emagrecimentoTiers}
       />
     </section>
   );
