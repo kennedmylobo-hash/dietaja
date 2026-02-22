@@ -110,7 +110,7 @@ const HeroSection = () => {
           <Button
             size="lg"
             className="animate-fade-in text-base sm:text-lg px-8 py-6 rounded-full shadow-lg"
-            onClick={() => navigate("/fit")}
+            onClick={() => navigate("/cardapio")}
           >
             Alimentação saudável a partir de R$ 22,90 por refeição
           </Button>
