@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { Scale, Utensils, Clock, ShieldCheck } from "lucide-react";
 import marmitaImage from "@/assets/marmita-1.png";
@@ -6,7 +6,7 @@ import { CartProvider, useCart } from "@/components/CartContext";
 import CartDrawer from "@/components/CartDrawer";
 import CartFloatingButton from "@/components/CartFloatingButton";
 import { SoftIdentificationModal } from "@/components/SoftIdentificationModal";
-import FlavorSelectionModal from "@/components/FlavorSelectionModal";
+import FlavorSelectionModal, { PricingTier } from "@/components/FlavorSelectionModal";
 import LandingHeader from "@/components/landing/LandingHeader";
 import LandingHero from "@/components/landing/LandingHero";
 import BenefitsSection from "@/components/landing/BenefitsSection";
@@ -84,6 +84,14 @@ const FitContent = () => {
     const overrides = flavorsRaw.map(f => f.price_override_fit).filter((v): v is number => v != null && v > 0);
     return overrides.length > 0 ? Math.min(...overrides) : undefined;
   })();
+
+  // Build pricing tiers from packages for progressive discount nudge/celebration
+  const pricingTiers: PricingTier[] = useMemo(() => {
+    return marmitaPackages.map(pkg => ({
+      minQuantity: pkg.quantity,
+      unitPrice: pkg.unit_price,
+    }));
+  }, [marmitaPackages]);
 
   const scrollToPackages = useCallback(() => {
     if (packagesRef.current) {
@@ -270,6 +278,7 @@ const FitContent = () => {
         lineType="emagrecimento"
         flavorsByCategory={flavorsByCategory}
         flavorStockData={flavorStockData}
+        pricingTiers={pricingTiers}
       />
     </div>
   );
