@@ -87,7 +87,7 @@ const HeroSection = () => {
             ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 text-sm mb-6 animate-fade-in">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 text-sm mb-8 animate-fade-in">
             <div className="flex items-center gap-2 text-white/80">
               <div className="flex">
                 {[...Array(5)].map((_, i) => (
@@ -104,6 +104,14 @@ const HeroSection = () => {
               <span className="font-medium">{socialProofSatisfaction}</span>
             </div>
           </div>
+
+          <Button
+            size="lg"
+            className="animate-fade-in text-base sm:text-lg px-8 py-6 rounded-full shadow-lg"
+            onClick={() => document.getElementById("kits")?.scrollIntoView({ behavior: "smooth" })}
+          >
+            Ver kits a partir de R$ 89,90
+          </Button>
 
         </div>
       </div>
