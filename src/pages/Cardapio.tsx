@@ -142,6 +142,7 @@ const CardapioContent = () => {
 
     setFlavorModalOpen(false);
     setSelectedLine(null);
+    setCartOpen(true);
   }, [selectedLine, getDefaultMarmitaPackage, addItem]);
 
   const handleKitFlavorConfirm = useCallback((
@@ -167,6 +168,7 @@ const CardapioContent = () => {
     setKitFlavorModalOpen(false);
     setSelectedLine(null);
     setSelectedKitPackage(null);
+    setCartOpen(true);
   }, [selectedLine, selectedKitPackage, addItem]);
 
   // Prepare flavor data
