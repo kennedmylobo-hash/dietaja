@@ -188,7 +188,7 @@ const FitnessContent = () => {
         badgeEmoji="💪"
         accentColor="terracotta"
         imageUrl={marmitaImage}
-        onScrollToMenu={scrollToMenu}
+        onScrollToMenu={scrollToPackages}
       />
 
       <BenefitsSection

@@ -195,7 +195,7 @@ const DetoxContent = () => {
         badgeEmoji="🍃"
         accentColor="primary"
         videoUrl={detoxVideo}
-        onScrollToMenu={scrollToMenu}
+        onScrollToMenu={scrollToPackages}
       />
 
       <BenefitsSection
