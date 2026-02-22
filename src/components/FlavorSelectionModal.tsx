@@ -473,18 +473,25 @@ const FlavorSelectionModal = ({
             {nextTier && !leaveToUs && totalSelected >= packageQuantity && (
               <motion.div
                 key={`nudge-${nextTier.minQuantity}`}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
+                initial={{ opacity: 0, scale: 0.95, height: 0 }}
+                animate={{ opacity: 1, scale: 1, height: "auto" }}
+                exit={{ opacity: 0, scale: 0.95, height: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
                 className="mt-2"
               >
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/10 border border-primary/20 text-sm">
-                  <TrendingDown className="w-4 h-4 text-primary shrink-0" />
-                  <span className="text-foreground">
+                <motion.div 
+                  className="flex items-center gap-2.5 p-3 rounded-xl bg-gradient-to-r from-primary/15 to-primary/5 border-2 border-primary/30 text-sm shadow-sm"
+                  animate={{ scale: [1, 1.02, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20 shrink-0">
+                    <TrendingDown className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="text-foreground leading-tight">
                     <strong className="text-primary">+{nextTier.unitsNeeded} marmitas</strong> para ganhar{' '}
-                    <strong className="text-primary">{formatPrice(nextTier.totalSaving)}</strong> de desconto
+                    <strong className="text-primary text-base">{formatPrice(nextTier.totalSaving)}</strong> de desconto 🔥
                   </span>
-                </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
