@@ -188,7 +188,7 @@ const FitContent = () => {
         badgeEmoji="🥗"
         accentColor="primary"
         imageUrl={marmitaImage}
-        onScrollToMenu={scrollToMenu}
+        onScrollToMenu={scrollToPackages}
       />
 
       <BenefitsSection
