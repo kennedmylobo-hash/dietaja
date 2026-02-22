@@ -1,43 +1,79 @@
 
+# Otimizacoes Mobile para o Modal de Sabores
 
-# Mensagem de celebração ao ganhar desconto progressivo
+## Problemas Identificados
 
-## O que muda
+1. **Botoes +/- muito pequenos para toque** -- Os botoes de adicionar/remover sabor tem `p-1.5` (~28px), abaixo do minimo recomendado de 44px para touch targets em mobile.
 
-Quando o cliente adicionar marmitas e cruzar uma faixa de desconto (ex: passar de 7 para 14), aparece uma mensagem animada de celebração mostrando:
-- "Voce ganhou R$ X de desconto!"
-- "Adicione mais Y marmitas para ganhar mais R$ Z de desconto"
+2. **Layout da linha de sabor apertado** -- No mobile, preco + botao minus + contador + botao plus ficam espremidos no lado direito, dificultando o toque preciso.
 
-A mensagem some automaticamente apos alguns segundos e usa confetti para dar destaque visual.
+3. **Modal nao usa tela cheia no mobile** -- O DialogContent usa `max-h-[90vh]` mas nao ocupa a tela toda no mobile, desperdicando espaco e deixando o conteudo apertado.
 
-## Como funciona
+4. **Botao de confirmar no footer** -- O botao "Selecione mais X marmitas" fica proximo demais da borda inferior, podendo conflitar com a barra de navegacao do celular (safe area).
 
-1. O sistema detecta quando o total de marmitas cruza uma faixa de desconto (ex: de 7 para 14 unidades)
-2. Calcula o desconto real ganho comparando o preco anterior com o novo
-3. Exibe um banner verde animado com o valor do desconto conquistado
-4. Abaixo, mantém o nudge para a proxima faixa
-5. Apos 4 segundos, o banner de celebracao some suavemente
+5. **Scroll longo com muitos sabores** -- O usuario precisa rolar muito para ver todos os sabores sem indicacao visual clara de que ha mais conteudo.
 
-## Detalhes tecnicos
+## Plano de Implementacao
 
-### Arquivo: `src/components/FlavorSelectionModal.tsx`
+### 1. Aumentar touch targets dos botoes +/-
+- Mudar botoes de `p-1.5` para `p-2.5` (40px+) no FlavorSelectionModal
+- Mudar icones de `w-3.5 h-3.5` para `w-4 h-4`
+- Aplicar o mesmo no KitFlavorSelectionModal (botoes de `w-7 h-7` para `w-9 h-9`)
 
-- Adicionar um state `celebrationInfo` que armazena o desconto ganho quando o usuario cruza uma faixa
-- Usar `useEffect` monitorando `totalSelected` e comparando com a faixa anterior via `useRef`
-- Quando detectar que cruzou para uma faixa com preco menor:
-  - Calcular o desconto total ganho (diferenca de preco por unidade x quantidade atual)
-  - Setar `celebrationInfo` com o valor do desconto
-  - Disparar confetti (funcao `celebrateCheckout` ja importada)
-  - Apos 4 segundos, limpar o `celebrationInfo`
-- Renderizar o banner de celebracao acima do nudge existente, com animacao de entrada/saida (AnimatePresence ja disponivel)
-- Icone de check ou sparkles com fundo verde para diferenciar do nudge azul/primary
+### 2. Modal full-screen no mobile
+- Adicionar classes responsivas ao DialogContent do FlavorSelectionModal: no mobile, usar `max-h-[100dvh] h-[100dvh] rounded-none` em vez de `max-h-[90vh]`
+- Isso da mais espaco para o conteudo e os botoes
 
-### Layout do banner de celebracao
+### 3. Safe area no footer
+- Adicionar `pb-[env(safe-area-inset-bottom)]` ao footer do modal para evitar que o botao fique atras da barra de navegacao em iPhones com notch
 
+### 4. Melhorar layout da linha de sabor no mobile
+- Reorganizar o layout do sabor: preco abaixo do nome (em vez de ao lado dos botoes) no mobile
+- Botoes +/- ficam mais separados e faceis de tocar
+
+### 5. KitFlavorSelectionModal - mesmas otimizacoes
+- Aumentar touch targets
+- Full-screen no mobile
+- Safe area no footer
+
+---
+
+### Detalhes Tecnicos
+
+**Arquivos modificados:**
+- `src/components/FlavorSelectionModal.tsx` -- touch targets, layout responsivo, safe area
+- `src/components/KitFlavorSelectionModal.tsx` -- mesmas otimizacoes
+
+**Mudancas especificas no FlavorSelectionModal:**
+
+Linha 379 (DialogContent):
 ```
-[Sparkles] Voce ganhou R$ 14,00 de desconto!
-           +7 marmitas para ganhar mais R$ 21,00
+className="max-w-2xl max-h-[90vh] p-0 gap-0 flex flex-col"
+```
+Para:
+```
+className="max-w-2xl max-h-[100dvh] sm:max-h-[90vh] h-[100dvh] sm:h-auto p-0 gap-0 flex flex-col sm:rounded-lg rounded-none"
 ```
 
-O banner tera fundo verde claro, borda verde, e animacao de scale + fade para chamar atencao.
+Linhas 698-731 (botoes +/-):
+- `p-1.5` para `p-2` nos botoes minus e plus
+- Icones de `w-3.5 h-3.5` para `w-4 h-4`
 
+Linha 752 (footer):
+```
+className="p-4 border-t bg-background shrink-0 space-y-3"
+```
+Para:
+```
+className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t bg-background shrink-0 space-y-3"
+```
+
+**Mudancas no KitFlavorSelectionModal:**
+
+Linha 187 (DialogContent):
+- Mesma abordagem full-screen mobile
+
+Botoes (w-7 h-7 para w-9 h-9):
+- Icones de `w-3 h-3` para `w-4 h-4`
+
+Footer: safe area inset
