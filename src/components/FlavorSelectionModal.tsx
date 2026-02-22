@@ -220,6 +220,15 @@ const FlavorSelectionModal = ({
 
   const prevMaxReachedRef = useRef(false);
 
+  // Calculate total accumulated discount vs the highest (worst) tier price
+  const totalAccumulatedDiscount = useMemo(() => {
+    if (sortedTiers.length === 0 || totalSelected < packageQuantity) return 0;
+    const worstPrice = sortedTiers[0]?.unitPrice ?? packageUnitPrice;
+    const currentPrice = getEffectiveBasePrice(totalSelected);
+    if (currentPrice >= worstPrice) return 0;
+    return (worstPrice - currentPrice) * totalSelected;
+  }, [totalSelected, sortedTiers, packageUnitPrice, packageQuantity]);
+
   // Detect tier crossing for celebration
   useEffect(() => {
     if (sortedTiers.length === 0 || totalSelected === 0) {
@@ -231,11 +240,11 @@ const FlavorSelectionModal = ({
     const prevPrice = prevTierPriceRef.current;
     const tiersReached = sortedTiers.filter(t => totalSelected >= t.minQuantity).length;
     
-    // Celebrate when reaching any tier (including first at packageQuantity)
     if (prevPrice !== null && tiersReached >= 1) {
-      // Crossing UP to a better price tier
       if (currentTierPrice < prevPrice) {
-        const discount = (prevPrice - currentTierPrice) * totalSelected;
+        // Crossing UP - show total accumulated discount
+        const worstPrice = sortedTiers[0]?.unitPrice ?? packageUnitPrice;
+        const discount = (worstPrice - currentTierPrice) * totalSelected;
         setCelebrationInfo({ discount });
         celebrateCheckout();
         hapticFeedback('success');
@@ -243,13 +252,10 @@ const FlavorSelectionModal = ({
         prevTierPriceRef.current = currentTierPrice;
         return () => clearTimeout(timer);
       }
-      // Just reached the first tier (packageQuantity) - celebrate completing minimum
       if (totalSelected === packageQuantity && prevPrice === currentTierPrice && !celebrationInfo) {
-        // First tier reached - celebrate with the base discount vs buying fewer
-        const firstTierPrice = getEffectiveBasePrice(packageQuantity);
         const preTierPrice = getEffectiveBasePrice(packageQuantity - 1);
-        if (preTierPrice > firstTierPrice) {
-          const discount = (preTierPrice - firstTierPrice) * totalSelected;
+        if (preTierPrice > currentTierPrice) {
+          const discount = (preTierPrice - currentTierPrice) * totalSelected;
           setCelebrationInfo({ discount });
           celebrateCheckout();
           hapticFeedback('success');
@@ -260,7 +266,6 @@ const FlavorSelectionModal = ({
       }
     }
     
-    // When going back down to a worse tier, dismiss celebration
     if (prevPrice !== null && currentTierPrice > prevPrice) {
       setCelebrationInfo(null);
     }
@@ -447,7 +452,7 @@ const FlavorSelectionModal = ({
             />
           </div>
 
-          {/* Celebration banner */}
+          {/* Celebration banner (temporary) */}
           <AnimatePresence>
             {celebrationInfo && !leaveToUs && (
               <motion.div
@@ -462,6 +467,26 @@ const FlavorSelectionModal = ({
                   <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 animate-sparkle-pulse" />
                   <span className="text-emerald-800 dark:text-emerald-200 font-semibold">
                     🎉 Você ganhou {formatPrice(celebrationInfo.discount)} de desconto!
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Persistent accumulated discount badge */}
+          <AnimatePresence>
+            {!celebrationInfo && totalAccumulatedDiscount > 0 && !leaveToUs && (
+              <motion.div
+                key="accumulated"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-2"
+              >
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50/60 border border-emerald-200 text-sm dark:bg-emerald-900/10 dark:border-emerald-800">
+                  <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="text-emerald-700 dark:text-emerald-300 font-medium">
+                    Desconto acumulado: <strong>{formatPrice(totalAccumulatedDiscount)}</strong>
                   </span>
                 </div>
               </motion.div>
