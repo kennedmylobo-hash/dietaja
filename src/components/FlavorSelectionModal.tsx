@@ -229,16 +229,35 @@ const FlavorSelectionModal = ({
     }
     const currentTierPrice = getEffectiveBasePrice(totalSelected);
     const prevPrice = prevTierPriceRef.current;
+    const tiersReached = sortedTiers.filter(t => totalSelected >= t.minQuantity).length;
     
-    // Only celebrate when crossing UP to a better tier (not the first tier)
-    if (prevPrice !== null && currentTierPrice < prevPrice && sortedTiers.filter(t => totalSelected >= t.minQuantity).length > 1) {
-      const discount = (prevPrice - currentTierPrice) * totalSelected;
-      setCelebrationInfo({ discount });
-      celebrateCheckout();
-      hapticFeedback('success');
-      const timer = setTimeout(() => setCelebrationInfo(null), 4000);
-      prevTierPriceRef.current = currentTierPrice;
-      return () => clearTimeout(timer);
+    // Celebrate when reaching any tier (including first at packageQuantity)
+    if (prevPrice !== null && tiersReached >= 1) {
+      // Crossing UP to a better price tier
+      if (currentTierPrice < prevPrice) {
+        const discount = (prevPrice - currentTierPrice) * totalSelected;
+        setCelebrationInfo({ discount });
+        celebrateCheckout();
+        hapticFeedback('success');
+        const timer = setTimeout(() => setCelebrationInfo(null), 4000);
+        prevTierPriceRef.current = currentTierPrice;
+        return () => clearTimeout(timer);
+      }
+      // Just reached the first tier (packageQuantity) - celebrate completing minimum
+      if (totalSelected === packageQuantity && prevPrice === currentTierPrice && !celebrationInfo) {
+        // First tier reached - celebrate with the base discount vs buying fewer
+        const firstTierPrice = getEffectiveBasePrice(packageQuantity);
+        const preTierPrice = getEffectiveBasePrice(packageQuantity - 1);
+        if (preTierPrice > firstTierPrice) {
+          const discount = (preTierPrice - firstTierPrice) * totalSelected;
+          setCelebrationInfo({ discount });
+          celebrateCheckout();
+          hapticFeedback('success');
+          const timer = setTimeout(() => setCelebrationInfo(null), 4000);
+          prevTierPriceRef.current = currentTierPrice;
+          return () => clearTimeout(timer);
+        }
+      }
     }
     
     // When going back down to a worse tier, dismiss celebration
@@ -451,7 +470,7 @@ const FlavorSelectionModal = ({
 
           {/* Progressive discount nudge */}
           <AnimatePresence>
-            {nextTier && !leaveToUs && totalSelected > 0 && (
+            {nextTier && !leaveToUs && totalSelected >= packageQuantity && (
               <motion.div
                 key={`nudge-${nextTier.minQuantity}`}
                 initial={{ opacity: 0, height: 0 }}
