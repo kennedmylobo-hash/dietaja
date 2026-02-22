@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      ab_tests: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          id: string
+          name: string
+          status: string
+          target_section: string
+          tenant_id: string
+          traffic_split: number
+          variant_a_value: string
+          variant_b_value: string
+          winner: string | null
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          name: string
+          status?: string
+          target_section: string
+          tenant_id: string
+          traffic_split?: number
+          variant_a_value: string
+          variant_b_value: string
+          winner?: string | null
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          name?: string
+          status?: string
+          target_section?: string
+          tenant_id?: string
+          traffic_split?: number
+          variant_a_value?: string
+          variant_b_value?: string
+          winner?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ab_tests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analytics_events: {
         Row: {
           created_at: string

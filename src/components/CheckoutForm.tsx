@@ -216,7 +216,19 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             use: useCashback,
             amount: cashbackAmount,
           },
-          utm_data: getUTMParams(),
+          utm_data: (() => {
+            const utm = getUTMParams() || {};
+            // Attach A/B test data if present
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key?.startsWith('ab_test_')) {
+                (utm as any).ab_test_id = key.replace('ab_test_', '');
+                (utm as any).ab_variant = localStorage.getItem(key) || '';
+                break;
+              }
+            }
+            return utm;
+          })(),
           tenant_id: tenantId,
         },
       });

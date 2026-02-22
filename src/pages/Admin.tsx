@@ -66,6 +66,7 @@ import LandingEditor from "@/components/admin/LandingEditor";
 import ShoppingList from "@/components/admin/ShoppingList";
 import CustomDietQuoter from "@/components/admin/CustomDietQuoter";
 import FlavorProfitReport from "@/components/admin/FlavorProfitReport";
+import ABTestManager from "@/components/admin/ABTestManager";
 
 interface Lead {
   id: string;
@@ -1221,6 +1222,9 @@ const Admin = () => {
 
       case "landing-editor":
         return <LandingEditor />;
+
+      case "ab-tests":
+        return <ABTestManager />;
 
       default:
         return <div className="text-muted-foreground">Selecione uma seção no menu</div>;

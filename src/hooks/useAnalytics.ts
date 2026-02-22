@@ -45,6 +45,18 @@ export const useAnalytics = () => {
   // Envia evento para o banco
   const trackEvent = useCallback(async (event: AnalyticsEvent) => {
     try {
+      // Get AB test assignments from localStorage
+      const abMeta: Record<string, string> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('ab_test_')) {
+          const testId = key.replace('ab_test_', '');
+          abMeta[`ab_test_id`] = testId;
+          abMeta[`ab_variant`] = localStorage.getItem(key) || '';
+          break; // Use first active test
+        }
+      }
+
       await supabase.from('analytics_events').insert({
         session_id: sessionId.current,
         event_type: event.event_type,
@@ -57,6 +69,7 @@ export const useAnalytics = () => {
         utm_source: utmParams.current.utm_source || null,
         utm_campaign: utmParams.current.utm_campaign || null,
         tenant_id: tenantId,
+        metadata: Object.keys(abMeta).length > 0 ? abMeta : null,
       });
     } catch (error) {
       console.debug('Analytics error:', error);
