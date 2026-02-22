@@ -184,7 +184,7 @@ const KitFlavorSelectionModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-md max-h-[100dvh] sm:max-h-[90vh] h-[100dvh] sm:h-auto flex flex-col p-0 gap-0 sm:rounded-lg rounded-none">
         <DialogHeader className="p-4 pb-2 border-b border-border">
           <DialogTitle className="text-lg font-bold text-center">
             🧃🍲 Escolha seus sabores
@@ -354,22 +354,22 @@ const KitFlavorSelectionModal = ({
                               type="button"
                               onClick={() => updateJuiceQuantity(flavor.name, -1)}
                               disabled={qty === 0}
-                              className="w-7 h-7 rounded-full bg-muted flex items-center justify-center disabled:opacity-30 hover:bg-muted-foreground/20 transition-colors"
+                              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center disabled:opacity-30 hover:bg-muted-foreground/20 transition-colors"
                             >
-                              <Minus className="w-3 h-3" />
+                              <Minus className="w-4 h-4" />
                             </button>
                             <span className="w-6 text-center font-medium text-sm">{qty}</span>
                             <button
                               type="button"
                               onClick={() => updateJuiceQuantity(flavor.name, 1)}
                               disabled={isOutOfStock || maxReached}
-                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
                                 isOutOfStock || maxReached
                                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                                   : "bg-primary/20 text-primary hover:bg-primary/30"
                               }`}
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -423,22 +423,22 @@ const KitFlavorSelectionModal = ({
                               type="button"
                               onClick={() => updateSoupQuantity(flavor.name, -1)}
                               disabled={qty === 0}
-                              className="w-7 h-7 rounded-full bg-muted flex items-center justify-center disabled:opacity-30 hover:bg-muted-foreground/20 transition-colors"
+                              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center disabled:opacity-30 hover:bg-muted-foreground/20 transition-colors"
                             >
-                              <Minus className="w-3 h-3" />
+                              <Minus className="w-4 h-4" />
                             </button>
                             <span className="w-6 text-center font-medium text-sm">{qty}</span>
                             <button
                               type="button"
                               onClick={() => updateSoupQuantity(flavor.name, 1)}
                               disabled={isOutOfStock || maxReached}
-                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
                                 isOutOfStock || maxReached
                                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                                   : "bg-terracotta/20 text-terracotta hover:bg-terracotta/30"
                               }`}
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -452,7 +452,7 @@ const KitFlavorSelectionModal = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border bg-background">
+        <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border bg-background">
           <Button
             variant="cta"
             size="lg"
