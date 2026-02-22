@@ -224,18 +224,26 @@ const FlavorSelectionModal = ({
   useEffect(() => {
     if (sortedTiers.length === 0 || totalSelected === 0) {
       prevTierPriceRef.current = null;
+      setCelebrationInfo(null);
       return;
     }
     const currentTierPrice = getEffectiveBasePrice(totalSelected);
     const prevPrice = prevTierPriceRef.current;
     
-    if (prevPrice !== null && currentTierPrice < prevPrice) {
+    // Only celebrate when crossing UP to a better tier (not the first tier)
+    if (prevPrice !== null && currentTierPrice < prevPrice && sortedTiers.filter(t => totalSelected >= t.minQuantity).length > 1) {
       const discount = (prevPrice - currentTierPrice) * totalSelected;
       setCelebrationInfo({ discount });
       celebrateCheckout();
       hapticFeedback('success');
       const timer = setTimeout(() => setCelebrationInfo(null), 4000);
+      prevTierPriceRef.current = currentTierPrice;
       return () => clearTimeout(timer);
+    }
+    
+    // When going back down to a worse tier, dismiss celebration
+    if (prevPrice !== null && currentTierPrice > prevPrice) {
+      setCelebrationInfo(null);
     }
     
     prevTierPriceRef.current = currentTierPrice;
