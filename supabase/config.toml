@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.meta-capi]
 verify_jwt = false
+
+[functions.generate-ab-variant]
+verify_jwt = false
