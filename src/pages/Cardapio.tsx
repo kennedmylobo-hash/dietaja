@@ -9,7 +9,7 @@ import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { CartProvider, useCart } from "@/components/CartContext";
 import CartFloatingButton from "@/components/CartFloatingButton";
 import CartDrawer from "@/components/CartDrawer";
-import FlavorSelectionModal from "@/components/FlavorSelectionModal";
+import FlavorSelectionModal, { PricingTier } from "@/components/FlavorSelectionModal";
 import KitFlavorSelectionModal from "@/components/KitFlavorSelectionModal";
 import { useMarmitaPackages, useMarmitaFlavors, useKitPackages, useKitSoups, useKitJuices } from "@/hooks/useMenuData";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -201,6 +201,16 @@ const CardapioContent = () => {
     }));
   }, [marmitaFlavors]);
 
+  // Build pricing tiers per line type for progressive discount
+  const pricingTiersForLine = useMemo(() => {
+    return (lineType: string): PricingTier[] => {
+      if (!marmitaPackages) return [];
+      return marmitaPackages
+        .filter(p => p.line_type === lineType)
+        .map(p => ({ minQuantity: p.quantity, unitPrice: p.unit_price }));
+    };
+  }, [marmitaPackages]);
+
   const juiceData = useMemo(() => {
     if (!kitJuices) return [];
     return kitJuices.map(j => ({ name: j.name, emoji: j.emoji, stock_quantity: j.stock_quantity, show_stock: j.show_stock, low_stock_threshold: j.low_stock_threshold, description: "" }));
@@ -344,6 +354,7 @@ const CardapioContent = () => {
         flavorsByCategory={flavorsByCategory}
         flavorStockData={flavorStockData}
         lineType={selectedLine?.lineType}
+        pricingTiers={selectedLine?.lineType ? pricingTiersForLine(selectedLine.lineType) : []}
       />
 
       {/* Kit Package Picker Dialog */}
