@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle, Fish } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle, Fish, TrendingDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { celebrateCheckout } from "@/lib/confetti";
 import { hapticFeedback } from "@/lib/haptics";
@@ -31,6 +31,11 @@ interface FlavorData {
   price_override_fitness?: number | null;
 }
 
+export interface PricingTier {
+  minQuantity: number;
+  unitPrice: number;
+}
+
 interface FlavorSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -43,6 +48,7 @@ interface FlavorSelectionModalProps {
   isLoading?: boolean;
   flavorsByCategory?: FlavorCategory[];
   flavorStockData?: FlavorData[];
+  pricingTiers?: PricingTier[];
 }
 
 // Fish flavor name and surcharge
@@ -115,6 +121,7 @@ const FlavorSelectionModal = ({
   isLoading = false,
   flavorsByCategory,
   flavorStockData = [],
+  pricingTiers = [],
 }: FlavorSelectionModalProps) => {
   const navigate = useNavigate();
   const lineKey = mapLineTypeToKey(lineType);
@@ -124,18 +131,36 @@ const FlavorSelectionModal = ({
   const flavorCategories = flavorsByCategory || defaultFlavorCategories;
   const maxFlavors = getMaxFlavors(packageQuantity);
 
+  // Sort tiers ascending by minQuantity for tier lookup
+  const sortedTiers = useMemo(() => 
+    [...pricingTiers].sort((a, b) => a.minQuantity - b.minQuantity),
+    [pricingTiers]
+  );
+
+  // Get the effective base price for a given quantity based on tiers
+  const getEffectiveBasePrice = (qty: number): number => {
+    if (sortedTiers.length === 0) return packageUnitPrice;
+    let price = packageUnitPrice;
+    for (const tier of sortedTiers) {
+      if (qty >= tier.minQuantity) {
+        price = tier.unitPrice;
+      }
+    }
+    return price;
+  };
+
   const getFlavorStock = (flavorName: string): FlavorData | undefined => {
     return flavorStockData.find(f => f.name === flavorName);
   };
 
-  // Get the unit price for a specific flavor
-  const getFlavorPrice = (flavorName: string): number => {
+  // Get the unit price for a specific flavor, considering tier-based base price
+  const getFlavorPrice = (flavorName: string, effectiveBase: number): number => {
     const stockData = getFlavorStock(flavorName);
-    if (!stockData) return packageUnitPrice;
+    if (!stockData) return effectiveBase;
     const override = lineType === 'hipertrofia' 
       ? stockData.price_override_fitness 
       : stockData.price_override_fit;
-    return override ?? packageUnitPrice;
+    return override ?? effectiveBase;
   };
 
   const totalSelected = useMemo(() => {
@@ -146,15 +171,31 @@ const FlavorSelectionModal = ({
     return Object.values(selections).filter(qty => qty > 0).length;
   }, [selections]);
 
-  // Calculate dynamic total based on per-flavor prices
+  // Effective base price based on current total quantity (tier pricing)
+  const effectiveBasePrice = useMemo(() => 
+    getEffectiveBasePrice(totalSelected),
+    [totalSelected, sortedTiers, packageUnitPrice]
+  );
+
+  // Next pricing tier info for nudge (must offer a lower price than current)
+  const nextTier = useMemo(() => {
+    if (sortedTiers.length === 0) return null;
+    const currentPrice = getEffectiveBasePrice(totalSelected);
+    const next = sortedTiers.find(t => t.minQuantity > totalSelected && t.unitPrice < currentPrice);
+    if (!next) return null;
+    const unitsNeeded = next.minQuantity - totalSelected;
+    return { unitsNeeded, unitPrice: next.unitPrice, minQuantity: next.minQuantity };
+  }, [totalSelected, sortedTiers, packageUnitPrice]);
+
+  // Calculate dynamic total based on per-flavor prices with tier pricing
   const calculatedTotal = useMemo(() => {
+    const basePrice = getEffectiveBasePrice(totalSelected);
     return Object.entries(selections).reduce((sum, [flavor, qty]) => {
-      const price = getFlavorPrice(flavor);
-      // Fish surcharge is added on top
+      const price = getFlavorPrice(flavor, basePrice);
       const isFish = flavor === FISH_FLAVOR_NAME;
       return sum + qty * price + (isFish ? qty * FISH_SURCHARGE : 0);
     }, 0);
-  }, [selections, flavorStockData, packageUnitPrice, lineType]);
+  }, [selections, flavorStockData, totalSelected, sortedTiers, packageUnitPrice, lineType]);
 
   const fishQuantity = useMemo(() => {
     return selections[FISH_FLAVOR_NAME] || 0;
@@ -276,6 +317,11 @@ const FlavorSelectionModal = ({
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
             {packageName} • mín. {packageQuantity} marmitas de {packageWeight}g
+            {sortedTiers.length > 0 && totalSelected > 0 && (
+              <span className="ml-1 font-medium text-primary">
+                • {formatPrice(effectiveBasePrice)}/un
+              </span>
+            )}
           </p>
         </DialogHeader>
 
@@ -339,6 +385,27 @@ const FlavorSelectionModal = ({
               transition={{ duration: 0.3 }}
             />
           </div>
+
+          {/* Progressive discount nudge */}
+          <AnimatePresence>
+            {nextTier && !leaveToUs && totalSelected > 0 && (
+              <motion.div
+                key={`nudge-${nextTier.minQuantity}`}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-2"
+              >
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+                  <TrendingDown className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-foreground">
+                    <strong className="text-primary">+{nextTier.unitsNeeded} un</strong> para pagar{' '}
+                    <strong className="text-primary">{formatPrice(nextTier.unitPrice)}/un</strong>
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Alert when max flavors reached but still need to complete base */}
@@ -458,8 +525,8 @@ const FlavorSelectionModal = ({
                       const isOutOfStock = stockData?.show_stock && stockData.stock_quantity === 0;
                       const maxReached = stockData?.show_stock && stockData?.stock_quantity !== null && qty >= (stockData?.stock_quantity ?? Infinity);
                       const isFish = flavor === FISH_FLAVOR_NAME;
-                      const flavorPrice = getFlavorPrice(flavor);
-                      const hasCustomPrice = flavorPrice !== packageUnitPrice;
+                      const flavorPrice = getFlavorPrice(flavor, effectiveBasePrice);
+                      const hasCustomPrice = flavorPrice !== effectiveBasePrice;
                       
                       // Block adding new flavors if max variety reached and still within base quantity
                       const currentTotal = totalSelected;
