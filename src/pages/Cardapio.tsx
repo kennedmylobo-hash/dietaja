@@ -238,10 +238,10 @@ const CardapioContent = () => {
           </div>
         </header>
 
-        <section className="py-12 md:py-20">
+        <section className="py-8 md:py-20">
           <div className="container px-4 md:px-6">
             <motion.div
-              className="max-w-2xl mx-auto text-center mb-10 md:mb-14"
+              className="max-w-2xl mx-auto text-center mb-8 md:mb-14"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
@@ -261,7 +261,7 @@ const CardapioContent = () => {
                 return (
                   <motion.div
                     key={line.slug}
-                    className={`group relative flex flex-col rounded-2xl border ${line.borderColor} bg-gradient-to-b ${line.color} p-6 text-left transition-all hover:shadow-lg`}
+                    className={`group relative flex flex-col rounded-2xl border ${line.borderColor} bg-gradient-to-b ${line.color} p-4 sm:p-6 text-left transition-all hover:shadow-lg`}
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: i * 0.1 }}
@@ -270,7 +270,7 @@ const CardapioContent = () => {
                       {line.tag}
                     </span>
 
-                    <div className="w-full aspect-[4/3] rounded-xl overflow-hidden mb-5 bg-muted/30">
+                    <div className="w-full aspect-[16/9] sm:aspect-[4/3] rounded-xl overflow-hidden mb-4 sm:mb-5 bg-muted/30">
                       {line.video ? (
                         <video
                           src={line.video}
@@ -296,11 +296,11 @@ const CardapioContent = () => {
                       <h2 className="text-xl font-bold text-foreground">{line.title}</h2>
                     </div>
                     <p className="text-sm font-medium text-muted-foreground mb-2">{line.subtitle}</p>
-                    <p className="text-sm text-muted-foreground leading-relaxed mb-4 flex-1">
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-3 sm:mb-4 flex-1">
                       {line.description}
                     </p>
 
-                    <div className="mb-4">
+                    <div className="mb-3 sm:mb-4">
                       <span className="text-xs text-muted-foreground">{line.priceLabel}</span>
                       <p className="text-2xl font-bold text-foreground">{line.price}</p>
                     </div>
