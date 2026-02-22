@@ -668,6 +668,9 @@ const FlavorSelectionModal = ({
                                   (+R$ 4,99/un)
                                 </span>
                               )}
+                              <span className={`text-xs font-bold sm:hidden ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
+                                {formatPrice(flavorPrice)}
+                              </span>
                               {(() => {
                                 const flavorStock = getFlavorStock(flavor);
                                 const desc = flavorStock?.sides ? getFlavorDescription(flavorStock.sides, lineKey) : null;
@@ -690,8 +693,8 @@ const FlavorSelectionModal = ({
                             )}
                           </div>
                           
-                          <div className="flex items-center gap-3 shrink-0">
-                            <span className={`text-sm font-bold whitespace-nowrap ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
+                          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                            <span className={`text-sm font-bold whitespace-nowrap hidden sm:inline ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
                               {formatPrice(flavorPrice)}
                             </span>
                             {isSelected && (

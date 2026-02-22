@@ -191,7 +191,9 @@ const IndexContent = () => {
           <div ref={heroRef}>
             <HeroSection />
           </div>
-          <PromoBannersSection />
+          <div className="hidden sm:block">
+            <PromoBannersSection />
+          </div>
           <MobileNavCards />
           <Suspense fallback={<div className="py-12"><CustomDietSkeleton /></div>}>
             <div ref={identificationRef}>
