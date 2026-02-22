@@ -1,79 +1,79 @@
 
-# Otimizacoes Mobile para o Modal de Sabores
+# Melhorias Mobile Identificadas
 
-## Problemas Identificados
+## Problemas Encontrados
 
-1. **Botoes +/- muito pequenos para toque** -- Os botoes de adicionar/remover sabor tem `p-1.5` (~28px), abaixo do minimo recomendado de 44px para touch targets em mobile.
+### 1. Pagina Index: navegacao duplicada no mobile
+Na pagina inicial mobile, o usuario ve **duas secoes quase identicas** uma apos a outra:
+- PromoBannersSection (cards empilhados com apenas o titulo visivel)
+- MobileNavCards (3 cards coloridos lado a lado)
 
-2. **Layout da linha de sabor apertado** -- No mobile, preco + botao minus + contador + botao plus ficam espremidos no lado direito, dificultando o toque preciso.
+Ambas levam aos mesmos destinos. Isso e confuso e ocupa espaco desnecessariamente.
 
-3. **Modal nao usa tela cheia no mobile** -- O DialogContent usa `max-h-[90vh]` mas nao ocupa a tela toda no mobile, desperdicando espaco e deixando o conteudo apertado.
+**Solucao:** Esconder o PromoBannersSection no mobile (ja que o MobileNavCards e mais bonito e informativo), ou unificar em uma so secao.
 
-4. **Botao de confirmar no footer** -- O botao "Selecione mais X marmitas" fica proximo demais da borda inferior, podendo conflitar com a barra de navegacao do celular (safe area).
+### 2. Pagina Cardapio: cards empilhados verticalmente no mobile
+No `/cardapio`, os 3 cards de linha (FIT, FITNESS, DETOX) estao em `grid-cols-1` no mobile, obrigando o usuario a rolar muito para ver todas as opcoes.
 
-5. **Scroll longo com muitos sabores** -- O usuario precisa rolar muito para ver todos os sabores sem indicacao visual clara de que ha mais conteudo.
+**Solucao:** No mobile, usar um layout horizontal com scroll snap (carrossel) para os cards, permitindo ver todos sem rolar a pagina inteira. Ou usar um layout mais compacto com imagem menor.
+
+### 3. FlavorSelectionModal: layout da linha de sabor apertado no mobile
+No modal de sabores, o preco e os botoes +/- ficam espremidos do lado direito do nome do sabor. Quando o nome e longo (ex: "Carne moida com arroz e feijao"), tudo fica apertado.
+
+**Solucao:** No mobile, mover o preco para abaixo do nome do sabor (junto com a descricao), deixando mais espaco para os botoes +/- no lado direito.
+
+### 4. PromoBannersSection: informacao escondida no mobile
+Os banners mostram apenas o titulo no mobile (`hidden sm:block` no subtitle e description). O usuario perde contexto importante como "Ganhe ate 23% OFF".
+
+**Solucao:** Se mantivermos o PromoBannersSection no mobile, exibir ao menos o subtitle para dar mais contexto.
+
+---
 
 ## Plano de Implementacao
 
-### 1. Aumentar touch targets dos botoes +/-
-- Mudar botoes de `p-1.5` para `p-2.5` (40px+) no FlavorSelectionModal
-- Mudar icones de `w-3.5 h-3.5` para `w-4 h-4`
-- Aplicar o mesmo no KitFlavorSelectionModal (botoes de `w-7 h-7` para `w-9 h-9`)
+### Mudanca 1 -- Esconder PromoBannersSection no mobile
+Em `src/pages/Index.tsx`, adicionar `hidden sm:block` ao PromoBannersSection (ou wrapper), ja que o MobileNavCards cobre a mesma funcionalidade de forma superior no mobile.
 
-### 2. Modal full-screen no mobile
-- Adicionar classes responsivas ao DialogContent do FlavorSelectionModal: no mobile, usar `max-h-[100dvh] h-[100dvh] rounded-none` em vez de `max-h-[90vh]`
-- Isso da mais espaco para o conteudo e os botoes
+### Mudanca 2 -- Cards do Cardapio mais compactos no mobile
+Em `src/pages/Cardapio.tsx`, mudar o layout dos cards no mobile:
+- Usar layout horizontal (flex com scroll snap) ou reduzir o tamanho da imagem no mobile
+- Imagem com aspect-ratio menor no mobile (ja tem `aspect-[16/9]` no mobile, mas o card ocupa a tela toda)
+- Opcao: card horizontal no mobile (imagem a esquerda, info a direita)
 
-### 3. Safe area no footer
-- Adicionar `pb-[env(safe-area-inset-bottom)]` ao footer do modal para evitar que o botao fique atras da barra de navegacao em iPhones com notch
-
-### 4. Melhorar layout da linha de sabor no mobile
-- Reorganizar o layout do sabor: preco abaixo do nome (em vez de ao lado dos botoes) no mobile
-- Botoes +/- ficam mais separados e faceis de tocar
-
-### 5. KitFlavorSelectionModal - mesmas otimizacoes
-- Aumentar touch targets
-- Full-screen no mobile
-- Safe area no footer
+### Mudanca 3 -- Layout responsivo da linha de sabor
+Em `src/components/FlavorSelectionModal.tsx`, no bloco de cada sabor (linhas 649-741):
+- No mobile: preco aparece abaixo do nome (na coluna esquerda)
+- Botoes +/- ficam sozinhos na direita com mais espaco
+- Isso melhora a usabilidade touch significativamente
 
 ---
 
 ### Detalhes Tecnicos
 
-**Arquivos modificados:**
-- `src/components/FlavorSelectionModal.tsx` -- touch targets, layout responsivo, safe area
-- `src/components/KitFlavorSelectionModal.tsx` -- mesmas otimizacoes
+**Arquivo: `src/pages/Index.tsx`**
+- Envolver `<PromoBannersSection />` com `<div className="hidden sm:block">` para esconde-lo no mobile
 
-**Mudancas especificas no FlavorSelectionModal:**
+**Arquivo: `src/pages/Cardapio.tsx`**
+- Mudar os cards para layout horizontal no mobile:
+  - Container: `flex overflow-x-auto snap-x snap-mandatory gap-4 md:grid md:grid-cols-3` 
+  - Cada card: `min-w-[85vw] snap-center md:min-w-0`
+  - Isso cria um carrossel swipeable no mobile e grid no desktop
 
-Linha 379 (DialogContent):
-```
-className="max-w-2xl max-h-[90vh] p-0 gap-0 flex flex-col"
-```
-Para:
-```
-className="max-w-2xl max-h-[100dvh] sm:max-h-[90vh] h-[100dvh] sm:h-auto p-0 gap-0 flex flex-col sm:rounded-lg rounded-none"
-```
+**Arquivo: `src/components/FlavorSelectionModal.tsx`**
+- Na div do sabor (linha 650-741), reestruturar para:
+  - No mobile: `flex-col` com nome+preco em cima, botoes embaixo a direita
+  - Ou: manter `flex-row` mas mover o preco para dentro da coluna do nome
 
-Linhas 698-731 (botoes +/-):
-- `p-1.5` para `p-2` nos botoes minus e plus
-- Icones de `w-3.5 h-3.5` para `w-4 h-4`
-
-Linha 752 (footer):
 ```
-className="p-4 border-t bg-background shrink-0 space-y-3"
+// De:
+<div className="flex items-center gap-3 shrink-0">
+  <span>{preco}</span>
+  <button>-</button>
+  <span>{qty}</span>
+  <button>+</button>
+</div>
+
+// Para (mobile):
+// Preco fica abaixo do nome
+// Botoes ficam sozinhos na direita
 ```
-Para:
-```
-className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t bg-background shrink-0 space-y-3"
-```
-
-**Mudancas no KitFlavorSelectionModal:**
-
-Linha 187 (DialogContent):
-- Mesma abordagem full-screen mobile
-
-Botoes (w-7 h-7 para w-9 h-9):
-- Icones de `w-3 h-3` para `w-4 h-4`
-
-Footer: safe area inset
