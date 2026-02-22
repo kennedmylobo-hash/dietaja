@@ -127,6 +127,8 @@ const FlavorSelectionModal = ({
   const lineKey = mapLineTypeToKey(lineType);
   const [selections, setSelections] = useState<Record<string, number>>({});
   const [leaveToUs, setLeaveToUs] = useState(false);
+  const [celebrationInfo, setCelebrationInfo] = useState<{ discount: number } | null>(null);
+  const prevTierPriceRef = useRef<number | null>(null);
 
   const flavorCategories = flavorsByCategory || defaultFlavorCategories;
   const maxFlavors = getMaxFlavors(packageQuantity);
@@ -217,6 +219,35 @@ const FlavorSelectionModal = ({
   const isMaxFlavorsReached = totalSelected < packageQuantity && uniqueFlavorsCount >= maxFlavors;
 
   const prevMaxReachedRef = useRef(false);
+
+  // Detect tier crossing for celebration
+  useEffect(() => {
+    if (sortedTiers.length === 0 || totalSelected === 0) {
+      prevTierPriceRef.current = null;
+      return;
+    }
+    const currentTierPrice = getEffectiveBasePrice(totalSelected);
+    const prevPrice = prevTierPriceRef.current;
+    
+    if (prevPrice !== null && currentTierPrice < prevPrice) {
+      const discount = (prevPrice - currentTierPrice) * totalSelected;
+      setCelebrationInfo({ discount });
+      celebrateCheckout();
+      hapticFeedback('success');
+      const timer = setTimeout(() => setCelebrationInfo(null), 4000);
+      return () => clearTimeout(timer);
+    }
+    
+    prevTierPriceRef.current = currentTierPrice;
+  }, [totalSelected, sortedTiers]);
+
+  // Initialize prevTierPriceRef when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      prevTierPriceRef.current = sortedTiers.length > 0 ? getEffectiveBasePrice(packageQuantity) : null;
+      setCelebrationInfo(null);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isMaxFlavorsReached && !prevMaxReachedRef.current && remaining > 0) {
@@ -388,6 +419,27 @@ const FlavorSelectionModal = ({
               transition={{ duration: 0.3 }}
             />
           </div>
+
+          {/* Celebration banner */}
+          <AnimatePresence>
+            {celebrationInfo && !leaveToUs && (
+              <motion.div
+                key="celebration"
+                initial={{ opacity: 0, scale: 0.9, height: 0 }}
+                animate={{ opacity: 1, scale: 1, height: "auto" }}
+                exit={{ opacity: 0, scale: 0.95, height: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className="mt-2"
+              >
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 text-sm dark:bg-emerald-900/20 dark:border-emerald-700">
+                  <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 animate-sparkle-pulse" />
+                  <span className="text-emerald-800 dark:text-emerald-200 font-semibold">
+                    🎉 Você ganhou {formatPrice(celebrationInfo.discount)} de desconto!
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Progressive discount nudge */}
           <AnimatePresence>
