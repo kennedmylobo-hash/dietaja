@@ -34,15 +34,12 @@ const SuperAdmin = () => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id);
+        const [{ data: isAdmin }, { data: isSuperAdmin }] = await Promise.all([
+          supabase.rpc('has_role', { _user_id: session.user.id, _role: 'admin' }),
+          supabase.rpc('has_role', { _user_id: session.user.id, _role: 'super_admin' }),
+        ]);
 
-        const isSuperAdmin = roles?.some((r: any) => r.role === "super_admin");
-        const isAdmin = roles?.some((r: any) => r.role === "admin");
-
-        if (isSuperAdmin || isAdmin) {
+        if (isAdmin === true || isSuperAdmin === true) {
           setIsAuthenticated(true);
         } else {
           toast({ title: "Acesso negado", description: "Você não tem permissão de super admin.", variant: "destructive" });
@@ -61,13 +58,12 @@ const SuperAdmin = () => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", data.user.id);
+      const { data: isSuperAdmin } = await supabase.rpc('has_role', {
+        _user_id: data.user.id,
+        _role: 'super_admin',
+      });
 
-      const isSuperAdmin = roles?.some((r: any) => r.role === "super_admin");
-      if (!isSuperAdmin) {
+      if (isSuperAdmin !== true) {
         await supabase.auth.signOut();
         throw new Error("Você não tem permissão de super admin.");
       }
