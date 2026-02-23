@@ -1,42 +1,64 @@
 
-
-# Corrigir Acesso ao Painel Admin
+# Corrigir Login Admin Definitivamente
 
 ## Problema
-As politicas de seguranca (RLS) na tabela `user_roles` estao configuradas como **restritivas** (RESTRICTIVE). O PostgreSQL exige pelo menos uma politica **permissiva** (PERMISSIVE) para liberar acesso. Como ambas sao restritivas, nenhuma linha e retornada, fazendo o sistema achar que o usuario nao tem permissao.
+O login no `/admin` e `/super-admin` consulta a tabela `user_roles` diretamente. Essa consulta depende das politicas RLS estarem configuradas corretamente E do token de autenticacao estar sincronizado com o servidor no momento exato da query. Qualquer falha de timing faz o sistema achar que voce nao tem permissao.
 
-Seu usuario kennedmylobo@gmail.com tem as roles `admin` e `super_admin` corretamente cadastradas -- o problema e apenas que a consulta nao consegue le-las.
+Mesmo com retry (5 tentativas), o problema persiste porque a query via RLS pode falhar silenciosamente (retorna array vazio em vez de erro).
 
 ## Solucao
-Recriar as politicas da tabela `user_roles` como **permissivas** (que e o padrao do PostgreSQL):
+Trocar TODAS as verificacoes de role para usar a funcao `has_role()` via RPC. Essa funcao ja existe no banco de dados e usa `SECURITY DEFINER`, o que significa que ela **ignora completamente o RLS** e consulta a tabela diretamente. Isso elimina 100% dos problemas de timing e politicas.
 
-1. Remover as duas politicas atuais (restritivas)
-2. Criar duas novas politicas permissivas:
-   - **"Users can view their own roles"** (SELECT) -- usuarios podem ver suas proprias roles (`user_id = auth.uid()`)
-   - **"Admins can manage all roles"** (ALL) -- admins podem gerenciar todas as roles (`has_role(auth.uid(), 'admin')`)
+## Mudancas
+
+### Arquivo 1: `src/pages/Admin.tsx`
+
+**Verificacao na restauracao de sessao (linhas 122-158):**
+- Remover o loop de retry com 5 tentativas
+- Substituir a query `supabase.from('user_roles').select(...)` por duas chamadas RPC:
+  - `supabase.rpc('has_role', { _user_id: session.user.id, _role: 'admin' })`
+  - `supabase.rpc('has_role', { _user_id: session.user.id, _role: 'super_admin' })`
+- Se qualquer uma retornar `true`, o usuario e autenticado
+
+**Verificacao no login (linhas 426-439):**
+- Mesma substituicao: trocar query direta por `has_role` via RPC
+- Remover o loop de retry (nao sera mais necessario)
+
+### Arquivo 2: `src/pages/SuperAdmin.tsx`
+
+**Verificacao na restauracao de sessao (linhas 36-51):**
+- Substituir `supabase.from('user_roles').select(...)` por RPC `has_role`
+
+**Verificacao no login (linhas 64-73):**
+- Substituir `supabase.from('user_roles').select(...)` por RPC `has_role`
 
 ## Detalhes Tecnicos
 
-**Migracao SQL:**
-```sql
--- Remover politicas restritivas existentes
-DROP POLICY IF EXISTS "Users can view their own roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Admins can manage all roles" ON public.user_roles;
-
--- Recriar como PERMISSIVE (padrao)
-CREATE POLICY "Users can view their own roles"
-  ON public.user_roles
-  FOR SELECT
-  TO authenticated
-  USING (user_id = auth.uid());
-
-CREATE POLICY "Admins can manage all roles"
-  ON public.user_roles
-  FOR ALL
-  TO authenticated
-  USING (public.has_role(auth.uid(), 'admin'::app_role));
+O codigo atual:
+```typescript
+const { data: roles } = await supabase
+  .from('user_roles')
+  .select('role, tenant_id')
+  .eq('user_id', session.user.id);
+const isAdmin = roles?.find(r => r.role === 'admin');
 ```
 
-**Nenhuma alteracao de codigo e necessaria** -- o problema e exclusivamente na configuracao do banco de dados.
+Sera substituido por:
+```typescript
+const { data: isAdmin } = await supabase.rpc('has_role', {
+  _user_id: session.user.id,
+  _role: 'admin'
+});
+const { data: isSuperAdmin } = await supabase.rpc('has_role', {
+  _user_id: session.user.id,
+  _role: 'super_admin'
+});
+const hasAccess = isAdmin === true || isSuperAdmin === true;
+```
 
-Apos aplicar, o login no `/admin` e no `/super-admin` funcionara normalmente.
+**Por que isso resolve definitivamente:**
+- `has_role` e `SECURITY DEFINER` -- executa com privilegios do dono da funcao, sem passar pelo RLS
+- Nao depende de timing do token
+- Nao precisa de retry
+- Funciona imediatamente apos o login
+- Impossivel falhar por configuracao de politicas
