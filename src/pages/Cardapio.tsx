@@ -9,6 +9,7 @@ import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { CartProvider, useCart } from "@/components/CartContext";
 import CartFloatingButton from "@/components/CartFloatingButton";
 import CartDrawer from "@/components/CartDrawer";
+import { SoftIdentificationModal } from "@/components/SoftIdentificationModal";
 import FlavorSelectionModal, { PricingTier } from "@/components/FlavorSelectionModal";
 import KitFlavorSelectionModal from "@/components/KitFlavorSelectionModal";
 import { useMarmitaPackages, useMarmitaFlavors, useKitPackages, useKitSoups, useKitJuices } from "@/hooks/useMenuData";
@@ -82,7 +83,7 @@ const lines = [
 const CardapioContent = () => {
   const navigate = useNavigate();
   const { brand } = useTenantConfig();
-  const { addItem } = useCart();
+  const { addItem, showIdentificationModal, setShowIdentificationModal, setCustomerInfo, confirmAddItem } = useCart();
 
   const [cartOpen, setCartOpen] = useState(false);
   const [flavorModalOpen, setFlavorModalOpen] = useState(false);
@@ -341,6 +342,14 @@ const CardapioContent = () => {
       </div>
 
       <CartDrawer open={cartOpen} onOpenChange={setCartOpen} onCheckout={() => {}} />
+
+      <SoftIdentificationModal
+        open={showIdentificationModal}
+        onConfirm={(name, phone, email) => {
+          setCustomerInfo({ name, phone, email, cartId: null });
+          confirmAddItem();
+        }}
+      />
 
       {/* Marmita Flavor Modal */}
       <FlavorSelectionModal
