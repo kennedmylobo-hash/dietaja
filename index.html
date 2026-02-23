@@ -42,52 +42,20 @@
 
   <body>
     <div id="root"></div>
-    <!-- Inline recovery script: runs BEFORE any cached JS bundle -->
+    <!-- Kill any old Service Worker on every page load -->
     <script>
       (function(){
-        var RECOVERY_VERSION = '2026-02-23-v1';
-        var KEY = 'html_recovery_v';
         try {
-          var stored = localStorage.getItem(KEY);
-          // If version changed, nuke SW + caches immediately
-          if (stored && stored !== RECOVERY_VERSION) {
-            localStorage.setItem(KEY, RECOVERY_VERSION);
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(function(regs){
-                regs.forEach(function(r){ r.unregister(); });
-              });
-            }
-            if ('caches' in window) {
-              caches.keys().then(function(names){
-                names.forEach(function(n){ caches.delete(n); });
-              });
-            }
-            location.href = location.origin + '/?_v=' + Date.now();
-            return;
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs){
+              regs.forEach(function(r){ r.unregister(); });
+            });
           }
-          if (!stored) localStorage.setItem(KEY, RECOVERY_VERSION);
-
-          // Fallback: if app doesn't render in 8s, force reload once
-          var attempted = sessionStorage.getItem('_fr');
-          setTimeout(function(){
-            var root = document.getElementById('root');
-            if (root && root.children.length === 0 && !attempted) {
-              sessionStorage.setItem('_fr', '1');
-              if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(function(regs){
-                  regs.forEach(function(r){ r.unregister(); });
-                });
-              }
-              if ('caches' in window) {
-                caches.keys().then(function(names){
-                  names.forEach(function(n){ caches.delete(n); });
-                });
-              }
-              location.href = location.origin + '/?_v=' + Date.now();
-            } else if (root && root.children.length > 0) {
-              sessionStorage.removeItem('_fr');
-            }
-          }, 8000);
+          if ('caches' in window) {
+            caches.keys().then(function(names){
+              names.forEach(function(n){ caches.delete(n); });
+            });
+          }
         } catch(e){}
       })();
     </script>
