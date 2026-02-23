@@ -343,6 +343,43 @@ export function parseWhatsAppConversation(
   };
 }
 
+export interface ParsedCustomDietItem {
+  quantity: number;
+  description: string; // full line e.g. "120G Proteína de Soja ao Sugo com 150G Arroz e 30G Brócolis"
+}
+
+/**
+ * Parse custom/personalised diet lines with explicit weights.
+ * Format: "2x 120G Proteína de Soja ao Sugo com 150G Arroz e 30G Brócolis"
+ * or     "2 120G Proteína de Soja ao Sugo com 150G Arroz e 30G Brócolis"
+ */
+export function parseCustomDietLines(text: string): ParsedCustomDietItem[] {
+  const items: ParsedCustomDietItem[] = [];
+  const lines = text.split(/\n/);
+
+  // Pattern: optional quantity (digits + optional "x"), then at least one "NNNg ingredient"
+  const linePattern = /^(\d+)\s*x?\s+(.+)/i;
+  const weightPattern = /\d+\s*g\s/i;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length < 10) continue;
+
+    const match = trimmed.match(linePattern);
+    if (!match) continue;
+
+    const quantity = parseInt(match[1], 10);
+    const description = match[2].trim();
+
+    // Only accept lines that contain at least one weight pattern (e.g. "120G")
+    if (!weightPattern.test(description + ' ')) continue;
+
+    items.push({ quantity, description });
+  }
+
+  return items;
+}
+
 export function buildCatalog(
   marmitaFlavors: { name: string; category: string }[],
 ): CatalogItem[] {

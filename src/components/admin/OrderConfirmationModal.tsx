@@ -38,7 +38,7 @@ interface OrderConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   items: ConfirmItem[];
-  lineType: "fit" | "fitness";
+  lineType: "fit" | "fitness" | "personalizada";
   customerName: string;
   subtotal: number;
   deliveryDate: string;
@@ -75,13 +75,15 @@ const OrderConfirmationModal = ({
         ...item,
         sides: item.sides.length > 0
           ? item.sides.map(s => ({ ...s }))
-          : generateDefaultSides(item.matchedName || item.name, lineType),
+          : lineType === 'personalizada'
+            ? [] // personalizada items have weights in the description
+            : generateDefaultSides(item.matchedName || item.name, lineType),
       })));
       setEditableSubtotal(String(subtotal));
     }
   }, [isOpen, initialItems, subtotal]);
 
-  const targetWeight = lineType === "fit" ? 300 : 450;
+  const targetWeight = lineType === "fit" ? 300 : lineType === "fitness" ? 450 : 0;
 
   const updateSideWeight = (itemIdx: number, sideIdx: number, value: number) => {
     setEditableItems(prev =>
@@ -124,35 +126,36 @@ const OrderConfirmationModal = ({
   const handleConfirm = async () => {
     setConfirming(true);
     try {
-      // Save any modified sides back to the DB
-      const lineKey = mapLineTypeToKey(lineType === "fit" ? "emagrecimento" : "hipertrofia");
+      // For personalizada, skip saving sides to DB — weights are in the description
+      if (lineType !== 'personalizada') {
+        const lineKey = mapLineTypeToKey(lineType === "fit" ? "emagrecimento" : "hipertrofia");
 
-      for (const item of editableItems) {
-        if (!item.flavorId || item.sides.length === 0) continue;
+        for (const item of editableItems) {
+          if (!item.flavorId || item.sides.length === 0) continue;
 
-        const cleanSides = item.sides.filter(s => s.name.trim() && s.weight > 0);
-        if (cleanSides.length === 0) continue;
+          const cleanSides = item.sides.filter(s => s.name.trim() && s.weight > 0);
+          if (cleanSides.length === 0) continue;
 
-        // Build the full sides object (preserve other line's data)
-        const { data: current } = await supabase
-          .from("marmita_flavors")
-          .select("sides")
-          .eq("id", item.flavorId)
-          .single();
+          const { data: current } = await supabase
+            .from("marmita_flavors")
+            .select("sides")
+            .eq("id", item.flavorId)
+            .single();
 
-        const existing = parseSides(current?.sides as Json | null) || {};
-        const newSides: FlavorSidesByLine = {
-          ...existing,
-          [lineKey]: cleanSides,
-        };
+          const existing = parseSides(current?.sides as Json | null) || {};
+          const newSides: FlavorSidesByLine = {
+            ...existing,
+            [lineKey]: cleanSides,
+          };
 
-        const sidesJson = newSides as unknown as Json;
-        await supabase
-          .from("marmita_flavors")
-          .update({ sides: sidesJson })
-          .eq("id", item.flavorId);
+          const sidesJson = newSides as unknown as Json;
+          await supabase
+            .from("marmita_flavors")
+            .update({ sides: sidesJson })
+            .eq("id", item.flavorId);
 
-        onItemsUpdated(item.flavorId, sidesJson);
+          onItemsUpdated(item.flavorId, sidesJson);
+        }
       }
 
       onConfirm();
@@ -206,7 +209,7 @@ const OrderConfirmationModal = ({
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm">{item.matchedName}</span>
                     <Badge variant="secondary" className="text-xs">
-                      {lineType === "fit" ? "FIT" : "FITNESS"}
+                      {lineType === "fit" ? "FIT" : lineType === "fitness" ? "FITNESS" : "PERSONALIZADA"}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-1">
@@ -222,7 +225,12 @@ const OrderConfirmationModal = ({
                 </div>
 
                 {/* Ingredients */}
-                {item.sides.length > 0 ? (
+                {lineType === 'personalizada' ? (
+                  <div className="bg-muted/50 rounded p-2">
+                    <p className="text-xs text-muted-foreground font-medium mb-1">Descrição completa:</p>
+                    <p className="text-sm font-medium">{item.matchedName}</p>
+                  </div>
+                ) : item.sides.length > 0 ? (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs text-muted-foreground">Ingredientes</Label>
