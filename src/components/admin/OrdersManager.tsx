@@ -297,17 +297,19 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     }
   }, [orders]);
 
-  const getTimeSinceChange = (orderId: string, createdAt: string): string => {
-    const lastChange = lastStatusChanges[orderId] || createdAt;
-    const diffMs = Date.now() - new Date(lastChange).getTime();
+  const getTimeSinceOrder = (createdAt: string): string => {
+    const diffMs = Date.now() - new Date(createdAt).getTime();
     const diffMinutes = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMinutes / 60);
     const diffDays = Math.floor(diffHours / 24);
+    const remainingHours = diffHours % 24;
+    const remainingMinutes = diffMinutes % 60;
 
     if (diffMinutes < 1) return 'Agora';
     if (diffMinutes < 60) return `${diffMinutes}min`;
-    if (diffHours < 24) return `${diffHours}h`;
-    return `${diffDays}d`;
+    if (diffHours < 24) return `${diffHours}h ${remainingMinutes}min`;
+    if (diffDays === 1) return `1d ${remainingHours}h`;
+    return `${diffDays}d ${remainingHours}h`;
   };
 
   // Group orders by status category (6 stages)
@@ -1099,7 +1101,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <Clock className="w-3 h-3" />
                     <span className="text-xs">
-                      {getTimeSinceChange(order.id, order.created_at)}
+                      {getTimeSinceOrder(order.created_at)}
                     </span>
                   </div>
                 </td>
