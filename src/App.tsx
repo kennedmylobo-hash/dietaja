@@ -13,6 +13,7 @@ import MetaPixel from "./components/MetaPixel";
 // Eager load critical pages
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import Cardapio from "./pages/Cardapio";
 
 // Lazy load less critical pages
 const Obrigado = lazy(() => import("./pages/Obrigado"));
@@ -20,7 +21,6 @@ const Admin = lazy(() => import("./pages/Admin"));
 const PagamentoSucesso = lazy(() => import("./pages/PagamentoSucesso"));
 const PagamentoErro = lazy(() => import("./pages/PagamentoErro"));
 const StatusPedido = lazy(() => import("./pages/StatusPedido"));
-const Cardapio = lazy(() => import("./pages/Cardapio"));
 const PixPayment = lazy(() => import("./pages/PixPayment"));
 const MinhaConta = lazy(() => import("./pages/MinhaConta"));
 const AdminResetPassword = lazy(() => import("./pages/AdminResetPassword"));
