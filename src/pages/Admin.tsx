@@ -125,21 +125,12 @@ const Admin = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
-        // Verify admin role with retry (RLS may need a moment after session restore)
-        let adminRole = null;
-        for (let attempt = 0; attempt < 5; attempt++) {
-          const { data: roles, error: rolesError } = await supabase
-            .from('user_roles')
-            .select('role, tenant_id')
-            .eq('user_id', session.user.id);
-          
-          console.log(`[Admin] Session restore role check attempt ${attempt + 1}:`, { roles, rolesError });
-          adminRole = roles?.find((r: any) => r.role === 'admin' || r.role === 'super_admin');
-          if (adminRole) break;
-          await new Promise(resolve => setTimeout(resolve, 800 * (attempt + 1)));
-        }
+        const [{ data: isAdmin }, { data: isSuperAdmin }] = await Promise.all([
+          supabase.rpc('has_role', { _user_id: session.user.id, _role: 'admin' }),
+          supabase.rpc('has_role', { _user_id: session.user.id, _role: 'super_admin' }),
+        ]);
 
-        if (adminRole) {
+        if (isAdmin === true || isSuperAdmin === true) {
           setIsAuthenticated(true);
         } else {
           toast({
@@ -423,22 +414,12 @@ const Admin = () => {
 
       if (error) throw error;
 
-      // Check admin role with retry (RLS may need a moment after fresh login)
-      let adminRole = null;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const { data: roles, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('role, tenant_id')
-          .eq('user_id', data.user.id);
+      const [{ data: isAdmin }, { data: isSuperAdmin }] = await Promise.all([
+        supabase.rpc('has_role', { _user_id: data.user.id, _role: 'admin' }),
+        supabase.rpc('has_role', { _user_id: data.user.id, _role: 'super_admin' }),
+      ]);
 
-        console.log(`[Admin] Role check attempt ${attempt + 1}:`, { roles, rolesError });
-        adminRole = roles?.find((r: any) => r.role === 'admin' || r.role === 'super_admin');
-        if (adminRole) break;
-        // Wait before retrying - increase delay each attempt
-        await new Promise(resolve => setTimeout(resolve, 800 * (attempt + 1)));
-      }
-
-      if (!adminRole) {
+      if (isAdmin !== true && isSuperAdmin !== true) {
         await supabase.auth.signOut();
         throw new Error('Você não tem permissão de administrador.');
       }
