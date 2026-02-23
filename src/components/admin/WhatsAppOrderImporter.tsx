@@ -28,6 +28,7 @@ import { toast } from "@/hooks/use-toast";
 import { 
   parseWhatsAppConversation, 
   buildCatalog, 
+  parseCustomDietLines,
   ParsedOrder, 
   ParsedOrderItem 
 } from "@/lib/whatsapp-parser";
@@ -93,7 +94,7 @@ const WhatsAppOrderImporter = () => {
   const [manualSubtotal, setManualSubtotal] = useState("");
 
   // New required fields
-  const [lineType, setLineType] = useState<'fit' | 'fitness' | null>(null);
+  const [lineType, setLineType] = useState<'fit' | 'fitness' | 'personalizada' | null>(null);
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'pending_payment' | null>(null);
@@ -115,17 +116,15 @@ const WhatsAppOrderImporter = () => {
 
   // Recalculate item prices when lineType changes
   useEffect(() => {
-    if (!lineType || items.length === 0 || marmitaPackages.length === 0) return;
+    if (!lineType || lineType === 'personalizada' || items.length === 0 || marmitaPackages.length === 0) return;
 
     const lineTypeKey = lineType === 'fit' ? 'emagrecimento' : 'hipertrofia';
-    // Find the cheapest package for this line to get unit_price
     const matchingPackages = marmitaPackages.filter(p => {
       const name = p.name.toLowerCase();
       if (lineTypeKey === 'hipertrofia') return name.includes('fitness') || name.includes('hipertrofia');
       return !name.includes('fitness') && !name.includes('hipertrofia');
     });
     
-    // Use first matching package's unit_price, or fallback
     const unitPrice = matchingPackages.length > 0 
       ? matchingPackages.reduce((max, p) => Math.max(max, p.unit_price), 0)
       : 0;
@@ -191,26 +190,60 @@ const WhatsAppOrderImporter = () => {
     setIsAnalyzing(true);
 
     try {
-      const catalog = buildCatalog(marmitaFlavors);
+      // Try custom diet format first
+      const customItems = parseCustomDietLines(conversationText);
+      
+      if (customItems.length > 0) {
+        // Detected personalizada format - auto-select lineType
+        setLineType('personalizada');
+        
+        const parsedItems: ParsedOrderItem[] = customItems.map(ci => ({
+          name: ci.description,
+          matchedName: ci.description,
+          quantity: ci.quantity,
+          unitPrice: 0,
+          totalPrice: 0,
+          type: 'marmita' as const,
+          confidence: 1,
+        }));
 
-      const result = parseWhatsAppConversation(conversationText, catalog);
-      setParsedOrder(result);
+        // Still try to extract customer info
+        const catalog = buildCatalog(marmitaFlavors);
+        const result = parseWhatsAppConversation(conversationText, catalog);
+        setParsedOrder({ ...result, items: parsedItems });
 
-      // Populate editable form
-      setCustomerName(result.customer.name || "");
-      setCustomerPhone(result.customer.phone || "");
-      setCustomerEmail(result.customer.email || "");
-      setDeliveryAddress(result.customer.address || "");
-      setItems(result.items.map(item => ({
-        ...item,
-        name: item.name.replace(/mix de salada/gi, 'mix de legumes'),
-      })));
-      setStep('review');
+        setCustomerName(result.customer.name || "");
+        setCustomerPhone(result.customer.phone || "");
+        setCustomerEmail(result.customer.email || "");
+        setDeliveryAddress(result.customer.address || "");
+        setItems(parsedItems);
+        setStep('review');
 
-      toast({
-        title: "Análise concluída",
-        description: `${result.items.length} item(s) identificado(s). Preencha os campos faltantes.`,
-      });
+        toast({
+          title: "Dieta personalizada detectada",
+          description: `${parsedItems.length} item(s) com pesos identificados. Preencha o valor e dados do cliente.`,
+        });
+      } else {
+        // Standard catalog-based parsing
+        const catalog = buildCatalog(marmitaFlavors);
+        const result = parseWhatsAppConversation(conversationText, catalog);
+        setParsedOrder(result);
+
+        setCustomerName(result.customer.name || "");
+        setCustomerPhone(result.customer.phone || "");
+        setCustomerEmail(result.customer.email || "");
+        setDeliveryAddress(result.customer.address || "");
+        setItems(result.items.map(item => ({
+          ...item,
+          name: item.name.replace(/mix de salada/gi, 'mix de legumes'),
+        })));
+        setStep('review');
+
+        toast({
+          title: "Análise concluída",
+          description: `${result.items.length} item(s) identificado(s). Preencha os campos faltantes.`,
+        });
+      }
     } catch (error) {
       console.error('Error parsing conversation:', error);
       toast({
@@ -298,6 +331,12 @@ const WhatsAppOrderImporter = () => {
   const handleCreateOrder = () => {
     if (!isComplete) return;
     
+    // Skip composition check for personalizada — weights are already in the description
+    if (lineType === 'personalizada') {
+      openConfirmationModal();
+      return;
+    }
+
     const missing = getItemsMissingComposition();
     if (missing.length > 0) {
       setPendingCompositionItems(missing);
@@ -554,12 +593,12 @@ WhatsApp: 77991234567"
 
                 <Separator />
 
-                {/* Line Type (FIT / FITNESS) */}
+                {/* Line Type (FIT / FITNESS / PERSONALIZADA) */}
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2 text-sm">
                     <Utensils className="w-4 h-4" /> Tipo da Marmita *
                   </h4>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <Button
                       type="button"
                       variant={lineType === 'fit' ? 'default' : 'outline'}
@@ -575,6 +614,14 @@ WhatsApp: 77991234567"
                       onClick={() => setLineType('fitness')}
                     >
                       FITNESS 450g
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={lineType === 'personalizada' ? 'default' : 'outline'}
+                      className={`w-full ${isMissing('lineType') ? 'border-destructive' : ''}`}
+                      onClick={() => setLineType('personalizada')}
+                    >
+                      PERSONALIZADA
                     </Button>
                   </div>
                 </div>
@@ -759,7 +806,7 @@ WhatsApp: 77991234567"
                     <p className="font-bold text-primary mb-2">📋 Resumo do Pedido</p>
                     <p><strong>Cliente:</strong> {customerName}</p>
                     <p><strong>Pedido:</strong> {items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p>
-                    <p><strong>Tipo:</strong> {lineType === 'fit' ? 'FIT 300g' : 'FITNESS 450g'}</p>
+                    <p><strong>Tipo:</strong> {lineType === 'fit' ? 'FIT 300g' : lineType === 'fitness' ? 'FITNESS 450g' : 'PERSONALIZADA'}</p>
                     <p><strong>Entrega:</strong> {formatDateBR(deliveryDate)} — {deliveryTime}</p>
                     <p><strong>Valor:</strong> {formatCurrency(subtotal)}</p>
                     <p><strong>Pagamento:</strong> {paymentStatus === 'paid' ? 'Pago' : 'A receber'}</p>
