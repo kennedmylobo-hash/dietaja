@@ -115,10 +115,10 @@ const HeroSection = () => {
 
           <Button
             size="lg"
-            className="animate-fade-in text-base sm:text-lg px-8 py-6 rounded-full shadow-lg"
+            className="animate-fade-in text-sm sm:text-lg px-5 sm:px-8 py-5 sm:py-6 rounded-full shadow-lg max-w-full"
             onClick={() => navigate("/cardapio")}
           >
-            {getVariantValue("hero_cta") ?? "Alimentação saudável a partir de R$ 22,90 por refeição"}
+            <span className="truncate">{getVariantValue("hero_cta") ?? "Alimentação saudável a partir de R$ 22,90 por refeição"}</span>
           </Button>
 
         </div>
