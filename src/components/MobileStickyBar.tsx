@@ -30,8 +30,8 @@ const MobileStickyBar = forwardRef<HTMLDivElement, MobileStickyBarProps>(({ onCt
   if (!hasItems) return null;
 
   return (
-    <div ref={ref} className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card/95 backdrop-blur-md border-t border-border shadow-lg">
-      <div className="flex items-center justify-between gap-4 p-4">
+    <div ref={ref} className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card/95 backdrop-blur-md border-t border-border shadow-lg pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div className="flex flex-col">
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <ShoppingCart className="w-3 h-3" />

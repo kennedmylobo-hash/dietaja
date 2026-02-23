@@ -41,11 +41,11 @@ const SalesNotification = () => {
 
     const hideTimeout = setTimeout(() => {
       setIsVisible(false);
-    }, 4000);
+    }, isMobile ? 3000 : 4000);
 
     const nextTimeout = setTimeout(() => {
       showRandomTestimonial();
-    }, 15000 + Math.random() * 10000);
+    }, isMobile ? 25000 + Math.random() * 15000 : 15000 + Math.random() * 10000);
 
     return () => {
       clearTimeout(hideTimeout);
@@ -67,7 +67,7 @@ const SalesNotification = () => {
           animate={{ opacity: 1, x: 0, y: 0 }}
           exit={{ opacity: 0, x: -100 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="fixed bottom-24 left-4 z-40 max-w-[300px] md:bottom-8 md:left-8"
+          className="fixed top-20 left-4 z-40 max-w-[260px] md:bottom-8 md:left-8 md:top-auto md:max-w-[300px]"
         >
           <div className="bg-card border border-border rounded-xl shadow-lg p-4 backdrop-blur-sm">
             <div className="flex items-start gap-3">
