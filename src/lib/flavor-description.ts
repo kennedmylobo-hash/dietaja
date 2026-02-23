@@ -27,9 +27,17 @@ export const parseSides = (sides: Json | null): FlavorSidesByLine | null => {
   const parsed = sides as Record<string, unknown>;
   const result: FlavorSidesByLine = {};
   
-  for (const key of ['fit', 'fitness'] as const) {
-    if (Array.isArray(parsed[key])) {
-      result[key] = (parsed[key] as any[]).filter(
+  // Support both canonical keys (fit/fitness) and legacy keys (emagrecimento/hipertrofia)
+  const keyMap: Record<string, 'fit' | 'fitness'> = {
+    fit: 'fit',
+    emagrecimento: 'fit',
+    fitness: 'fitness',
+    hipertrofia: 'fitness',
+  };
+
+  for (const [rawKey, canonicalKey] of Object.entries(keyMap)) {
+    if (Array.isArray(parsed[rawKey]) && !result[canonicalKey]) {
+      result[canonicalKey] = (parsed[rawKey] as any[]).filter(
         (item) => item && typeof item.name === 'string' && typeof item.weight === 'number'
       );
     }

@@ -71,7 +71,7 @@ const findFlavorSides = (
       const keyWords = extractWords(key);
       const overlap = targetWords.filter(w => keyWords.includes(w)).length;
       const score = overlap / Math.max(targetWords.length, keyWords.length);
-      if (score > bestScore && score >= 0.5) { bestScore = score; bestMatch = key; }
+      if (score > bestScore && score >= 0.3) { bestScore = score; bestMatch = key; }
     }
     if (bestMatch) sidesData = flavorSidesMap[bestMatch];
   }
