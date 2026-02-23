@@ -115,7 +115,7 @@ const HeroSection = () => {
 
           <Button
             size="lg"
-            className="animate-fade-in text-sm sm:text-lg px-5 sm:px-8 py-5 sm:py-6 rounded-full shadow-lg max-w-full"
+            className="animate-fade-in text-xs sm:text-lg px-4 sm:px-8 py-4 sm:py-6 rounded-full shadow-lg max-w-full"
             onClick={() => navigate("/cardapio")}
           >
             <span className="truncate">{getVariantValue("hero_cta") ?? "Investir na minha saúde — a partir de R$ 22,90"}</span>
