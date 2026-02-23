@@ -42,6 +42,7 @@ import {
   Check,
   Link as LinkIcon,
   Printer,
+  Pencil,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -68,6 +69,9 @@ import { printOrderTicket } from "@/lib/print-utils";
 import { printOrderProduction, generateOrderProductionWhatsApp } from "@/lib/order-production-utils";
 import { shareViaWhatsApp } from "@/lib/print-utils";
 import { printThermalTicket } from "@/lib/thermal-print";
+import OrderConfirmationModal from "@/components/admin/OrderConfirmationModal";
+import type { ConfirmItem } from "@/components/admin/OrderConfirmationModal";
+import { parseSides, generateDefaultSides } from "@/lib/flavor-description";
 
 interface FlavorItem {
   name: string;
@@ -137,6 +141,12 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
 
   // Flavor compositions for order detail
   const [flavorSidesMap, setFlavorSidesMap] = useState<Record<string, Json | null>>({});
+
+  // Editing flavor composition state
+  const [editingFlavorItems, setEditingFlavorItems] = useState<ConfirmItem[] | null>(null);
+  const [editingLineType, setEditingLineType] = useState<"fit" | "fitness" | "personalizada">("fit");
+  // Map from flavor name to its DB id for editing
+  const [flavorIdMap, setFlavorIdMap] = useState<Record<string, string>>({});
 
   // PIX Generation states
   const [isGeneratingPix, setIsGeneratingPix] = useState<string | null>(null);
@@ -243,12 +253,17 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
       if (hasMarmita) {
         supabase
           .from('marmita_flavors')
-          .select('name, sides')
+          .select('id, name, sides')
           .then(({ data }) => {
             if (data) {
               const map: Record<string, Json | null> = {};
-              data.forEach(f => { map[f.name] = f.sides; });
+              const idMap: Record<string, string> = {};
+              data.forEach(f => { 
+                map[f.name] = f.sides; 
+                idMap[f.name] = f.id;
+              });
               setFlavorSidesMap(map);
+              setFlavorIdMap(idMap);
             }
           });
       }
@@ -1535,13 +1550,16 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                 </h4>
                 {selectedOrder.items.map((item, i) => {
                   // Infer line type for marmita items
+                  const isPersonalizada = item.lineType === 'personalizada' || /personalizada/i.test(item.name);
                   const inferredLineType = item.type === 'marmita'
-                    ? (item.lineType === 'hipertrofia' || item.lineType === 'fitness'
-                      || /hipertrofia|fitness/i.test(item.name)
-                      ? 'fitness' : 'fit')
+                    ? isPersonalizada
+                      ? 'personalizada'
+                      : (item.lineType === 'hipertrofia' || item.lineType === 'fitness'
+                        || /hipertrofia|fitness/i.test(item.name)
+                        ? 'fitness' : 'fit')
                     : null;
-                  const lineWeight = inferredLineType === 'fitness' ? '450g' : '300g';
-                  const lineLabel = inferredLineType === 'fitness' ? 'FITNESS' : 'FIT';
+                  const lineWeight = inferredLineType === 'fitness' ? '450g' : inferredLineType === 'personalizada' ? '' : '300g';
+                  const lineLabel = inferredLineType === 'fitness' ? 'FITNESS' : inferredLineType === 'personalizada' ? 'PERSONALIZADA' : 'FIT';
 
                   return (
                     <div key={i} className="py-1.5 border-b last:border-0">
@@ -1553,9 +1571,11 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                               variant="outline"
                               className={inferredLineType === 'fitness'
                                 ? 'bg-blue-500/10 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0'
-                                : 'bg-green-500/10 text-green-700 border-green-200 text-[10px] px-1.5 py-0'}
+                                : inferredLineType === 'personalizada'
+                                  ? 'bg-orange-500/10 text-orange-700 border-orange-200 text-[10px] px-1.5 py-0'
+                                  : 'bg-green-500/10 text-green-700 border-green-200 text-[10px] px-1.5 py-0'}
                             >
-                              {inferredLineType === 'fitness' ? '💪' : '🥗'} {lineLabel} {lineWeight}
+                              {inferredLineType === 'fitness' ? '💪' : inferredLineType === 'personalizada' ? '📋' : '🥗'} {lineLabel} {lineWeight}
                             </Badge>
                           )}
                         </span>
@@ -1584,16 +1604,69 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                               }
                               if (bestMatch) sidesData = flavorSidesMap[bestMatch];
                             }
-                            const composition = inferredLineType ? getFlavorDescription(sidesData, inferredLineType) : null;
+                            const composition = inferredLineType && inferredLineType !== 'personalizada' ? getFlavorDescription(sidesData, inferredLineType) : null;
                             return (
-                              <div key={fi}>
-                                <p className="text-xs text-muted-foreground">
-                                  • {flavor.quantity}x {flavor.name}
-                                </p>
-                                {composition && (
-                                  <p className="text-[10px] text-muted-foreground/70 ml-3">
-                                    {composition}
+                              <div key={fi} className="flex items-start gap-1">
+                                <div className="flex-1">
+                                  <p className="text-xs text-muted-foreground">
+                                    • {flavor.quantity}x {flavor.name}
                                   </p>
+                                  {composition && (
+                                    <p className="text-[10px] text-muted-foreground/70 ml-3">
+                                      {composition}
+                                    </p>
+                                  )}
+                                </div>
+                                {inferredLineType && inferredLineType !== 'personalizada' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0 shrink-0"
+                                    title="Editar composição"
+                                    onClick={() => {
+                                      // Find flavor ID via exact or fuzzy match
+                                      let matchedName = flavor.name;
+                                      let flavorId = flavorIdMap[flavor.name] || null;
+                                      if (!flavorId) {
+                                        const stopWords = new Set(['com', 'de', 'e', 'em', 'ao', 'a', 'o', 'mix', 'da', 'do']);
+                                        const extractWords = (str: string) =>
+                                          str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                                            .split(/[\s,]+/).filter(w => w.length > 1 && !stopWords.has(w));
+                                        const targetWords = extractWords(flavor.name);
+                                        let bestScore = 0;
+                                        for (const key of Object.keys(flavorIdMap)) {
+                                          const keyWords = extractWords(key);
+                                          const overlap = targetWords.filter(w => keyWords.includes(w)).length;
+                                          const score = overlap / Math.max(targetWords.length, keyWords.length);
+                                          if (score > bestScore && score >= 0.5) {
+                                            bestScore = score;
+                                            matchedName = key;
+                                            flavorId = flavorIdMap[key];
+                                          }
+                                        }
+                                      }
+
+                                      const sidesRaw = flavorSidesMap[matchedName] ?? null;
+                                      const parsed = parseSides(sidesRaw);
+                                      const lineKey = inferredLineType === 'fitness' ? 'hipertrofia' : 'emagrecimento';
+                                      const existingSides = parsed?.[lineKey] || [];
+
+                                      const confirmItem: ConfirmItem = {
+                                        name: flavor.name,
+                                        matchedName,
+                                        quantity: flavor.quantity,
+                                        flavorId,
+                                        sides: existingSides.length > 0
+                                          ? existingSides.map(s => ({ ...s }))
+                                          : generateDefaultSides(matchedName, inferredLineType),
+                                      };
+
+                                      setEditingFlavorItems([confirmItem]);
+                                      setEditingLineType(inferredLineType as "fit" | "fitness");
+                                    }}
+                                  >
+                                    <Pencil className="w-3 h-3 text-muted-foreground" />
+                                  </Button>
                                 )}
                               </div>
                             );
@@ -1851,6 +1924,32 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit Flavor Composition Modal */}
+      {editingFlavorItems && (
+        <OrderConfirmationModal
+          isOpen={!!editingFlavorItems}
+          onClose={() => setEditingFlavorItems(null)}
+          onConfirm={() => {
+            setEditingFlavorItems(null);
+            toast({ title: "Composição atualizada!", description: "Os pesos foram salvos com sucesso." });
+          }}
+          items={editingFlavorItems}
+          lineType={editingLineType}
+          customerName={selectedOrder?.customer_name || ''}
+          subtotal={selectedOrder?.subtotal || 0}
+          deliveryDate=""
+          deliveryTime=""
+          paymentStatus="paid"
+          onItemsUpdated={(flavorId, newSides) => {
+            // Update local flavorSidesMap so the detail view refreshes immediately
+            const flavorName = Object.entries(flavorIdMap).find(([_, id]) => id === flavorId)?.[0];
+            if (flavorName) {
+              setFlavorSidesMap(prev => ({ ...prev, [flavorName]: newSides }));
+            }
+          }}
+        />
+      )}
 
       {/* Cancel Order Dialog with Reason */}
       <Dialog 
