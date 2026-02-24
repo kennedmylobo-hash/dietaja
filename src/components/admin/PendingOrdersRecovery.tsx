@@ -70,6 +70,7 @@ interface PendingOrder {
   paid_at: string | null;
   reminder_sent_at: string | null;
   whatsapp_sent_at: string | null;
+  tenant_id?: string | null;
 }
 
 const PendingOrdersRecovery = () => {
@@ -268,7 +269,8 @@ const PendingOrdersRecovery = () => {
             total: orderData?.total,
             delivery_option: orderData?.delivery_option,
             delivery_address: orderData?.delivery_address,
-            payment_method: paymentNote === 'delivery' ? 'na_entrega' : 'manual'
+            payment_method: paymentNote === 'delivery' ? 'na_entrega' : 'manual',
+            tenant_id: orderData?.tenant_id,
           }
         });
        console.log('✅ Email + WhatsApp confirmation sent via send-order-approved');
