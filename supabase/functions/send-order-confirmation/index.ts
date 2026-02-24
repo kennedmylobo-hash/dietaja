@@ -2,8 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { getEmailCredentials } from "../_shared/tenant-credentials.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -128,16 +127,18 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
-    // Fetch tenant branding
+    // Fetch tenant branding and email credentials
     const branding = await getTenantBranding(supabase, data.tenant_id);
     const baseUrl = getTenantBaseUrl(branding);
+    const emailCreds = await getEmailCredentials(supabase, data.tenant_id);
+    const resend = new Resend(emailCreds.apiKey);
 
     const html = generateEmailHtml(data, branding.brand_name, branding.whatsapp, branding.whatsapp_formatted, baseUrl, `${branding.city}`);
 
-    console.log(`Sending email to ${data.customer_email}`);
+    console.log(`Sending email to ${data.customer_email} from ${emailCreds.fromEmail}`);
 
     const { data: emailResponse, error } = await resend.emails.send({
-      from: `${branding.brand_name} <noreply@dietajavca.com.br>`,
+      from: `${branding.brand_name} <${emailCreds.fromEmail}>`,
       to: [data.customer_email],
       subject: `Pedido #${data.order_number} - Aguardando Pagamento 🛒`,
       html,

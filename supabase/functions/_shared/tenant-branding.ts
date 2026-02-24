@@ -13,7 +13,7 @@ export interface TenantBranding {
 }
 
 const DEFAULT_BRANDING: TenantBranding = {
-  brand_name: "Meu Restaurante",
+  brand_name: "Dieta Já",
   whatsapp: "",
   whatsapp_formatted: "",
   logo_url: null,
