@@ -314,6 +314,108 @@ export type Database = {
           },
         ]
       }
+      client_feedback_tokens: {
+        Row: {
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          id: string
+          is_active: boolean
+          recurring_customer_id: string
+          tenant_id: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name: string
+          customer_phone: string
+          id?: string
+          is_active?: boolean
+          recurring_customer_id: string
+          tenant_id?: string | null
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string
+          id?: string
+          is_active?: boolean
+          recurring_customer_id?: string
+          tenant_id?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_feedback_tokens_recurring_customer_id_fkey"
+            columns: ["recurring_customer_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_feedback_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_feedbacks: {
+        Row: {
+          created_at: string
+          disliked_items: string | null
+          id: string
+          liked_items: string | null
+          observations: string | null
+          photo_urls: Json | null
+          rating: number
+          tenant_id: string | null
+          token_id: string
+          week_reference: string | null
+        }
+        Insert: {
+          created_at?: string
+          disliked_items?: string | null
+          id?: string
+          liked_items?: string | null
+          observations?: string | null
+          photo_urls?: Json | null
+          rating: number
+          tenant_id?: string | null
+          token_id: string
+          week_reference?: string | null
+        }
+        Update: {
+          created_at?: string
+          disliked_items?: string | null
+          id?: string
+          liked_items?: string | null
+          observations?: string | null
+          photo_urls?: Json | null
+          rating?: number
+          tenant_id?: string | null
+          token_id?: string
+          week_reference?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_feedbacks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_feedbacks_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "client_feedback_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_plans: {
         Row: {
           active: boolean

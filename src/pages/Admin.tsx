@@ -67,6 +67,7 @@ import ShoppingList from "@/components/admin/ShoppingList";
 import CustomDietQuoter from "@/components/admin/CustomDietQuoter";
 import FlavorProfitReport from "@/components/admin/FlavorProfitReport";
 import ABTestManager from "@/components/admin/ABTestManager";
+import ClientFeedbackManager from "@/components/admin/ClientFeedbackManager";
 
 interface Lead {
   id: string;
@@ -1208,6 +1209,9 @@ const Admin = () => {
 
       case "ab-tests":
         return <ABTestManager />;
+
+      case "client-feedback":
+        return <ClientFeedbackManager />;
 
       default:
         return <div className="text-muted-foreground">Selecione uma seção no menu</div>;
