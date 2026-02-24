@@ -1,108 +1,47 @@
 
 
-# Migrar WhatsApp de NotificaMe para Evolution API
+# Corrigir Nome nos Emails e Reduzir Spam
 
-## Resumo
-Trocar todo o sistema de envio de WhatsApp da API NotificaMe para a Evolution API que esta rodando na sua VPS (`https://webhook.servidordoxd.online`), instancia `agenciadeia`.
+## Problema 1: Nome "Meu Restaurante" nos emails
+O arquivo `supabase/functions/_shared/tenant-branding.ts` tem o fallback `brand_name: "Meu Restaurante"`. Quando o `tenant_id` nao chega na funcao, ele usa esse valor generico. Precisa mudar o default para "Dieta Ja".
 
-## O que muda
-
-A Evolution API tem um formato diferente do NotificaMe. Em vez de templates, todas as mensagens serao enviadas como texto simples, o que e ate mais flexivel.
-
-**NotificaMe (atual):**
-```text
-POST https://api.notificame.com.br/v1/channels/whatsapp/messages
-Header: X-Api-Token: {token}
-Body: { from: channelToken, to: phone, contents: [...] }
-```
-
-**Evolution API (novo):**
-```text
-POST https://webhook.servidordoxd.online/message/sendText/agenciadeia
-Header: apikey: {apiKey}
-Body: { number: "5577...", text: "mensagem" }
-```
-
-## Etapas
-
-### 1. Configurar Secrets
-Solicitar duas novas credenciais:
-- `EVOLUTION_API_URL` = `https://webhook.servidordoxd.online`
-- `EVOLUTION_API_KEY` = a API Key da sua instancia
-- `EVOLUTION_INSTANCE_NAME` = `agenciadeia`
-
-### 2. Atualizar banco de dados (migracao)
-Adicionar colunas na tabela `tenants` para suporte multi-tenant:
-- `evolution_api_url` (text, nullable)
-- `evolution_api_key` (text, nullable)
-- `evolution_instance_name` (text, nullable)
-
-### 3. Atualizar o modulo de credenciais
-Reescrever `supabase/functions/_shared/tenant-credentials.ts`:
-- `getWhatsAppCredentials()` passara a retornar `{ apiUrl, apiKey, instanceName }` em vez de `{ apiToken, channelToken }`
-- Prioridade: credenciais do tenant > secrets globais
-
-### 4. Criar helper centralizado
-Criar `supabase/functions/_shared/evolution-sender.ts` com funcoes:
-- `sendWhatsAppText(phone, message, credentials)` - envio de texto
-- `sendWhatsAppMedia(phone, mediaUrl, caption, credentials)` - para futuro uso
-
-### 5. Atualizar todas as Edge Functions (9 funcoes)
-Cada funcao sera atualizada para usar o novo helper:
-
-| Funcao | Tipo de envio |
-|--------|--------------|
-| `send-order-whatsapp` | Texto (pedido + pix) |
-| `send-order-approved` | Texto (confirmacao) |
-| `send-status-notification` | Texto (status) |
-| `send-pending-reminders` | Texto (lembrete pix) |
-| `send-cart-reminders` | Texto (carrinho abandonado) |
-| `send-review-request` | Texto (avaliacao) |
-| `send-recompra-campaigns` | Texto (recompra) |
-| `process-pending-notifications` | Texto (notificacao) |
-| `test-whatsapp-connection` | Texto (teste) |
-
-### 6. Atualizar Webhook
-Reescrever `notificame-webhook` para receber webhooks da Evolution API (formato diferente) e atualizar status de delivery/leitura na tabela `notification_events`.
-
-### 7. Configurar webhook na Evolution
-Na sua Evolution API, configurar o webhook URL para:
-`https://fxlhpizydnbdkhuzrkpr.supabase.co/functions/v1/notificame-webhook`
-(vamos renomear internamente mas manter a URL para simplicidade, ou criar uma nova `evolution-webhook`)
+## Problema 2: Email caindo no spam
+Causas principais:
+- O remetente `noreply@dietajavca.com.br` precisa ter o dominio `dietajavca.com.br` **verificado no Resend** com registros DNS (SPF, DKIM, DMARC)
+- A funcao `send-order-confirmation` usa `noreply@dietajavca.com.br` hardcoded ao inves de usar as credenciais do tenant
 
 ---
 
-## Detalhes tecnicos
+## Plano de Implementacao
 
-### Formato Evolution API - Enviar texto
-```typescript
-const response = await fetch(
-  `${apiUrl}/message/sendText/${instanceName}`,
-  {
-    method: 'POST',
-    headers: {
-      'apikey': apiKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      number: '557791001658',
-      text: 'Mensagem aqui',
-    }),
-  }
-);
-```
+### 1. Atualizar o fallback do branding
+**Arquivo:** `supabase/functions/_shared/tenant-branding.ts`
+- Mudar `brand_name` de `"Meu Restaurante"` para `"Dieta Já"`
 
-### Nova interface de credenciais
-```typescript
-interface WhatsAppCredentials {
-  apiUrl: string;      // https://webhook.servidordoxd.online
-  apiKey: string;      // API key da instancia
-  instanceName: string; // agenciadeia
-}
-```
+### 2. Corrigir `send-order-confirmation` para usar credenciais do tenant
+**Arquivo:** `supabase/functions/send-order-confirmation/index.ts`
+- Remover `const resend = new Resend(Deno.env.get("RESEND_API_KEY"))` hardcoded
+- Importar `getEmailCredentials` de `tenant-credentials.ts`
+- Usar `emailCreds.apiKey` e `emailCreds.fromEmail` dinamicamente (mesmo padrao do `send-order-approved`)
 
-### Impacto
-- Todas as mensagens de pedido, lembrete, recompra e avaliacao passarao a ser enviadas pela Evolution API
-- Templates do NotificaMe serao convertidos para mensagens de texto formatadas (que ja existem como fallback no codigo atual)
-- Nenhuma mudanca no frontend - apenas as edge functions sao afetadas
+### 3. Sobre o spam -- acoes manuais necessarias
+Para os emails nao cairem no spam, voce precisa verificar o dominio `dietajavca.com.br` no painel do Resend:
+1. Acesse https://resend.com/domains
+2. Adicione `dietajavca.com.br`
+3. Configure os 3 registros DNS que o Resend vai gerar:
+   - **SPF** (TXT record)
+   - **DKIM** (TXT record)
+   - **DMARC** (TXT record)
+4. Aguarde a verificacao (geralmente 5-30 minutos)
+
+Sem esses registros DNS, provedores como Gmail e Outlook enviam direto para spam.
+
+---
+
+## Resumo tecnico das mudancas
+
+| Arquivo | Mudanca |
+|---|---|
+| `_shared/tenant-branding.ts` | Fallback `brand_name` para "Dieta Ja" |
+| `send-order-confirmation/index.ts` | Usar `getEmailCredentials()` ao inves de Resend key hardcoded |
 
