@@ -1,25 +1,108 @@
 
-# Adicionar botão "Editar" nos itens do pedido
 
-## O que será feito
-Adicionar um botão de edição em cada item de marmita no modal de detalhes do pedido (tela que mostra "Pedido #d1d4dfba"). Ao clicar, abrirá o modal de composição (OrderConfirmationModal) onde você poderá ajustar pesos, ingredientes e quantidades. As alterações serão salvas no banco de dados para que, ao imprimir para a cozinha, os dados estejam corretos.
+# Migrar WhatsApp de NotificaMe para Evolution API
 
-## Como vai funcionar
-1. Ao lado de cada sabor no modal do pedido, aparecerá um pequeno ícone de lápis (editar)
-2. Ao clicar, abrirá o modal de composição com os ingredientes e pesos daquele sabor
-3. Você ajusta os pesos (ex: adicionar o peso do Peixe que estava faltando)
-4. Ao confirmar, os novos pesos são salvos no banco e o mapa de composições é atualizado na tela
-5. As próximas impressões (térmica, produção, WhatsApp) já sairão com os dados corretos
+## Resumo
+Trocar todo o sistema de envio de WhatsApp da API NotificaMe para a Evolution API que esta rodando na sua VPS (`https://webhook.servidordoxd.online`), instancia `agenciadeia`.
 
-## Detalhes técnicos
+## O que muda
 
-### Arquivo: `src/components/admin/OrdersManager.tsx`
-- Importar o componente `OrderConfirmationModal` e seus tipos (`ConfirmItem`)
-- Adicionar estado para controlar qual item está sendo editado (`editingFlavor`)
-- Ao lado de cada sabor no modal de detalhes, renderizar um botao com icone de lapis
-- Ao clicar, montar o array de `ConfirmItem` com os dados daquele sabor e abrir o `OrderConfirmationModal`
-- No callback `onItemsUpdated`, atualizar o `flavorSidesMap` local para refletir as mudancas imediatamente
-- O modal já possui toda a lógica de salvar no banco (tabela `marmita_flavors`), então não será necessário código adicional de persistência
+A Evolution API tem um formato diferente do NotificaMe. Em vez de templates, todas as mensagens serao enviadas como texto simples, o que e ate mais flexivel.
 
-### Arquivo: `src/components/admin/OrderConfirmationModal.tsx`
-- Nenhuma alteração necessária -- o componente já suporta edição de composições e salvamento no banco
+**NotificaMe (atual):**
+```text
+POST https://api.notificame.com.br/v1/channels/whatsapp/messages
+Header: X-Api-Token: {token}
+Body: { from: channelToken, to: phone, contents: [...] }
+```
+
+**Evolution API (novo):**
+```text
+POST https://webhook.servidordoxd.online/message/sendText/agenciadeia
+Header: apikey: {apiKey}
+Body: { number: "5577...", text: "mensagem" }
+```
+
+## Etapas
+
+### 1. Configurar Secrets
+Solicitar duas novas credenciais:
+- `EVOLUTION_API_URL` = `https://webhook.servidordoxd.online`
+- `EVOLUTION_API_KEY` = a API Key da sua instancia
+- `EVOLUTION_INSTANCE_NAME` = `agenciadeia`
+
+### 2. Atualizar banco de dados (migracao)
+Adicionar colunas na tabela `tenants` para suporte multi-tenant:
+- `evolution_api_url` (text, nullable)
+- `evolution_api_key` (text, nullable)
+- `evolution_instance_name` (text, nullable)
+
+### 3. Atualizar o modulo de credenciais
+Reescrever `supabase/functions/_shared/tenant-credentials.ts`:
+- `getWhatsAppCredentials()` passara a retornar `{ apiUrl, apiKey, instanceName }` em vez de `{ apiToken, channelToken }`
+- Prioridade: credenciais do tenant > secrets globais
+
+### 4. Criar helper centralizado
+Criar `supabase/functions/_shared/evolution-sender.ts` com funcoes:
+- `sendWhatsAppText(phone, message, credentials)` - envio de texto
+- `sendWhatsAppMedia(phone, mediaUrl, caption, credentials)` - para futuro uso
+
+### 5. Atualizar todas as Edge Functions (9 funcoes)
+Cada funcao sera atualizada para usar o novo helper:
+
+| Funcao | Tipo de envio |
+|--------|--------------|
+| `send-order-whatsapp` | Texto (pedido + pix) |
+| `send-order-approved` | Texto (confirmacao) |
+| `send-status-notification` | Texto (status) |
+| `send-pending-reminders` | Texto (lembrete pix) |
+| `send-cart-reminders` | Texto (carrinho abandonado) |
+| `send-review-request` | Texto (avaliacao) |
+| `send-recompra-campaigns` | Texto (recompra) |
+| `process-pending-notifications` | Texto (notificacao) |
+| `test-whatsapp-connection` | Texto (teste) |
+
+### 6. Atualizar Webhook
+Reescrever `notificame-webhook` para receber webhooks da Evolution API (formato diferente) e atualizar status de delivery/leitura na tabela `notification_events`.
+
+### 7. Configurar webhook na Evolution
+Na sua Evolution API, configurar o webhook URL para:
+`https://fxlhpizydnbdkhuzrkpr.supabase.co/functions/v1/notificame-webhook`
+(vamos renomear internamente mas manter a URL para simplicidade, ou criar uma nova `evolution-webhook`)
+
+---
+
+## Detalhes tecnicos
+
+### Formato Evolution API - Enviar texto
+```typescript
+const response = await fetch(
+  `${apiUrl}/message/sendText/${instanceName}`,
+  {
+    method: 'POST',
+    headers: {
+      'apikey': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      number: '557791001658',
+      text: 'Mensagem aqui',
+    }),
+  }
+);
+```
+
+### Nova interface de credenciais
+```typescript
+interface WhatsAppCredentials {
+  apiUrl: string;      // https://webhook.servidordoxd.online
+  apiKey: string;      // API key da instancia
+  instanceName: string; // agenciadeia
+}
+```
+
+### Impacto
+- Todas as mensagens de pedido, lembrete, recompra e avaliacao passarao a ser enviadas pela Evolution API
+- Templates do NotificaMe serao convertidos para mensagens de texto formatadas (que ja existem como fallback no codigo atual)
+- Nenhuma mudanca no frontend - apenas as edge functions sao afetadas
+
