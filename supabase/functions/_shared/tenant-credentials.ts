@@ -1,14 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { EvolutionCredentials } from "./evolution-sender.ts";
+
+export type { EvolutionCredentials };
 
 export interface AsaasCredentials {
   apiKey: string;
   webhookToken: string | null;
 }
 
-export interface WhatsAppCredentials {
-  apiToken: string;
-  channelToken: string;
-}
+export interface WhatsAppCredentials extends EvolutionCredentials {}
 
 export interface EmailCredentials {
   apiKey: string;
@@ -51,7 +51,7 @@ export async function getAsaasCredentials(
 }
 
 /**
- * Fetches WhatsApp (NotificaMe) credentials for a tenant.
+ * Fetches WhatsApp (Evolution API) credentials for a tenant.
  * Falls back to global env vars if tenant has no custom credentials.
  */
 export async function getWhatsAppCredentials(
@@ -62,15 +62,16 @@ export async function getWhatsAppCredentials(
     try {
       const { data } = await supabase
         .from("tenants")
-        .select("notificame_api_token, notificame_channel_token")
+        .select("evolution_api_url, evolution_api_key, evolution_instance_name")
         .eq("id", tenantId)
         .maybeSingle();
 
-      if (data?.notificame_api_token && data?.notificame_channel_token) {
-        console.log(`[credentials] Using tenant-specific WhatsApp tokens for ${tenantId}`);
+      if (data?.evolution_api_url && data?.evolution_api_key && data?.evolution_instance_name) {
+        console.log(`[credentials] Using tenant-specific Evolution API for ${tenantId}`);
         return {
-          apiToken: data.notificame_api_token,
-          channelToken: data.notificame_channel_token,
+          apiUrl: data.evolution_api_url,
+          apiKey: data.evolution_api_key,
+          instanceName: data.evolution_instance_name,
         };
       }
     } catch (err) {
@@ -78,16 +79,17 @@ export async function getWhatsAppCredentials(
     }
   }
 
-  const apiToken = Deno.env.get("NOTIFICAME_API_TOKEN");
-  const channelToken = Deno.env.get("NOTIFICAME_WHATSAPP_CHANNEL_TOKEN");
+  const apiUrl = Deno.env.get("EVOLUTION_API_URL");
+  const apiKey = Deno.env.get("EVOLUTION_API_KEY");
+  const instanceName = Deno.env.get("EVOLUTION_INSTANCE_NAME");
 
-  if (!apiToken || !channelToken) {
-    console.warn(`[credentials] WhatsApp credentials not configured`);
+  if (!apiUrl || !apiKey || !instanceName) {
+    console.warn(`[credentials] Evolution API credentials not configured`);
     return null;
   }
 
-  console.log(`[credentials] Using global WhatsApp tokens (fallback)`);
-  return { apiToken, channelToken };
+  console.log(`[credentials] Using global Evolution API credentials (fallback)`);
+  return { apiUrl, apiKey, instanceName };
 }
 
 /**

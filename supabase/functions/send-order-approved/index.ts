@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
 import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
+import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,67 +34,12 @@ interface OrderApprovedRequest {
   tenant_id?: string;
 }
 
-function formatPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  return digits.startsWith('55') ? digits : `55${digits}`;
-}
-
 function formatCurrency(value: number): string {
   return `R$ ${value.toFixed(2).replace('.', ',')}`;
 }
 
 function formatItemsList(items: OrderItem[]): string {
   return items.map(item => `${item.quantity}x ${item.name}`).join(', ');
-}
-
-async function sendWhatsAppTemplate(
-  phone: string, templateName: string, fields: Record<string, string>,
-  apiToken: string, channelToken: string, orderNumber: string,
-  supabaseClient: any, orderId?: string, tenantId?: string
-): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  try {
-    const formattedPhone = formatPhone(phone);
-    console.log(`[WHATSAPP] Sending template "${templateName}" to ${formattedPhone}`);
-
-    const fieldKeys = Object.keys(fields).sort((a, b) => Number(a) - Number(b));
-    const parameters = fieldKeys.map(key => ({ type: "text", text: fields[key] }));
-
-    const payload = {
-      from: channelToken, to: formattedPhone,
-      contents: [{ type: 'template', template: { name: templateName, language: { code: 'pt_BR' }, components: [{ type: 'body', parameters }] } }],
-    };
-
-    const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
-      method: 'POST',
-      headers: { 'X-Api-Token': apiToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    const responseText = await response.text();
-    let responseJson = null;
-    try { responseJson = JSON.parse(responseText); } catch (_e) {}
-    const messageId = responseJson?.id || responseJson?.messageId;
-
-    if (!response.ok) {
-      await supabaseClient.from('notification_events').insert({
-        channel: 'whatsapp', event_type: 'failed', order_id: orderId, order_number: orderNumber,
-        recipient_phone: formattedPhone, template_name: templateName, message_id: messageId,
-        tenant_id: tenantId, metadata: { error: responseText }
-      });
-      return { success: false, error: `NotificaMe API error: ${response.status}` };
-    }
-
-    await supabaseClient.from('notification_events').insert({
-      channel: 'whatsapp', event_type: 'sent', order_id: orderId, order_number: orderNumber,
-      recipient_phone: formattedPhone, template_name: templateName, message_id: messageId,
-      tenant_id: tenantId, metadata: { response: responseJson }
-    });
-
-    return { success: true, messageId };
-  } catch (error: any) {
-    console.error('[WHATSAPP] Error:', error);
-    return { success: false, error: error.message };
-  }
 }
 
 const generateEmailHtml = (data: OrderApprovedRequest, brandName: string, whatsapp: string, whatsappFormatted: string, baseUrl: string): string => {
@@ -164,14 +110,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     const branding = await getTenantBranding(supabase, data.tenant_id);
     const baseUrl = getTenantBaseUrl(branding);
-
-    // Resolve tenant-specific credentials
     const whatsappCreds = await getWhatsAppCredentials(supabase, data.tenant_id);
     const emailCreds = await getEmailCredentials(supabase, data.tenant_id);
 
     const results = { email: { success: false, error: null as string | null }, whatsapp: { success: false, error: null as string | null } };
 
-    // Send Email with tenant-specific Resend key
+    // Send Email
     try {
       const resend = new Resend(emailCreds.apiKey);
       const html = generateEmailHtml(data, branding.brand_name, branding.whatsapp, branding.whatsapp_formatted, baseUrl);
@@ -193,24 +137,25 @@ const handler = async (req: Request): Promise<Response> => {
       results.email.error = emailError.message;
     }
 
-    // Send WhatsApp with tenant-specific tokens
+    // Send WhatsApp via Evolution API
     if (whatsappCreds && data.customer_phone) {
       try {
-        const templateFields = {
-          "1": data.customer_name?.split(' ')[0] || 'cliente',
-          "2": data.order_number,
-          "3": formatItemsList(data.items),
-          "4": formatCurrency(data.total)
-        };
+        const firstName = data.customer_name?.split(' ')[0] || 'cliente';
+        const itemsList = formatItemsList(data.items);
+        const message = `✅ *Pagamento Confirmado!*\n\nOlá ${firstName}! 🎉\n\nSeu pedido *#${data.order_number}* foi aprovado!\n\n📋 *Itens:* ${itemsList}\n💰 *Total:* ${formatCurrency(data.total)}\n\nSeu pedido já está sendo preparado! 👨‍🍳\n\nAcompanhe: ${baseUrl}/pedido/${data.order_number}\n\nObrigado pela preferência! 💚`;
 
-        const whatsappResult = await sendWhatsAppTemplate(
-          data.customer_phone, 'compraa_confrimadaa', templateFields,
-          whatsappCreds.apiToken, whatsappCreds.channelToken, data.order_number,
-          supabase, undefined, data.tenant_id
-        );
+        const whatsappResult = await sendWhatsAppText(data.customer_phone, message, whatsappCreds);
 
         results.whatsapp.success = whatsappResult.success;
         if (!whatsappResult.success) results.whatsapp.error = whatsappResult.error || 'Unknown error';
+
+        await supabase.from('notification_events').insert({
+          channel: 'whatsapp', event_type: whatsappResult.success ? 'sent' : 'failed',
+          order_number: data.order_number, recipient_phone: data.customer_phone,
+          template_name: 'order_approved', tenant_id: data.tenant_id,
+          message_id: whatsappResult.messageId,
+          metadata: { response: whatsappResult.response, error: whatsappResult.error }
+        });
       } catch (whatsappError: any) {
         results.whatsapp.error = whatsappError.message;
       }

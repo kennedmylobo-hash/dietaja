@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getTenantBranding, getTenantBaseUrl, type TenantBranding } from "../_shared/tenant-branding.ts";
 import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
+import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,45 +51,6 @@ const replaceVariables = (template: string, order: OrderData, branding?: TenantB
     .replace(/{pedido}/g, order.order_number).replace(/{total}/g, order.total.toFixed(2).replace(".", ","))
     .replace(/{link}/g, trackingUrl).replace(/{link_rastreio}/g, linkRastreio)
     .replace(/{marca}/g, branding?.brand_name || "Meu Restaurante");
-};
-
-const sendWhatsAppText = async (phone: string, message: string, orderNumber: string, apiToken: string, channelToken: string) => {
-  try {
-    let formattedPhone = phone.replace(/\D/g, "");
-    if (!formattedPhone.startsWith("55")) formattedPhone = "55" + formattedPhone;
-    console.log(`[TEXT] Sending WhatsApp to ${formattedPhone} for order ${orderNumber}`);
-    const response = await fetch("https://api.notificame.com.br/v1/channels/whatsapp/messages", {
-      method: "POST",
-      headers: { "X-Api-Token": apiToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: channelToken, to: formattedPhone, contents: [{ type: "text", text: message }] }),
-    });
-    const result = await response.text();
-    console.log(`[TEXT] NotificaMe response for order ${orderNumber}: ${response.status} - ${result}`);
-  } catch (error) {
-    console.error("[TEXT] Error sending WhatsApp:", error);
-  }
-};
-
-const sendWhatsAppTemplate = async (phone: string, templateName: string, fields: Record<string, string>, orderNumber: string, apiToken: string, channelToken: string) => {
-  try {
-    let formattedPhone = phone.replace(/\D/g, "");
-    if (!formattedPhone.startsWith("55")) formattedPhone = "55" + formattedPhone;
-    const fieldKeys = Object.keys(fields).sort((a, b) => Number(a) - Number(b));
-    const parameters = fieldKeys.map(key => ({ type: "text", text: fields[key] }));
-    const payload = {
-      from: channelToken, to: formattedPhone,
-      contents: [{ type: "template", template: { name: templateName, language: { code: "pt_BR" }, components: [{ type: "body", parameters }] } }],
-    };
-    const response = await fetch("https://api.notificame.com.br/v1/channels/whatsapp/messages", {
-      method: "POST",
-      headers: { "X-Api-Token": apiToken, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = await response.text();
-    console.log(`[TEMPLATE] NotificaMe response for order ${orderNumber}: ${response.status} - ${result}`);
-  } catch (error) {
-    console.error("[TEMPLATE] Error sending WhatsApp template:", error);
-  }
 };
 
 const sendEmailNotification = async (
@@ -183,7 +145,6 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Debounce logic
     if (DEBOUNCE_STATUSES.includes(new_status)) {
       console.log(`[DEBOUNCE] Status ${new_status} is debounce-eligible`);
       const { data: existingPending } = await supabase
@@ -206,7 +167,6 @@ serve(async (req: Request) => {
       }
     }
 
-    // Send immediately
     const { data: order, error } = await supabase
       .from("orders")
       .select("order_number, customer_name, customer_email, customer_phone, delivery_option, total, items, tracking_link, tenant_id")
@@ -242,7 +202,9 @@ serve(async (req: Request) => {
     const promises: Promise<void>[] = [];
 
     if (whatsappMessage && whatsappCreds) {
-      promises.push(sendWhatsAppText(order.customer_phone, whatsappMessage, order.order_number, whatsappCreds.apiToken, whatsappCreds.channelToken));
+      promises.push(
+        sendWhatsAppText(order.customer_phone, whatsappMessage, whatsappCreds).then(() => {})
+      );
     }
 
     promises.push(sendEmailNotification(

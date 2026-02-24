@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getTenantBranding, getTenantBaseUrl, TenantBranding } from "../_shared/tenant-branding.ts";
 import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
+import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,22 +39,6 @@ const replaceVariables = (template: string, order: OrderData, baseUrl: string): 
   return template.replace(/{nome}/g, firstName).replace(/{nome_completo}/g, order.customer_name)
     .replace(/{pedido}/g, order.order_number).replace(/{total}/g, order.total.toFixed(2).replace(".", ","))
     .replace(/{link}/g, trackingUrl).replace(/{link_rastreio}/g, linkRastreio);
-};
-
-const sendWhatsAppText = async (phone: string, message: string, orderNumber: string, apiToken: string, channelToken: string) => {
-  try {
-    let formattedPhone = phone.replace(/\D/g, "");
-    if (!formattedPhone.startsWith("55")) formattedPhone = "55" + formattedPhone;
-    const response = await fetch("https://api.notificame.com.br/v1/channels/whatsapp/messages", {
-      method: "POST",
-      headers: { "X-Api-Token": apiToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: channelToken, to: formattedPhone, contents: [{ type: "text", text: message }] }),
-    });
-    const result = await response.text();
-    console.log(`[PROCESS] WhatsApp for ${orderNumber}: ${response.status} - ${result}`);
-  } catch (error) {
-    console.error("[PROCESS] Error sending WhatsApp:", error);
-  }
 };
 
 const sendEmailNotification = async (
@@ -160,7 +145,7 @@ serve(async (req: Request) => {
 
         if (whatsappCreds) {
           const whatsappMessage = replaceVariables(statusConfig.whatsapp, order as OrderData, baseUrl);
-          await sendWhatsAppText(order.customer_phone, whatsappMessage, order.order_number, whatsappCreds.apiToken, whatsappCreds.channelToken);
+          await sendWhatsAppText(order.customer_phone, whatsappMessage, whatsappCreds);
         }
 
         await sendEmailNotification(order.customer_email, order as OrderData, statusConfig.email_subject,
