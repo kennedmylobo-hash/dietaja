@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getTenantBranding, getTenantBaseUrl, TenantBranding } from "../_shared/tenant-branding.ts";
 import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
+import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,22 +33,6 @@ const getTotalMarmitas = (items: any[]): number => {
     if (item.type === 'marmita' || item.name?.toLowerCase().includes('marmita')) total += item.quantity || 1;
   }
   return total;
-};
-
-const sendWhatsAppNotification = async (phone: string, message: string, orderNumber: string, apiToken: string, channelToken: string) => {
-  try {
-    let formattedPhone = phone.replace(/\D/g, "");
-    if (!formattedPhone.startsWith("55")) formattedPhone = "55" + formattedPhone;
-    const response = await fetch("https://api.notificame.com.br/v1/channels/whatsapp/messages", {
-      method: "POST",
-      headers: { "X-Api-Token": apiToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: channelToken, to: formattedPhone, contents: [{ type: "text", text: message }] }),
-    });
-    const result = await response.text();
-    console.log(`NotificaMe recompra response for order ${orderNumber}: ${response.status} - ${result}`);
-  } catch (error) {
-    console.error("Error sending WhatsApp:", error);
-  }
 };
 
 const sendEmailNotification = async (
@@ -154,7 +139,7 @@ serve(async (req: Request) => {
 
           if (whatsappCreds) {
             const whatsappMessage = replaceVariables(template.whatsapp_template, order as OrderData, template.coupon_code, template.discount_percent, baseUrl);
-            await sendWhatsAppNotification(order.customer_phone, whatsappMessage, order.order_number, whatsappCreds.apiToken, whatsappCreds.channelToken);
+            await sendWhatsAppText(order.customer_phone, whatsappMessage, whatsappCreds);
           }
 
           await sendEmailNotification(order.customer_email, order as OrderData, template.email_subject, template.email_body_html,

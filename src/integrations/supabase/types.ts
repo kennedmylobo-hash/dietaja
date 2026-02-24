@@ -2025,6 +2025,9 @@ export type Database = {
           created_at: string
           delivery_fee: number
           domain: string | null
+          evolution_api_key: string | null
+          evolution_api_url: string | null
+          evolution_instance_name: string | null
           facebook_pixel_id: string | null
           google_analytics_id: string | null
           id: string
@@ -2058,6 +2061,9 @@ export type Database = {
           created_at?: string
           delivery_fee?: number
           domain?: string | null
+          evolution_api_key?: string | null
+          evolution_api_url?: string | null
+          evolution_instance_name?: string | null
           facebook_pixel_id?: string | null
           google_analytics_id?: string | null
           id?: string
@@ -2091,6 +2097,9 @@ export type Database = {
           created_at?: string
           delivery_fee?: number
           domain?: string | null
+          evolution_api_key?: string | null
+          evolution_api_url?: string | null
+          evolution_instance_name?: string | null
           facebook_pixel_id?: string | null
           google_analytics_id?: string | null
           id?: string

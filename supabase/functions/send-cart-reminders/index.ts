@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
 import { getWhatsAppCredentials } from "../_shared/tenant-credentials.ts";
+import { sendWhatsAppText, type EvolutionCredentials } from "../_shared/evolution-sender.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,27 +14,6 @@ interface AbandonedCart {
   id: string; phone: string; name: string | null; items: CartItem[]; subtotal: number;
   created_at: string; last_activity_at: string; reminder_sent_at: string | null;
   whatsapp_sent_at: string | null; whatsapp_2_sent_at: string | null; tenant_id: string | null;
-}
-
-async function sendWhatsAppMessage(phone: string, message: string, apiToken: string, channelToken: string): Promise<boolean> {
-  try {
-    let formattedPhone = phone.replace(/\D/g, '');
-    if (formattedPhone.startsWith('0')) formattedPhone = formattedPhone.substring(1);
-    if (!formattedPhone.startsWith('55')) formattedPhone = '55' + formattedPhone;
-
-    const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
-      method: 'POST',
-      headers: { 'X-Api-Token': apiToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: channelToken, to: formattedPhone, contents: [{ type: 'text', text: message }] }),
-    });
-
-    const responseData = await response.text();
-    console.log(`NotificaMe cart reminder response: ${response.status} - ${responseData}`);
-    return response.ok;
-  } catch (error) {
-    console.error('Error sending WhatsApp message:', error);
-    return false;
-  }
 }
 
 function generateCartReminderMessage(cart: AbandonedCart, brandName: string, baseUrl: string, city: string, isSecondReminder: boolean = false): string {
@@ -79,8 +59,7 @@ Deno.serve(async (req) => {
     let whatsappSent = 0, whatsapp2Sent = 0;
     const errors: string[] = [];
 
-    // Cache branding + credentials per tenant
-    const cache: Record<string, { brandName: string; baseUrl: string; city: string; apiToken: string; channelToken: string } | null> = {};
+    const cache: Record<string, { brandName: string; baseUrl: string; city: string; creds: EvolutionCredentials } | null> = {};
 
     async function resolveContext(tenantId: string | null) {
       const key = tenantId || '__default__';
@@ -93,8 +72,7 @@ Deno.serve(async (req) => {
             brandName: branding.brand_name,
             baseUrl: getTenantBaseUrl(branding),
             city: branding.city,
-            apiToken: whatsappCreds.apiToken,
-            channelToken: whatsappCreds.channelToken,
+            creds: whatsappCreds,
           };
         }
       }
@@ -108,8 +86,8 @@ Deno.serve(async (req) => {
         if (!ctx) continue;
 
         const message = generateCartReminderMessage(cart, ctx.brandName, ctx.baseUrl, ctx.city, false);
-        const sent = await sendWhatsAppMessage(cart.phone, message, ctx.apiToken, ctx.channelToken);
-        if (sent) {
+        const result = await sendWhatsAppText(cart.phone, message, ctx.creds);
+        if (result.success) {
           await supabase.from('carts').update({ whatsapp_sent_at: now.toISOString(), status: 'abandoned' }).eq('id', cart.id);
           whatsappSent++;
         } else {
@@ -125,8 +103,8 @@ Deno.serve(async (req) => {
         if (!ctx) continue;
 
         const message = generateCartReminderMessage(cart, ctx.brandName, ctx.baseUrl, ctx.city, true);
-        const sent = await sendWhatsAppMessage(cart.phone, message, ctx.apiToken, ctx.channelToken);
-        if (sent) {
+        const result = await sendWhatsAppText(cart.phone, message, ctx.creds);
+        if (result.success) {
           await supabase.from('carts').update({ whatsapp_2_sent_at: now.toISOString() }).eq('id', cart.id);
           whatsapp2Sent++;
         } else {

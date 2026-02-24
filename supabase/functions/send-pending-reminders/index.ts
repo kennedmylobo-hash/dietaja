@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getTenantBranding, getTenantBaseUrl, TenantBranding } from "../_shared/tenant-branding.ts";
 import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
+import { sendWhatsAppText, type EvolutionCredentials } from "../_shared/evolution-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,77 +19,13 @@ interface PendingOrder {
   mp_payment_id: string | null; tenant_id: string | null;
 }
 
-function formatPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  return digits.startsWith('55') ? digits : `55${digits}`;
-}
-
 function formatCurrency(value: number): string {
   return `R$ ${value.toFixed(2).replace('.', ',')}`;
 }
 
-async function sendWhatsAppTemplate(
-  phone: string, templateId: string, fields: Record<string, string>,
-  apiToken: string, channelToken: string, orderNumber: string,
-  supabaseClient: any, orderId?: string
-): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  try {
-    const formattedPhone = formatPhone(phone);
-    const fieldKeys = Object.keys(fields).sort((a, b) => Number(a) - Number(b));
-    const parameters = fieldKeys.map(key => ({ type: "text", text: fields[key] }));
-    const payload = {
-      from: channelToken, to: formattedPhone,
-      contents: [{ type: 'template', template: { name: templateId, language: { code: 'pt_BR' }, components: [{ type: 'body', parameters }] } }],
-    };
-    const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
-      method: 'POST', headers: { 'X-Api-Token': apiToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const responseText = await response.text();
-    let responseJson = null;
-    try { responseJson = JSON.parse(responseText); } catch (e) {}
-    const messageId = responseJson?.id || responseJson?.messageId;
-    if (!response.ok) {
-      await supabaseClient.from('notification_events').insert({ channel: 'whatsapp', event_type: 'failed', order_id: orderId, order_number: orderNumber, recipient_phone: formattedPhone, template_name: templateId, message_id: messageId, metadata: { error: responseText } });
-      return { success: false, error: `NotificaMe API error: ${response.status} - ${responseText}` };
-    }
-    await supabaseClient.from('notification_events').insert({ channel: 'whatsapp', event_type: 'sent', order_id: orderId, order_number: orderNumber, recipient_phone: formattedPhone, template_name: templateId, message_id: messageId, metadata: { response: responseJson } });
-    return { success: true, messageId };
-  } catch (error: any) {
-    console.error('[TEMPLATE] Error:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-async function sendWhatsAppText(
-  phone: string, message: string, apiToken: string, channelToken: string,
-  orderNumber: string, supabaseClient: any, orderId?: string
-): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  try {
-    const formattedPhone = formatPhone(phone);
-    const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
-      method: 'POST', headers: { 'X-Api-Token': apiToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: channelToken, to: formattedPhone, contents: [{ type: 'text', text: message }] }),
-    });
-    const responseText = await response.text();
-    let responseJson = null;
-    try { responseJson = JSON.parse(responseText); } catch (e) {}
-    const messageId = responseJson?.id || responseJson?.messageId;
-    if (!response.ok) {
-      await supabaseClient.from('notification_events').insert({ channel: 'whatsapp', event_type: 'failed', order_id: orderId, order_number: orderNumber, recipient_phone: formattedPhone, template_name: 'text_reminder', message_id: messageId, metadata: { error: responseText } });
-      return { success: false, error: `NotificaMe API error: ${response.status} - ${responseText}` };
-    }
-    await supabaseClient.from('notification_events').insert({ channel: 'whatsapp', event_type: 'sent', order_id: orderId, order_number: orderNumber, recipient_phone: formattedPhone, template_name: 'text_reminder', message_id: messageId, metadata: { response: responseJson } });
-    return { success: true, messageId };
-  } catch (error: any) {
-    console.error('[TEXT] Error:', error);
-    return { success: false, error: error.message };
-  }
-}
-
 function generateWhatsAppMessage(order: PendingOrder, orderNumber: string, timeSinceOrder: string, isSecondReminder: boolean, brandName: string): string {
   const urgencyText = isSecondReminder ? `⚠️ *ÚLTIMA CHANCE!* Seu pedido será cancelado em breve.` : `Você está a um passo de concluir!`;
-  return `Olá ${order.customer_name}! 😊\n\nNotamos que seu pedido *#${orderNumber}* está aguardando pagamento há ${timeSinceOrder}.\n\n${urgencyText}\n\n💰 *Valor: R$ ${order.total.toFixed(2).replace('.', ',')}*\n\nFinalize agora e garanta sua entrega!\n\nPrecisa de ajuda? Responda esta mensagem. 💚\n\n- Equipe ${brandName}`;
+  return `Olá ${order.customer_name}! 😊\n\nNotamos que seu pedido *#${orderNumber}* está aguardando pagamento há ${timeSinceOrder}.\n\n${urgencyText}\n\n💰 *Valor: ${formatCurrency(order.total)}*\n\nFinalize agora e garanta sua entrega!\n\nPrecisa de ajuda? Responda esta mensagem. 💚\n\n- Equipe ${brandName}`;
 }
 
 function getTimeSinceOrder(createdAt: string): string {
@@ -123,7 +60,7 @@ function generateReminderEmail(order: PendingOrder, orderNumber: string, timeSin
           <h3 style="margin: 0 0 15px; color: #333; font-size: 16px;">📦 Resumo do Pedido</h3>
           <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 14px; color: #333;">
             ${itemsList}
-            <tr><td style="padding: 12px 0 0; font-weight: bold; font-size: 16px; color: #16a34a;">Total</td><td style="padding: 12px 0 0; font-weight: bold; font-size: 16px; color: #16a34a; text-align: right;">R$ ${order.total.toFixed(2).replace(".", ",")}</td></tr>
+            <tr><td style="padding: 12px 0 0; font-weight: bold; font-size: 16px; color: #16a34a;">Total</td><td style="padding: 12px 0 0; font-weight: bold; font-size: 16px; color: #16a34a; text-align: right;">${formatCurrency(order.total)}</td></tr>
           </table>
         </div>
         <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding: 10px 0;">
@@ -189,7 +126,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     let emailSentCount = 0, whatsappSentCount = 0, errorCount = 0;
-    const cache: Record<string, { branding: TenantBranding; whatsappCreds: any; emailCreds: any }> = {};
+    const cache: Record<string, { branding: TenantBranding; whatsappCreds: EvolutionCredentials | null; emailCreds: any }> = {};
 
     async function resolveCtx(tenantId: string | null) {
       const key = tenantId || '__default__';
@@ -232,37 +169,18 @@ const handler = async (req: Request): Promise<Response> => {
           console.error(`Error sending email to ${order.customer_email}:`, emailError);
         }
 
-        // Send WhatsApp
+        // Send WhatsApp via Evolution API
         if (whatsappCreds) {
-          let pixCode: string | null = null;
-          if (order.mp_payment_id) {
-            try {
-              const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
-              if (mpAccessToken) {
-                const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${order.mp_payment_id}`, {
-                  headers: { 'Authorization': `Bearer ${mpAccessToken}` }
-                });
-                if (mpResponse.ok) {
-                  const mpData = await mpResponse.json();
-                  pixCode = mpData.point_of_interaction?.transaction_data?.qr_code || null;
-                }
-              }
-            } catch (mpError) { console.error('Error fetching PIX from MP:', mpError); }
-          }
+          const whatsappMessage = generateWhatsAppMessage(order, orderNumber, timeSinceOrder, isSecondReminder, branding.brand_name);
+          const whatsappResult = await sendWhatsAppText(order.customer_phone, whatsappMessage, whatsappCreds);
 
-          let whatsappResult: { success: boolean; error?: string; messageId?: string };
-          if (pixCode) {
-            const templateFields = {
-              "1": order.customer_name?.split(' ')[0] || 'cliente',
-              "2": orderNumber, "3": formatCurrency(order.total), "4": pixCode
-            };
-            whatsappResult = await sendWhatsAppTemplate(order.customer_phone, 'pix_pendente_dietaja', templateFields,
-              whatsappCreds.apiToken, whatsappCreds.channelToken, orderNumber, supabase, order.id);
-          } else {
-            const whatsappMessage = generateWhatsAppMessage(order, orderNumber, timeSinceOrder, isSecondReminder, branding.brand_name);
-            whatsappResult = await sendWhatsAppText(order.customer_phone, whatsappMessage,
-              whatsappCreds.apiToken, whatsappCreds.channelToken, orderNumber, supabase, order.id);
-          }
+          await supabase.from('notification_events').insert({
+            channel: 'whatsapp', event_type: whatsappResult.success ? 'sent' : 'failed',
+            order_id: order.id, order_number: orderNumber, recipient_phone: order.customer_phone,
+            template_name: isSecondReminder ? 'reminder_2' : 'reminder_1',
+            message_id: whatsappResult.messageId,
+            metadata: { response: whatsappResult.response, error: whatsappResult.error }
+          });
 
           if (whatsappResult.success) {
             whatsappSentCount++;

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
 import { getWhatsAppCredentials } from "../_shared/tenant-credentials.ts";
+import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,12 +27,6 @@ function formatCurrency(value: number): string {
   return `R$ ${value.toFixed(2).replace('.', ',')}`;
 }
 
-function formatPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('55')) return digits;
-  return `55${digits}`;
-}
-
 function formatItems(items: OrderItem[]): string {
   return items.map(item => {
     let line = `• ${item.quantity}x ${item.name} - ${formatCurrency(item.totalPrice)}`;
@@ -49,76 +44,6 @@ function replaceVariables(template: string, variables: Record<string, string>): 
     result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
   }
   return result;
-}
-
-async function sendWhatsAppText(phone: string, message: string, orderNumber: string, apiToken: string, channelToken: string): Promise<void> {
-  const formattedPhone = formatPhone(phone);
-  try {
-    console.log(`[TEXT] Sending WhatsApp to ${formattedPhone} for order ${orderNumber}`);
-    const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
-      method: 'POST',
-      headers: { 'X-Api-Token': apiToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: channelToken, to: formattedPhone, contents: [{ type: 'text', text: message }] }),
-    });
-    const responseData = await response.text();
-    console.log(`[TEXT] NotificaMe response for ${orderNumber}: ${response.status} - ${responseData}`);
-    if (!response.ok) console.error('[TEXT] NotificaMe API error:', response.status, responseData);
-  } catch (error) {
-    console.error('[TEXT] Error sending WhatsApp:', error);
-  }
-}
-
-async function sendWhatsAppTemplate(
-  phone: string, templateName: string, fields: Record<string, string>,
-  orderNumber: string, supabaseClient: any, apiToken: string, channelToken: string,
-  orderId?: string
-): Promise<{ success: boolean; error?: string; response?: any; messageId?: string }> {
-  const formattedPhone = formatPhone(phone);
-  try {
-    console.log(`[TEMPLATE] Sending "${templateName}" to ${formattedPhone} for order ${orderNumber}`);
-    const fieldKeys = Object.keys(fields).sort((a, b) => Number(a) - Number(b));
-    const parameters = fieldKeys.map(key => ({ type: "text", text: fields[key] }));
-
-    const payload = {
-      from: channelToken, to: formattedPhone,
-      contents: [{ type: 'template', template: { name: templateName, language: { code: 'pt_BR' }, components: [{ type: 'body', parameters }] } }],
-    };
-
-    const response = await fetch('https://api.notificame.com.br/v1/channels/whatsapp/messages', {
-      method: 'POST',
-      headers: { 'X-Api-Token': apiToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    const responseData = await response.text();
-    let responseJson = null;
-    try { responseJson = JSON.parse(responseData); } catch (e) {}
-    const messageId = responseJson?.id || responseJson?.messageId;
-    const fullResponse = { status: response.status, ok: response.ok, body: responseJson || responseData };
-
-    if (!response.ok) {
-      console.error(`[TEMPLATE] ❌ API ERROR for order ${orderNumber}`);
-      await supabaseClient.from('notification_events').insert({
-        channel: 'whatsapp', event_type: 'failed', order_id: orderId,
-        order_number: orderNumber, recipient_phone: formattedPhone,
-        template_name: templateName, message_id: messageId,
-        metadata: { error: responseData, response: fullResponse }
-      });
-      return { success: false, error: responseData, response: fullResponse };
-    } else {
-      console.log(`[TEMPLATE] ✅ WhatsApp sent successfully for order ${orderNumber}`);
-      await supabaseClient.from('notification_events').insert({
-        channel: 'whatsapp', event_type: 'sent', order_id: orderId,
-        order_number: orderNumber, recipient_phone: formattedPhone,
-        template_name: templateName, message_id: messageId,
-        metadata: { response: fullResponse }
-      });
-      return { success: true, response: fullResponse, messageId };
-    }
-  } catch (error) {
-    console.error('[TEMPLATE] ❌ Exception sending WhatsApp template:', error);
-    return { success: false, error: String(error) };
-  }
 }
 
 function getFallbackTemplates(brandName: string): Record<string, string> {
@@ -158,7 +83,6 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Resolve tenant branding & credentials
     const branding = await getTenantBranding(supabase, order.tenant_id);
     const baseUrl = getTenantBaseUrl(branding);
     const whatsappCreds = await getWhatsAppCredentials(supabase, order.tenant_id);
@@ -212,30 +136,20 @@ serve(async (req) => {
       link: `${baseUrl}/pedido/${order.order_number}`,
     };
 
-    if (status === 'approved') {
-      const itemsList = items.map(i => `${i.quantity}x ${i.name}`).join(', ').substring(0, 200);
-      const templateFields = {
-        "1": order.customer_name?.split(' ')[0] || 'cliente',
-        "2": order.order_number || '',
-        "3": itemsList,
-        "4": formatCurrency(order.total)
-      };
-      await sendWhatsAppTemplate(order.customer_phone, 'compraa_confrimadaa', templateFields,
-        order.order_number, supabase, whatsappCreds.apiToken, whatsappCreds.channelToken, order_id);
-    } else if (status === 'pending' && pix_code) {
-      const pixPageLink = `${baseUrl}/pix/${order_id}`;
-      const templateFields = {
-        "1": order.customer_name?.split(' ')[0] || 'cliente',
-        "2": order.order_number || '',
-        "3": formatCurrency(order.total),
-        "4": `Acesse para pagar: ${pixPageLink}`
-      };
-      await sendWhatsAppTemplate(order.customer_phone, 'pix_pendente_dietaja', templateFields,
-        order.order_number, supabase, whatsappCreds.apiToken, whatsappCreds.channelToken, order_id);
-    } else {
-      const message = replaceVariables(template, variables);
-      await sendWhatsAppText(order.customer_phone, message, order.order_number, whatsappCreds.apiToken, whatsappCreds.channelToken);
-    }
+    const message = replaceVariables(template, variables);
+    const result = await sendWhatsAppText(order.customer_phone, message, whatsappCreds);
+
+    // Log notification event
+    await supabase.from('notification_events').insert({
+      channel: 'whatsapp',
+      event_type: result.success ? 'sent' : 'failed',
+      order_id: order_id,
+      order_number: order.order_number,
+      recipient_phone: order.customer_phone,
+      template_name: messageType,
+      message_id: result.messageId,
+      metadata: { response: result.response, error: result.error },
+    });
 
     return new Response(JSON.stringify({ success: true, message: 'WhatsApp sent' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
