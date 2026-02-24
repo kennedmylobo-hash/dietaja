@@ -94,7 +94,8 @@ const NotificationTester = () => {
         body: {
           ...testData,
           customer_email: email,
-          customer_phone: phone || "11999999999"
+          customer_phone: phone || "11999999999",
+          tenant_id: '00000000-0000-0000-0000-000000000001',
         }
       });
 

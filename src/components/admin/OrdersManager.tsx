@@ -109,6 +109,7 @@ interface Order {
   paid_at: string | null;
   stock_decremented?: boolean;
   cancellation_type?: string | null;
+  tenant_id?: string | null;
 }
 
 interface StatusHistoryEntry {
@@ -743,7 +744,8 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
             total: currentOrder?.total,
             delivery_option: currentOrder?.delivery_option,
             delivery_address: currentOrder?.delivery_address,
-            payment_method: currentOrder?.payment_method || 'manual'
+            payment_method: currentOrder?.payment_method || 'manual',
+            tenant_id: currentOrder?.tenant_id,
           }
         });
        console.log('✅ Email + WhatsApp confirmation sent via send-order-approved');
