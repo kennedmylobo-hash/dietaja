@@ -115,8 +115,8 @@ const sendEmailNotification = async (
   }
 };
 
-const IMMEDIATE_STATUSES = ["cancelled"];
-const DEBOUNCE_STATUSES = ["preparing", "ready", "delivering", "delivered"];
+const IMMEDIATE_STATUSES = ["cancelled", "delivering"];
+const DEBOUNCE_STATUSES = ["preparing", "ready", "delivered"];
 const DEBOUNCE_DELAY_MS = 30000;
 
 serve(async (req: Request) => {
