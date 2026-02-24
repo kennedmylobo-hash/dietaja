@@ -9,6 +9,7 @@ import { TenantProvider } from "./contexts/TenantContext";
 
 import { lazy, Suspense, useEffect } from "react";
 import MetaPixel from "./components/MetaPixel";
+import GoogleAnalytics from "./components/GoogleAnalytics";
 
 // Eager load critical pages
 import Index from "./pages/Index";
@@ -65,6 +66,7 @@ const App = () => (
             <Sonner />
             
             <MetaPixel />
+            <GoogleAnalytics />
             <BrowserRouter>
               <SpaRedirectHandler />
               <Suspense fallback={<PageLoader />}>
