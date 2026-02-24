@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN review_reminder_count integer NOT NULL DEFAULT 0;

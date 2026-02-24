@@ -1377,6 +1377,7 @@ export type Database = {
           pix_qr_code: string | null
           pix_qr_code_base64: string | null
           reminder_sent_at: string | null
+          review_reminder_count: number
           review_requested_at: string | null
           status: string
           stock_decremented: boolean | null
@@ -1411,6 +1412,7 @@ export type Database = {
           pix_qr_code?: string | null
           pix_qr_code_base64?: string | null
           reminder_sent_at?: string | null
+          review_reminder_count?: number
           review_requested_at?: string | null
           status?: string
           stock_decremented?: boolean | null
@@ -1445,6 +1447,7 @@ export type Database = {
           pix_qr_code?: string | null
           pix_qr_code_base64?: string | null
           reminder_sent_at?: string | null
+          review_reminder_count?: number
           review_requested_at?: string | null
           status?: string
           stock_decremented?: boolean | null

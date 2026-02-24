@@ -35,7 +35,7 @@ const FALLBACK_MESSAGES: Record<string, { title: string; emoji: string; color: s
     whatsapp: "🛵 *Saiu para Entrega!*\n\nOlá {nome}! Seu pedido *#{pedido}* está a caminho!\n\n{link_rastreio}\n\n⚠️ *Atenção:* A entrega é realizada por parceiros (iFood, 99 ou Uber). Acompanhe o rastreio e confirme se o endereço está correto!",
     email_subject: "🛵 Seu pedido #{pedido} saiu para entrega!" },
   delivered: { title: "Pedido Entregue!", emoji: "🎉", color: "#10b981",
-    whatsapp: "✅ *Pedido Entregue!*\n\nOlá {nome}! Seu pedido *#{pedido}* foi entregue.\n\nBom apetite! 🍽️",
+    whatsapp: "✅ *Pedido Entregue!*\n\nOlá {nome}! Seu pedido *#{pedido}* foi entregue com carinho! 🍽️\n\nBom apetite!\n\n💬 *Conta pra gente como ficou?* Sua avaliação nos ajuda a deixar tudo ainda mais gostoso:\n👉 https://wa.me/{whatsapp_number}?text=Quero%20avaliar%20meu%20pedido%20{pedido}",
     email_subject: "✅ Pedido #{pedido} entregue com sucesso!" },
   cancelled: { title: "Pedido Cancelado", emoji: "❌", color: "#ef4444",
     whatsapp: "😢 *Pedido Cancelado*\n\nOlá {nome}, seu pedido *#{pedido}* foi cancelado.\n\nPrecisa de ajuda? Estamos aqui!",
@@ -50,7 +50,8 @@ const replaceVariables = (template: string, order: OrderData, branding?: TenantB
   return template.replace(/{nome}/g, firstName).replace(/{nome_completo}/g, order.customer_name)
     .replace(/{pedido}/g, order.order_number).replace(/{total}/g, order.total.toFixed(2).replace(".", ","))
     .replace(/{link}/g, trackingUrl).replace(/{link_rastreio}/g, linkRastreio)
-    .replace(/{marca}/g, branding?.brand_name || "Dieta Já");
+    .replace(/{marca}/g, branding?.brand_name || "Dieta Já")
+    .replace(/{whatsapp_number}/g, branding?.whatsapp || "");
 };
 
 const sendEmailNotification = async (
@@ -213,6 +214,15 @@ serve(async (req: Request) => {
     ));
 
     await Promise.all(promises);
+
+    // Se status é "delivered", marca review_reminder_count = 1 (primeira msg já enviada junto)
+    if (new_status === "delivered") {
+      await supabase.from("orders").update({ 
+        review_reminder_count: 1,
+        review_requested_at: new Date().toISOString(),
+        delivered_at: new Date().toISOString()
+      }).eq("id", order_id);
+    }
 
     return new Response(JSON.stringify({ success: true, order_number: order.order_number, immediate: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
