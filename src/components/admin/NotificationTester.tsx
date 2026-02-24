@@ -185,57 +185,65 @@ const NotificationTester = () => {
 
     try {
       const testData = generateRandomTestData();
-      const orderData = {
-        customer_name: testData.customer_name,
-        customer_email: email || "teste@teste.com",
-        customer_phone: phone,
-        items: testData.items,
-        subtotal: testData.subtotal,
-        delivery_fee: 0,
-        total: testData.total,
-        delivery_option: "retirada",
-        status: isCompraConfirmada ? "approved" : "pending",
-        payment_method: isCompraConfirmada ? "test" : "pix"
-      };
 
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert(orderData)
-        .select()
-        .single();
+      if (isCompraConfirmada) {
+        // For "compra confirmada", use send-order-approved which doesn't need a real order
+        const { data: result, error } = await supabase.functions.invoke('send-order-approved', {
+          body: {
+            ...testData,
+            customer_email: email || "teste@teste.com",
+            customer_phone: phone,
+            tenant_id: '00000000-0000-0000-0000-000000000001',
+          }
+        });
 
-      if (orderError) throw orderError;
+        if (error) throw error;
 
-      const invokeBody = isCompraConfirmada 
-        ? { order_id: order.id, status: 'approved' }
-        : { 
-            order_id: order.id, 
-            status: 'pending',
-            pix_code: '00020126580014br.gov.bcb.pix0136teste-pix-exemplo520400005303986540510.005802BR5925TESTE6009SAO PAULO62070503***6304TEST'
-          };
+        setTemplateResults(prev => ({ ...prev, [templateType]: 'success' }));
+        setLastApiResponse({ template: 'compraa_confrimadaa', success: true, response: result });
+      } else {
+        // For "pix pendente", call send-order-whatsapp directly with test data
+        // We need a temporary order — create and delete it immediately after
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            customer_name: testData.customer_name,
+            customer_email: email || "teste@teste.com",
+            customer_phone: phone,
+            items: testData.items,
+            subtotal: testData.subtotal,
+            delivery_fee: 0,
+            total: testData.total,
+            delivery_option: "retirada",
+            status: "pending",
+            payment_method: "pix"
+          })
+          .select()
+          .single();
 
-      const { data: result, error } = await supabase.functions.invoke('send-order-whatsapp', {
-        body: invokeBody
-      });
+        if (orderError) throw orderError;
 
-      setTemplateResults(prev => ({ 
-        ...prev, 
-        [templateType]: error ? 'error' : 'success' 
-      }));
+        try {
+          const { data: result, error } = await supabase.functions.invoke('send-order-whatsapp', {
+            body: {
+              order_id: order.id,
+              status: 'pending',
+              pix_code: '00020126580014br.gov.bcb.pix0136teste-pix-exemplo520400005303986540510.005802BR5925TESTE6009SAO PAULO62070503***6304TEST'
+            }
+          });
 
-      setLastApiResponse({ 
-        template: isCompraConfirmada ? 'compraa_confrimadaa' : 'pix_pendente_dietaja', 
-        success: !error,
-        response: result || error 
-      });
-
-      await supabase.from('orders').delete().eq('id', order.id);
+          setTemplateResults(prev => ({ ...prev, [templateType]: error ? 'error' : 'success' }));
+          setLastApiResponse({ template: 'pix_pendente_dietaja', success: !error, response: result || error });
+        } finally {
+          // Always delete the temporary order
+          await supabase.from('orders').delete().eq('id', order.id);
+        }
+      }
 
       toast({
         title: `📱 ${isCompraConfirmada ? 'Compra Confirmada' : 'PIX Pendente'} enviado!`,
         description: "Verifique se a mensagem chegou no WhatsApp",
       });
-
     } catch (error: any) {
       console.error('WhatsApp test error:', error);
       setTemplateResults(prev => ({ ...prev, [templateType]: 'error' }));
@@ -267,47 +275,23 @@ const NotificationTester = () => {
     const results: any[] = [];
 
     try {
-      // TESTE 1: Template compraa_confrimadaa (status: approved)
+      // TESTE 1: Compra Confirmada (via send-order-approved, sem criar pedido)
       const testData1 = generateRandomTestData();
-      const { data: order1, error: orderError1 } = await supabase
-        .from('orders')
-        .insert({
-          customer_name: testData1.customer_name,
+      const { data: result1, error: error1 } = await supabase.functions.invoke('send-order-approved', {
+        body: {
+          ...testData1,
           customer_email: email || "teste@teste.com",
           customer_phone: phone,
-          items: testData1.items,
-          subtotal: testData1.subtotal,
-          delivery_fee: 0,
-          total: testData1.total,
-          delivery_option: "retirada",
-          status: "approved",
-          payment_method: "test"
-        })
-        .select()
-        .single();
-
-      if (orderError1) throw orderError1;
-
-      const { data: result1, error: error1 } = await supabase.functions.invoke('send-order-whatsapp', {
-        body: { order_id: order1.id, status: 'approved' }
+          tenant_id: '00000000-0000-0000-0000-000000000001',
+        }
       });
 
-      results.push({ 
-        template: 'compraa_confrimadaa', 
-        success: !error1,
-        response: result1 || error1 
-      });
-      
-      setTemplateResults(prev => ({ 
-        ...prev, 
-        compra_confirmada: error1 ? 'error' : 'success' 
-      }));
-
-      await supabase.from('orders').delete().eq('id', order1.id);
+      results.push({ template: 'compraa_confrimadaa', success: !error1, response: result1 || error1 });
+      setTemplateResults(prev => ({ ...prev, compra_confirmada: error1 ? 'error' : 'success' }));
 
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // TESTE 2: Template pix_pendente_dietaja (status: pending com pix_code)
+      // TESTE 2: PIX Pendente (precisa de pedido temporário para send-order-whatsapp)
       const testData2 = generateRandomTestData();
       const { data: order2, error: orderError2 } = await supabase
         .from('orders')
@@ -328,26 +312,20 @@ const NotificationTester = () => {
 
       if (orderError2) throw orderError2;
 
-      const { data: result2, error: error2 } = await supabase.functions.invoke('send-order-whatsapp', {
-        body: { 
-          order_id: order2.id, 
-          status: 'pending',
-          pix_code: '00020126580014br.gov.bcb.pix0136teste-pix-exemplo520400005303986540510.005802BR5925TESTE6009SAO PAULO62070503***6304TEST'
-        }
-      });
+      try {
+        const { data: result2, error: error2 } = await supabase.functions.invoke('send-order-whatsapp', {
+          body: {
+            order_id: order2.id,
+            status: 'pending',
+            pix_code: '00020126580014br.gov.bcb.pix0136teste-pix-exemplo520400005303986540510.005802BR5925TESTE6009SAO PAULO62070503***6304TEST'
+          }
+        });
 
-      results.push({ 
-        template: 'pix_pendente_dietaja', 
-        success: !error2,
-        response: result2 || error2 
-      });
-
-      setTemplateResults(prev => ({ 
-        ...prev, 
-        pix_pendente: error2 ? 'error' : 'success' 
-      }));
-
-      await supabase.from('orders').delete().eq('id', order2.id);
+        results.push({ template: 'pix_pendente_dietaja', success: !error2, response: result2 || error2 });
+        setTemplateResults(prev => ({ ...prev, pix_pendente: error2 ? 'error' : 'success' }));
+      } finally {
+        await supabase.from('orders').delete().eq('id', order2.id);
+      }
 
       setLastApiResponse(results);
 
