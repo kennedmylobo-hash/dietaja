@@ -50,7 +50,7 @@ const replaceVariables = (template: string, order: OrderData, branding?: TenantB
   return template.replace(/{nome}/g, firstName).replace(/{nome_completo}/g, order.customer_name)
     .replace(/{pedido}/g, order.order_number).replace(/{total}/g, order.total.toFixed(2).replace(".", ","))
     .replace(/{link}/g, trackingUrl).replace(/{link_rastreio}/g, linkRastreio)
-    .replace(/{marca}/g, branding?.brand_name || "Meu Restaurante");
+    .replace(/{marca}/g, branding?.brand_name || "Dieta Já");
 };
 
 const sendEmailNotification = async (
