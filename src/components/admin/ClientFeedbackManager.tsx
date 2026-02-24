@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -17,19 +18,14 @@ import {
   Plus,
   ExternalLink,
   Eye,
+  Search,
+  UserPlus,
 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useTenant } from "@/contexts/TenantContext";
 
 interface FeedbackToken {
   id: string;
-  recurring_customer_id: string;
+  recurring_customer_id: string | null;
   token: string;
   customer_name: string;
   customer_phone: string;
@@ -60,10 +56,16 @@ const ClientFeedbackManager = () => {
   const [recurringCustomers, setRecurringCustomers] = useState<RecurringCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [expandedToken, setExpandedToken] = useState<string | null>(null);
   const [feedbacksMap, setFeedbacksMap] = useState<Record<string, Feedback[]>>({});
   const [loadingFeedbacks, setLoadingFeedbacks] = useState<string | null>(null);
+
+  // Search & manual add
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [manualPhone, setManualPhone] = useState("");
+  const [tokenSearch, setTokenSearch] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -79,17 +81,33 @@ const ClientFeedbackManager = () => {
     setLoading(false);
   };
 
-  // Customers that don't have a token yet
+  // Customers that don't have a token yet, filtered by search
   const availableCustomers = useMemo(() => {
-    const tokenCustomerIds = new Set(tokens.map((t) => t.recurring_customer_id));
-    return recurringCustomers.filter((c) => !tokenCustomerIds.has(c.id));
-  }, [tokens, recurringCustomers]);
+    const tokenCustomerIds = new Set(tokens.map((t) => t.recurring_customer_id).filter(Boolean));
+    let filtered = recurringCustomers.filter((c) => !tokenCustomerIds.has(c.id));
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (c) =>
+          c.customer_name.toLowerCase().includes(q) ||
+          c.customer_phone.includes(q)
+      );
+    }
+    return filtered;
+  }, [tokens, recurringCustomers, searchQuery]);
 
-  const generateToken = async () => {
-    if (!selectedCustomerId) return;
-    const customer = recurringCustomers.find((c) => c.id === selectedCustomerId);
-    if (!customer) return;
+  // Filter existing tokens
+  const filteredTokens = useMemo(() => {
+    if (!tokenSearch.trim()) return tokens;
+    const q = tokenSearch.toLowerCase();
+    return tokens.filter(
+      (t) =>
+        t.customer_name.toLowerCase().includes(q) ||
+        t.customer_phone.includes(q)
+    );
+  }, [tokens, tokenSearch]);
 
+  const generateTokenForCustomer = async (customer: RecurringCustomer) => {
     setGenerating(true);
     try {
       const { error } = await supabase.from("client_feedback_tokens").insert({
@@ -101,7 +119,34 @@ const ClientFeedbackManager = () => {
       if (error) throw error;
 
       toast({ title: "Link gerado com sucesso!" });
-      setSelectedCustomerId("");
+      setSearchQuery("");
+      fetchData();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const generateTokenManual = async () => {
+    if (!manualName.trim() || !manualPhone.trim()) {
+      toast({ title: "Preencha nome e telefone", variant: "destructive" });
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const { error } = await supabase.from("client_feedback_tokens").insert({
+        customer_name: manualName.trim(),
+        customer_phone: manualPhone.trim(),
+        tenant_id: tenant?.id || "00000000-0000-0000-0000-000000000001",
+      });
+      if (error) throw error;
+
+      toast({ title: "Link gerado com sucesso!" });
+      setManualName("");
+      setManualPhone("");
+      setShowManualForm(false);
       fetchData();
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
@@ -278,39 +323,109 @@ ${summary.allObs.length > 0 ? summary.allObs.map((o) => `• ${o}`).join("\n") :
             Gerar Link de Feedback
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-1 block">Cliente Recorrente</label>
-              <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCustomers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.customer_name} — {c.customer_phone}
-                    </SelectItem>
-                  ))}
-                  {availableCustomers.length === 0 && (
-                    <SelectItem value="__none" disabled>
-                      Todos já possuem link
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+        <CardContent className="space-y-4">
+          {/* Search existing customers */}
+          <div>
+            <label className="text-sm font-medium mb-1 block">Buscar cliente existente</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Nome ou telefone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
             </div>
-            <Button onClick={generateToken} disabled={!selectedCustomerId || generating}>
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4 mr-2" />}
-              Gerar Link
-            </Button>
           </div>
+
+          {/* Search results */}
+          {searchQuery.trim() && (
+            <div className="max-h-48 overflow-y-auto border border-border rounded-lg divide-y divide-border">
+              {availableCustomers.map((c) => (
+                <button
+                  key={c.id}
+                  className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-muted/50 transition-colors text-left"
+                  onClick={() => generateTokenForCustomer(c)}
+                  disabled={generating}
+                >
+                  <div>
+                    <span className="font-medium text-sm">{c.customer_name}</span>
+                    <span className="text-xs text-muted-foreground ml-2">{c.customer_phone}</span>
+                  </div>
+                  <Link2 className="h-4 w-4 text-primary shrink-0" />
+                </button>
+              ))}
+              {availableCustomers.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-3">
+                  Nenhum cliente encontrado
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 border-t border-border" />
+            <span className="text-xs text-muted-foreground">ou</span>
+            <div className="flex-1 border-t border-border" />
+          </div>
+
+          {/* Manual add */}
+          {!showManualForm ? (
+            <Button variant="outline" className="w-full" onClick={() => setShowManualForm(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Adicionar cliente manualmente
+            </Button>
+          ) : (
+            <div className="space-y-3 border border-border rounded-lg p-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Nome</label>
+                  <Input
+                    placeholder="Nome do cliente"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Telefone</label>
+                  <Input
+                    placeholder="(00) 00000-0000"
+                    value={manualPhone}
+                    onChange={(e) => setManualPhone(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={generateTokenManual} disabled={generating} className="flex-1">
+                  {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4 mr-2" />}
+                  Gerar Link
+                </Button>
+                <Button variant="ghost" onClick={() => { setShowManualForm(false); setManualName(""); setManualPhone(""); }}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
+      {/* Search existing tokens */}
+      {tokens.length > 3 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar nos links gerados..."
+            value={tokenSearch}
+            onChange={(e) => setTokenSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      )}
+
       {/* Tokens list */}
       <div className="space-y-3">
-        {tokens.map((token) => {
+        {filteredTokens.map((token) => {
           const isExpanded = expandedToken === token.id;
           const feedbacks = feedbacksMap[token.id] || [];
           const hasFeedbacks = feedbacks.length > 0;
@@ -479,11 +594,13 @@ ${summary.allObs.length > 0 ? summary.allObs.map((o) => `• ${o}`).join("\n") :
           );
         })}
 
-        {tokens.length === 0 && (
+        {filteredTokens.length === 0 && (
           <Card>
             <CardContent className="pt-6 text-center">
               <p className="text-muted-foreground">
-                Nenhum link de feedback gerado ainda. Selecione um cliente recorrente acima para começar.
+                {tokens.length === 0
+                  ? "Nenhum link de feedback gerado ainda. Busque um cliente ou adicione manualmente."
+                  : "Nenhum resultado para a busca."}
               </p>
             </CardContent>
           </Card>

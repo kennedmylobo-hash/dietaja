@@ -321,7 +321,7 @@ export type Database = {
           customer_phone: string
           id: string
           is_active: boolean
-          recurring_customer_id: string
+          recurring_customer_id: string | null
           tenant_id: string | null
           token: string
         }
@@ -331,7 +331,7 @@ export type Database = {
           customer_phone: string
           id?: string
           is_active?: boolean
-          recurring_customer_id: string
+          recurring_customer_id?: string | null
           tenant_id?: string | null
           token?: string
         }
@@ -341,7 +341,7 @@ export type Database = {
           customer_phone?: string
           id?: string
           is_active?: boolean
-          recurring_customer_id?: string
+          recurring_customer_id?: string | null
           tenant_id?: string | null
           token?: string
         }
