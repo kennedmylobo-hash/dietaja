@@ -29,6 +29,7 @@ const Detox = lazy(() => import("./pages/Detox"));
 const Fit = lazy(() => import("./pages/Fit"));
 const Fitness = lazy(() => import("./pages/Fitness"));
 const Avaliar = lazy(() => import("./pages/Avaliar"));
+const ClientFeedback = lazy(() => import("./pages/ClientFeedback"));
 const ClubeDietaJa = lazy(() => import("./pages/ClubeDietaJa"));
 const SuperAdmin = lazy(() => import("./pages/SuperAdmin"));
 const MonteSeuCardapio = lazy(() => import("./pages/MonteSeuCardapio"));
@@ -87,6 +88,7 @@ const App = () => (
                   <Route path="/fit" element={<Fit />} />
                   <Route path="/fitness" element={<Fitness />} />
                   <Route path="/avaliar/:orderToken" element={<Avaliar />} />
+                  <Route path="/feedback/:token" element={<ClientFeedback />} />
                   <Route path="/clubedietaja" element={<ClubeDietaJa />} />
                   <Route path="/super-admin" element={<SuperAdmin />} />
                   <Route path="/monte-seu-cardapio" element={<MonteSeuCardapio />} />
