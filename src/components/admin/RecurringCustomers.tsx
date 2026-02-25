@@ -115,23 +115,25 @@ import { useTenant } from "@/contexts/TenantContext";
    return colors[day] || "bg-muted text-muted-foreground";
  };
  
- const RecurringCustomers = () => {
-   const queryClient = useQueryClient();
-   const [isFormOpen, setIsFormOpen] = useState(false);
-   const [editingCustomer, setEditingCustomer] = useState<RecurringCustomer | null>(null);
-   const [filterDay, setFilterDay] = useState<string>("all");
- 
-   // Form state
-   const [formData, setFormData] = useState({
-     customer_name: "",
-     customer_phone: "",
-     customer_email: "",
-     delivery_day: "monday",
-     default_order: "",
-     delivery_option: "delivery",
-     delivery_address: "",
-     notes: "",
-   });
+  const RecurringCustomers = () => {
+    const queryClient = useQueryClient();
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingCustomer, setEditingCustomer] = useState<RecurringCustomer | null>(null);
+    const [filterDay, setFilterDay] = useState<string>("all");
+    const [quickCreditCustomer, setQuickCreditCustomer] = useState<{id: string; name: string; phone: string} | null>(null);
+    const [quickCreditQty, setQuickCreditQty] = useState("");
+  
+    // Form state
+    const [formData, setFormData] = useState({
+      customer_name: "",
+      customer_phone: "",
+      customer_email: "",
+      delivery_day: "monday",
+      default_order: "",
+      delivery_option: "delivery",
+      delivery_address: "",
+      notes: "",
+    });
  
     const { tenant } = useTenant();
     const todayDay = getTodayDay();
@@ -193,12 +195,55 @@ import { useTenant } from "@/contexts/TenantContext";
       return `${baseUrl}/feedback/${token}`;
     };
 
-    const copyFeedbackLink = (token: string) => {
-      navigator.clipboard.writeText(getFeedbackLink(token));
-      toast({ title: "Link de avaliação copiado!" });
-    };
+     const copyFeedbackLink = (token: string) => {
+       navigator.clipboard.writeText(getFeedbackLink(token));
+       toast({ title: "Link de avaliação copiado!" });
+     };
 
-    // Filter customers
+     // Quick add credit mutation
+     const quickAddCreditMutation = useMutation({
+       mutationFn: async ({ customerId, qty }: { customerId: string; qty: number }) => {
+         const { error } = await supabase.from("customer_meal_credits").insert({
+           customer_id: customerId,
+           quantity: qty,
+           remaining: qty,
+         });
+         if (error) throw error;
+       },
+       onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: ["all-meal-credits"] });
+         toast({ title: "Saldo adicionado!" });
+         setQuickCreditCustomer(null);
+         setQuickCreditQty("");
+       },
+       onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+     });
+
+     // Generate feedback token for customer
+     const generateTokenMutation = useMutation({
+       mutationFn: async (customer: RecurringCustomer) => {
+         const { data, error } = await supabase
+           .from("client_feedback_tokens")
+           .insert({
+             recurring_customer_id: customer.id,
+             customer_name: customer.customer_name,
+             customer_phone: customer.customer_phone,
+             tenant_id: tenant?.id || "00000000-0000-0000-0000-000000000001",
+           })
+           .select("token")
+           .single();
+         if (error) throw error;
+         return data.token as string;
+       },
+       onSuccess: (token) => {
+         queryClient.invalidateQueries({ queryKey: ["all-feedback-tokens"] });
+         navigator.clipboard.writeText(getFeedbackLink(token));
+         toast({ title: "Link gerado e copiado!" });
+       },
+       onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+     });
+
+     // Filter customers
     const filteredCustomers = customers.filter((c) => {
       if (filterDay === "all") return true;
       return c.delivery_day === filterDay;
@@ -673,13 +718,24 @@ import { useTenant } from "@/contexts/TenantContext";
                           {customer.default_order}
                         </TableCell>
                         <TableCell>
-                          <Badge 
-                            variant={balance > 5 ? "outline" : balance > 0 ? "secondary" : "destructive"}
-                            className="gap-1"
-                          >
-                            <Package className="w-3 h-3" />
-                            {balance}
-                          </Badge>
+                          <div className="flex items-center gap-1">
+                            <Badge 
+                              variant={balance > 5 ? "outline" : balance > 0 ? "secondary" : "destructive"}
+                              className="gap-1"
+                            >
+                              <Package className="w-3 h-3" />
+                              {balance}
+                            </Badge>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6"
+                              onClick={() => setQuickCreditCustomer({ id: customer.id, name: customer.customer_name, phone: customer.customer_phone })}
+                              title="Adicionar saldo"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={customer.delivery_option === "delivery" ? "outline" : "secondary"}>
@@ -726,20 +782,19 @@ import { useTenant } from "@/contexts/TenantContext";
                                 </div>
                               </SheetContent>
                             </Sheet>
-                            {token && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => copyFeedbackLink(token)}
-                                  >
-                                    <Link2 className="w-4 h-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Copiar link de avaliação</TooltipContent>
-                              </Tooltip>
-                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => token ? copyFeedbackLink(token) : generateTokenMutation.mutate(customer)}
+                                  disabled={generateTokenMutation.isPending}
+                                >
+                                  <Link2 className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{token ? "Copiar link de avaliação" : "Gerar link de avaliação"}</TooltipContent>
+                            </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
@@ -814,8 +869,44 @@ import { useTenant } from "@/contexts/TenantContext";
            )}
          </CardContent>
        </Card>
-     </div>
-   );
- };
+
+        {/* Quick Add Credit Dialog */}
+        <Dialog open={!!quickCreditCustomer} onOpenChange={(open) => { if (!open) { setQuickCreditCustomer(null); setQuickCreditQty(""); } }}>
+          <DialogContent className="max-w-xs">
+            <DialogHeader>
+              <DialogTitle>Adicionar Saldo</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">{quickCreditCustomer?.name}</p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const qty = parseInt(quickCreditQty);
+                if (qty > 0 && quickCreditCustomer) {
+                  quickAddCreditMutation.mutate({ customerId: quickCreditCustomer.id, qty });
+                }
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-2">
+                <Label>Quantidade de marmitas</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={quickCreditQty}
+                  onChange={(e) => setQuickCreditQty(e.target.value)}
+                  placeholder="Ex: 30"
+                  required
+                  autoFocus
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={quickAddCreditMutation.isPending}>
+                {quickAddCreditMutation.isPending ? "Salvando..." : "Adicionar"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  };
  
  export default RecurringCustomers;
