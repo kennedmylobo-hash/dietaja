@@ -22,9 +22,8 @@ import {
    Store,
    Palette,
   ShoppingCart,
-   ClipboardList,
-   HeartHandshake,
-   type LucideIcon,
+    ClipboardList,
+    type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -51,8 +50,7 @@ const menuGroups: AdminMenuGroup[] = [
       { id: "orders", label: "Pedidos", icon: Package },
       { id: "production", label: "Produção", icon: ChefHat },
       { id: "shopping-list", label: "Compras", icon: ShoppingCart },
-       { id: "recurring", label: "Recorrentes", icon: CalendarClock },
-      { id: "client-feedback", label: "Feedback", icon: HeartHandshake },
+      { id: "personalized-diet", label: "Mensalistas", icon: CalendarClock },
       { id: "whatsapp-import", label: "Importar", icon: MessageCircle },
       { id: "custom-diet", label: "Dieta Personal.", icon: ClipboardList },
     ],

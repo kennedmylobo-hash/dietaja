@@ -68,6 +68,7 @@ import CustomDietQuoter from "@/components/admin/CustomDietQuoter";
 import FlavorProfitReport from "@/components/admin/FlavorProfitReport";
 import ABTestManager from "@/components/admin/ABTestManager";
 import ClientFeedbackManager from "@/components/admin/ClientFeedbackManager";
+import PersonalizedDietHub from "@/components/admin/PersonalizedDietHub";
 
 interface Lead {
   id: string;
@@ -752,9 +753,9 @@ const Admin = () => {
       case "shopping-list":
         return <ShoppingList dateFilter={dateFilter} />;
 
-       case "recurring":
-         return <RecurringCustomers />;
- 
+       case "personalized-diet":
+         return <PersonalizedDietHub />;
+
       case "whatsapp-import":
         return <WhatsAppOrderImporter />;
 
@@ -1254,8 +1255,6 @@ const Admin = () => {
       case "ab-tests":
         return <ABTestManager />;
 
-      case "client-feedback":
-        return <ClientFeedbackManager />;
 
       default:
         return <div className="text-muted-foreground">Selecione uma seção no menu</div>;
