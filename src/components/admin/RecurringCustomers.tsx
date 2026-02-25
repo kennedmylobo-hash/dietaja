@@ -129,6 +129,8 @@ import { useTenant } from "@/contexts/TenantContext";
     const [quickCreditNotes, setQuickCreditNotes] = useState("");
     const [quickWithdrawMode, setQuickWithdrawMode] = useState(false);
     const [showMovementHistory, setShowMovementHistory] = useState(false);
+    const [batchMode, setBatchMode] = useState(false);
+    const [batchRows, setBatchRows] = useState<Array<{date: string; qty: string}>>([{date: "", qty: ""}]);
   
     // Form state
     const [formData, setFormData] = useState({
@@ -346,7 +348,94 @@ import { useTenant } from "@/contexts/TenantContext";
        setQuickCreditNotes("");
        setQuickWithdrawMode(false);
        setShowMovementHistory(false);
+       setBatchMode(false);
+       setBatchRows([{date: "", qty: ""}]);
      };
+
+     // Batch withdraw mutation
+     const batchWithdrawMutation = useMutation({
+       mutationFn: async ({ customerId, rows, notes }: { customerId: string; rows: Array<{date: string; qty: number}>; notes: string }) => {
+         const totalQty = rows.reduce((sum, r) => sum + r.qty, 0);
+         const customerCredits = allCredits
+           .filter((c: any) => c.customer_id === customerId && c.remaining > 0 && (!c.expires_at || !isPast(parseISO(c.expires_at))))
+           .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+         
+         const totalRemaining = customerCredits.reduce((sum: number, c: any) => sum + c.remaining, 0);
+         if (totalQty > totalRemaining) throw new Error(`Saldo insuficiente. Disponível: ${totalRemaining}, solicitado: ${totalQty}`);
+
+         // Process each row as a withdrawal
+         for (const row of rows) {
+           let remaining = row.qty;
+           const creditsCopy = allCredits
+             .filter((c: any) => c.customer_id === customerId && c.remaining > 0 && (!c.expires_at || !isPast(parseISO(c.expires_at))))
+             .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+           for (const credit of creditsCopy) {
+             if (remaining <= 0) break;
+             const debit = Math.min(remaining, credit.remaining);
+
+             const { error: wErr } = await supabase.from("customer_meal_withdrawals").insert({
+               credit_id: credit.id,
+               customer_id: customerId,
+               quantity: debit,
+               notes: `Dia ${format(new Date(row.date + "T12:00:00"), "dd/MM")}: ${row.qty} marmitas${notes ? ` - ${notes}` : ""}`,
+               withdrawn_at: new Date(row.date + "T12:00:00").toISOString(),
+             });
+             if (wErr) throw wErr;
+
+             const { error: uErr } = await supabase
+               .from("customer_meal_credits")
+               .update({ remaining: credit.remaining - debit })
+               .eq("id", credit.id);
+             if (uErr) throw uErr;
+
+             credit.remaining -= debit;
+             remaining -= debit;
+           }
+         }
+
+         const newBalance = totalRemaining - totalQty;
+
+         // Send consolidated WhatsApp with all movements listed
+         if (quickCreditCustomer) {
+           try {
+             let feedbackLink: string | null = null;
+             const token = getCustomerToken(customerId);
+             if (token) feedbackLink = getFeedbackLink(token);
+
+             const movementLines = rows.map(r => `📦 Dia ${format(new Date(r.date + "T12:00:00"), "dd/MM")}: ${r.qty} marmita${r.qty > 1 ? "s" : ""}`).join("\n");
+             
+             const firstName = quickCreditCustomer.name.split(" ")[0];
+             const feedbackLine = feedbackLink ? `\n⭐ *Avalie suas refeições:*\n${feedbackLink}\n` : "";
+             const lowBalanceAlert = newBalance <= 5 && newBalance > 0 ? "\n⚠️ Seu saldo está acabando! Fale conosco para renovar." : "";
+             const zeroAlert = newBalance === 0 ? "\n🔄 Seu saldo zerou! Entre em contato para fazer um novo pedido." : "";
+
+             const message = `Oi ${firstName}! 📦\n\n*Movimentação registrada:*\n${movementLines}\n\n🍽️ *Saldo atual: ${newBalance} marmita${newBalance !== 1 ? "s" : ""}*\n${feedbackLine}${lowBalanceAlert}${zeroAlert}\nQualquer dúvida, estamos à disposição! 💚`;
+
+             await supabase.functions.invoke("send-meal-balance-notification", {
+               body: {
+                 customer_name: quickCreditCustomer.name,
+                 customer_phone: quickCreditCustomer.phone,
+                 withdrawn: totalQty,
+                 remaining: newBalance,
+                 notes: `Lote: ${rows.length} retirada(s)`,
+                 feedback_link: feedbackLink,
+                 custom_message: message,
+               },
+             });
+           } catch (e) {
+             console.warn("Failed to send batch WhatsApp notification:", e);
+           }
+         }
+       },
+       onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: ["all-meal-credits"] });
+         queryClient.invalidateQueries({ queryKey: ["customer-withdrawals"] });
+         toast({ title: "Lote de retiradas registrado!" });
+         resetQuickCredit();
+       },
+       onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+     });
 
      // Generate feedback token for customer
      const generateTokenMutation = useMutation({
@@ -999,156 +1088,253 @@ import { useTenant } from "@/contexts/TenantContext";
          </CardContent>
        </Card>
 
-        {/* Quick Credit/Withdraw Dialog */}
-        <Dialog open={!!quickCreditCustomer} onOpenChange={(open) => { if (!open) resetQuickCredit(); }}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>{quickWithdrawMode ? "Registrar Retirada" : "Adicionar Saldo"}</DialogTitle>
-            </DialogHeader>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">{quickCreditCustomer?.name}</p>
-              {quickCreditCustomer && (
-                <Badge variant="outline" className="gap-1">
-                  <Package className="w-3 h-3" />
-                  Saldo: {getCustomerBalance(quickCreditCustomer.id)}
-                </Badge>
-              )}
-            </div>
+         {/* Quick Credit/Withdraw Dialog */}
+         <Dialog open={!!quickCreditCustomer} onOpenChange={(open) => { if (!open) resetQuickCredit(); }}>
+           <DialogContent className="max-w-md">
+             <DialogHeader>
+               <DialogTitle>
+                 {batchMode ? "Baixa em Lote" : quickWithdrawMode ? "Registrar Retirada" : "Adicionar Saldo"}
+               </DialogTitle>
+             </DialogHeader>
+             <div className="flex items-center justify-between">
+               <p className="text-sm text-muted-foreground">{quickCreditCustomer?.name}</p>
+               {quickCreditCustomer && (
+                 <Badge variant="outline" className="gap-1">
+                   <Package className="w-3 h-3" />
+                   Saldo: {getCustomerBalance(quickCreditCustomer.id)}
+                 </Badge>
+               )}
+             </div>
 
-            {/* Toggle between add and withdraw */}
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={!quickWithdrawMode ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setQuickWithdrawMode(false)}
-              >
-                <Plus className="w-4 h-4 mr-1" /> Acrescentar
-              </Button>
-              <Button
-                type="button"
-                variant={quickWithdrawMode ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setQuickWithdrawMode(true)}
-              >
-                <Minus className="w-4 h-4 mr-1" /> Retirar
-              </Button>
-            </div>
+             {/* Toggle between add, withdraw, and batch */}
+             <div className="flex gap-2">
+               <Button
+                 type="button"
+                 variant={!quickWithdrawMode && !batchMode ? "default" : "outline"}
+                 size="sm"
+                 className="flex-1"
+                 onClick={() => { setQuickWithdrawMode(false); setBatchMode(false); }}
+               >
+                 <Plus className="w-4 h-4 mr-1" /> Acrescentar
+               </Button>
+               <Button
+                 type="button"
+                 variant={quickWithdrawMode && !batchMode ? "default" : "outline"}
+                 size="sm"
+                 className="flex-1"
+                 onClick={() => { setQuickWithdrawMode(true); setBatchMode(false); }}
+               >
+                 <Minus className="w-4 h-4 mr-1" /> Retirar
+               </Button>
+               <Button
+                 type="button"
+                 variant={batchMode ? "default" : "outline"}
+                 size="sm"
+                 className="flex-1"
+                 onClick={() => { setBatchMode(true); setQuickWithdrawMode(true); }}
+               >
+                 <History className="w-4 h-4 mr-1" /> Lote
+               </Button>
+             </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const qty = parseInt(quickCreditQty);
-                if (qty > 0 && quickCreditCustomer) {
-                  if (quickWithdrawMode) {
-                    quickWithdrawMutation.mutate({ customerId: quickCreditCustomer.id, qty, date: quickCreditDate, notes: quickCreditNotes });
-                  } else {
-                    quickAddCreditMutation.mutate({ customerId: quickCreditCustomer.id, qty, date: quickCreditDate, notes: quickCreditNotes });
-                  }
-                }
-              }}
-              className="space-y-3"
-            >
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Data</Label>
-                  <Input
-                    type="date"
-                    value={quickCreditDate}
-                    onChange={(e) => setQuickCreditDate(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">Vazio = hoje</p>
-                </div>
-                <div className="space-y-1">
-                  <Label>Quantidade *</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max={quickWithdrawMode && quickCreditCustomer ? getCustomerBalance(quickCreditCustomer.id) : undefined}
-                    value={quickCreditQty}
-                    onChange={(e) => setQuickCreditQty(e.target.value)}
-                    placeholder="Ex: 18"
-                    required
-                    autoFocus
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label>Observação</Label>
-                <Input
-                  value={quickCreditNotes}
-                  onChange={(e) => setQuickCreditNotes(e.target.value)}
-                  placeholder={quickWithdrawMode ? "Ex: Retirada semanal" : "Ex: Pago via Pix"}
-                />
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={quickAddCreditMutation.isPending || quickWithdrawMutation.isPending}
-                variant={quickWithdrawMode ? "destructive" : "default"}
-              >
-                {(quickAddCreditMutation.isPending || quickWithdrawMutation.isPending)
-                  ? "Processando..."
-                  : quickWithdrawMode
-                    ? "Confirmar Retirada"
-                    : "Adicionar Saldo"
-                }
-              </Button>
-            </form>
+             {/* Batch mode UI */}
+             {batchMode ? (
+               <div className="space-y-3">
+                 <p className="text-xs text-muted-foreground">Registre múltiplas retiradas de uma vez. Cada linha é uma data com quantidade.</p>
+                 <div className="space-y-2 max-h-48 overflow-y-auto">
+                   {batchRows.map((row, i) => (
+                     <div key={i} className="flex items-center gap-2">
+                       <Input
+                         type="date"
+                         value={row.date}
+                         onChange={(e) => {
+                           const newRows = [...batchRows];
+                           newRows[i].date = e.target.value;
+                           setBatchRows(newRows);
+                         }}
+                         className="flex-1"
+                         required
+                       />
+                       <Input
+                         type="number"
+                         min="1"
+                         value={row.qty}
+                         onChange={(e) => {
+                           const newRows = [...batchRows];
+                           newRows[i].qty = e.target.value;
+                           setBatchRows(newRows);
+                         }}
+                         placeholder="Qtd"
+                         className="w-20"
+                         required
+                       />
+                       {batchRows.length > 1 && (
+                         <Button
+                           type="button"
+                           variant="ghost"
+                           size="icon"
+                           className="h-8 w-8 shrink-0"
+                           onClick={() => setBatchRows(batchRows.filter((_, j) => j !== i))}
+                         >
+                           <Trash2 className="w-3 h-3" />
+                         </Button>
+                       )}
+                     </div>
+                   ))}
+                 </div>
+                 <Button
+                   type="button"
+                   variant="outline"
+                   size="sm"
+                   className="w-full"
+                   onClick={() => setBatchRows([...batchRows, {date: "", qty: ""}])}
+                 >
+                   <Plus className="w-3 h-3 mr-1" /> Adicionar linha
+                 </Button>
+                 {batchRows.some(r => r.date && r.qty) && (
+                   <div className="text-sm text-muted-foreground border rounded-lg p-2">
+                     <p className="font-medium mb-1">Resumo:</p>
+                     {batchRows.filter(r => r.date && r.qty).map((r, i) => (
+                       <p key={i}>📦 Dia {r.date ? format(new Date(r.date + "T12:00:00"), "dd/MM") : "?"}: {r.qty} marmita{parseInt(r.qty) > 1 ? "s" : ""}</p>
+                     ))}
+                     <p className="font-medium mt-1 border-t pt-1">
+                       Total: {batchRows.filter(r => r.qty).reduce((sum, r) => sum + (parseInt(r.qty) || 0), 0)} marmitas
+                     </p>
+                   </div>
+                 )}
+                 <div className="space-y-1">
+                   <Label>Observação</Label>
+                   <Input
+                     value={quickCreditNotes}
+                     onChange={(e) => setQuickCreditNotes(e.target.value)}
+                     placeholder="Ex: Retiradas da semana"
+                   />
+                 </div>
+                 <Button 
+                   className="w-full" 
+                   variant="destructive"
+                   disabled={batchWithdrawMutation.isPending || !batchRows.some(r => r.date && r.qty)}
+                   onClick={() => {
+                     if (!quickCreditCustomer) return;
+                     const validRows = batchRows
+                       .filter(r => r.date && r.qty && parseInt(r.qty) > 0)
+                       .map(r => ({ date: r.date, qty: parseInt(r.qty) }));
+                     if (validRows.length === 0) return;
+                     batchWithdrawMutation.mutate({ customerId: quickCreditCustomer.id, rows: validRows, notes: quickCreditNotes });
+                   }}
+                 >
+                   {batchWithdrawMutation.isPending ? "Processando..." : `Confirmar ${batchRows.filter(r => r.date && r.qty).length} retirada(s)`}
+                 </Button>
+               </div>
+             ) : (
+               /* Single mode form */
+               <form
+                 onSubmit={(e) => {
+                   e.preventDefault();
+                   const qty = parseInt(quickCreditQty);
+                   if (qty > 0 && quickCreditCustomer) {
+                     if (quickWithdrawMode) {
+                       quickWithdrawMutation.mutate({ customerId: quickCreditCustomer.id, qty, date: quickCreditDate, notes: quickCreditNotes });
+                     } else {
+                       quickAddCreditMutation.mutate({ customerId: quickCreditCustomer.id, qty, date: quickCreditDate, notes: quickCreditNotes });
+                     }
+                   }
+                 }}
+                 className="space-y-3"
+               >
+                 <div className="grid grid-cols-2 gap-3">
+                   <div className="space-y-1">
+                     <Label>Data</Label>
+                     <Input
+                       type="date"
+                       value={quickCreditDate}
+                       onChange={(e) => setQuickCreditDate(e.target.value)}
+                     />
+                     <p className="text-xs text-muted-foreground">Vazio = hoje</p>
+                   </div>
+                   <div className="space-y-1">
+                     <Label>Quantidade *</Label>
+                     <Input
+                       type="number"
+                       min="1"
+                       max={quickWithdrawMode && quickCreditCustomer ? getCustomerBalance(quickCreditCustomer.id) : undefined}
+                       value={quickCreditQty}
+                       onChange={(e) => setQuickCreditQty(e.target.value)}
+                       placeholder="Ex: 18"
+                       required
+                       autoFocus
+                     />
+                   </div>
+                 </div>
+                 <div className="space-y-1">
+                   <Label>Observação</Label>
+                   <Input
+                     value={quickCreditNotes}
+                     onChange={(e) => setQuickCreditNotes(e.target.value)}
+                     placeholder={quickWithdrawMode ? "Ex: Retirada semanal" : "Ex: Pago via Pix"}
+                   />
+                 </div>
+                 <Button 
+                   type="submit" 
+                   className="w-full" 
+                   disabled={quickAddCreditMutation.isPending || quickWithdrawMutation.isPending}
+                   variant={quickWithdrawMode ? "destructive" : "default"}
+                 >
+                   {(quickAddCreditMutation.isPending || quickWithdrawMutation.isPending)
+                     ? "Processando..."
+                     : quickWithdrawMode
+                       ? "Confirmar Retirada"
+                       : "Adicionar Saldo"
+                   }
+                 </Button>
+               </form>
+             )}
 
-            {/* Movement History */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full"
-              onClick={() => setShowMovementHistory(!showMovementHistory)}
-            >
-              <History className="w-4 h-4 mr-1" />
-              {showMovementHistory ? "Ocultar histórico" : "Ver histórico de movimentações"}
-            </Button>
+             {/* Movement History */}
+             <Button
+               variant="ghost"
+               size="sm"
+               className="w-full"
+               onClick={() => setShowMovementHistory(!showMovementHistory)}
+             >
+               <History className="w-4 h-4 mr-1" />
+               {showMovementHistory ? "Ocultar histórico" : "Ver histórico de movimentações"}
+             </Button>
 
-            {showMovementHistory && quickCreditCustomer && (
-              <div className="max-h-60 overflow-y-auto space-y-1.5 border rounded-lg p-2">
-                {/* Credits (additions) */}
-                {allCredits
-                  .filter((c: any) => c.customer_id === quickCreditCustomer.id)
-                  .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                  .map((c: any) => (
-                    <div key={c.id} className="flex justify-between items-center p-2 rounded border text-sm bg-green-500/5">
-                      <div>
-                        <span className="font-medium text-green-700">+{c.quantity} marmitas</span>
-                        {c.notes && <span className="text-muted-foreground ml-2 text-xs">({c.notes})</span>}
-                      </div>
-                      <span className="text-muted-foreground text-xs">
-                        {format(new Date(c.created_at), "dd/MM/yy")}
-                      </span>
-                    </div>
-                  ))
-                }
-                {/* Withdrawals */}
-                {customerWithdrawals.map((w: any) => (
-                  <div key={w.id} className="flex justify-between items-center p-2 rounded border text-sm bg-red-500/5">
-                    <div>
-                      <span className="font-medium text-red-700">-{w.quantity} marmitas</span>
-                      {w.notes && <span className="text-muted-foreground ml-2 text-xs">({w.notes})</span>}
-                    </div>
-                    <span className="text-muted-foreground text-xs">
-                      {format(new Date(w.withdrawn_at), "dd/MM/yy")}
-                    </span>
-                  </div>
-                ))}
-                {allCredits.filter((c: any) => c.customer_id === quickCreditCustomer.id).length === 0 &&
-                  customerWithdrawals.length === 0 && (
-                  <p className="text-center text-muted-foreground text-sm py-4">Nenhuma movimentação</p>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-    );
-  };
+             {showMovementHistory && quickCreditCustomer && (
+               <div className="max-h-60 overflow-y-auto space-y-1.5 border rounded-lg p-2">
+                 {/* Unified timeline sorted by date */}
+                 {[
+                   ...allCredits
+                     .filter((c: any) => c.customer_id === quickCreditCustomer.id)
+                     .map((c: any) => ({ type: "add" as const, date: new Date(c.created_at), qty: c.quantity, notes: c.notes, id: c.id })),
+                   ...customerWithdrawals.map((w: any) => ({ type: "withdraw" as const, date: new Date(w.withdrawn_at), qty: w.quantity, notes: w.notes, id: w.id })),
+                 ]
+                   .sort((a, b) => b.date.getTime() - a.date.getTime())
+                   .map((item) => (
+                     <div key={item.id} className={`flex justify-between items-center p-2 rounded border text-sm ${item.type === "add" ? "bg-primary/5" : "bg-destructive/5"}`}>
+                       <div>
+                         <span className={`font-medium ${item.type === "add" ? "text-primary" : "text-destructive"}`}>
+                           {item.type === "add" ? "+" : "-"}{item.qty} marmitas
+                         </span>
+                         {item.notes && <span className="text-muted-foreground ml-2 text-xs">({item.notes})</span>}
+                       </div>
+                       <span className="text-muted-foreground text-xs">
+                         {format(item.date, "dd/MM/yy")}
+                       </span>
+                     </div>
+                   ))
+                 }
+                 {allCredits.filter((c: any) => c.customer_id === quickCreditCustomer.id).length === 0 &&
+                   customerWithdrawals.length === 0 && (
+                   <p className="text-center text-muted-foreground text-sm py-4">Nenhuma movimentação</p>
+                 )}
+               </div>
+             )}
+           </DialogContent>
+         </Dialog>
+       </div>
+     );
+   };
  
  export default RecurringCustomers;

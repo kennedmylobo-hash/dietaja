@@ -12,7 +12,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    const { customer_name, customer_phone, withdrawn, added, remaining, notes, feedback_link } = await req.json();
+    const { customer_name, customer_phone, withdrawn, added, remaining, notes, feedback_link, custom_message } = await req.json();
 
     if (!customer_phone || !customer_name) {
       throw new Error("customer_phone and customer_name are required");
@@ -55,7 +55,9 @@ serve(async (req) => {
 
     let message: string;
 
-    if (added) {
+    if (custom_message) {
+      message = custom_message.trim();
+    } else if (added) {
       // Credit added notification
       message = `Oi ${firstName}! 📦
 
