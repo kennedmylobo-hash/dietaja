@@ -223,8 +223,17 @@ import { useTenant } from "@/contexts/TenantContext";
      };
 
      // Send WhatsApp notification helper
-     const sendBalanceNotification = async (customerName: string, customerPhone: string, qty: number, newBalance: number, notes: string | null, isWithdrawal: boolean) => {
+     const sendBalanceNotification = async (customerName: string, customerPhone: string, qty: number, newBalance: number, notes: string | null, isWithdrawal: boolean, customerId?: string) => {
        try {
+         // Find feedback link for this customer
+         let feedbackLink: string | null = null;
+         if (customerId) {
+           const token = getCustomerToken(customerId);
+           if (token) {
+             feedbackLink = getFeedbackLink(token);
+           }
+         }
+
          if (isWithdrawal) {
            await supabase.functions.invoke("send-meal-balance-notification", {
              body: {
@@ -233,11 +242,10 @@ import { useTenant } from "@/contexts/TenantContext";
                withdrawn: qty,
                remaining: newBalance,
                notes: notes || null,
-               feedback_link: null,
+               feedback_link: feedbackLink,
              },
            });
          } else {
-           // Send add notification via edge function
            await supabase.functions.invoke("send-meal-balance-notification", {
              body: {
                customer_name: customerName,
@@ -245,7 +253,7 @@ import { useTenant } from "@/contexts/TenantContext";
                added: qty,
                remaining: newBalance,
                notes: notes || null,
-               feedback_link: null,
+               feedback_link: feedbackLink,
              },
            });
          }
@@ -273,7 +281,7 @@ import { useTenant } from "@/contexts/TenantContext";
 
          // Send WhatsApp
          if (quickCreditCustomer) {
-           await sendBalanceNotification(quickCreditCustomer.name, quickCreditCustomer.phone, qty, newBalance, notes, false);
+           await sendBalanceNotification(quickCreditCustomer.name, quickCreditCustomer.phone, qty, newBalance, notes, false, customerId);
          }
        },
        onSuccess: () => {
@@ -319,7 +327,7 @@ import { useTenant } from "@/contexts/TenantContext";
 
          const newBalance = totalRemaining - qty;
          if (quickCreditCustomer) {
-           await sendBalanceNotification(quickCreditCustomer.name, quickCreditCustomer.phone, qty, newBalance, notes, true);
+           await sendBalanceNotification(quickCreditCustomer.name, quickCreditCustomer.phone, qty, newBalance, notes, true, customerId);
          }
        },
        onSuccess: () => {

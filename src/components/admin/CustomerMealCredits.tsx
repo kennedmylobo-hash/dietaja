@@ -79,6 +79,25 @@ const CustomerMealCredits = ({ customerId, customerName, customerPhone }: Custom
     },
   });
 
+  // Fetch feedback token for this customer
+  const { data: feedbackToken } = useQuery({
+    queryKey: ["feedback-token", customerId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_feedback_tokens")
+        .select("token")
+        .eq("recurring_customer_id", customerId)
+        .eq("is_active", true)
+        .maybeSingle();
+      return data?.token || null;
+    },
+  });
+
+  const getFeedbackLink = () => {
+    if (!feedbackToken) return null;
+    return `${window.location.origin}/feedback/${feedbackToken}`;
+  };
+
   // Active credits (remaining > 0 and not expired)
   const activeCredits = credits.filter(c => {
     if (c.remaining <= 0) return false;
@@ -113,6 +132,23 @@ const CustomerMealCredits = ({ customerId, customerName, customerPhone }: Custom
         notes: creditForm.notes || null,
       });
       if (error) throw error;
+
+      // Send WhatsApp notification
+      try {
+        const newBalance = totalRemaining + qty;
+        await supabase.functions.invoke("send-meal-balance-notification", {
+          body: {
+            customer_name: customerName,
+            customer_phone: customerPhone,
+            added: qty,
+            remaining: newBalance,
+            notes: creditForm.notes || null,
+            feedback_link: getFeedbackLink(),
+          },
+        });
+      } catch (e) {
+        console.warn("Failed to send WhatsApp balance notification:", e);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meal-credits", customerId] });
@@ -169,7 +205,7 @@ const CustomerMealCredits = ({ customerId, customerName, customerPhone }: Custom
             withdrawn: qty,
             remaining: newBalance,
             notes: withdrawForm.notes || null,
-            feedback_link: null,
+            feedback_link: getFeedbackLink(),
           },
         });
       } catch (e) {
