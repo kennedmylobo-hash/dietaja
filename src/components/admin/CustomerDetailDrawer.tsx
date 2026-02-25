@@ -206,6 +206,24 @@ const CustomerDetailDrawer = ({ customerId, customerName, customerPhone }: Props
         notes: creditForm.notes || null,
       });
       if (error) throw error;
+
+      // Send welcome message if this is the first batch
+      const isFirstBatch = credits.length === 0;
+      if (isFirstBatch) {
+        try {
+          await supabase.functions.invoke("send-welcome-meal-customer", {
+            body: {
+              customer_name: customerName,
+              customer_phone: customerPhone,
+              quantity: qty,
+              feedback_link: feedbackToken ? getFeedbackLink() : null,
+              brand_name: tenant?.brand_name || null,
+            },
+          });
+        } catch (e) {
+          console.warn("Failed to send welcome message:", e);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meal-credits", customerId] });
