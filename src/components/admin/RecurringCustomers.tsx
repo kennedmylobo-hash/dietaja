@@ -1,4 +1,5 @@
  import { useState } from "react";
+ import { isPast, parseISO } from "date-fns";
  import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
  import { supabase } from "@/integrations/supabase/client";
  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +45,8 @@ import {
   MessageCircle,
   RefreshCw,
   Eye,
+  Link2,
+  Package,
 } from "lucide-react";
 import {
   Sheet,
@@ -52,7 +55,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import CustomerDetailDrawer from "./CustomerDetailDrawer";
+import { useTenant } from "@/contexts/TenantContext";
  
  interface RecurringCustomer {
    id: string;
@@ -123,28 +133,76 @@ import CustomerDetailDrawer from "./CustomerDetailDrawer";
      notes: "",
    });
  
-   const todayDay = getTodayDay();
- 
-   // Fetch recurring customers
-   const { data: customers = [], isLoading } = useQuery({
-     queryKey: ["recurring-customers"],
-     queryFn: async () => {
-       const { data, error } = await supabase
-         .from("recurring_customers")
-         .select("*")
-         .order("delivery_day")
-         .order("customer_name");
- 
-       if (error) throw error;
-       return data as RecurringCustomer[];
-     },
-   });
- 
-   // Filter customers
-   const filteredCustomers = customers.filter((c) => {
-     if (filterDay === "all") return true;
-     return c.delivery_day === filterDay;
-   });
+    const { tenant } = useTenant();
+    const todayDay = getTodayDay();
+  
+    // Fetch recurring customers
+    const { data: customers = [], isLoading } = useQuery({
+      queryKey: ["recurring-customers"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("recurring_customers")
+          .select("*")
+          .order("delivery_day")
+          .order("customer_name");
+  
+        if (error) throw error;
+        return data as RecurringCustomer[];
+      },
+    });
+
+    // Fetch meal credits for all customers (for saldo column)
+    const { data: allCredits = [] } = useQuery({
+      queryKey: ["all-meal-credits"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("customer_meal_credits")
+          .select("customer_id, remaining, expires_at");
+        if (error) throw error;
+        return data;
+      },
+    });
+
+    // Fetch feedback tokens for all customers
+    const { data: allTokens = [] } = useQuery({
+      queryKey: ["all-feedback-tokens"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("client_feedback_tokens")
+          .select("recurring_customer_id, token")
+          .eq("is_active", true);
+        if (error) throw error;
+        return data;
+      },
+    });
+
+    // Helper: get remaining balance for a customer
+    const getCustomerBalance = (customerId: string) => {
+      return allCredits
+        .filter(c => c.customer_id === customerId && c.remaining > 0 && (!c.expires_at || !isPast(parseISO(c.expires_at))))
+        .reduce((sum, c) => sum + c.remaining, 0);
+    };
+
+    // Helper: get feedback token for a customer
+    const getCustomerToken = (customerId: string) => {
+      return allTokens.find(t => t.recurring_customer_id === customerId)?.token || null;
+    };
+
+    const getFeedbackLink = (token: string) => {
+      const baseUrl = tenant?.domain ? `https://${tenant.domain}` : window.location.origin;
+      return `${baseUrl}/feedback/${token}`;
+    };
+
+    const copyFeedbackLink = (token: string) => {
+      navigator.clipboard.writeText(getFeedbackLink(token));
+      toast({ title: "Link de avaliação copiado!" });
+    };
+
+    // Filter customers
+    const filteredCustomers = customers.filter((c) => {
+      if (filterDay === "all") return true;
+      return c.delivery_day === filterDay;
+    });
  
    // Today's customers
    const todaysCustomers = customers.filter(
@@ -579,124 +637,179 @@ import CustomerDetailDrawer from "./CustomerDetailDrawer";
              </div>
            ) : (
              <div className="overflow-x-auto">
-               <Table>
-                 <TableHeader>
-                   <TableRow>
-                     <TableHead>Cliente</TableHead>
-                     <TableHead>Dia</TableHead>
-                     <TableHead>Pedido Padrão</TableHead>
-                     <TableHead>Tipo</TableHead>
-                     <TableHead>Status</TableHead>
-                     <TableHead className="text-right">Ações</TableHead>
-                   </TableRow>
-                 </TableHeader>
-                 <TableBody>
-                   {filteredCustomers.map((customer) => (
-                     <TableRow key={customer.id} className={!customer.is_active ? "opacity-50" : ""}>
-                       <TableCell>
-                         <div>
-                           <p className="font-medium">{customer.customer_name}</p>
-                           <p className="text-sm text-muted-foreground flex items-center gap-1">
-                             <Phone className="w-3 h-3" />
-                             {customer.customer_phone}
-                           </p>
-                         </div>
-                       </TableCell>
-                       <TableCell>
-                         <Badge className={getDayColor(customer.delivery_day)}>
-                           {getDayShort(customer.delivery_day)}
-                         </Badge>
-                       </TableCell>
-                       <TableCell className="max-w-[200px] truncate">
-                         {customer.default_order}
-                       </TableCell>
-                       <TableCell>
-                         <Badge variant={customer.delivery_option === "delivery" ? "outline" : "secondary"}>
-                           {customer.delivery_option === "delivery" ? "Delivery" : "Retirada"}
-                         </Badge>
-                       </TableCell>
-                       <TableCell>
-                         {customer.is_active ? (
-                           <Badge variant="default" className="bg-green-500">
-                             <CheckCircle2 className="w-3 h-3 mr-1" />
-                             Ativo
-                           </Badge>
-                         ) : (
-                           <Badge variant="secondary">
-                             <PauseCircle className="w-3 h-3 mr-1" />
-                             Pausado
-                           </Badge>
-                         )}
-                       </TableCell>
-                       <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                           <Sheet>
-                             <SheetTrigger asChild>
-                               <Button size="icon" variant="ghost" title="Ver perfil completo">
-                                 <Eye className="w-4 h-4" />
-                               </Button>
-                             </SheetTrigger>
-                             <SheetContent className="overflow-y-auto sm:max-w-lg">
-                               <SheetHeader>
-                                 <SheetTitle>{customer.customer_name}</SheetTitle>
-                               </SheetHeader>
-                               <div className="mt-4">
-                                 <CustomerDetailDrawer
-                                   customerId={customer.id}
-                                   customerName={customer.customer_name}
-                                   customerPhone={customer.customer_phone}
-                                 />
-                               </div>
-                             </SheetContent>
-                           </Sheet>
-                           <Button
-                             size="icon"
-                             variant="ghost"
-                             onClick={() => openWhatsApp(customer.customer_phone, customer.customer_name)}
-                           >
-                             <MessageCircle className="w-4 h-4" />
-                           </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleEdit(customer)}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Dia</TableHead>
+                      <TableHead>Pedido Padrão</TableHead>
+                      <TableHead>Saldo</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCustomers.map((customer) => {
+                      const balance = getCustomerBalance(customer.id);
+                      const token = getCustomerToken(customer.id);
+                      return (
+                      <TableRow key={customer.id} className={!customer.is_active ? "opacity-50" : ""}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{customer.customer_name}</p>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Phone className="w-3 h-3" />
+                              {customer.customer_phone}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getDayColor(customer.delivery_day)}>
+                            {getDayShort(customer.delivery_day)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          {customer.default_order}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={balance > 5 ? "outline" : balance > 0 ? "secondary" : "destructive"}
+                            className="gap-1"
                           >
-                             <Edit2 className="w-4 h-4" />
-                           </Button>
-                           <Button
-                             size="icon"
-                             variant="ghost"
-                             onClick={() =>
-                               toggleActiveMutation.mutate({
-                                 id: customer.id,
-                                 is_active: !customer.is_active,
-                               })
-                             }
-                           >
-                             {customer.is_active ? (
-                               <PauseCircle className="w-4 h-4" />
-                             ) : (
-                               <PlayCircle className="w-4 h-4" />
-                             )}
-                           </Button>
-                           <Button
-                             size="icon"
-                             variant="ghost"
-                             className="text-destructive hover:text-destructive"
-                             onClick={() => {
-                               if (confirm("Tem certeza que deseja excluir este cliente?")) {
-                                 deleteMutation.mutate(customer.id);
-                               }
-                             }}
-                           >
-                             <Trash2 className="w-4 h-4" />
-                           </Button>
-                         </div>
-                       </TableCell>
-                     </TableRow>
-                   ))}
-                 </TableBody>
-               </Table>
+                            <Package className="w-3 h-3" />
+                            {balance}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={customer.delivery_option === "delivery" ? "outline" : "secondary"}>
+                            {customer.delivery_option === "delivery" ? "Delivery" : "Retirada"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {customer.is_active ? (
+                            <Badge variant="default" className="bg-green-500">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Ativo
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              <PauseCircle className="w-3 h-3 mr-1" />
+                              Pausado
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <TooltipProvider delayDuration={300}>
+                           <div className="flex items-center justify-end gap-1">
+                            <Sheet>
+                              <SheetTrigger asChild>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="ghost">
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Perfil / Marmitas / Avaliação</TooltipContent>
+                                </Tooltip>
+                              </SheetTrigger>
+                              <SheetContent className="overflow-y-auto sm:max-w-lg">
+                                <SheetHeader>
+                                  <SheetTitle>{customer.customer_name}</SheetTitle>
+                                </SheetHeader>
+                                <div className="mt-4">
+                                  <CustomerDetailDrawer
+                                    customerId={customer.id}
+                                    customerName={customer.customer_name}
+                                    customerPhone={customer.customer_phone}
+                                  />
+                                </div>
+                              </SheetContent>
+                            </Sheet>
+                            {token && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => copyFeedbackLink(token)}
+                                  >
+                                    <Link2 className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Copiar link de avaliação</TooltipContent>
+                              </Tooltip>
+                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => openWhatsApp(customer.customer_phone, customer.customer_name)}
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>WhatsApp</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleEdit(customer)}
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Editar</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    toggleActiveMutation.mutate({
+                                      id: customer.id,
+                                      is_active: !customer.is_active,
+                                    })
+                                  }
+                                >
+                                  {customer.is_active ? (
+                                    <PauseCircle className="w-4 h-4" />
+                                  ) : (
+                                    <PlayCircle className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{customer.is_active ? "Pausar" : "Ativar"}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    if (confirm("Tem certeza que deseja excluir este cliente?")) {
+                                      deleteMutation.mutate(customer.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Excluir</TooltipContent>
+                            </Tooltip>
+                          </div>
+                          </TooltipProvider>
+                        </TableCell>
+                      </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
              </div>
            )}
          </CardContent>
