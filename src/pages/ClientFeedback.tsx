@@ -7,11 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "@/hooks/use-toast";
 import { Star, CheckCircle, Loader2, Camera, X, ThumbsUp, ThumbsDown } from "lucide-react";
 import Logo from "@/components/Logo";
+import MealBalanceSection from "@/components/feedback/MealBalanceSection";
 
 interface TokenInfo {
   id: string;
   customer_name: string;
   tenant_id: string | null;
+  recurring_customer_id: string | null;
 }
 
 const ClientFeedback = () => {
@@ -39,7 +41,7 @@ const ClientFeedback = () => {
 
       const { data, error: err } = await supabase
         .from("client_feedback_tokens")
-        .select("id, customer_name, tenant_id")
+        .select("id, customer_name, tenant_id, recurring_customer_id")
         .eq("token", token)
         .eq("is_active", true)
         .maybeSingle();
@@ -192,6 +194,11 @@ const ClientFeedback = () => {
         <div className="text-center mb-6">
           <Logo />
         </div>
+
+        {/* Meal Balance Section */}
+        {tokenInfo?.recurring_customer_id && (
+          <MealBalanceSection customerId={tokenInfo.recurring_customer_id} />
+        )}
 
         <Card className="mb-6">
           <CardHeader className="text-center">
