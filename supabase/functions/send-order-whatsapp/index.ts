@@ -151,6 +151,23 @@ serve(async (req) => {
       metadata: { response: result.response, error: result.error },
     });
 
+    // Send admin notification for new orders
+    if (status === 'pending' || status === 'whatsapp_pending') {
+      const adminPhone = branding.whatsapp;
+      if (adminPhone) {
+        const items = order.items as OrderItem[];
+        const paymentLabel = status === 'pending' ? '💳 PIX' : '💬 WhatsApp';
+        const adminMsg = `🔔 *NOVO PEDIDO!*\n\n📋 *#${order.order_number}*\n👤 ${order.customer_name}\n📱 ${order.customer_phone}\n\n${formatItems(items)}\n\n💵 *Total:* ${formatCurrency(order.total)}\n${order.delivery_option === 'delivery' ? '🚚 Entrega' : '🏪 Retirada'}\n${paymentLabel}\n\n⏰ ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+        
+        try {
+          await sendWhatsAppText(adminPhone, adminMsg, whatsappCreds);
+          console.log(`[ADMIN] ✅ Notification sent to ${adminPhone}`);
+        } catch (e) {
+          console.error(`[ADMIN] ❌ Failed to notify admin:`, e);
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ success: true, message: 'WhatsApp sent' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
