@@ -31,19 +31,28 @@
    TableRow,
  } from "@/components/ui/table";
  import { toast } from "@/hooks/use-toast";
- import {
-   Plus,
-   Edit2,
-   Trash2,
-   Phone,
-   MapPin,
-   CheckCircle2,
-   PauseCircle,
-   PlayCircle,
-   Calendar,
-   MessageCircle,
-   RefreshCw,
- } from "lucide-react";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Phone,
+  MapPin,
+  CheckCircle2,
+  PauseCircle,
+  PlayCircle,
+  Calendar,
+  MessageCircle,
+  RefreshCw,
+  Package,
+} from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import CustomerMealCredits from "./CustomerMealCredits";
  
  interface RecurringCustomer {
    id: string;
@@ -622,18 +631,37 @@
                        </TableCell>
                        <TableCell className="text-right">
                          <div className="flex items-center justify-end gap-1">
-                           <Button
-                             size="icon"
-                             variant="ghost"
-                             onClick={() => openWhatsApp(customer.customer_phone, customer.customer_name)}
-                           >
-                             <MessageCircle className="w-4 h-4" />
-                           </Button>
-                           <Button
-                             size="icon"
-                             variant="ghost"
-                             onClick={() => handleEdit(customer)}
-                           >
+                          <Sheet>
+                            <SheetTrigger asChild>
+                              <Button size="icon" variant="ghost" title="Saldo de Marmitas">
+                                <Package className="w-4 h-4" />
+                              </Button>
+                            </SheetTrigger>
+                            <SheetContent className="overflow-y-auto">
+                              <SheetHeader>
+                                <SheetTitle>Saldo — {customer.customer_name}</SheetTitle>
+                              </SheetHeader>
+                              <div className="mt-4">
+                                <CustomerMealCredits
+                                  customerId={customer.id}
+                                  customerName={customer.customer_name}
+                                  customerPhone={customer.customer_phone}
+                                />
+                              </div>
+                            </SheetContent>
+                          </Sheet>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => openWhatsApp(customer.customer_phone, customer.customer_name)}
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleEdit(customer)}
+                          >
                              <Edit2 className="w-4 h-4" />
                            </Button>
                            <Button

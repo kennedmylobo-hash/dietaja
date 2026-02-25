@@ -697,6 +697,106 @@ export type Database = {
           },
         ]
       }
+      customer_meal_credits: {
+        Row: {
+          created_at: string
+          customer_id: string
+          expires_at: string | null
+          id: string
+          notes: string | null
+          quantity: number
+          remaining: number
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          expires_at?: string | null
+          id?: string
+          notes?: string | null
+          quantity: number
+          remaining: number
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          expires_at?: string | null
+          id?: string
+          notes?: string | null
+          quantity?: number
+          remaining?: number
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_meal_credits_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_meal_credits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_meal_withdrawals: {
+        Row: {
+          credit_id: string
+          customer_id: string
+          id: string
+          notes: string | null
+          quantity: number
+          tenant_id: string | null
+          withdrawn_at: string
+        }
+        Insert: {
+          credit_id: string
+          customer_id: string
+          id?: string
+          notes?: string | null
+          quantity: number
+          tenant_id?: string | null
+          withdrawn_at?: string
+        }
+        Update: {
+          credit_id?: string
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          tenant_id?: string | null
+          withdrawn_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_meal_withdrawals_credit_id_fkey"
+            columns: ["credit_id"]
+            isOneToOne: false
+            referencedRelation: "customer_meal_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_meal_withdrawals_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_meal_withdrawals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kit_juices: {
         Row: {
           active: boolean
