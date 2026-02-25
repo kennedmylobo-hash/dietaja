@@ -12,7 +12,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    const { customer_name, customer_phone, withdrawn, remaining, notes, feedback_link } = await req.json();
+    const { customer_name, customer_phone, withdrawn, added, remaining, notes, feedback_link } = await req.json();
 
     if (!customer_phone || !customer_name) {
       throw new Error("customer_phone and customer_name are required");
@@ -53,7 +53,20 @@ serve(async (req) => {
       ? `\n⭐ *Avalie suas refeições:*\n${feedback_link}\nSua opinião nos ajuda a manter a qualidade do seu pedido!\n`
       : '';
 
-    const message = `Oi ${firstName}! 📦
+    let message: string;
+
+    if (added) {
+      // Credit added notification
+      message = `Oi ${firstName}! 📦
+
+✅ *Acréscimo registrado: +${added} marmita${added > 1 ? 's' : ''}*${notesLine}
+
+🍽️ *Saldo atual: ${remaining} marmita${remaining !== 1 ? 's' : ''}*
+${feedbackLine}
+Qualquer dúvida, estamos à disposição! 💚`.trim();
+    } else {
+      // Withdrawal notification
+      message = `Oi ${firstName}! 📦
 
 Retirada registrada: *${withdrawn} marmita${withdrawn > 1 ? 's' : ''}*${notesLine}
 
@@ -62,6 +75,7 @@ ${feedbackLine}
 ${remaining <= 5 && remaining > 0 ? '⚠️ Seu saldo está acabando! Fale conosco para renovar.' : ''}
 ${remaining === 0 ? '🔄 Seu saldo zerou! Entre em contato para fazer um novo pedido.' : ''}
 Qualquer dúvida, estamos à disposição! 💚`.trim();
+    }
 
     const result = await sendWhatsAppText(customer_phone, message, whatsappCreds);
 

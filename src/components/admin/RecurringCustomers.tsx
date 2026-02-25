@@ -1,5 +1,6 @@
  import { useState } from "react";
- import { isPast, parseISO } from "date-fns";
+ import { isPast, parseISO, format } from "date-fns";
+ import { ptBR } from "date-fns/locale";
  import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
  import { supabase } from "@/integrations/supabase/client";
  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,7 @@
  import { toast } from "@/hooks/use-toast";
 import {
   Plus,
+  Minus,
   Edit2,
   Trash2,
   Phone,
@@ -47,6 +49,7 @@ import {
   Eye,
   Link2,
   Package,
+  History,
 } from "lucide-react";
 import {
   Sheet,
@@ -120,8 +123,12 @@ import { useTenant } from "@/contexts/TenantContext";
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<RecurringCustomer | null>(null);
     const [filterDay, setFilterDay] = useState<string>("all");
-    const [quickCreditCustomer, setQuickCreditCustomer] = useState<{id: string; name: string; phone: string} | null>(null);
+  const [quickCreditCustomer, setQuickCreditCustomer] = useState<{id: string; name: string; phone: string} | null>(null);
     const [quickCreditQty, setQuickCreditQty] = useState("");
+    const [quickCreditDate, setQuickCreditDate] = useState("");
+    const [quickCreditNotes, setQuickCreditNotes] = useState("");
+    const [quickWithdrawMode, setQuickWithdrawMode] = useState(false);
+    const [showMovementHistory, setShowMovementHistory] = useState(false);
   
     // Form state
     const [formData, setFormData] = useState({
@@ -159,7 +166,22 @@ import { useTenant } from "@/contexts/TenantContext";
       queryFn: async () => {
         const { data, error } = await supabase
           .from("customer_meal_credits")
-          .select("customer_id, remaining, expires_at");
+          .select("*");
+        if (error) throw error;
+        return data;
+      },
+    });
+
+    // Fetch withdrawals for selected customer
+    const { data: customerWithdrawals = [] } = useQuery({
+      queryKey: ["customer-withdrawals", quickCreditCustomer?.id],
+      enabled: !!quickCreditCustomer,
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("customer_meal_withdrawals")
+          .select("*")
+          .eq("customer_id", quickCreditCustomer!.id)
+          .order("withdrawn_at", { ascending: false });
         if (error) throw error;
         return data;
       },
@@ -200,24 +222,123 @@ import { useTenant } from "@/contexts/TenantContext";
        toast({ title: "Link de avaliação copiado!" });
      };
 
+     // Send WhatsApp notification helper
+     const sendBalanceNotification = async (customerName: string, customerPhone: string, qty: number, newBalance: number, notes: string | null, isWithdrawal: boolean) => {
+       try {
+         if (isWithdrawal) {
+           await supabase.functions.invoke("send-meal-balance-notification", {
+             body: {
+               customer_name: customerName,
+               customer_phone: customerPhone,
+               withdrawn: qty,
+               remaining: newBalance,
+               notes: notes || null,
+               feedback_link: null,
+             },
+           });
+         } else {
+           // Send add notification via edge function
+           await supabase.functions.invoke("send-meal-balance-notification", {
+             body: {
+               customer_name: customerName,
+               customer_phone: customerPhone,
+               added: qty,
+               remaining: newBalance,
+               notes: notes || null,
+               feedback_link: null,
+             },
+           });
+         }
+       } catch (e) {
+         console.warn("Failed to send WhatsApp balance notification:", e);
+       }
+     };
+
      // Quick add credit mutation
      const quickAddCreditMutation = useMutation({
-       mutationFn: async ({ customerId, qty }: { customerId: string; qty: number }) => {
+       mutationFn: async ({ customerId, qty, date, notes }: { customerId: string; qty: number; date: string; notes: string }) => {
          const { error } = await supabase.from("customer_meal_credits").insert({
            customer_id: customerId,
            quantity: qty,
            remaining: qty,
+           notes: notes || null,
+           created_at: date ? new Date(date + "T12:00:00").toISOString() : new Date().toISOString(),
          });
          if (error) throw error;
+
+         // Calculate new balance
+         const customerCredits = allCredits.filter(c => c.customer_id === customerId && c.remaining > 0 && (!c.expires_at || !isPast(parseISO(c.expires_at))));
+         const currentBalance = customerCredits.reduce((sum: number, c: any) => sum + c.remaining, 0);
+         const newBalance = currentBalance + qty;
+
+         // Send WhatsApp
+         if (quickCreditCustomer) {
+           await sendBalanceNotification(quickCreditCustomer.name, quickCreditCustomer.phone, qty, newBalance, notes, false);
+         }
        },
        onSuccess: () => {
          queryClient.invalidateQueries({ queryKey: ["all-meal-credits"] });
          toast({ title: "Saldo adicionado!" });
-         setQuickCreditCustomer(null);
-         setQuickCreditQty("");
+         resetQuickCredit();
        },
        onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
      });
+
+     // Quick withdraw mutation
+     const quickWithdrawMutation = useMutation({
+       mutationFn: async ({ customerId, qty, date, notes }: { customerId: string; qty: number; date: string; notes: string }) => {
+         const customerCredits = allCredits
+           .filter(c => c.customer_id === customerId && c.remaining > 0 && (!c.expires_at || !isPast(parseISO(c.expires_at))))
+           .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+         
+         const totalRemaining = customerCredits.reduce((sum: number, c: any) => sum + c.remaining, 0);
+         if (qty > totalRemaining) throw new Error(`Saldo insuficiente. Disponível: ${totalRemaining}`);
+
+         let remaining = qty;
+         for (const credit of customerCredits) {
+           if (remaining <= 0) break;
+           const debit = Math.min(remaining, credit.remaining);
+
+           const { error: wErr } = await supabase.from("customer_meal_withdrawals").insert({
+             credit_id: credit.id,
+             customer_id: customerId,
+             quantity: debit,
+             notes: notes || null,
+             withdrawn_at: date ? new Date(date + "T12:00:00").toISOString() : new Date().toISOString(),
+           });
+           if (wErr) throw wErr;
+
+           const { error: uErr } = await supabase
+             .from("customer_meal_credits")
+             .update({ remaining: credit.remaining - debit })
+             .eq("id", credit.id);
+           if (uErr) throw uErr;
+
+           remaining -= debit;
+         }
+
+         const newBalance = totalRemaining - qty;
+         if (quickCreditCustomer) {
+           await sendBalanceNotification(quickCreditCustomer.name, quickCreditCustomer.phone, qty, newBalance, notes, true);
+         }
+       },
+       onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: ["all-meal-credits"] });
+         queryClient.invalidateQueries({ queryKey: ["customer-withdrawals"] });
+         toast({ title: "Retirada registrada!" });
+         resetQuickCredit();
+       },
+       onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+     });
+
+     const resetQuickCredit = () => {
+       setQuickCreditCustomer(null);
+       setQuickCreditQty("");
+       setQuickCreditDate("");
+       setQuickCreditNotes("");
+       setQuickWithdrawMode(false);
+       setShowMovementHistory(false);
+     };
 
      // Generate feedback token for customer
      const generateTokenMutation = useMutation({
@@ -870,39 +991,152 @@ import { useTenant } from "@/contexts/TenantContext";
          </CardContent>
        </Card>
 
-        {/* Quick Add Credit Dialog */}
-        <Dialog open={!!quickCreditCustomer} onOpenChange={(open) => { if (!open) { setQuickCreditCustomer(null); setQuickCreditQty(""); } }}>
-          <DialogContent className="max-w-xs">
+        {/* Quick Credit/Withdraw Dialog */}
+        <Dialog open={!!quickCreditCustomer} onOpenChange={(open) => { if (!open) resetQuickCredit(); }}>
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Adicionar Saldo</DialogTitle>
+              <DialogTitle>{quickWithdrawMode ? "Registrar Retirada" : "Adicionar Saldo"}</DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-muted-foreground">{quickCreditCustomer?.name}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">{quickCreditCustomer?.name}</p>
+              {quickCreditCustomer && (
+                <Badge variant="outline" className="gap-1">
+                  <Package className="w-3 h-3" />
+                  Saldo: {getCustomerBalance(quickCreditCustomer.id)}
+                </Badge>
+              )}
+            </div>
+
+            {/* Toggle between add and withdraw */}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={!quickWithdrawMode ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setQuickWithdrawMode(false)}
+              >
+                <Plus className="w-4 h-4 mr-1" /> Acrescentar
+              </Button>
+              <Button
+                type="button"
+                variant={quickWithdrawMode ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setQuickWithdrawMode(true)}
+              >
+                <Minus className="w-4 h-4 mr-1" /> Retirar
+              </Button>
+            </div>
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 const qty = parseInt(quickCreditQty);
                 if (qty > 0 && quickCreditCustomer) {
-                  quickAddCreditMutation.mutate({ customerId: quickCreditCustomer.id, qty });
+                  if (quickWithdrawMode) {
+                    quickWithdrawMutation.mutate({ customerId: quickCreditCustomer.id, qty, date: quickCreditDate, notes: quickCreditNotes });
+                  } else {
+                    quickAddCreditMutation.mutate({ customerId: quickCreditCustomer.id, qty, date: quickCreditDate, notes: quickCreditNotes });
+                  }
                 }
               }}
-              className="space-y-4"
+              className="space-y-3"
             >
-              <div className="space-y-2">
-                <Label>Quantidade de marmitas</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Data</Label>
+                  <Input
+                    type="date"
+                    value={quickCreditDate}
+                    onChange={(e) => setQuickCreditDate(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Vazio = hoje</p>
+                </div>
+                <div className="space-y-1">
+                  <Label>Quantidade *</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max={quickWithdrawMode && quickCreditCustomer ? getCustomerBalance(quickCreditCustomer.id) : undefined}
+                    value={quickCreditQty}
+                    onChange={(e) => setQuickCreditQty(e.target.value)}
+                    placeholder="Ex: 18"
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Observação</Label>
                 <Input
-                  type="number"
-                  min="1"
-                  value={quickCreditQty}
-                  onChange={(e) => setQuickCreditQty(e.target.value)}
-                  placeholder="Ex: 30"
-                  required
-                  autoFocus
+                  value={quickCreditNotes}
+                  onChange={(e) => setQuickCreditNotes(e.target.value)}
+                  placeholder={quickWithdrawMode ? "Ex: Retirada semanal" : "Ex: Pago via Pix"}
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={quickAddCreditMutation.isPending}>
-                {quickAddCreditMutation.isPending ? "Salvando..." : "Adicionar"}
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={quickAddCreditMutation.isPending || quickWithdrawMutation.isPending}
+                variant={quickWithdrawMode ? "destructive" : "default"}
+              >
+                {(quickAddCreditMutation.isPending || quickWithdrawMutation.isPending)
+                  ? "Processando..."
+                  : quickWithdrawMode
+                    ? "Confirmar Retirada"
+                    : "Adicionar Saldo"
+                }
               </Button>
             </form>
+
+            {/* Movement History */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => setShowMovementHistory(!showMovementHistory)}
+            >
+              <History className="w-4 h-4 mr-1" />
+              {showMovementHistory ? "Ocultar histórico" : "Ver histórico de movimentações"}
+            </Button>
+
+            {showMovementHistory && quickCreditCustomer && (
+              <div className="max-h-60 overflow-y-auto space-y-1.5 border rounded-lg p-2">
+                {/* Credits (additions) */}
+                {allCredits
+                  .filter((c: any) => c.customer_id === quickCreditCustomer.id)
+                  .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                  .map((c: any) => (
+                    <div key={c.id} className="flex justify-between items-center p-2 rounded border text-sm bg-green-500/5">
+                      <div>
+                        <span className="font-medium text-green-700">+{c.quantity} marmitas</span>
+                        {c.notes && <span className="text-muted-foreground ml-2 text-xs">({c.notes})</span>}
+                      </div>
+                      <span className="text-muted-foreground text-xs">
+                        {format(new Date(c.created_at), "dd/MM/yy")}
+                      </span>
+                    </div>
+                  ))
+                }
+                {/* Withdrawals */}
+                {customerWithdrawals.map((w: any) => (
+                  <div key={w.id} className="flex justify-between items-center p-2 rounded border text-sm bg-red-500/5">
+                    <div>
+                      <span className="font-medium text-red-700">-{w.quantity} marmitas</span>
+                      {w.notes && <span className="text-muted-foreground ml-2 text-xs">({w.notes})</span>}
+                    </div>
+                    <span className="text-muted-foreground text-xs">
+                      {format(new Date(w.withdrawn_at), "dd/MM/yy")}
+                    </span>
+                  </div>
+                ))}
+                {allCredits.filter((c: any) => c.customer_id === quickCreditCustomer.id).length === 0 &&
+                  customerWithdrawals.length === 0 && (
+                  <p className="text-center text-muted-foreground text-sm py-4">Nenhuma movimentação</p>
+                )}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
