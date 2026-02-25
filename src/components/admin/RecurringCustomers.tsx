@@ -310,18 +310,17 @@ import CustomerMealCredits from "./CustomerMealCredits";
    }
  
    return (
-     <div className="space-y-6">
-       {/* Header */}
-       <div className="flex items-center justify-between">
-         <div>
-           <h2 className="text-2xl font-bold">Clientes Recorrentes</h2>
-           <p className="text-muted-foreground">
-             Hoje é{" "}
-             <span className="font-medium text-foreground">
-               {getDayLabel(todayDay)}
-             </span>
-           </p>
-         </div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-muted-foreground text-sm">
+              Hoje é{" "}
+              <span className="font-medium text-foreground">
+                {getDayLabel(todayDay)}
+              </span>
+            </p>
+          </div>
          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
            <DialogTrigger asChild>
              <Button onClick={() => resetForm()}>

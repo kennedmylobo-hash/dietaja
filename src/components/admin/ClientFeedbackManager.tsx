@@ -307,13 +307,10 @@ ${summary.allObs.length > 0 ? summary.allObs.map((o) => `• ${o}`).join("\n") :
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Feedback Mensalistas</h2>
           <p className="text-sm text-muted-foreground">
             Gerencie links de feedback e acompanhe preferências dos clientes
           </p>
         </div>
-      </div>
 
       {/* Generate new token */}
       <Card>
