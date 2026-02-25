@@ -43,7 +43,7 @@ import {
   Calendar,
   MessageCircle,
   RefreshCw,
-  Package,
+  Eye,
 } from "lucide-react";
 import {
   Sheet,
@@ -52,7 +52,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import CustomerMealCredits from "./CustomerMealCredits";
+import CustomerDetailDrawer from "./CustomerDetailDrawer";
  
  interface RecurringCustomer {
    id: string;
@@ -629,33 +629,33 @@ import CustomerMealCredits from "./CustomerMealCredits";
                          )}
                        </TableCell>
                        <TableCell className="text-right">
-                         <div className="flex items-center justify-end gap-1">
-                          <Sheet>
-                            <SheetTrigger asChild>
-                              <Button size="icon" variant="ghost" title="Saldo de Marmitas">
-                                <Package className="w-4 h-4" />
-                              </Button>
-                            </SheetTrigger>
-                            <SheetContent className="overflow-y-auto">
-                              <SheetHeader>
-                                <SheetTitle>Saldo — {customer.customer_name}</SheetTitle>
-                              </SheetHeader>
-                              <div className="mt-4">
-                                <CustomerMealCredits
-                                  customerId={customer.id}
-                                  customerName={customer.customer_name}
-                                  customerPhone={customer.customer_phone}
-                                />
-                              </div>
-                            </SheetContent>
-                          </Sheet>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => openWhatsApp(customer.customer_phone, customer.customer_name)}
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                           <Sheet>
+                             <SheetTrigger asChild>
+                               <Button size="icon" variant="ghost" title="Ver perfil completo">
+                                 <Eye className="w-4 h-4" />
+                               </Button>
+                             </SheetTrigger>
+                             <SheetContent className="overflow-y-auto sm:max-w-lg">
+                               <SheetHeader>
+                                 <SheetTitle>{customer.customer_name}</SheetTitle>
+                               </SheetHeader>
+                               <div className="mt-4">
+                                 <CustomerDetailDrawer
+                                   customerId={customer.id}
+                                   customerName={customer.customer_name}
+                                   customerPhone={customer.customer_phone}
+                                 />
+                               </div>
+                             </SheetContent>
+                           </Sheet>
+                           <Button
+                             size="icon"
+                             variant="ghost"
+                             onClick={() => openWhatsApp(customer.customer_phone, customer.customer_name)}
+                           >
+                             <MessageCircle className="w-4 h-4" />
+                           </Button>
                           <Button
                             size="icon"
                             variant="ghost"
