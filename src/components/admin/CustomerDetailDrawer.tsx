@@ -260,7 +260,7 @@ const CustomerDetailDrawer = ({ customerId, customerName, customerPhone }: Props
         }
       }
 
-      // Send WhatsApp notification with final balance
+      // Send WhatsApp notification with final balance + feedback link
       try {
         const newBalance = totalRemaining - totalToWithdraw;
         await supabase.functions.invoke("send-meal-balance-notification", {
@@ -270,6 +270,7 @@ const CustomerDetailDrawer = ({ customerId, customerName, customerPhone }: Props
             withdrawn: totalToWithdraw,
             remaining: newBalance,
             notes: `${validRows.length} retirada(s) registrada(s) em lote`,
+            feedback_link: feedbackToken ? getFeedbackLink() : null,
           },
         });
       } catch (e) {

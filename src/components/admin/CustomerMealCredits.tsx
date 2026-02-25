@@ -169,6 +169,7 @@ const CustomerMealCredits = ({ customerId, customerName, customerPhone }: Custom
             withdrawn: qty,
             remaining: newBalance,
             notes: withdrawForm.notes || null,
+            feedback_link: null,
           },
         });
       } catch (e) {
