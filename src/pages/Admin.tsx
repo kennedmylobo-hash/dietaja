@@ -120,18 +120,61 @@ const Admin = () => {
   
   const navigate = useNavigate();
 
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const checkRoleWithRetry = async (userId: string, role: "admin" | "super_admin") => {
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data, error } = await supabase.rpc('has_role', {
+        _user_id: userId,
+        _role: role,
+      });
+
+      if (!error) {
+        return { hasRole: data === true, hadError: false };
+      }
+
+      lastError = error;
+
+      if (attempt === 0) {
+        await supabase.auth.refreshSession();
+      }
+
+      await wait(200 * (attempt + 1));
+    }
+
+    console.error(`Erro validando role ${role}:`, lastError);
+    return { hasRole: false, hadError: true };
+  };
+
+  const validateAdminAccess = async (userId: string) => {
+    const [adminResult, superAdminResult] = await Promise.all([
+      checkRoleWithRetry(userId, 'admin'),
+      checkRoleWithRetry(userId, 'super_admin'),
+    ]);
+
+    return {
+      hasAccess: adminResult.hasRole || superAdminResult.hasRole,
+      hadError: adminResult.hadError || superAdminResult.hadError,
+    };
+  };
+
   // Check auth status
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
-        const [{ data: isAdmin }, { data: isSuperAdmin }] = await Promise.all([
-          supabase.rpc('has_role', { _user_id: session.user.id, _role: 'admin' }),
-          supabase.rpc('has_role', { _user_id: session.user.id, _role: 'super_admin' }),
-        ]);
+        const permission = await validateAdminAccess(session.user.id);
 
-        if (isAdmin === true || isSuperAdmin === true) {
+        if (permission.hadError) {
+          toast({
+            title: "Falha na validação",
+            description: "Não foi possível validar suas permissões agora. Tente novamente em instantes.",
+            variant: "destructive",
+          });
+        } else if (permission.hasAccess) {
           setIsAuthenticated(true);
         } else {
           toast({
@@ -415,12 +458,13 @@ const Admin = () => {
 
       if (error) throw error;
 
-      const [{ data: isAdmin }, { data: isSuperAdmin }] = await Promise.all([
-        supabase.rpc('has_role', { _user_id: data.user.id, _role: 'admin' }),
-        supabase.rpc('has_role', { _user_id: data.user.id, _role: 'super_admin' }),
-      ]);
+      const permission = await validateAdminAccess(data.user.id);
 
-      if (isAdmin !== true && isSuperAdmin !== true) {
+      if (permission.hadError) {
+        throw new Error('Não foi possível validar sua permissão agora. Tente novamente em alguns segundos.');
+      }
+
+      if (!permission.hasAccess) {
         await supabase.auth.signOut();
         throw new Error('Você não tem permissão de administrador.');
       }
