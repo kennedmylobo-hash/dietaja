@@ -102,7 +102,7 @@ serve(async (req) => {
       customer: asaasCustomerId,
       billingType: 'PIX',
       cycle: 'MONTHLY',
-      value: price,
+      value: Math.round(price * 100) / 100,
       nextDueDate: formattedDate,
       description: `Clube - ${kit_name}`,
       externalReference: `club_${kit_type}`,
