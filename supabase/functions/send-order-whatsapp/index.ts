@@ -151,9 +151,16 @@ serve(async (req) => {
       metadata: { response: result.response, error: result.error },
     });
 
-    // Send admin notification for new orders
+    // Send admin notification for new orders to owner's personal phone
     if (status === 'pending' || status === 'whatsapp_pending') {
-      const adminPhone = branding.whatsapp;
+      // Use tenant admin_notify_phone if available, otherwise fall back to branding whatsapp
+      const { data: tenantData } = await supabase
+        .from('tenants')
+        .select('admin_notify_phone')
+        .eq('id', order.tenant_id)
+        .maybeSingle();
+      
+      const adminPhone = tenantData?.admin_notify_phone || branding.whatsapp;
       if (adminPhone) {
         const items = order.items as OrderItem[];
         const paymentLabel = status === 'pending' ? '💳 PIX' : '💬 WhatsApp';
