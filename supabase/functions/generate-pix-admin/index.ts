@@ -94,7 +94,7 @@ serve(async (req) => {
     const paymentPayload = {
       customer: asaasCustomerId,
       billingType: 'PIX',
-      value: order.total,
+      value: Math.round(order.total * 100) / 100,
       dueDate: dueDate.toISOString().split('T')[0],
       description: `Pedido ${order.order_number || order.id.slice(0, 8)} - ${(await getTenantBranding(supabase, order.tenant_id)).brand_name}`,
       externalReference: order_id,
