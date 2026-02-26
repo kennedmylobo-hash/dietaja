@@ -2120,6 +2120,7 @@ export type Database = {
       }
       tenants: {
         Row: {
+          admin_notify_phone: string | null
           asaas_api_key: string | null
           asaas_webhook_token: string | null
           brand_name: string
@@ -2156,6 +2157,7 @@ export type Database = {
           whatsapp_formatted: string
         }
         Insert: {
+          admin_notify_phone?: string | null
           asaas_api_key?: string | null
           asaas_webhook_token?: string | null
           brand_name: string
@@ -2192,6 +2194,7 @@ export type Database = {
           whatsapp_formatted?: string
         }
         Update: {
+          admin_notify_phone?: string | null
           asaas_api_key?: string | null
           asaas_webhook_token?: string | null
           brand_name?: string
