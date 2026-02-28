@@ -48,7 +48,7 @@ function replaceVariables(template: string, variables: Record<string, string>): 
 
 function getFallbackTemplates(brandName: string): Record<string, string> {
   return {
-    order_pix_pending: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*\n\nOlá {nome}! Seu pedido foi registrado.\n\n📋 *ITENS:*\n{itens}\n\n💵 *TOTAL:* {total}\n\n{entrega}\n\n⏳ *STATUS:* Aguardando Pagamento\n\n────────────────\n💳 *PAGUE VIA PIX:*\n\nCopie o código abaixo:\n\n\`\`\`{pix_code}\`\`\`\n\n⚠️ Válido por 30 minutos\n────────────────\n\nDúvidas? Responda esta mensagem! 💚`,
+    order_pix_pending: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*\n\nOlá {nome}! Seu pedido foi registrado.\n\n📋 *ITENS:*\n{itens}\n\n💵 *TOTAL:* {total}\n\n{entrega}\n\n⏳ *STATUS:* Aguardando Pagamento\n\n────────────────\n💳 *PAGUE VIA PIX:*\n\n📱 *Pague pelo link:*\n{pix_link}\n\nOu copie o código abaixo:\n\n\`\`\`{pix_code}\`\`\`\n\n⚠️ Válido por 30 minutos\n────────────────\n\nDúvidas? Responda esta mensagem! 💚`,
     order_whatsapp_pending: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*\n\nOlá {nome}! Seu pedido foi registrado.\n\n📋 *ITENS:*\n{itens}\n\n💵 *TOTAL:* {total}\n\n{entrega}\n\n⏳ *STATUS:* Reservado - Aguardando Pagamento\n\nResponda esta mensagem para combinar o pagamento! 💚`,
     order_confirmed: `🥗 *${brandName.toUpperCase()} - PEDIDO #{pedido}*\n\nOlá {nome}! 🎉\n\n✅ *PAGAMENTO CONFIRMADO!*\n\n📋 *ITENS:*\n{itens}\n\n💵 *TOTAL PAGO:* {total}\n\n{entrega}\n📦 Entrega prevista em até 3 dias úteis\n\nSeu pedido já está sendo preparado! 👨‍🍳\n\nObrigado pela preferência! 💚`,
   };
@@ -133,6 +133,7 @@ serve(async (req) => {
       taxa_entrega: order.delivery_fee > 0 ? `🚚 *Taxa de entrega:* ${formatCurrency(order.delivery_fee)}` : '',
       desconto: order.discount_amount > 0 ? `🎁 *Desconto:* -${formatCurrency(order.discount_amount)}` : '',
       pix_code: pix_code || '',
+      pix_link: order.id ? `${baseUrl}/pix/${order.id}` : '',
       link: `${baseUrl}/pedido/${order.order_number}`,
     };
 
