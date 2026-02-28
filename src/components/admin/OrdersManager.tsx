@@ -163,6 +163,9 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const [showPixModal, setShowPixModal] = useState(false);
   const [copiedField, setCopiedField] = useState<'code' | 'link' | null>(null);
 
+  // Juice/Soup ingredient descriptions for printing
+  const [ingredientDescMap, setIngredientDescMap] = useState<Record<string, string>>({});
+
   // Tracking Link Modal states
   const [trackingModal, setTrackingModal] = useState<{ orderId: string; show: boolean }>({ orderId: '', show: false });
   const [trackingLink, setTrackingLink] = useState('');
@@ -267,6 +270,19 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
               setFlavorIdMap(idMap);
             }
           });
+      }
+      // Fetch juice/soup ingredient descriptions for kit items
+      const hasKit = selectedOrder.items.some(i => i.type === 'kit');
+      if (hasKit) {
+        Promise.all([
+          supabase.from('kit_juices').select('name, ingredients'),
+          supabase.from('kit_soups').select('name, ingredients'),
+        ]).then(([juicesRes, soupsRes]) => {
+          const descMap: Record<string, string> = {};
+          juicesRes.data?.forEach(j => { if (j.ingredients) descMap[j.name] = j.ingredients; });
+          soupsRes.data?.forEach(s => { if (s.ingredients) descMap[s.name] = s.ingredients; });
+          setIngredientDescMap(descMap);
+        });
       }
     }
   }, [selectedOrder?.id]);
@@ -1866,7 +1882,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => printThermalTicket(selectedOrder, flavorSidesMap)}
+                  onClick={() => printThermalTicket(selectedOrder, flavorSidesMap, 'DIETA JÁ', ingredientDescMap)}
                 >
                   <Printer className="w-4 h-4 mr-2" />
                   🖨️ Térmica i9 (Cozinha)
