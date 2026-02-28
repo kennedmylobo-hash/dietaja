@@ -173,6 +173,31 @@ serve(async (req) => {
         } catch (cashbackError) {
           console.error('[asaas-webhook] Error processing cashback:', cashbackError);
         }
+
+        // Send WhatsApp alert to admin
+        try {
+          const { getWhatsAppCredentials } = await import("../_shared/tenant-credentials.ts");
+          const { sendWhatsAppText } = await import("../_shared/evolution-sender.ts");
+          
+          const tenantId = order.tenant_id || '00000000-0000-0000-0000-000000000001';
+          const { data: tenant } = await supabase.from('tenants').select('admin_notify_phone, whatsapp').eq('id', tenantId).maybeSingle();
+          const adminPhone = tenant?.admin_notify_phone || tenant?.whatsapp;
+          
+          if (adminPhone) {
+            const whatsappCreds = await getWhatsAppCredentials(supabase, tenantId);
+            if (whatsappCreds) {
+              const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+              const total = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total);
+              const firstName = order.customer_name?.split(' ')[0] || 'Cliente';
+              const adminMsg = `✅ *PAGAMENTO CONFIRMADO!*\n\n📦 Pedido: *#${order.order_number}*\n👤 Cliente: ${firstName}\n💰 Total: ${total}\n🕐 ${now}\n\nO pedido já está pronto para produção!`;
+              
+              await sendWhatsAppText(adminPhone, adminMsg, whatsappCreds);
+              console.log('[asaas-webhook] ✅ Admin payment alert sent to', adminPhone);
+            }
+          }
+        } catch (adminAlertError) {
+          console.error('[asaas-webhook] Error sending admin alert:', adminAlertError);
+        }
       }
     }
 
