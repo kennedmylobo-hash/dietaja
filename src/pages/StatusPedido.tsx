@@ -19,6 +19,7 @@ interface OrderItem {
 
 interface OrderStatus {
   order_number: string;
+  order_id: string;
   status: string;
   customer_first_name: string;
   created_at: string;
@@ -27,6 +28,7 @@ interface OrderStatus {
   delivery_option: string;
   paid_at: string | null;
   tracking_link?: string | null;
+  has_pix?: boolean;
 }
 
 type StatusStep = {
@@ -162,6 +164,14 @@ const StatusPedido = () => {
 
           {order && !loading && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              {/* Realtime indicator */}
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </span>
+                Atualizando em tempo real
+              </div>
               <div className="bg-card rounded-xl p-6 border border-border shadow-soft text-center">
                 <p className="text-sm text-muted-foreground">Pedido</p>
                 <p className="text-2xl font-bold text-primary mb-2">#{order.order_number}</p>
@@ -253,11 +263,19 @@ const StatusPedido = () => {
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
                     <p className="text-sm text-amber-800 font-medium">⏳ Complete o pagamento para confirmar seu pedido</p>
                   </div>
-                  <Button variant="cta" size="lg" className="w-full" asChild>
-                    <a href={`https://wa.me/${contact.whatsapp}?text=Olá! Quero pagar o pedido ${order.order_number}`} target="_blank" rel="noopener noreferrer">
-                      <Smartphone className="w-5 h-5" />Pagar via PIX
-                    </a>
-                  </Button>
+                  {order.has_pix && order.order_id ? (
+                    <Button variant="cta" size="lg" className="w-full" asChild>
+                      <Link to={`/pix/${order.order_id}`}>
+                        <Smartphone className="w-5 h-5" />Pagar via PIX
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button variant="cta" size="lg" className="w-full" asChild>
+                      <a href={`https://wa.me/${contact.whatsapp}?text=Olá! Quero pagar o pedido ${order.order_number}`} target="_blank" rel="noopener noreferrer">
+                        <Smartphone className="w-5 h-5" />Pagar via PIX
+                      </a>
+                    </Button>
+                  )}
                   <Button variant="outline" size="lg" className="w-full" asChild>
                     <a href={`https://wa.me/${contact.whatsapp}?text=Olá! Gostaria de informações sobre o pedido ${order.order_number}`} target="_blank" rel="noopener noreferrer">
                       <MessageCircle className="w-5 h-5" />Falar no WhatsApp

@@ -13,6 +13,7 @@ interface OrderItem {
 
 interface OrderStatusResponse {
   order_number: string;
+  order_id: string;
   status: string;
   customer_first_name: string;
   created_at: string;
@@ -21,6 +22,7 @@ interface OrderStatusResponse {
   delivery_option: string;
   paid_at: string | null;
   tracking_link: string | null;
+  has_pix: boolean;
 }
 
 serve(async (req: Request) => {
@@ -51,7 +53,7 @@ serve(async (req: Request) => {
     // Fetch order by order_number
     const { data: order, error } = await supabase
       .from("orders")
-      .select("order_number, status, customer_name, created_at, items, total, delivery_option, paid_at, tracking_link")
+      .select("id, order_number, status, customer_name, created_at, items, total, delivery_option, paid_at, tracking_link, pix_qr_code")
       .eq("order_number", orderNumber.toUpperCase())
       .single();
 
@@ -76,6 +78,7 @@ serve(async (req: Request) => {
 
     const response: OrderStatusResponse = {
       order_number: order.order_number,
+      order_id: order.id,
       status: order.status,
       customer_first_name: firstName,
       created_at: order.created_at,
@@ -84,6 +87,7 @@ serve(async (req: Request) => {
       delivery_option: order.delivery_option,
       paid_at: order.paid_at,
       tracking_link: order.tracking_link,
+      has_pix: !!order.pix_qr_code,
     };
 
     return new Response(
