@@ -1,28 +1,54 @@
 
 
-# Correção: "Saiu para Entrega" sem delay
+## Plano: 3 Melhorias no Fluxo de Pedidos
 
-## Problema
-Quando você marca um pedido como "Saiu para Entrega" (`delivering`), a notificação entra na fila com 30 segundos de atraso (debounce) e só é processada no próximo ciclo do cron (até 10 minutos). O cliente demora para receber a mensagem.
+---
 
-## Solução
-Mover o status `delivering` da lista de statuses com delay para a lista de envio imediato. Assim, a notificação de "Saiu para Entrega" será enviada na hora, sem passar pela fila.
+### 1. Cancelamento automático de PIX expirado
 
-## Detalhes Técnicos
+**O que faz:** Um cron job que roda a cada 5 minutos e cancela pedidos cujo PIX expirou.
 
-**Arquivo:** `supabase/functions/send-status-notification/index.ts`
+**Implementação:**
+- Criar edge function `cancel-expired-pix/index.ts` que:
+  - Busca pedidos com `status IN ('pending', 'whatsapp_pending')` e `pix_expiration < now()`
+  - Atualiza status para `cancelled` com `cancellation_type = 'pix_expired'`
+  - Envia WhatsApp ao cliente informando que o PIX expirou
+  - Registra no `order_status_history`
+- Registrar no `supabase/config.toml` com `verify_jwt = false`
+- Criar cron job via pg_cron para rodar a cada 5 minutos
 
-Alterar as listas de statuses:
+---
 
-```text
-ANTES:
-  IMMEDIATE_STATUSES = ["cancelled"]
-  DEBOUNCE_STATUSES  = ["preparing", "ready", "delivering", "delivered"]
+### 2. Notificação ao admin quando PIX for pago
 
-DEPOIS:
-  IMMEDIATE_STATUSES = ["cancelled", "delivering"]
-  DEBOUNCE_STATUSES  = ["preparing", "ready", "delivered"]
-```
+**O que faz:** Ao confirmar pagamento no webhook do Asaas, envia alerta WhatsApp ao dono.
 
-Com essa mudanca, ao marcar "Saiu para Entrega", o WhatsApp e o email serao disparados instantaneamente, sem passar pela tabela `pending_notifications`. Os demais statuses (em producao, pronto, entregue) continuam com o debounce de 30 segundos.
+**Implementação:**
+- Editar `supabase/functions/asaas-webhook/index.ts`:
+  - Após o bloco de `orderStatus === 'approved'`, adicionar envio de alerta WhatsApp para `admin_notify_phone` (ou fallback `branding.whatsapp`)
+  - Mensagem: "✅ PAGAMENTO CONFIRMADO! #ORDER_NUMBER - Cliente - Total - Horário"
+  - Reutilizar padrão já existente em `send-order-whatsapp` para buscar credenciais
+
+---
+
+### 3. Página de status do pedido em tempo real (já existe, melhorar)
+
+A página `/pedido/:orderNumber` já existe com realtime via Supabase channel. Melhorias:
+
+- **Link direto do PIX na página:** Quando status é `pending`/`whatsapp_pending` e existe `pix_qr_code`, mostrar botão "Pagar PIX" que redireciona para `/pix/:orderId` em vez de mandar pro WhatsApp
+- **Auto-refresh visual:** Adicionar indicador pulsante "Atualizando em tempo real" para o cliente saber que a página é ao vivo
+- Buscar `id` e `pix_qr_code` no `get-order-status` para habilitar link direto
+
+---
+
+### Arquivos afetados
+
+| Arquivo | Ação |
+|---|---|
+| `supabase/functions/cancel-expired-pix/index.ts` | Criar |
+| `supabase/config.toml` | Adicionar entry |
+| `supabase/functions/asaas-webhook/index.ts` | Editar (adicionar alerta admin) |
+| `supabase/functions/get-order-status/index.ts` | Editar (retornar id + pix_qr_code) |
+| `src/pages/StatusPedido.tsx` | Editar (link PIX + indicador realtime) |
+| Cron job SQL | Executar via insert tool |
 
