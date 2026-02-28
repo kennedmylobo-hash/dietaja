@@ -675,64 +675,43 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         console.error('Error updating order status:', updateError);
       }
 
-      // Send WhatsApp message automatically via NotificaMe
-      console.log('Sending WhatsApp order notification...');
+      // Generate PIX and send notifications (WhatsApp + Email) automatically
+      console.log('Generating PIX and sending notifications...');
       try {
-        const { error: whatsappError } = await supabase.functions.invoke('send-order-whatsapp', {
+        const { data: pixResult, error: pixError } = await supabase.functions.invoke('generate-pix-admin', {
           body: {
             order_id: orderData.id,
-            status: 'whatsapp_pending',
+            send_whatsapp: true,
+            send_email: true,
           },
         });
 
-        if (whatsappError) {
-          console.error('Error sending WhatsApp:', whatsappError);
-          toast({
-            title: "Aviso",
-            description: "Não foi possível enviar o WhatsApp automaticamente, mas seu pedido foi registrado.",
-          });
-        } else {
-          console.log('✅ WhatsApp order notification sent!');
+        if (pixError) {
+          console.error('Error generating PIX:', pixError);
+          // Fallback: send WhatsApp without PIX code
+          try {
+            await supabase.functions.invoke('send-order-whatsapp', {
+              body: {
+                order_id: orderData.id,
+                status: 'whatsapp_pending',
+              },
+            });
+          } catch (fallbackError) {
+            console.error('Fallback WhatsApp also failed:', fallbackError);
+          }
           toast({
             title: "Pedido enviado!",
-            description: "Você receberá os detalhes do pedido no WhatsApp.",
+            description: "Você receberá os detalhes no WhatsApp. Não foi possível gerar o PIX automaticamente.",
+          });
+        } else {
+          console.log('✅ PIX generated and notifications sent!', pixResult);
+          toast({
+            title: "Pedido enviado com PIX! 💳",
+            description: "Você receberá o código PIX no WhatsApp para pagamento.",
           });
         }
       } catch (invokeError) {
-        console.error('Error invoking WhatsApp function:', invokeError);
-      }
-
-      // Send pending order email
-      const deliveryFee = formData?.deliveryOption === 'delivery' ? 8 : 0;
-      const emailPayload = {
-        order_number: confirmedOrderNumber,
-        customer_email: formData?.email || '',
-        customer_name: formData?.name || '',
-        customer_phone: formData?.phone || '',
-        items: items.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.unitPrice,
-          flavors: item.flavors?.map(f => ({
-            flavor: f.name,
-            quantity: f.quantity
-          }))
-        })),
-        subtotal: getTotal(),
-        delivery_fee: deliveryFee,
-        total: getTotal() + deliveryFee,
-        delivery_option: formData?.deliveryOption || 'pickup',
-        delivery_address: formData?.address || undefined
-      };
-
-      console.log('Sending pending order email...');
-      try {
-        await supabase.functions.invoke('send-order-pending-email', {
-          body: emailPayload
-        });
-        console.log('✅ Pending order email sent!');
-      } catch (emailError) {
-        console.error('Error sending email:', emailError);
+        console.error('Error invoking generate-pix-admin:', invokeError);
       }
 
       // Close drawer and go to thank you page
