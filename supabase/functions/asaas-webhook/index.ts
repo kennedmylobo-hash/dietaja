@@ -151,6 +151,18 @@ serve(async (req) => {
           }
         }
 
+        // Send WhatsApp confirmation to customer
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+            body: JSON.stringify({ order_id: orderId, status: 'approved' }),
+          });
+          console.log('[asaas-webhook] ✅ WhatsApp confirmation sent');
+        } catch (whatsappError) {
+          console.error('[asaas-webhook] Error sending WhatsApp confirmation:', whatsappError);
+        }
+
         // Process cashback
         try {
           await fetch(`${supabaseUrl}/functions/v1/process-cashback`, {

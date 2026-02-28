@@ -23,9 +23,10 @@ function formatCurrency(value: number): string {
   return `R$ ${value.toFixed(2).replace('.', ',')}`;
 }
 
-function generateWhatsAppMessage(order: PendingOrder, orderNumber: string, timeSinceOrder: string, isSecondReminder: boolean, brandName: string): string {
+function generateWhatsAppMessage(order: PendingOrder & { pix_qr_code?: string }, orderNumber: string, timeSinceOrder: string, isSecondReminder: boolean, brandName: string): string {
   const urgencyText = isSecondReminder ? `⚠️ *ÚLTIMA CHANCE!* Seu pedido será cancelado em breve.` : `Você está a um passo de concluir!`;
-  return `Olá ${order.customer_name}! 😊\n\nNotamos que seu pedido *#${orderNumber}* está aguardando pagamento há ${timeSinceOrder}.\n\n${urgencyText}\n\n💰 *Valor: ${formatCurrency(order.total)}*\n\nFinalize agora e garanta sua entrega!\n\nPrecisa de ajuda? Responda esta mensagem. 💚\n\n- Equipe ${brandName}`;
+  const pixSection = order.pix_qr_code ? `\n\n💳 *Pague agora via PIX:*\n\n\`\`\`${order.pix_qr_code}\`\`\`\n` : '';
+  return `Olá ${order.customer_name}! 😊\n\nNotamos que seu pedido *#${orderNumber}* está aguardando pagamento há ${timeSinceOrder}.\n\n${urgencyText}\n\n💰 *Valor: ${formatCurrency(order.total)}*${pixSection}\n\nFinalize agora e garanta sua entrega!\n\nPrecisa de ajuda? Responda esta mensagem. 💚\n\n- Equipe ${brandName}`;
 }
 
 function getTimeSinceOrder(createdAt: string): string {
@@ -97,10 +98,13 @@ const handler = async (req: Request): Promise<Response> => {
     const secondReminderThreshold = new Date(Date.now() - secondReminderMinutes * 60 * 1000).toISOString();
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
+    // Statuses that represent unpaid orders
+    const unpaidStatuses = ['awaiting_payment', 'pending', 'whatsapp_pending'];
+
     let firstReminderOrders: any[] = [];
     if (firstReminderActive) {
       const { data } = await supabase.from("orders").select("*")
-        .eq("status", "awaiting_payment").lt("created_at", firstReminderThreshold)
+        .in("status", unpaidStatuses).lt("created_at", firstReminderThreshold)
         .gt("created_at", twentyFourHoursAgo).is("reminder_sent_at", null)
         .order("created_at", { ascending: true });
       firstReminderOrders = data || [];
@@ -109,7 +113,7 @@ const handler = async (req: Request): Promise<Response> => {
     let secondReminderOrders: any[] = [];
     if (secondReminderActive) {
       const { data } = await supabase.from("orders").select("*")
-        .eq("status", "awaiting_payment").lt("created_at", secondReminderThreshold)
+        .in("status", unpaidStatuses).lt("created_at", secondReminderThreshold)
         .gt("created_at", twentyFourHoursAgo).not("reminder_sent_at", "is", null)
         .is("whatsapp_2_sent_at", null).order("created_at", { ascending: true });
       secondReminderOrders = data || [];
