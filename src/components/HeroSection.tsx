@@ -121,7 +121,7 @@ const HeroSection = () => {
             >
               <span className="truncate">{getVariantValue("hero_cta") ?? "Investir na minha saúde — a partir de R$ 22,90"}</span>
             </Button>
-            <span className="text-xs sm:text-sm text-white/70 flex items-center gap-1">
+            <span className="text-xs sm:text-sm text-white font-medium bg-white/15 backdrop-blur-sm px-4 py-1.5 rounded-full border border-white/20 animate-pulse">
               👆 Clique e veja nosso cardápio completo
             </span>
           </div>
