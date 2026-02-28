@@ -113,13 +113,18 @@ const HeroSection = () => {
             </div>
           </div>
 
-          <Button
-            size="lg"
-            className="animate-fade-in text-xs sm:text-lg px-4 sm:px-8 py-4 sm:py-6 rounded-full shadow-lg max-w-full"
-            onClick={() => navigate("/cardapio")}
-          >
-            <span className="truncate">{getVariantValue("hero_cta") ?? "Investir na minha saúde — a partir de R$ 22,90"}</span>
-          </Button>
+          <div className="flex flex-col items-center gap-2 animate-fade-in">
+            <Button
+              size="lg"
+              className="text-xs sm:text-lg px-4 sm:px-8 py-4 sm:py-6 rounded-full shadow-lg max-w-full"
+              onClick={() => navigate("/cardapio")}
+            >
+              <span className="truncate">{getVariantValue("hero_cta") ?? "Investir na minha saúde — a partir de R$ 22,90"}</span>
+            </Button>
+            <span className="text-xs sm:text-sm text-white/70 flex items-center gap-1">
+              👆 Clique e veja nosso cardápio completo
+            </span>
+          </div>
 
         </div>
       </div>
