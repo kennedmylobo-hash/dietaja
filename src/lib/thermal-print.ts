@@ -110,6 +110,7 @@ const enrichSideNameForKitchen = (sideName: string, flavorName: string): string 
 export const generateThermalTicketHTML = (
   order: ThermalOrder,
   flavorSidesMap: Record<string, Json | null> = {},
+  ingredientDescMap: Record<string, string> = {},
   brandName = 'DIETA JÁ'
 ): string => {
   const orderNum = order.order_number || order.id.slice(0, 8);
@@ -214,9 +215,22 @@ export const generateThermalTicketHTML = (
   `;
   }).join('');
 
-  const outrosRows = outros.map(item =>
-    `<tr><td style="padding:3px 0;font-size:14px;font-weight:bold;">${item.quantity}x ${item.name}</td></tr>`
-  ).join('');
+  const outrosRows = outros.map(item => {
+    // Show kit flavors (juices/soups) with ingredients
+    if (item.flavors && item.flavors.length > 0) {
+      const flavorLines = item.flavors.map(f => {
+        const desc = ingredientDescMap[f.name];
+        return `<div style="padding:2px 0;font-size:13px;margin-left:8px;">
+          • ${f.quantity}x ${f.name}${desc ? `<br><span style="font-size:11px;color:#555;margin-left:16px;">↳ ${desc}</span>` : ''}
+        </div>`;
+      }).join('');
+      return `<tr><td style="padding:3px 0;">
+        <div style="font-size:14px;font-weight:bold;">${item.quantity}x ${item.name}</div>
+        ${flavorLines}
+      </td></tr>`;
+    }
+    return `<tr><td style="padding:3px 0;font-size:14px;font-weight:bold;">${item.quantity}x ${item.name}</td></tr>`;
+  }).join('');
 
   const deliveryText = order.delivery_option === 'delivery'
     ? `🚚 DELIVERY<br><span style="font-size:13px;">${order.delivery_address || 'Não informado'}</span>`
@@ -353,9 +367,10 @@ ${hasIngredients ? `
 export const printThermalTicket = (
   order: ThermalOrder,
   flavorSidesMap: Record<string, Json | null> = {},
-  brandName = 'DIETA JÁ'
+  brandName = 'DIETA JÁ',
+  ingredientDescMap: Record<string, string> = {}
 ): void => {
-  const html = generateThermalTicketHTML(order, flavorSidesMap, brandName);
+  const html = generateThermalTicketHTML(order, flavorSidesMap, ingredientDescMap, brandName);
   const w = window.open('', '_blank', 'width=320,height=600');
   if (!w) {
     alert('Habilite pop-ups para imprimir.');
