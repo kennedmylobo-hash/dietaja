@@ -5,6 +5,7 @@ import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { useTenantId } from "@/hooks/useTenantId";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import {
   ShoppingCart,
@@ -67,6 +68,7 @@ const AbandonedCartsRecovery = () => {
   const [dismissingCartId, setDismissingCartId] = useState<string | null>(null);
   const [accessCounts, setAccessCounts] = useState<Record<string, number>>({});
   const [isSendingRecovery, setIsSendingRecovery] = useState(false);
+  const [dateFilter, setDateFilter] = useState<string>("7");
   const { brand } = useTenantConfig();
   const tenantId = useTenantId();
 
@@ -168,20 +170,27 @@ const AbandonedCartsRecovery = () => {
     };
   }, []);
 
+  const filteredCarts = useMemo(() => {
+    if (dateFilter === "all") return carts;
+    const days = parseInt(dateFilter);
+    const threshold = Date.now() - days * 24 * 60 * 60 * 1000;
+    return carts.filter(c => new Date(c.created_at).getTime() >= threshold);
+  }, [carts, dateFilter]);
+
   const stats = useMemo(() => {
-    const totalValue = carts.reduce((sum, c) => sum + (c.subtotal || 0), 0);
-    const activeCarts = carts.filter(c => c.status === 'active');
-    const abandonedCarts = carts.filter(c => c.status === 'abandoned');
-    const withReminder = carts.filter(c => c.whatsapp_sent_at !== null);
+    const totalValue = filteredCarts.reduce((sum, c) => sum + (c.subtotal || 0), 0);
+    const activeCarts = filteredCarts.filter(c => c.status === 'active');
+    const abandonedCarts = filteredCarts.filter(c => c.status === 'abandoned');
+    const withReminder = filteredCarts.filter(c => c.whatsapp_sent_at !== null);
     
     return {
-      total: carts.length,
+      total: filteredCarts.length,
       active: activeCarts.length,
       abandoned: abandonedCarts.length,
       withReminder: withReminder.length,
       totalValue,
     };
-  }, [carts]);
+  }, [filteredCarts]);
 
   const getTimeSince = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -363,9 +372,16 @@ const AbandonedCartsRecovery = () => {
         </Card>
       </div>
 
-      {/* Bulk Recovery Button */}
-      {carts.length > 0 && (
-        <div className="flex justify-end">
+      {/* Filters & Bulk Recovery */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ToggleGroup type="single" value={dateFilter} onValueChange={(v) => v && setDateFilter(v)} className="bg-muted rounded-lg p-0.5">
+          <ToggleGroupItem value="7" className="text-xs px-3 h-8 data-[state=on]:bg-background data-[state=on]:shadow-sm">7 dias</ToggleGroupItem>
+          <ToggleGroupItem value="14" className="text-xs px-3 h-8 data-[state=on]:bg-background data-[state=on]:shadow-sm">14 dias</ToggleGroupItem>
+          <ToggleGroupItem value="30" className="text-xs px-3 h-8 data-[state=on]:bg-background data-[state=on]:shadow-sm">30 dias</ToggleGroupItem>
+          <ToggleGroupItem value="all" className="text-xs px-3 h-8 data-[state=on]:bg-background data-[state=on]:shadow-sm">Todos</ToggleGroupItem>
+        </ToggleGroup>
+
+        {filteredCarts.length > 0 && (
           <Button
             onClick={sendBulkRecovery}
             disabled={isSendingRecovery}
@@ -378,11 +394,11 @@ const AbandonedCartsRecovery = () => {
             )}
             📩 Enviar recuperação em massa
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Carts List */}
-      {carts.length === 0 ? (
+      {filteredCarts.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
@@ -391,7 +407,7 @@ const AbandonedCartsRecovery = () => {
         </Card>
       ) : (
         <div className="space-y-3">
-          {carts.map((cart) => (
+          {filteredCarts.map((cart) => (
             <Card 
               key={cart.id}
               className="hover:border-primary/30 transition-colors cursor-pointer"
