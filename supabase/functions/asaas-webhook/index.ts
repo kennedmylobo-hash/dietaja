@@ -151,17 +151,8 @@ serve(async (req) => {
           }
         }
 
-        // Send WhatsApp confirmation to customer
-        try {
-          await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-            body: JSON.stringify({ order_id: orderId, status: 'approved' }),
-          });
-          console.log('[asaas-webhook] ✅ WhatsApp confirmation sent');
-        } catch (whatsappError) {
-          console.error('[asaas-webhook] Error sending WhatsApp confirmation:', whatsappError);
-        }
+        // NOTE: WhatsApp confirmation to customer is already sent by send-order-approved above
+        // Do NOT call send-order-whatsapp here to avoid duplicate messages
 
         // Process cashback
         try {
