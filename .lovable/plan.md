@@ -1,54 +1,58 @@
 
 
-## Plano: 3 Melhorias no Fluxo de Pedidos
+## Plano: Recuperação em massa de carrinhos abandonados com deep link
 
----
+### Objetivo
+Criar um fluxo onde o admin pode disparar uma mensagem de recuperação para **todos** os carrinhos abandonados de uma vez, e cada mensagem inclui um **deep link** que restaura automaticamente o carrinho do cliente no site.
 
-### 1. Cancelamento automático de PIX expirado
+### Como funciona o deep link
 
-**O que faz:** Um cron job que roda a cada 5 minutos e cancela pedidos cujo PIX expirou.
+O site receberá um parâmetro `?cart=CART_ID` na URL. O `CartContext` detecta esse parâmetro, busca o carrinho no banco pelo ID, e restaura os itens + dados do cliente automaticamente — sem precisar de login. O cliente cai direto na página com o carrinho pronto para finalizar.
 
-**Implementação:**
-- Criar edge function `cancel-expired-pix/index.ts` que:
-  - Busca pedidos com `status IN ('pending', 'whatsapp_pending')` e `pix_expiration < now()`
-  - Atualiza status para `cancelled` com `cancellation_type = 'pix_expired'`
-  - Envia WhatsApp ao cliente informando que o PIX expirou
-  - Registra no `order_status_history`
-- Registrar no `supabase/config.toml` com `verify_jwt = false`
-- Criar cron job via pg_cron para rodar a cada 5 minutos
+### Mudanças
 
----
+**1. Deep link no CartContext (`src/components/CartContext.tsx`)**
+- No `useEffect` de inicialização, verificar `URLSearchParams` para o param `cart`
+- Se presente, buscar o carrinho pelo ID no banco (`carts` table) e restaurar itens + customerInfo
+- Salvar no localStorage para persistir a sessão
+- Abrir o carrinho automaticamente (ou scrollar para checkout)
 
-### 2. Notificação ao admin quando PIX for pago
+**2. Botão "Recuperar Todos" no painel admin (`src/components/admin/AbandonedCartsRecovery.tsx`)**
+- Adicionar botão no topo: "📩 Enviar recuperação em massa"
+- Ao clicar, chama uma nova edge function que envia a mensagem personalizada para cada carrinho abandonado que ainda não recebeu essa mensagem específica
+- Adicionar um campo `recovery_sent_at` na tabela `carts` para controlar o envio (migration)
 
-**O que faz:** Ao confirmar pagamento no webhook do Asaas, envia alerta WhatsApp ao dono.
+**3. Nova edge function `send-cart-recovery` (`supabase/functions/send-cart-recovery/index.ts`)**
+- Busca todos os carrinhos com status `abandoned` ou `active` (inativos há mais de X tempo) que não tenham `recovery_sent_at`
+- Para cada carrinho, monta a mensagem com o template fornecido pelo usuário, incluindo o deep link: `{baseUrl}?cart={cart.id}`
+- Envia via Evolution API (WhatsApp)
+- Atualiza `recovery_sent_at` no registro
 
-**Implementação:**
-- Editar `supabase/functions/asaas-webhook/index.ts`:
-  - Após o bloco de `orderStatus === 'approved'`, adicionar envio de alerta WhatsApp para `admin_notify_phone` (ou fallback `branding.whatsapp`)
-  - Mensagem: "✅ PAGAMENTO CONFIRMADO! #ORDER_NUMBER - Cliente - Total - Horário"
-  - Reutilizar padrão já existente em `send-order-whatsapp` para buscar credenciais
+**4. Migration: adicionar coluna `recovery_sent_at`**
+```sql
+ALTER TABLE carts ADD COLUMN IF NOT EXISTS recovery_sent_at timestamptz;
+```
 
----
+**5. Atualizar mensagens de WhatsApp individuais**
+- Os botões existentes "WhatsApp" e "Oferta 10%" também passarão a incluir o deep link do carrinho na mensagem
 
-### 3. Página de status do pedido em tempo real (já existe, melhorar)
+### Mensagem template
+```
+🍽️ Seu pedido ainda está salvo!
 
-A página `/pedido/:orderNumber` já existe com realtime via Supabase channel. Melhorias:
+Vi que você montou seu kit, mas não finalizou.
 
-- **Link direto do PIX na página:** Quando status é `pending`/`whatsapp_pending` e existe `pix_qr_code`, mostrar botão "Pagar PIX" que redireciona para `/pix/:orderId` em vez de mandar pro WhatsApp
-- **Auto-refresh visual:** Adicionar indicador pulsante "Atualizando em tempo real" para o cliente saber que a página é ao vivo
-- Buscar `id` e `pix_qr_code` no `get-order-status` para habilitar link direto
+Deixei tudo separado aqui pra você 👇
+Clique e finalize em menos de 1 minuto:
 
----
+🔗 {link}
 
-### Arquivos afetados
+Comece a semana organizada, com tudo pesado e pronto.
 
-| Arquivo | Ação |
-|---|---|
-| `supabase/functions/cancel-expired-pix/index.ts` | Criar |
-| `supabase/config.toml` | Adicionar entry |
-| `supabase/functions/asaas-webhook/index.ts` | Editar (adicionar alerta admin) |
-| `supabase/functions/get-order-status/index.ts` | Editar (retornar id + pix_qr_code) |
-| `src/pages/StatusPedido.tsx` | Editar (link PIX + indicador realtime) |
-| Cron job SQL | Executar via insert tool |
+Posso confirmar para você?
+```
+
+### Segurança
+- O cart ID é um UUID, difícil de adivinhar
+- Nenhum dado sensível é exposto na URL — apenas o ID que permite restaurar o carrinho
 
