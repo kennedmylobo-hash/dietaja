@@ -147,25 +147,36 @@ const KitsSection = () => {
       ];
     }
     
-    return juicesData.map(j => ({
-      emoji: j.emoji,
-      nome: j.name,
-      ingredientes: j.ingredients || "",
-      beneficio: j.benefit || "",
-    }));
+    return juicesData.map(j => {
+      const fullText = j.ingredients || "";
+      const firstDot = fullText.indexOf('.');
+      const shortIngredients = firstDot > 0 ? fullText.substring(0, firstDot + 1).trim() : fullText;
+      return {
+        emoji: j.emoji,
+        nome: j.name,
+        ingredientes: shortIngredients,
+        beneficio: j.benefit || "",
+      };
+    });
   }, [juicesData]);
 
   // Prepare flavor data for modal with stock info
   const juiceFlavorsData = useMemo(() => {
     if (!juicesData || juicesData.length === 0) return undefined;
-    return juicesData.map(j => ({
-      emoji: j.emoji,
-      name: j.name,
-      description: j.ingredients || "",
-      stock_quantity: j.stock_quantity,
-      show_stock: j.show_stock,
-      low_stock_threshold: j.low_stock_threshold,
-    }));
+    return juicesData.map(j => {
+      // Split ingredients: first sentence is the short ingredient list
+      const fullText = j.ingredients || "";
+      const firstDot = fullText.indexOf('.');
+      const shortDesc = firstDot > 0 ? fullText.substring(0, firstDot + 1).trim() : fullText;
+      return {
+        emoji: j.emoji,
+        name: j.name,
+        description: shortDesc,
+        stock_quantity: j.stock_quantity,
+        show_stock: j.show_stock,
+        low_stock_threshold: j.low_stock_threshold,
+      };
+    });
   }, [juicesData]);
 
   const soupFlavorsData = useMemo(() => {

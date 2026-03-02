@@ -31,10 +31,10 @@ interface KitFlavorSelectionModalProps {
 
 // Default juice flavors with their info
 const defaultJuiceFlavors: FlavorDataWithStock[] = [
-  { emoji: "🟢", name: "Suco Verde", description: "abacaxi, couve e gengibre" },
-  { emoji: "🩷", name: "Suco Rosa", description: "melancia com hortelã" },
-  { emoji: "🟡", name: "Suco Amarelo", description: "manga com cenoura" },
-  { emoji: "🔴", name: "Suco Vermelho", description: "morango com hortelã" },
+  { emoji: "🍍", name: "Suco Verde – Detox Digestivo", description: "Abacaxi, couve, hortelã e gengibre." },
+  { emoji: "🍉", name: "Suco Rosa – Detox Refrescante", description: "Melancia, hortelã, linhaça dourada e gengibre." },
+  { emoji: "🥭", name: "Suco Amarelo – Detox Energizante", description: "Manga, cenoura e gengibre." },
+  { emoji: "🍓", name: "Suco Vermelho – Detox Metabólico", description: "Morango, linhaça dourada e gengibre." },
 ];
 
 // Default soup flavors with their info
