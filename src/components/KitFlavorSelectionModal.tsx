@@ -100,7 +100,7 @@ const KitFlavorSelectionModal = ({
 
   const updateJuiceQuantity = (flavor: string, delta: number) => {
     const flavorData = juiceFlavors.find(f => f.name === flavor);
-    const maxStock = flavorData?.stock_quantity ?? Infinity;
+    const maxStock = (flavorData?.show_stock && flavorData?.stock_quantity != null) ? flavorData.stock_quantity : Infinity;
     
     setJuiceSelections((prev) => {
       const current = prev[flavor] || 0;
@@ -121,7 +121,7 @@ const KitFlavorSelectionModal = ({
 
   const updateSoupQuantity = (flavor: string, delta: number) => {
     const flavorData = soupFlavors.find(f => f.name === flavor);
-    const maxStock = flavorData?.stock_quantity ?? Infinity;
+    const maxStock = (flavorData?.show_stock && flavorData?.stock_quantity != null) ? flavorData.stock_quantity : Infinity;
     
     setSoupSelections((prev) => {
       const current = prev[flavor] || 0;
@@ -323,7 +323,7 @@ const KitFlavorSelectionModal = ({
                       const threshold = flavor.low_stock_threshold ?? 5;
                       const hasLowStock = flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && flavor.stock_quantity < threshold;
                       const isOutOfStock = flavor.show_stock && flavor.stock_quantity === 0;
-                      const maxReached = flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && qty >= flavor.stock_quantity;
+                      const maxReached = flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && qty >= flavor.stock_quantity;
                       
                       return (
                         <div
@@ -392,7 +392,7 @@ const KitFlavorSelectionModal = ({
                       const threshold = flavor.low_stock_threshold ?? 5;
                       const hasLowStock = flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && flavor.stock_quantity < threshold;
                       const isOutOfStock = flavor.show_stock && flavor.stock_quantity === 0;
-                      const maxReached = flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && qty >= flavor.stock_quantity;
+                      const maxReached = flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity !== undefined && qty >= flavor.stock_quantity;
                       
                       return (
                         <div
