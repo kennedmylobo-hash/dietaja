@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPhoneSuffix } from "@/lib/phone";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
+import { useTenantId } from "@/hooks/useTenantId";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import {
   Calendar,
   Repeat,
   Wifi,
+  Send,
 } from "lucide-react";
 import {
   Dialog,
@@ -64,7 +66,9 @@ const AbandonedCartsRecovery = () => {
   const [selectedCart, setSelectedCart] = useState<AbandonedCart | null>(null);
   const [dismissingCartId, setDismissingCartId] = useState<string | null>(null);
   const [accessCounts, setAccessCounts] = useState<Record<string, number>>({});
+  const [isSendingRecovery, setIsSendingRecovery] = useState(false);
   const { brand } = useTenantConfig();
+  const tenantId = useTenantId();
 
   const dismissCart = async (cartId: string) => {
     const { error } = await supabase
@@ -226,16 +230,40 @@ const AbandonedCartsRecovery = () => {
     return <Badge className="bg-green-500/10 text-green-600">🟢 Ativo</Badge>;
   };
 
+  const sendBulkRecovery = async () => {
+    if (!tenantId) {
+      toast({ title: "Tenant não identificado", variant: "destructive" });
+      return;
+    }
+    setIsSendingRecovery(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-cart-recovery', {
+        body: { tenant_id: tenantId },
+      });
+      if (error) throw error;
+      toast({
+        title: "Recuperação em massa enviada!",
+        description: `${data.sent || 0} de ${data.total || 0} mensagens enviadas.`,
+      });
+      fetchAbandonedCarts();
+    } catch (e: any) {
+      toast({ title: "Erro ao enviar recuperação", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSendingRecovery(false);
+    }
+  };
+
   const openWhatsAppRecovery = (cart: AbandonedCart) => {
-    const itemsList = cart.items
-      .map(item => `• ${item.quantity}x ${item.name}`)
-      .join('\n');
+    const deepLink = `${window.location.origin}?cart=${cart.id}`;
     
     const message = encodeURIComponent(
-      `Olá ${cart.name || 'cliente'}! 😊\n\n` +
-      `Vi que você deixou alguns itens no carrinho da ${brand.name}:\n\n${itemsList}\n\n` +
-      `Valor: *R$ ${(cart.subtotal || 0).toFixed(2).replace('.', ',')}*\n\n` +
-      `Posso te ajudar a finalizar? 💚`
+      `🍽️ Seu pedido ainda está salvo!\n\n` +
+      `Vi que você montou seu kit, mas não finalizou.\n\n` +
+      `Deixei tudo separado aqui pra você 👇\n` +
+      `Clique e finalize em menos de 1 minuto:\n\n` +
+      `🔗 ${deepLink}\n\n` +
+      `Comece a semana organizada, com tudo pesado e pronto.\n\n` +
+      `Posso confirmar para você?`
     );
     
     const phoneDigits = cart.phone.replace(/\D/g, '');
@@ -247,12 +275,14 @@ const AbandonedCartsRecovery = () => {
   const openWhatsAppOffer = (cart: AbandonedCart, discountPercent: number = 10) => {
     const couponCode = `VOLTA${discountPercent}`;
     const today = new Date().toLocaleDateString('pt-BR');
+    const deepLink = `${window.location.origin}?cart=${cart.id}`;
     
     const message = encodeURIComponent(
       `Olá ${cart.name || 'cliente'}! 🎁\n\n` +
       `Tenho uma oferta especial pra você!\n\n` +
       `Use o cupom *${couponCode}* e ganhe *${discountPercent}% OFF* no seu pedido!\n\n` +
       `⏰ Válido apenas para hoje (${today})\n\n` +
+      `👉 Finalize aqui: ${deepLink}\n\n` +
       `Posso te ajudar a finalizar? 💚`
     );
     
@@ -332,6 +362,24 @@ const AbandonedCartsRecovery = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bulk Recovery Button */}
+      {carts.length > 0 && (
+        <div className="flex justify-end">
+          <Button
+            onClick={sendBulkRecovery}
+            disabled={isSendingRecovery}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {isSendingRecovery ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4 mr-2" />
+            )}
+            📩 Enviar recuperação em massa
+          </Button>
+        </div>
+      )}
 
       {/* Carts List */}
       {carts.length === 0 ? (

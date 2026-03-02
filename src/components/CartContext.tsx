@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect, useRef } from "react";
 import { useCartTracking } from "@/hooks/useSectionTracking";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
 import { useTenantId } from "@/hooks/useTenantId";
+import { useSearchParams } from "react-router-dom";
 
 export interface FlavorSelection {
   name: string;
@@ -71,8 +72,59 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const isIdentified = !!(customerInfo.phone && customerInfo.name);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkProcessed = useRef(false);
+
+  // Deep link: restore cart from ?cart=CART_ID parameter
+  useEffect(() => {
+    if (deepLinkProcessed.current) return;
+    const cartIdParam = searchParams.get('cart');
+    if (cartIdParam) {
+      deepLinkProcessed.current = true;
+      restoreCartByDeepLink(cartIdParam);
+      // Clean the URL param
+      searchParams.delete('cart');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams]);
+
+  const restoreCartByDeepLink = async (cartId: string) => {
+    try {
+      const { data: cart, error } = await supabase
+        .from('carts')
+        .select('*')
+        .eq('id', cartId)
+        .maybeSingle();
+
+      if (error || !cart || !cart.items || !Array.isArray(cart.items) || cart.items.length === 0) {
+        console.warn('Deep link cart not found or empty:', cartId);
+        return;
+      }
+
+      const restoredItems = (cart.items as any[]).map((item, index) => ({
+        ...item,
+        id: item.id || `${item.type}-${item.name}-${Date.now()}-${index}`,
+      }));
+      setItems(restoredItems);
+
+      const restoredInfo: CustomerInfo = {
+        name: cart.name || '',
+        phone: cart.phone,
+        email: cart.email || '',
+        cartId: cart.id,
+      };
+      setCustomerInfoState(restoredInfo);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredInfo));
+
+      console.log(`[CartContext] ✅ Cart restored via deep link: ${cartId}`);
+    } catch (e) {
+      console.error('Error restoring cart by deep link:', e);
+    }
+  };
+
   // Load customer info from localStorage on mount
   useEffect(() => {
+    if (deepLinkProcessed.current) return; // skip if deep link already handled
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {

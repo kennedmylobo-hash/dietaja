@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.generate-ab-variant]
 verify_jwt = false
+
+[functions.send-cart-recovery]
+verify_jwt = false

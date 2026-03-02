@@ -1,0 +1,1 @@
+ALTER TABLE public.carts ADD COLUMN IF NOT EXISTS recovery_sent_at timestamptz;

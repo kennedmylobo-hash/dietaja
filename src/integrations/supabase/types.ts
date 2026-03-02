@@ -138,6 +138,7 @@ export type Database = {
           last_activity_at: string | null
           name: string | null
           phone: string
+          recovery_sent_at: string | null
           reminder_sent_at: string | null
           status: string | null
           subtotal: number | null
@@ -156,6 +157,7 @@ export type Database = {
           last_activity_at?: string | null
           name?: string | null
           phone: string
+          recovery_sent_at?: string | null
           reminder_sent_at?: string | null
           status?: string | null
           subtotal?: number | null
@@ -174,6 +176,7 @@ export type Database = {
           last_activity_at?: string | null
           name?: string | null
           phone?: string
+          recovery_sent_at?: string | null
           reminder_sent_at?: string | null
           status?: string | null
           subtotal?: number | null
