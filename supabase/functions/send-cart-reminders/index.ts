@@ -38,18 +38,18 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const now = new Date();
+    const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000);
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
 
     const { data: firstReminderCarts, error: firstError } = await supabase
       .from('carts').select('*').eq('status', 'active')
-      .lt('last_activity_at', oneHourAgo.toISOString())
+      .lt('last_activity_at', fifteenMinAgo.toISOString())
       .is('whatsapp_sent_at', null).not('items', 'eq', '[]');
     if (firstError) throw firstError;
 
     const { data: secondReminderCarts, error: secondError } = await supabase
       .from('carts').select('*').eq('status', 'active')
-      .lt('last_activity_at', threeHoursAgo.toISOString())
+      .lt('last_activity_at', oneHourAgo.toISOString())
       .not('whatsapp_sent_at', 'is', null).is('whatsapp_2_sent_at', null)
       .not('items', 'eq', '[]');
     if (secondError) throw secondError;
