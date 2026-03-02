@@ -136,9 +136,11 @@ export type Database = {
           id: string
           items: Json | null
           last_activity_at: string | null
+          last_recovery_at: string | null
           name: string | null
           phone: string
           recovery_sent_at: string | null
+          recovery_stage: number
           reminder_sent_at: string | null
           status: string | null
           subtotal: number | null
@@ -155,9 +157,11 @@ export type Database = {
           id?: string
           items?: Json | null
           last_activity_at?: string | null
+          last_recovery_at?: string | null
           name?: string | null
           phone: string
           recovery_sent_at?: string | null
+          recovery_stage?: number
           reminder_sent_at?: string | null
           status?: string | null
           subtotal?: number | null
@@ -174,9 +178,11 @@ export type Database = {
           id?: string
           items?: Json | null
           last_activity_at?: string | null
+          last_recovery_at?: string | null
           name?: string | null
           phone?: string
           recovery_sent_at?: string | null
+          recovery_stage?: number
           reminder_sent_at?: string | null
           status?: string | null
           subtotal?: number | null
