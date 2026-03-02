@@ -54,7 +54,17 @@ const IndexContent = () => {
     customerInfo,
     setCustomerInfo,
     confirmAddItem,
+    autoOpenCart,
+    clearAutoOpenCart,
   } = useCart();
+
+  // Auto-open cart drawer when restored via deep link
+  useEffect(() => {
+    if (autoOpenCart && items.length > 0) {
+      setCartOpen(true);
+      clearAutoOpenCart();
+    }
+  }, [autoOpenCart, items, clearAutoOpenCart]);
   const navigate = useNavigate();
   
   // Analytics tracking

@@ -51,6 +51,8 @@ interface CartContextType {
   confirmAddItem: () => void;
   isIdentified: boolean;
   markCartAsConverted: () => Promise<void>;
+  autoOpenCart: boolean;
+  clearAutoOpenCart: () => void;
 }
 
 const STORAGE_KEY = 'tenant_customer';
@@ -67,6 +69,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   });
   const [showIdentificationModal, setShowIdentificationModal] = useState(false);
   const [pendingItem, setPendingItem] = useState<Omit<CartItem, "id"> | null>(null);
+  const [autoOpenCart, setAutoOpenCart] = useState(false);
   const { trackCartEvent } = useCartTracking();
   const tenantId = useTenantId();
 
@@ -117,6 +120,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredInfo));
 
       console.log(`[CartContext] ✅ Cart restored via deep link: ${cartId}`);
+      setAutoOpenCart(true);
     } catch (e) {
       console.error('Error restoring cart by deep link:', e);
     }
@@ -472,6 +476,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       confirmAddItem,
       isIdentified,
       markCartAsConverted,
+      autoOpenCart,
+      clearAutoOpenCart: () => setAutoOpenCart(false),
     }}>
       {children}
     </CartContext.Provider>
