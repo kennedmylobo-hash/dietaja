@@ -341,31 +341,44 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             name="phone"
             control={control}
             render={({ field }) => {
-              const status = getPhoneStatus(field.value || '');
+              // Strip leading 55 if user accidentally types it
+              const cleanValue = (() => {
+                const d = (field.value || '').replace(/\D/g, '');
+                if (d.startsWith('55') && d.length > 11) return d.slice(2);
+                return d;
+              })();
+              const status = getPhoneStatus(cleanValue);
               return (
                 <div className="space-y-1">
-                  <div className="relative">
-                    <Input
-                      id="phone"
-                      type="tel"
-                      inputMode="numeric"
-                      placeholder="(77) 99100-1658"
-                      value={formatPhone(field.value || '')}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/\D/g, '');
-                        field.onChange(raw);
-                      }}
-                      className={`mt-1 pr-10 ${status.color === 'green' ? 'border-green-500 focus-visible:ring-green-500' : status.color === 'yellow' ? 'border-yellow-500' : status.color === 'red' ? 'border-destructive' : ''}`}
-                    />
-                    {field.value && field.value.length > 0 && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5">
-                        {status.color === 'green' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                        {status.color === 'yellow' && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
-                        {status.color === 'red' && <XCircle className="w-4 h-4 text-destructive" />}
-                      </div>
-                    )}
+                  <div className="relative flex mt-1">
+                    <div className="flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm font-medium select-none">
+                      🇧🇷 +55
+                    </div>
+                    <div className="relative flex-1">
+                      <Input
+                        id="phone"
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="(77) 99100-1658"
+                        value={formatPhone(cleanValue)}
+                        onChange={(e) => {
+                          let raw = e.target.value.replace(/\D/g, '').slice(0, 11);
+                          // Auto-strip 55 prefix if user types it
+                          if (raw.startsWith('55') && raw.length > 11) raw = raw.slice(2);
+                          field.onChange(raw);
+                        }}
+                        className={`rounded-l-none pr-10 ${status.color === 'green' ? 'border-green-500 focus-visible:ring-green-500' : status.color === 'yellow' ? 'border-yellow-500' : status.color === 'red' ? 'border-destructive' : ''}`}
+                      />
+                      {cleanValue.length > 0 && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {status.color === 'green' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                          {status.color === 'yellow' && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
+                          {status.color === 'red' && <XCircle className="w-4 h-4 text-destructive" />}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  {field.value && field.value.length > 0 && (
+                  {cleanValue.length > 0 && (
                     <p className={`text-xs ${status.color === 'green' ? 'text-green-600' : status.color === 'yellow' ? 'text-yellow-600' : 'text-destructive'}`}>
                       {status.message}
                     </p>
