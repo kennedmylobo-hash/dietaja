@@ -977,29 +977,29 @@ import { useTenant } from "@/contexts/TenantContext";
                           <TooltipProvider delayDuration={300}>
                            <div className="flex items-center justify-end gap-1">
                             <Sheet>
-                              <SheetTrigger asChild>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <SheetTrigger asChild>
                                     <Button size="icon" variant="ghost">
                                       <Eye className="w-4 h-4" />
                                     </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Perfil / Marmitas / Avaliação</TooltipContent>
-                                </Tooltip>
-                              </SheetTrigger>
-                              <SheetContent className="overflow-y-auto sm:max-w-lg">
-                                <SheetHeader>
-                                  <SheetTitle>{customer.customer_name}</SheetTitle>
-                                </SheetHeader>
-                                <div className="mt-4">
-                                  <CustomerDetailDrawer
-                                    customerId={customer.id}
-                                    customerName={customer.customer_name}
-                                    customerPhone={customer.customer_phone}
-                                  />
-                                </div>
-                              </SheetContent>
-                            </Sheet>
+                                  </SheetTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>Perfil / Marmitas / Avaliação</TooltipContent>
+                              </Tooltip>
+                               <SheetContent className="overflow-y-auto sm:max-w-lg">
+                                 <SheetHeader>
+                                   <SheetTitle>{customer.customer_name}</SheetTitle>
+                                 </SheetHeader>
+                                 <div className="mt-4">
+                                   <CustomerDetailDrawer
+                                     customerId={customer.id}
+                                     customerName={customer.customer_name}
+                                     customerPhone={customer.customer_phone}
+                                   />
+                                 </div>
+                               </SheetContent>
+                             </Sheet>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
