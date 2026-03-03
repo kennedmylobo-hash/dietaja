@@ -34,6 +34,9 @@ const FALLBACK_MESSAGES: Record<string, { title: string; emoji: string; color: s
   delivering: { title: "Saiu para Entrega!", emoji: "🛵", color: "#f59e0b",
     whatsapp: "🛵 *Saiu para Entrega!*\n\nOlá {nome}! Seu pedido *#{pedido}* está a caminho!\n\n{link_rastreio}\n\n⚠️ *Atenção:* A entrega é realizada por parceiros (iFood, 99 ou Uber). Acompanhe o rastreio e confirme se o endereço está correto!",
     email_subject: "🛵 Seu pedido #{pedido} saiu para entrega!" },
+  delivering_pickup: { title: "Pronto para Retirada!", emoji: "📍", color: "#f59e0b",
+    whatsapp: "📍 *Pronto para Retirada!*\n\nOlá {nome}! Seu pedido *#{pedido}* está pronto e aguardando sua retirada! 🎉\n\n⏰ Retire o quanto antes para garantir a frescura!\n\n🔗 Acompanhe: {link}",
+    email_subject: "📍 Seu pedido #{pedido} está aguardando retirada!" },
   delivered: { title: "Pedido Entregue!", emoji: "🎉", color: "#10b981",
     whatsapp: "✅ *Pedido Entregue!*\n\nOlá {nome}! Seu pedido *#{pedido}* foi entregue com carinho! 🍽️\n\nBom apetite!\n\n💬 *Conta pra gente como ficou?* Sua avaliação nos ajuda a deixar tudo ainda mais gostoso:\n👉 https://wa.me/{whatsapp_number}?text=Quero%20avaliar%20meu%20pedido%20{pedido}",
     email_subject: "✅ Pedido #{pedido} entregue com sucesso!" },
@@ -182,7 +185,9 @@ serve(async (req: Request) => {
       .from("marketing_messages").select("whatsapp_template, email_subject, email_body_html, is_active")
       .eq("message_type", `status_${new_status}`).single();
 
-    const fallback = FALLBACK_MESSAGES[new_status];
+    const isPickup = order.delivery_option === "retirada";
+    const effectiveStatus = (new_status === "delivering" && isPickup) ? "delivering_pickup" : new_status;
+    const fallback = FALLBACK_MESSAGES[effectiveStatus] || FALLBACK_MESSAGES[new_status];
     if (!template?.is_active && !fallback) {
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "no_template" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
