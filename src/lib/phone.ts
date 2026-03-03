@@ -54,3 +54,28 @@ export const getPhoneVariations = (phone: string): string[] => {
     `55${last11}`,
   ].filter((v, i, arr) => arr.indexOf(v) === i); // Remove duplicates
 };
+
+/**
+ * Format a raw digit string as a Brazilian phone: (XX) XXXXX-XXXX
+ */
+export const formatPhone = (raw: string): string => {
+  const digits = raw.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : '';
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
+
+/**
+ * Validate and return status info for phone input
+ */
+export const getPhoneStatus = (raw: string): { color: 'green' | 'yellow' | 'red' | 'none'; message: string } => {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 0) return { color: 'none', message: '' };
+  if (digits.length < 10) return { color: 'red', message: `Faltam ${10 - digits.length} dígitos — verifique DDD + número` };
+  if (digits.length === 10) return { color: 'yellow', message: '⚠️ Telefone fixo? WhatsApp geralmente tem 11 dígitos' };
+  if (digits.length === 11) {
+    if (digits[2] !== '9') return { color: 'yellow', message: '⚠️ Celular geralmente começa com 9 após o DDD' };
+    return { color: 'green', message: `✅ (${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)} — parece correto!` };
+  }
+  return { color: 'red', message: 'Número com dígitos demais' };
+};
