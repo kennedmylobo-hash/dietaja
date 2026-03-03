@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { formatPhone, getPhoneStatus } from "@/lib/phone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Smartphone, MessageCircle } from "lucide-react";
+import { Loader2, Smartphone, MessageCircle, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { useCart } from "./CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
@@ -336,12 +337,42 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           <Label htmlFor="phone" className="text-sm font-medium">
             WhatsApp
           </Label>
-          <Input
-            id="phone"
-            type="tel"
-            placeholder="(77) 99100-1658"
-            {...register("phone")}
-            className="mt-1"
+          <Controller
+            name="phone"
+            control={control}
+            render={({ field }) => {
+              const status = getPhoneStatus(field.value || '');
+              return (
+                <div className="space-y-1">
+                  <div className="relative">
+                    <Input
+                      id="phone"
+                      type="tel"
+                      inputMode="numeric"
+                      placeholder="(77) 99100-1658"
+                      value={formatPhone(field.value || '')}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, '');
+                        field.onChange(raw);
+                      }}
+                      className={`mt-1 pr-10 ${status.color === 'green' ? 'border-green-500 focus-visible:ring-green-500' : status.color === 'yellow' ? 'border-yellow-500' : status.color === 'red' ? 'border-destructive' : ''}`}
+                    />
+                    {field.value && field.value.length > 0 && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5">
+                        {status.color === 'green' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {status.color === 'yellow' && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
+                        {status.color === 'red' && <XCircle className="w-4 h-4 text-destructive" />}
+                      </div>
+                    )}
+                  </div>
+                  {field.value && field.value.length > 0 && (
+                    <p className={`text-xs ${status.color === 'green' ? 'text-green-600' : status.color === 'yellow' ? 'text-yellow-600' : 'text-destructive'}`}>
+                      {status.message}
+                    </p>
+                  )}
+                </div>
+              );
+            }}
           />
           {errors.phone && (
             <p className="text-xs text-destructive mt-1">{errors.phone.message}</p>
