@@ -6,9 +6,9 @@ export interface EvolutionCredentials {
 
 // Rate limiting: max messages per batch execution and delay between sends
 export const BATCH_LIMITS = {
-  MAX_MESSAGES_PER_RUN: 5,
-  MIN_DELAY_MS: 8000,  // 8 seconds minimum
-  MAX_DELAY_MS: 15000, // 15 seconds maximum
+  MAX_MESSAGES_PER_RUN: 3,
+  MIN_DELAY_MS: 12000,  // 12 seconds minimum
+  MAX_DELAY_MS: 25000,  // 25 seconds maximum
 };
 
 export function randomDelay(): Promise<void> {
