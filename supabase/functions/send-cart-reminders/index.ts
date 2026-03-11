@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
 import { getWhatsAppCredentials } from "../_shared/tenant-credentials.ts";
-import { sendWhatsAppText, type EvolutionCredentials } from "../_shared/evolution-sender.ts";
+import { sendWhatsAppText, randomDelay, BATCH_LIMITS, type EvolutionCredentials } from "../_shared/evolution-sender.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

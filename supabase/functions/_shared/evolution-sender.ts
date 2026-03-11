@@ -4,6 +4,19 @@ export interface EvolutionCredentials {
   instanceName: string;
 }
 
+// Rate limiting: max messages per batch execution and delay between sends
+export const BATCH_LIMITS = {
+  MAX_MESSAGES_PER_RUN: 5,
+  MIN_DELAY_MS: 8000,  // 8 seconds minimum
+  MAX_DELAY_MS: 15000, // 15 seconds maximum
+};
+
+export function randomDelay(): Promise<void> {
+  const ms = BATCH_LIMITS.MIN_DELAY_MS + Math.random() * (BATCH_LIMITS.MAX_DELAY_MS - BATCH_LIMITS.MIN_DELAY_MS);
+  console.log(`[EVOLUTION] ⏳ Throttle delay: ${Math.round(ms / 1000)}s`);
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function formatPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
   if (digits.startsWith('55')) return digits;
