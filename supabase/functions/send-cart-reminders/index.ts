@@ -109,10 +109,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`Found ${carts.length} carts to evaluate for recovery drip`);
+    console.log(`Found ${carts.length} carts to evaluate for recovery drip (max ${BATCH_LIMITS.MAX_MESSAGES_PER_RUN} per run)`);
 
     let sent = 0;
     const errors: string[] = [];
+    let skippedDueToLimit = 0;
 
     const cache: Record<string, { baseUrl: string; creds: EvolutionCredentials } | null> = {};
 
@@ -133,6 +134,12 @@ Deno.serve(async (req) => {
     }
 
     for (const cart of carts as AbandonedCart[]) {
+      // Rate limit: stop after max messages
+      if (sent >= BATCH_LIMITS.MAX_MESSAGES_PER_RUN) {
+        skippedDueToLimit++;
+        continue;
+      }
+
       if (!cart.phone || !cart.items || cart.items.length === 0) continue;
 
       const currentStage = cart.recovery_stage || 0;
@@ -167,6 +174,11 @@ Deno.serve(async (req) => {
       const message = generateMessage(cart, nextStageConfig.stage, deepLink, couponCode);
       if (!message) continue;
 
+      // Throttle: wait between sends
+      if (sent > 0) {
+        await randomDelay();
+      }
+
       const result = await sendWhatsAppText(cart.phone, message, ctx.creds);
 
       if (result.success) {
@@ -176,7 +188,7 @@ Deno.serve(async (req) => {
           status: currentStage === 0 ? 'abandoned' : cart.status,
         }).eq('id', cart.id);
         sent++;
-        console.log(`✅ Stage ${nextStageConfig.stage} sent to ${cart.phone} (cart ${cart.id.slice(0, 8)})`);
+        console.log(`✅ Stage ${nextStageConfig.stage} sent to ${cart.phone} (cart ${cart.id.slice(0, 8)}) [${sent}/${BATCH_LIMITS.MAX_MESSAGES_PER_RUN}]`);
       } else {
         errors.push(`Stage ${nextStageConfig.stage} failed for ${cart.phone}: ${result.error}`);
       }
