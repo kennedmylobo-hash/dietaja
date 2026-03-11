@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const result = { success: true, processed: carts.length, sent, errors: errors.length > 0 ? errors : undefined };
+    const result = { success: true, processed: carts.length, sent, skippedDueToLimit, errors: errors.length > 0 ? errors : undefined };
     console.log('Cart recovery drip job completed:', result);
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
