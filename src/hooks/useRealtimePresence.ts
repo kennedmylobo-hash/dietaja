@@ -34,7 +34,7 @@ const getDeviceType = (): 'mobile' | 'desktop' | 'tablet' => {
 export const useVisitorPresence = () => {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const visitorIdRef = useRef<string | null>(null);
-  const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
