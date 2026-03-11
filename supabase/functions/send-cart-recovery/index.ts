@@ -44,18 +44,26 @@ Deno.serve(async (req) => {
 
     if (cartsError) throw cartsError;
 
-    console.log(`[send-cart-recovery] Found ${carts?.length || 0} carts to recover for tenant ${tenant_id}`);
+    console.log(`[send-cart-recovery] Found ${carts?.length || 0} carts to recover (max ${BATCH_LIMITS.MAX_MESSAGES_PER_RUN} per run)`);
 
     let sent = 0;
     const errors: string[] = [];
 
     for (const cart of (carts || [])) {
+      // Rate limit: stop after max messages
+      if (sent >= BATCH_LIMITS.MAX_MESSAGES_PER_RUN) break;
+
       if (!cart.phone || !cart.items || !Array.isArray(cart.items) || cart.items.length === 0) continue;
 
       const firstName = cart.name?.split(' ')[0] || 'cliente';
       const deepLink = `${baseUrl}?cart=${cart.id}`;
 
       const message = `🍽️ Seu pedido ainda está salvo!\n\nVi que você montou seu kit, mas não finalizou.\n\nDeixei tudo separado aqui pra você 👇\nClique e finalize em menos de 1 minuto:\n\n🔗 ${deepLink}\n\nComece a semana organizada, com tudo pesado e pronto.\n\nPosso confirmar para você?`;
+
+      // Throttle: wait between sends
+      if (sent > 0) {
+        await randomDelay();
+      }
 
       const result = await sendWhatsAppText(cart.phone, message, whatsappCreds);
 
