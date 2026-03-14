@@ -181,7 +181,7 @@ export const generateThermalTicketHTML = (
         const sides = findFlavorSides(f.name, lineKey, flavorSidesMap);
         const kitchenSides = sides.map(s => ({ ...s, name: enrichSideNameForKitchen(s.name, f.name) }));
 
-        for (const s of sides) {
+        for (const s of kitchenSides) {
           const totalW = s.weight * f.quantity;
           const normName = classifyIngredientName(s.name) === 'salad' ? normalizeVeggieName(s.name) : s.name;
           const existing = ingredientTotals[normName];
