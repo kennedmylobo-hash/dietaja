@@ -50,6 +50,7 @@ interface ShoppingItem {
   factor: number;          // cooking/cleaning factor
   category: 'protein' | 'carb' | 'salad' | 'juice' | 'soup';
   unit: 'g' | 'un';
+  breakdown?: { prep: string; netWeight: number; grossWeight: number }[];
 }
 
 // ── Protein ingredient mapping (flavor → raw ingredient for purchasing) ──
