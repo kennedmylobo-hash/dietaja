@@ -454,6 +454,11 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
         } else {
           const factorNote = item.factor > 1 ? ` (fator ${item.factor}x)` : '';
           parts.push(`  ☐ ${item.name}: ${formatWeight(item.grossWeight)}${factorNote}`);
+          if (item.breakdown?.length) {
+            for (const b of item.breakdown) {
+              parts.push(`      ↳ ${b.prep}: ${formatWeight(b.grossWeight)}`);
+            }
+          }
         }
       }
       parts.push('');
