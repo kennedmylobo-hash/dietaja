@@ -667,8 +667,6 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
                             </TableRow>
                           ))}
                         </React.Fragment>
-                          </TableCell>
-                        </TableRow>
                       ))}
                     </TableBody>
                   </Table>
