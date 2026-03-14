@@ -56,24 +56,36 @@ interface ShoppingItem {
 // Order matters: more specific patterns must come first
 const PROTEIN_INGREDIENT_MAP: [RegExp, string][] = [
   [/estrogonofe\s+de\s+carne/i, 'Carne pedaço'],
-  [/estrogonofe\s+de\s+frango/i, 'Frango (estrogonofe)'],
+  [/estrogonofe\s+de\s+frango/i, 'Frango'],
   [/alm[oô]nd[ei]ga/i, 'Carne moída'],
   [/carne\s+desfiada/i, 'Carne pedaço'],
   [/escondidinho\s+de\s+carne/i, 'Carne moída'],
-  [/escondidinho\s+de\s+frango/i, 'Frango desfiado'],
+  [/escondidinho\s+de\s+frango/i, 'Frango'],
   [/carne\s+mo[ií]da/i, 'Carne moída'],
   [/til[aá]pia/i, 'Tilápia'],
   [/peixe/i, 'Tilápia'],
   [/lingu[ií][cç]a/i, 'Linguiça'],
   [/porco/i, 'Linguiça'],
-  // Frango: separar por tipo de preparo (mais específico primeiro)
-  [/frango\s+(em\s+)?cubos/i, 'Frango em cubos'],
-  [/frango\s+desfiado/i, 'Frango desfiado'],
-  [/frango\s+grelhado/i, 'Frango grelhado'],
-  [/frango\s+empanado/i, 'Frango empanado'],
-  [/frango/i, 'Frango (filé de peito)'],
-  [/carne/i, 'Carne pedaço'], // fallback genérico para carne bovina
+  [/frango/i, 'Frango'],
+  [/carne/i, 'Carne pedaço'],
 ];
+
+// Resolve the preparation type for frango (for breakdown detail)
+const FRANGO_PREP_MAP: [RegExp, string][] = [
+  [/frango\s+(em\s+)?cubos/i, 'em cubos'],
+  [/frango\s+desfiado/i, 'desfiado'],
+  [/frango\s+grelhado/i, 'grelhado'],
+  [/frango\s+empanado/i, 'empanado'],
+  [/estrogonofe\s+de\s+frango/i, 'estrogonofe'],
+  [/escondidinho\s+de\s+frango/i, 'desfiado'],
+];
+
+const resolvePreparation = (flavorName: string): string | null => {
+  for (const [pattern, prep] of FRANGO_PREP_MAP) {
+    if (pattern.test(flavorName) || pattern.test(flavorName.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) return prep;
+  }
+  return null;
+};
 
 const resolveProteinIngredient = (flavorName: string): string => {
   const normalized = flavorName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
