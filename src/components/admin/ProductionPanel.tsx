@@ -347,7 +347,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 const ingredient = flavorSides[i];
                 const type = classifyIngredient(ingredient.name);
                 const rawDisplayName2 = type === 'protein'
-                  ? flavor.name.split(/\s+com\s+|,\s*/i)[0].trim()
+                  ? resolveProteinDisplayName(flavor.name, ingredient.name)
                   : ingredient.name;
                 const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName2) : rawDisplayName2;
                 const ingredientKey = displayName.toLowerCase();
