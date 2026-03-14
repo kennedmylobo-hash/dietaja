@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getFlavorSidesForLine, mapLineTypeToKey, FlavorSideItem, generateDefaultSides } from "@/lib/flavor-description";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,30 +50,43 @@ interface ShoppingItem {
   factor: number;          // cooking/cleaning factor
   category: 'protein' | 'carb' | 'salad' | 'juice' | 'soup';
   unit: 'g' | 'un';
+  breakdown?: { prep: string; netWeight: number; grossWeight: number }[];
 }
 
 // ── Protein ingredient mapping (flavor → raw ingredient for purchasing) ──
 // Order matters: more specific patterns must come first
 const PROTEIN_INGREDIENT_MAP: [RegExp, string][] = [
   [/estrogonofe\s+de\s+carne/i, 'Carne pedaço'],
-  [/estrogonofe\s+de\s+frango/i, 'Frango (estrogonofe)'],
+  [/estrogonofe\s+de\s+frango/i, 'Frango'],
   [/alm[oô]nd[ei]ga/i, 'Carne moída'],
   [/carne\s+desfiada/i, 'Carne pedaço'],
   [/escondidinho\s+de\s+carne/i, 'Carne moída'],
-  [/escondidinho\s+de\s+frango/i, 'Frango desfiado'],
+  [/escondidinho\s+de\s+frango/i, 'Frango'],
   [/carne\s+mo[ií]da/i, 'Carne moída'],
   [/til[aá]pia/i, 'Tilápia'],
   [/peixe/i, 'Tilápia'],
   [/lingu[ií][cç]a/i, 'Linguiça'],
   [/porco/i, 'Linguiça'],
-  // Frango: separar por tipo de preparo (mais específico primeiro)
-  [/frango\s+(em\s+)?cubos/i, 'Frango em cubos'],
-  [/frango\s+desfiado/i, 'Frango desfiado'],
-  [/frango\s+grelhado/i, 'Frango grelhado'],
-  [/frango\s+empanado/i, 'Frango empanado'],
-  [/frango/i, 'Frango (filé de peito)'],
-  [/carne/i, 'Carne pedaço'], // fallback genérico para carne bovina
+  [/frango/i, 'Frango'],
+  [/carne/i, 'Carne pedaço'],
 ];
+
+// Resolve the preparation type for frango (for breakdown detail)
+const FRANGO_PREP_MAP: [RegExp, string][] = [
+  [/frango\s+(em\s+)?cubos/i, 'em cubos'],
+  [/frango\s+desfiado/i, 'desfiado'],
+  [/frango\s+grelhado/i, 'grelhado'],
+  [/frango\s+empanado/i, 'empanado'],
+  [/estrogonofe\s+de\s+frango/i, 'estrogonofe'],
+  [/escondidinho\s+de\s+frango/i, 'desfiado'],
+];
+
+const resolvePreparation = (flavorName: string): string | null => {
+  for (const [pattern, prep] of FRANGO_PREP_MAP) {
+    if (pattern.test(flavorName) || pattern.test(flavorName.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) return prep;
+  }
+  return null;
+};
 
 const resolveProteinIngredient = (flavorName: string): string => {
   const normalized = flavorName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -88,13 +101,7 @@ const DEFAULT_FACTORS: Record<string, number> = {
   // Proteins (raw ingredient names)
   'carne pedaço': 1.35,
   'carne moída': 1.30,
-  'filé de peito de frango': 1.40,
-  'frango em cubos': 1.40,
-  'frango desfiado': 1.40,
-  'frango grelhado': 1.40,
-  'frango empanado': 1.30,
-  'frango (filé de peito)': 1.40,
-  'frango (estrogonofe)': 1.40,
+  'frango': 1.40,
   'tilápia': 1.45,
   'linguiça': 1.15,
   'ovo': 1.10,
@@ -260,6 +267,7 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
 
   const shoppingItems = useMemo(() => {
     const ingredientMap = new Map<string, { netWeight: number; category: 'protein' | 'carb' | 'salad' }>();
+    const prepBreakdown = new Map<string, Map<string, number>>(); // ingredientKey → prep → netWeight
     const juiceMap = new Map<string, number>();
     const soupMap = new Map<string, number>();
 
@@ -300,6 +308,16 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
               } else {
                 ingredientMap.set(key, { netWeight: totalWeight, category: type });
               }
+
+              // Track preparation breakdown for proteins (frango, carne, etc.)
+              if (isProtein) {
+                const prep = resolvePreparation(flavor.name);
+                if (prep) {
+                  if (!prepBreakdown.has(key)) prepBreakdown.set(key, new Map());
+                  const preps = prepBreakdown.get(key)!;
+                  preps.set(prep, (preps.get(prep) || 0) + totalWeight);
+                }
+              }
             }
           }
         }
@@ -329,13 +347,25 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
     for (const [key, { netWeight, category }] of ingredientMap) {
       const displayName = key.charAt(0).toUpperCase() + key.slice(1);
       const factor = getFactor(key, factors);
+      const grossWeight = Math.ceil(netWeight * factor);
+
+      // Build breakdown if available (multiple preps for same ingredient)
+      const preps = prepBreakdown.get(key);
+      let breakdown: ShoppingItem['breakdown'];
+      if (preps && preps.size > 1) {
+        breakdown = Array.from(preps.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([prep, w]) => ({ prep, netWeight: w, grossWeight: Math.ceil(w * factor) }));
+      }
+
       items.push({
         name: displayName,
         netWeight,
-        grossWeight: Math.ceil(netWeight * factor),
+        grossWeight,
         factor,
         category,
         unit: 'g',
+        breakdown,
       });
     }
 
@@ -418,6 +448,11 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
         } else {
           const factorNote = item.factor > 1 ? ` (fator ${item.factor}x)` : '';
           parts.push(`  ☐ ${item.name}: ${formatWeight(item.grossWeight)}${factorNote}`);
+          if (item.breakdown?.length) {
+            for (const b of item.breakdown) {
+              parts.push(`      ↳ ${b.prep}: ${formatWeight(b.grossWeight)}`);
+            }
+          }
         }
       }
       parts.push('');
@@ -455,7 +490,7 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
               <strong>${item.unit === 'un' ? `${item.grossWeight} un` : formatWeight(item.grossWeight)}</strong>
               ${item.factor > 1 ? `<span class="net">(líq: ${formatWeight(item.netWeight)})</span><span class="factor"> ${item.factor}x</span>` : ''}
             </span>
-          </div>`).join('')}`;
+          </div>${item.breakdown?.length ? item.breakdown.map(b => `<div style="padding:1px 8px 1px 30px;font-size:10px;color:#666;">↳ ${b.prep}: ${formatWeight(b.grossWeight)}</div>`).join('') : ''}`).join('')}`;
       }).join('')}
       </body></html>`;
 
@@ -589,31 +624,43 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
                     </TableHeader>
                     <TableBody>
                       {items.map(item => (
-                        <TableRow key={item.name}>
-                          <TableCell className="text-sm py-2">{item.name}</TableCell>
-                          {cat !== 'juice' && cat !== 'soup' && (
-                            <>
-                              <TableCell className="text-sm text-right text-muted-foreground py-2">
-                                {formatWeight(item.netWeight)}
+                        <React.Fragment key={item.name}>
+                          <TableRow>
+                            <TableCell className="text-sm py-2">{item.name}</TableCell>
+                            {cat !== 'juice' && cat !== 'soup' && (
+                              <>
+                                <TableCell className="text-sm text-right text-muted-foreground py-2">
+                                  {formatWeight(item.netWeight)}
+                                </TableCell>
+                                <TableCell className="text-xs text-right py-2">
+                                  {item.factor > 1 ? (
+                                    <button
+                                      onClick={() => setEditingFactor(item.name.toLowerCase())}
+                                      className="px-1 py-0.5 bg-muted rounded font-mono hover:bg-primary/10 transition"
+                                    >
+                                      {item.factor}x
+                                    </button>
+                                  ) : (
+                                    <span className="text-muted-foreground">1x</span>
+                                  )}
+                                </TableCell>
+                              </>
+                            )}
+                            <TableCell className="text-sm text-right font-bold py-2">
+                              {item.unit === 'un' ? `${item.grossWeight} un` : formatWeight(item.grossWeight)}
+                            </TableCell>
+                          </TableRow>
+                          {item.breakdown?.map(b => (
+                            <TableRow key={b.prep} className="border-0">
+                              <TableCell className="text-xs text-muted-foreground py-0.5 pl-8" colSpan={cat !== 'juice' && cat !== 'soup' ? 3 : 1}>
+                                ↳ {b.prep}
                               </TableCell>
-                              <TableCell className="text-xs text-right py-2">
-                                {item.factor > 1 ? (
-                                  <button
-                                    onClick={() => setEditingFactor(item.name.toLowerCase())}
-                                    className="px-1 py-0.5 bg-muted rounded font-mono hover:bg-primary/10 transition"
-                                  >
-                                    {item.factor}x
-                                  </button>
-                                ) : (
-                                  <span className="text-muted-foreground">1x</span>
-                                )}
+                              <TableCell className="text-xs text-right text-muted-foreground py-0.5">
+                                {formatWeight(b.grossWeight)}
                               </TableCell>
-                            </>
-                          )}
-                          <TableCell className="text-sm text-right font-bold py-2">
-                            {item.unit === 'un' ? `${item.grossWeight} un` : formatWeight(item.grossWeight)}
-                          </TableCell>
-                        </TableRow>
+                            </TableRow>
+                          ))}
+                        </React.Fragment>
                       ))}
                     </TableBody>
                   </Table>
