@@ -273,6 +273,7 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
 
   const shoppingItems = useMemo(() => {
     const ingredientMap = new Map<string, { netWeight: number; category: 'protein' | 'carb' | 'salad' }>();
+    const prepBreakdown = new Map<string, Map<string, number>>(); // ingredientKey → prep → netWeight
     const juiceMap = new Map<string, number>();
     const soupMap = new Map<string, number>();
 
@@ -312,6 +313,16 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
                 existing.netWeight += totalWeight;
               } else {
                 ingredientMap.set(key, { netWeight: totalWeight, category: type });
+              }
+
+              // Track preparation breakdown for proteins (frango, carne, etc.)
+              if (isProtein) {
+                const prep = resolvePreparation(flavor.name);
+                if (prep) {
+                  if (!prepBreakdown.has(key)) prepBreakdown.set(key, new Map());
+                  const preps = prepBreakdown.get(key)!;
+                  preps.set(prep, (preps.get(prep) || 0) + totalWeight);
+                }
               }
             }
           }
