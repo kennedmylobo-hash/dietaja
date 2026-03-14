@@ -78,6 +78,12 @@ const classifyIngredient = (name: string): 'protein' | 'carb' | 'salad' => {
   return 'salad';
 };
 
+// Resolve protein display name preserving preparation method (em cubos, desfiado, etc.)
+const resolveProteinDisplayName = (flavorName: string, _ingredientName: string): string => {
+  const core = flavorName.split(/\s+com\s+|,\s*/i)[0].trim();
+  return core;
+};
+
 // For kitchen: aggregated ingredients
 interface IngredientTotal {
   name: string;
@@ -317,7 +323,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 // For the protein ingredient, use the dish name for better display
                 // e.g. "Frango em cubos" instead of generic "Frango"
                 const rawDisplayName = type === 'protein'
-                  ? flavor.name.split(/\s+com\s+|,\s*/i)[0].trim()
+                  ? resolveProteinDisplayName(flavor.name, ingredient.name)
                   : ingredient.name;
                 const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName) : rawDisplayName;
                 const ingredientKey = displayName.toLowerCase();
@@ -341,7 +347,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 const ingredient = flavorSides[i];
                 const type = classifyIngredient(ingredient.name);
                 const rawDisplayName2 = type === 'protein'
-                  ? flavor.name.split(/\s+com\s+|,\s*/i)[0].trim()
+                  ? resolveProteinDisplayName(flavor.name, ingredient.name)
                   : ingredient.name;
                 const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName2) : rawDisplayName2;
                 const ingredientKey = displayName.toLowerCase();

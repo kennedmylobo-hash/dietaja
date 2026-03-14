@@ -56,17 +56,22 @@ interface ShoppingItem {
 // Order matters: more specific patterns must come first
 const PROTEIN_INGREDIENT_MAP: [RegExp, string][] = [
   [/estrogonofe\s+de\s+carne/i, 'Carne pedaço'],
-  [/estrogonofe\s+de\s+frango/i, 'Filé de peito de frango'],
+  [/estrogonofe\s+de\s+frango/i, 'Frango (estrogonofe)'],
   [/alm[oô]nd[ei]ga/i, 'Carne moída'],
   [/carne\s+desfiada/i, 'Carne pedaço'],
   [/escondidinho\s+de\s+carne/i, 'Carne moída'],
-  [/escondidinho\s+de\s+frango/i, 'Filé de peito de frango'],
+  [/escondidinho\s+de\s+frango/i, 'Frango desfiado'],
   [/carne\s+mo[ií]da/i, 'Carne moída'],
   [/til[aá]pia/i, 'Tilápia'],
   [/peixe/i, 'Tilápia'],
   [/lingu[ií][cç]a/i, 'Linguiça'],
   [/porco/i, 'Linguiça'],
-  [/frango/i, 'Filé de peito de frango'],
+  // Frango: separar por tipo de preparo (mais específico primeiro)
+  [/frango\s+(em\s+)?cubos/i, 'Frango em cubos'],
+  [/frango\s+desfiado/i, 'Frango desfiado'],
+  [/frango\s+grelhado/i, 'Frango grelhado'],
+  [/frango\s+empanado/i, 'Frango empanado'],
+  [/frango/i, 'Frango (filé de peito)'],
   [/carne/i, 'Carne pedaço'], // fallback genérico para carne bovina
 ];
 
@@ -84,6 +89,12 @@ const DEFAULT_FACTORS: Record<string, number> = {
   'carne pedaço': 1.35,
   'carne moída': 1.30,
   'filé de peito de frango': 1.40,
+  'frango em cubos': 1.40,
+  'frango desfiado': 1.40,
+  'frango grelhado': 1.40,
+  'frango empanado': 1.30,
+  'frango (filé de peito)': 1.40,
+  'frango (estrogonofe)': 1.40,
   'tilápia': 1.45,
   'linguiça': 1.15,
   'ovo': 1.10,
