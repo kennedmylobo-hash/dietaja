@@ -317,7 +317,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 // For the protein ingredient, use the dish name for better display
                 // e.g. "Frango em cubos" instead of generic "Frango"
                 const rawDisplayName = type === 'protein'
-                  ? flavor.name.split(/\s+com\s+|,\s*/i)[0].trim()
+                  ? resolveProteinDisplayName(flavor.name, ingredient.name)
                   : ingredient.name;
                 const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName) : rawDisplayName;
                 const ingredientKey = displayName.toLowerCase();
