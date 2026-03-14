@@ -78,6 +78,12 @@ const classifyIngredient = (name: string): 'protein' | 'carb' | 'salad' => {
   return 'salad';
 };
 
+// Resolve protein display name preserving preparation method (em cubos, desfiado, etc.)
+const resolveProteinDisplayName = (flavorName: string, _ingredientName: string): string => {
+  const core = flavorName.split(/\s+com\s+|,\s*/i)[0].trim();
+  return core;
+};
+
 // For kitchen: aggregated ingredients
 interface IngredientTotal {
   name: string;
