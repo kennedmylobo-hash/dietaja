@@ -496,7 +496,7 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
               <strong>${item.unit === 'un' ? `${item.grossWeight} un` : formatWeight(item.grossWeight)}</strong>
               ${item.factor > 1 ? `<span class="net">(líq: ${formatWeight(item.netWeight)})</span><span class="factor"> ${item.factor}x</span>` : ''}
             </span>
-          </div>`).join('')}`;
+          </div>${item.breakdown?.length ? item.breakdown.map(b => `<div style="padding:1px 8px 1px 30px;font-size:10px;color:#666;">↳ ${b.prep}: ${formatWeight(b.grossWeight)}</div>`).join('') : ''}`).join('')}`;
       }).join('')}
       </body></html>`;
 
