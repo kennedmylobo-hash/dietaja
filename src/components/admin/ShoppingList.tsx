@@ -353,13 +353,25 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
     for (const [key, { netWeight, category }] of ingredientMap) {
       const displayName = key.charAt(0).toUpperCase() + key.slice(1);
       const factor = getFactor(key, factors);
+      const grossWeight = Math.ceil(netWeight * factor);
+
+      // Build breakdown if available (multiple preps for same ingredient)
+      const preps = prepBreakdown.get(key);
+      let breakdown: ShoppingItem['breakdown'];
+      if (preps && preps.size > 1) {
+        breakdown = Array.from(preps.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([prep, w]) => ({ prep, netWeight: w, grossWeight: Math.ceil(w * factor) }));
+      }
+
       items.push({
         name: displayName,
         netWeight,
-        grossWeight: Math.ceil(netWeight * factor),
+        grossWeight,
         factor,
         category,
         unit: 'g',
+        breakdown,
       });
     }
 
