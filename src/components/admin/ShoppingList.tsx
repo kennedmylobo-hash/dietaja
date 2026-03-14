@@ -630,29 +630,43 @@ const ShoppingList = ({ dateFilter }: ShoppingListProps) => {
                     </TableHeader>
                     <TableBody>
                       {items.map(item => (
-                        <TableRow key={item.name}>
-                          <TableCell className="text-sm py-2">{item.name}</TableCell>
-                          {cat !== 'juice' && cat !== 'soup' && (
-                            <>
-                              <TableCell className="text-sm text-right text-muted-foreground py-2">
-                                {formatWeight(item.netWeight)}
+                        <React.Fragment key={item.name}>
+                          <TableRow>
+                            <TableCell className="text-sm py-2">{item.name}</TableCell>
+                            {cat !== 'juice' && cat !== 'soup' && (
+                              <>
+                                <TableCell className="text-sm text-right text-muted-foreground py-2">
+                                  {formatWeight(item.netWeight)}
+                                </TableCell>
+                                <TableCell className="text-xs text-right py-2">
+                                  {item.factor > 1 ? (
+                                    <button
+                                      onClick={() => setEditingFactor(item.name.toLowerCase())}
+                                      className="px-1 py-0.5 bg-muted rounded font-mono hover:bg-primary/10 transition"
+                                    >
+                                      {item.factor}x
+                                    </button>
+                                  ) : (
+                                    <span className="text-muted-foreground">1x</span>
+                                  )}
+                                </TableCell>
+                              </>
+                            )}
+                            <TableCell className="text-sm text-right font-bold py-2">
+                              {item.unit === 'un' ? `${item.grossWeight} un` : formatWeight(item.grossWeight)}
+                            </TableCell>
+                          </TableRow>
+                          {item.breakdown?.map(b => (
+                            <TableRow key={b.prep} className="border-0">
+                              <TableCell className="text-xs text-muted-foreground py-0.5 pl-8" colSpan={cat !== 'juice' && cat !== 'soup' ? 3 : 1}>
+                                ↳ {b.prep}
                               </TableCell>
-                              <TableCell className="text-xs text-right py-2">
-                                {item.factor > 1 ? (
-                                  <button
-                                    onClick={() => setEditingFactor(item.name.toLowerCase())}
-                                    className="px-1 py-0.5 bg-muted rounded font-mono hover:bg-primary/10 transition"
-                                  >
-                                    {item.factor}x
-                                  </button>
-                                ) : (
-                                  <span className="text-muted-foreground">1x</span>
-                                )}
+                              <TableCell className="text-xs text-right text-muted-foreground py-0.5">
+                                {formatWeight(b.grossWeight)}
                               </TableCell>
-                            </>
-                          )}
-                          <TableCell className="text-sm text-right font-bold py-2">
-                            {item.unit === 'un' ? `${item.grossWeight} un` : formatWeight(item.grossWeight)}
+                            </TableRow>
+                          ))}
+                        </React.Fragment>
                           </TableCell>
                         </TableRow>
                       ))}
