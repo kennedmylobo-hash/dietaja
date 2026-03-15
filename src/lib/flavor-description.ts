@@ -178,13 +178,13 @@ export const generateDefaultSides = (itemName: string, line: 'fit' | 'fitness'):
     if (extras.length === 0) {
       return line === 'fit'
         ? [{ name: protein, weight: 120 }, { name: carbLabel, weight: 180 }]
-        : [{ name: protein, weight: 175 }, { name: carbLabel, weight: 275 }];
+        : [{ name: protein, weight: 150 }, { name: carbLabel, weight: 300 }];
     }
-    const target = line === 'fit' ? 300 : 450;
+    // Escondidinho com extras (mix): proteína 150g, purê 200g, mix 100g (fitness)
+    const proteinW = line === 'fit' ? 100 : 150;
     const extraWeight = line === 'fit' ? 50 : 100;
     const totalExtraWeight = extraWeight * extras.length;
-    const proteinW = line === 'fit' ? 120 : 175;
-    const carbW = target - proteinW - totalExtraWeight;
+    const carbW = (line === 'fit' ? 300 : 450) - proteinW - totalExtraWeight;
     return [
       { name: protein, weight: proteinW },
       { name: carbLabel, weight: Math.max(carbW, 0) },
