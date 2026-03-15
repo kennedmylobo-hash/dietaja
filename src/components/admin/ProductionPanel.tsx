@@ -16,7 +16,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { formatDateShort } from "@/lib/print-utils";
 import { generateLabelsA7 } from "@/lib/label-utils";
-import { normalizeVeggieName } from "@/lib/ingredient-normalization";
+import { normalizeVeggieName, normalizeCarbName } from "@/lib/ingredient-normalization";
 
 interface FlavorItem {
   name: string;
@@ -78,10 +78,10 @@ const classifyIngredient = (name: string): 'protein' | 'carb' | 'salad' => {
   return 'salad';
 };
 
-// Resolve protein display name preserving preparation method (em cubos, desfiado, etc.)
-const resolveProteinDisplayName = (flavorName: string, _ingredientName: string): string => {
-  const core = flavorName.split(/\s+com\s+|,\s*/i)[0].trim();
-  return core;
+// Resolve protein display name: use the ingredient name from composition
+// (already resolved by generateDefaultSides / enforceEscondidinhoComposition)
+const resolveProteinDisplayName = (_flavorName: string, ingredientName: string): string => {
+  return ingredientName;
 };
 
 // For kitchen: aggregated ingredients
@@ -322,10 +322,8 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 const type = classifyIngredient(ingredient.name);
                 // For the protein ingredient, use the dish name for better display
                 // e.g. "Frango em cubos" instead of generic "Frango"
-                const rawDisplayName = type === 'protein'
-                  ? resolveProteinDisplayName(flavor.name, ingredient.name)
-                  : ingredient.name;
-                const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName) : rawDisplayName;
+                const rawDisplayName = ingredient.name;
+                const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName) : type === 'carb' ? normalizeCarbName(rawDisplayName) : rawDisplayName;
                 const ingredientKey = displayName.toLowerCase();
                 const existing = ingredientMap.get(ingredientKey);
                 const totalWeight = flavor.quantity * ingredient.weight;
@@ -346,10 +344,8 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
               for (let i = 0; i < flavorSides.length; i++) {
                 const ingredient = flavorSides[i];
                 const type = classifyIngredient(ingredient.name);
-                const rawDisplayName2 = type === 'protein'
-                  ? resolveProteinDisplayName(flavor.name, ingredient.name)
-                  : ingredient.name;
-                const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName2) : rawDisplayName2;
+                const rawDisplayName2 = ingredient.name;
+                const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName2) : type === 'carb' ? normalizeCarbName(rawDisplayName2) : rawDisplayName2;
                 const ingredientKey = displayName.toLowerCase();
                 const existing = ingredientMap.get(ingredientKey);
                 const totalWeight = flavor.quantity * ingredient.weight;

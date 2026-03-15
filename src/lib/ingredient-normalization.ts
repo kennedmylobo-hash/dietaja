@@ -42,6 +42,16 @@ export const normalizeProteinName = (name: string): string => {
 const PROTEIN_KW = ['carne', 'frango', 'peixe', 'tilápia', 'tilapia', 'almôndega', 'almondega', 'linguiça', 'linguica', 'bacon', 'calabresa', 'costela', 'cupim', 'charque', 'pernil', 'lombo', 'bisteca', 'filé', 'file', 'estrogonofe', 'strogonoff', 'bovina'];
 const CARB_KW = ['arroz', 'aipim', 'batata', 'purê', 'pure', 'feijão', 'feijao', 'grãos', 'graos', 'macarrão', 'macarrao', 'nhoque', 'mandioca', 'farinha', 'risoto', 'molho'];
 
+/**
+ * Normalizes generic carb names like "grãos" to their actual name.
+ * If the name is too generic, returns a more specific default.
+ */
+export const normalizeCarbName = (name: string): string => {
+  const norm = stripAccents(name);
+  if (norm === 'graos' || norm === 'grao') return 'Purê de abóbora';
+  return name;
+};
+
 export const classifyIngredientName = (name: string): 'protein' | 'carb' | 'salad' => {
   const lower = stripAccents(name);
   if (PROTEIN_KW.some(k => lower.includes(stripAccents(k)))) return 'protein';
