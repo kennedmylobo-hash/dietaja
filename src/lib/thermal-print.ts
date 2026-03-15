@@ -114,7 +114,7 @@ const enrichSideNameForKitchen = (sideName: string, flavorName: string): string 
   // Purês: corrige carbos genéricos/inconsistentes conforme sabor
   if (isCarb) {
     const hasPureContext = normalizedFlavor.includes('pure');
-    const isGenericOrAmbiguousCarb = ['graos', 'grao', 'pure', 'pure de aipim', 'aipim'].includes(normalizedSide);
+    const isGenericOrAmbiguousCarb = ['graos', 'grao', 'pure', 'pure de aipim'].includes(normalizedSide);
 
     if (hasPureContext || isGenericOrAmbiguousCarb) {
       if (normalizedFlavor.includes('abobora') || normalizedFlavor.includes('abobrinha')) return 'Purê de abóbora';
