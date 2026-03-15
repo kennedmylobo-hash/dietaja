@@ -16,7 +16,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { formatDateShort } from "@/lib/print-utils";
 import { generateLabelsA7 } from "@/lib/label-utils";
-import { normalizeVeggieName } from "@/lib/ingredient-normalization";
+import { normalizeVeggieName, normalizeCarbName } from "@/lib/ingredient-normalization";
 
 interface FlavorItem {
   name: string;
