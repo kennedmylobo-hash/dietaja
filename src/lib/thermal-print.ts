@@ -129,7 +129,7 @@ const enrichSideNameForKitchen = (sideName: string, flavorName: string): string 
     return isGenericFrango ? 'Frango à parmegiana' : 'Carne à parmegiana';
   if (normalizedFlavor.includes('macarronada') || normalizedFlavor.includes('macarrao'))
     return isGenericFrango ? 'Frango desfiado' : 'Carne desfiada';
-  if (/(almondega|almondega|almodenga)/.test(normalizedFlavor))
+  if (/(almondega|almodenga)/.test(normalizedFlavor))
     return isGenericCarne ? 'Almôndega' : sideName;
   if (normalizedFlavor.includes('em cubos'))
     return isGenericFrango ? 'Frango em cubos' : 'Carne em cubos';
