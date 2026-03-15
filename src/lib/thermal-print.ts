@@ -85,6 +85,14 @@ const enrichSideNameForKitchen = (sideName: string, flavorName: string): string 
   const lowerFlavor = flavorName.toLowerCase();
   const isGenericFrango = lowerSide === 'frango';
   const isGenericCarne = lowerSide === 'carne' || lowerSide === 'carne bovina';
+
+  // Escondidinho: frango → desfiado, carne → moída
+  if (lowerFlavor.includes('escondidinho')) {
+    if (isGenericFrango) return 'Frango desfiado';
+    if (isGenericCarne) return 'Carne moída';
+    return sideName;
+  }
+
   if (!isGenericFrango && !isGenericCarne) return sideName;
 
   if (lowerFlavor.includes('parmegiana') || lowerFlavor.includes('parmigiana'))

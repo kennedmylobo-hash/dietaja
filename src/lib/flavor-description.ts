@@ -158,7 +158,7 @@ export const generateDefaultSides = (itemName: string, line: 'fit' | 'fitness'):
 
   if (isEscondidinho) {
     const carb = extractCarbName(itemName);
-    const carbLabel = carb.toLowerCase().includes('aipim') ? 'Purê de aipim' : carb;
+    const carbLabel = toPureForm(carb);
     const extras: string[] = [];
     if (lower.includes('mix de salada') || lower.includes('mix de legumes')) {
       extras.push(lower.includes('mix de salada') ? 'Mix de salada' : 'Mix de legumes');
