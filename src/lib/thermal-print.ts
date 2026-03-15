@@ -80,36 +80,92 @@ const findFlavorSides = (
   return generateDefaultSides(flavorName, lineKey);
 };
 
-const enrichSideNameForKitchen = (sideName: string, flavorName: string): string => {
-  const lowerSide = sideName.toLowerCase().trim();
-  const lowerFlavor = flavorName.toLowerCase();
-  const isGenericFrango = lowerSide === 'frango';
-  const isGenericCarne = lowerSide === 'carne' || lowerSide === 'carne bovina';
+const normalizeText = (value: string): string =>
+  value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-  // Escondidinho: frango → desfiado, carne → moída
-  if (lowerFlavor.includes('escondidinho')) {
-    if (isGenericFrango) return 'Frango desfiado';
-    if (isGenericCarne) return 'Carne moída';
-    return sideName;
+const inferPureByFlavor = (normalizedFlavor: string): string => {
+  if (normalizedFlavor.includes('abobora') || normalizedFlavor.includes('abobrinha')) return 'Purê de abóbora';
+  if (/batata[\s-]*doce/.test(normalizedFlavor)) return 'Purê de batata doce';
+  if (/(aipim|aipjm|mandioca|macaxeira)/.test(normalizedFlavor)) return 'Purê de aipim';
+  return 'Purê de aipim';
+};
+
+const inferProteinByFlavor = (normalizedFlavor: string): string | null => {
+  if (/(almondega|almodenga)/.test(normalizedFlavor)) return 'Almôndega';
+  if (normalizedFlavor.includes('strogonoff') || normalizedFlavor.includes('estrogonofe')) {
+    if (normalizedFlavor.includes('frango')) return 'Frango (estrogonofe)';
+    if (normalizedFlavor.includes('carne')) return 'Carne (estrogonofe)';
+  }
+  if (normalizedFlavor.includes('parmegiana') || normalizedFlavor.includes('parmigiana')) {
+    if (normalizedFlavor.includes('frango')) return 'Frango à parmegiana';
+    if (normalizedFlavor.includes('carne')) return 'Carne à parmegiana';
+  }
+  if (normalizedFlavor.includes('escondidinho') || normalizedFlavor.includes('esondidinho')) {
+    if (normalizedFlavor.includes('frango')) return 'Frango desfiado';
+    if (normalizedFlavor.includes('carne')) return normalizedFlavor.includes('desfiad') ? 'Carne desfiada' : 'Carne moída';
+  }
+  if (normalizedFlavor.includes('frango')) {
+    if (normalizedFlavor.includes('cubos')) return 'Frango em cubos';
+    if (normalizedFlavor.includes('desfiad')) return 'Frango desfiado';
+    if (normalizedFlavor.includes('grelhad') || normalizedFlavor.includes('grlhad')) return 'Frango grelhado';
+  }
+  if (normalizedFlavor.includes('carne')) {
+    if (normalizedFlavor.includes('moida')) return 'Carne moída';
+    if (normalizedFlavor.includes('desfiad')) return 'Carne desfiada';
+    if (normalizedFlavor.includes('cubos')) return 'Carne em cubos';
+  }
+  return null;
+};
+
+const enrichSideNameForKitchen = (sideName: string, flavorName: string): string => {
+  const normalizedSide = normalizeText(sideName);
+  const normalizedFlavor = normalizeText(flavorName);
+  const sideType = classifyIngredientName(sideName);
+  const isProtein = sideType === 'protein';
+  const isCarb = sideType === 'carb';
+  const isGenericFrango = normalizedSide === 'frango';
+  const isGenericCarne = normalizedSide === 'carne' || normalizedSide === 'carne bovina';
+  const isEscondidinho = /escondidinho|esondidinho/.test(normalizedFlavor);
+
+  if (isProtein) {
+    const inferredProtein = inferProteinByFlavor(normalizedFlavor);
+    if (inferredProtein) return inferredProtein;
+  }
+
+  // Regra de negócio: todo escondidinho sempre usa purê
+  if (isEscondidinho && isCarb) {
+    return inferPureByFlavor(normalizedFlavor);
+  }
+
+  // Purês: corrige carbos genéricos/inconsistentes conforme sabor
+  if (isCarb) {
+    const hasPureContext = normalizedFlavor.includes('pure');
+    const isGenericOrAmbiguousCarb = ['graos', 'grao', 'pure', 'pure de aipim'].includes(normalizedSide);
+
+    if (hasPureContext || isGenericOrAmbiguousCarb) {
+      if (normalizedFlavor.includes('abobora') || normalizedFlavor.includes('abobrinha')) return 'Purê de abóbora';
+      if (/batata[\s-]*doce/.test(normalizedFlavor)) return 'Purê de batata doce';
+      if (/(aipim|aipjm|mandioca|macaxeira)/.test(normalizedFlavor)) return 'Purê de aipim';
+    }
   }
 
   if (!isGenericFrango && !isGenericCarne) return sideName;
 
-  if (lowerFlavor.includes('parmegiana') || lowerFlavor.includes('parmigiana'))
+  if (normalizedFlavor.includes('parmegiana') || normalizedFlavor.includes('parmigiana'))
     return isGenericFrango ? 'Frango à parmegiana' : 'Carne à parmegiana';
-  if (lowerFlavor.includes('macarronada') || lowerFlavor.includes('macarrão'))
+  if (normalizedFlavor.includes('macarronada') || normalizedFlavor.includes('macarrao'))
     return isGenericFrango ? 'Frango desfiado' : 'Carne desfiada';
-  if (lowerFlavor.includes('almôndega') || lowerFlavor.includes('almondega'))
+  if (/(almondega|almodenga)/.test(normalizedFlavor))
     return isGenericCarne ? 'Almôndega' : sideName;
-  if (lowerFlavor.includes('em cubos'))
+  if (normalizedFlavor.includes('em cubos'))
     return isGenericFrango ? 'Frango em cubos' : 'Carne em cubos';
-  if (lowerFlavor.includes('moída') || lowerFlavor.includes('moida'))
+  if (normalizedFlavor.includes('moida'))
     return isGenericCarne ? 'Carne moída' : sideName;
-  if (lowerFlavor.includes('desfiado') || lowerFlavor.includes('desfiada'))
+  if (normalizedFlavor.includes('desfiad'))
     return isGenericFrango ? 'Frango desfiado' : 'Carne desfiada';
-  if (lowerFlavor.includes('grelhado') || lowerFlavor.includes('grelhada'))
+  if (normalizedFlavor.includes('grelhad') || normalizedFlavor.includes('grlhad'))
     return isGenericFrango ? 'Frango grelhado' : 'Carne grelhada';
-  if (lowerFlavor.includes('strogonoff') || lowerFlavor.includes('estrogonofe'))
+  if (normalizedFlavor.includes('strogonoff') || normalizedFlavor.includes('estrogonofe'))
     return isGenericFrango ? 'Frango (estrogonofe)' : 'Carne (estrogonofe)';
 
   return sideName;
