@@ -255,7 +255,7 @@ export const generateDefaultSides = (itemName: string, line: 'fit' | 'fitness'):
     const carbLabel = toPureForm(carb);
     const carbNorm = carb.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const extras: string[] = [];
-    if (/m[ix]{2}\s+de\s+(salada|legumes)/i.test(lower)) {
+    if (/m[ixz]{1,2}\s+de\s+(salada|legumes)/i.test(lower) || (/salada/.test(lower) && !/pure/.test(lower)) || /legumes/.test(lower)) {
       extras.push(lower.includes('legumes') ? 'Mix de legumes' : 'Mix de salada');
     }
     for (const part of allParts.slice(1)) {
