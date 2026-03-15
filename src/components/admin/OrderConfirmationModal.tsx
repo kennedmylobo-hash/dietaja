@@ -72,14 +72,20 @@ const OrderConfirmationModal = ({
 
   useEffect(() => {
     if (isOpen) {
-      setEditableItems(initialItems.map(item => ({
-        ...item,
-        sides: item.sides.length > 0
+      setEditableItems(initialItems.map(item => {
+        const baseSides = item.sides.length > 0
           ? item.sides.map(s => ({ ...s }))
           : lineType === 'personalizada'
-            ? [] // personalizada items have weights in the description
-            : generateDefaultSides(item.matchedName || item.name, lineType),
-      })));
+            ? []
+            : generateDefaultSides(item.matchedName || item.name, lineType);
+
+        return {
+          ...item,
+          sides: lineType === 'personalizada'
+            ? baseSides
+            : enforceEscondidinhoComposition(item.name || item.matchedName, lineType, baseSides),
+        };
+      }));
       setEditableSubtotal(String(subtotal));
     }
   }, [isOpen, initialItems, subtotal]);
