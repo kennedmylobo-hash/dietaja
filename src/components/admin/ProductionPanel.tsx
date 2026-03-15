@@ -345,7 +345,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 const ingredient = flavorSides[i];
                 const type = classifyIngredient(ingredient.name);
                 const rawDisplayName2 = ingredient.name;
-                const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName2) : rawDisplayName2;
+                const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName2) : type === 'carb' ? normalizeCarbName(rawDisplayName2) : rawDisplayName2;
                 const ingredientKey = displayName.toLowerCase();
                 const existing = ingredientMap.get(ingredientKey);
                 const totalWeight = flavor.quantity * ingredient.weight;
