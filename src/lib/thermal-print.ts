@@ -80,8 +80,8 @@ const findFlavorSides = (
     if (bestMatch) sidesData = flavorSidesMap[bestMatch];
   }
   const items = sidesData ? getFlavorSidesForLine(sidesData, lineKey) : null;
-  if (items && items.length > 0) return items;
-  return generateDefaultSides(flavorName, lineKey);
+  const baseSides = (items && items.length > 0) ? items : generateDefaultSides(flavorName, lineKey);
+  return enforceEscondidinhoComposition(flavorName, lineKey, baseSides);
 };
 
 const normalizeText = (value: string): string =>
