@@ -87,24 +87,55 @@ const extractProteinName = (itemName: string, isEscondidinho = false): string =>
   const cleaned = lower.replace(/escondidinho\s+de\s+/i, '');
   const part = cleaned.split(/[,]|\s+com\s+|\s+e\s+/)[0].trim();
   let protein = part.charAt(0).toUpperCase() + part.slice(1);
-  if (isEscondidinho && protein.toLowerCase() === 'carne') {
-    protein = lower.includes('desfiada') ? 'Carne desfiada' : 'Carne moída';
+  if (isEscondidinho) {
+    if (/frango/i.test(protein)) {
+      protein = 'Frango desfiado';
+    } else if (/carne/i.test(protein)) {
+      protein = lower.includes('desfiada') ? 'Carne desfiada' : 'Carne moída';
+    }
   }
   return protein;
 };
 
 const extractCarbName = (itemName: string): string => {
-  const lower = itemName.toLowerCase();
-  const carbs: Record<string, string> = {
-    'aipim': 'Aipim', 'mandioca': 'Aipim', 'macaxeira': 'Aipim',
-    'arroz': 'Arroz', 'batata': 'Batata-doce', 'batata-doce': 'Batata-doce',
-    'purê': 'Purê de aipim', 'pure': 'Purê de aipim',
-    'macarrão': 'Macarrão', 'macarrao': 'Macarrão', 'nhoque': 'Nhoque',
-  };
-  for (const [key, label] of Object.entries(carbs)) {
+  const lower = itemName.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // Purê variants — detect what comes after "purê/pure de"
+  const pureMatch = lower.match(/pur[eê]\s+de\s+(abobora|abobrinha|batata[\s-]*doce|batata|aipim|mandioca|macaxeira)/);
+  if (pureMatch) {
+    const base = pureMatch[1];
+    if (base.includes('abobora') || base.includes('abobrinha')) return 'Purê de abóbora';
+    if (base.includes('batata')) return 'Purê de batata doce';
+    return 'Purê de aipim';
+  }
+  // Standalone "purê"/"pure" without specifier
+  if (/pur[eê]/i.test(lower)) return 'Purê de aipim';
+
+  // Specific carb keywords (order matters: more specific first)
+  const carbs: [string, string][] = [
+    ['batata-doce', 'Batata-doce'], ['batata doce', 'Batata-doce'], ['batata', 'Batata-doce'],
+    ['aipim', 'Aipim'], ['mandioca', 'Aipim'], ['macaxeira', 'Aipim'],
+    ['abobora', 'Abóbora'],
+    ['arroz', 'Arroz'],
+    ['macarrao', 'Macarrão'], ['nhoque', 'Nhoque'],
+  ];
+  for (const [key, label] of carbs) {
     if (lower.includes(key)) return label;
   }
   return 'Aipim';
+};
+
+/**
+ * For escondidinho, any carb must be in purê form.
+ */
+const toPureForm = (carbName: string): string => {
+  const lower = carbName.toLowerCase();
+  if (lower.startsWith('purê')) return carbName;
+  if (lower.includes('aipim') || lower.includes('mandioca')) return 'Purê de aipim';
+  if (lower.includes('batata')) return 'Purê de batata doce';
+  if (lower.includes('abóbora') || lower.includes('abobora')) return 'Purê de abóbora';
+  return `Purê de ${carbName.toLowerCase()}`;
 };
 
 const parseAllIngredients = (itemName: string): string[] => {
@@ -127,7 +158,7 @@ export const generateDefaultSides = (itemName: string, line: 'fit' | 'fitness'):
 
   if (isEscondidinho) {
     const carb = extractCarbName(itemName);
-    const carbLabel = carb.toLowerCase().includes('aipim') ? 'Purê de aipim' : carb;
+    const carbLabel = toPureForm(carb);
     const extras: string[] = [];
     if (lower.includes('mix de salada') || lower.includes('mix de legumes')) {
       extras.push(lower.includes('mix de salada') ? 'Mix de salada' : 'Mix de legumes');
