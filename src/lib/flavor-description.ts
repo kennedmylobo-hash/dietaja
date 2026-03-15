@@ -227,11 +227,11 @@ export const generateDefaultSides = (itemName: string, line: 'fit' | 'fitness'):
     const extraWeight = line === 'fit' ? 50 : 100;
     const totalExtraWeight = extraWeight * extras.length;
     const carbW = (line === 'fit' ? 300 : 450) - proteinW - totalExtraWeight;
-    return [
+    return enforceEscondidinhoComposition(itemName, line, [
       { name: protein, weight: proteinW },
       { name: carbLabel, weight: Math.max(carbW, 0) },
       ...extras.map(e => ({ name: e, weight: extraWeight })),
-    ];
+    ]);
   }
 
   // Macarronada / pasta dishes: protein (desfiado) + macarrão with sauce, NO salad
