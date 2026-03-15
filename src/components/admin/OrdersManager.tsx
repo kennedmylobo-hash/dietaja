@@ -150,7 +150,40 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   // Map from flavor name to its DB id for editing
   const [flavorIdMap, setFlavorIdMap] = useState<Record<string, string>>({});
 
-  // PIX Generation states
+  // Delete a flavor from an order and recalculate totals
+  const handleDeleteFlavor = async (itemIndex: number, flavorIndex: number) => {
+    if (!selectedOrder) return;
+    const updatedItems = selectedOrder.items.map((item, i) => {
+      if (i !== itemIndex || !item.flavors) return item;
+      const updatedFlavors = item.flavors.filter((_, fi) => fi !== flavorIndex);
+      const removedFlavor = item.flavors[flavorIndex];
+      const newQuantity = item.quantity - (removedFlavor?.quantity || 0);
+      // Recalculate totalPrice proportionally
+      const unitPrice = item.quantity > 0 ? item.totalPrice / item.quantity : 0;
+      const newTotalPrice = unitPrice * newQuantity;
+      return { ...item, flavors: updatedFlavors, quantity: newQuantity, totalPrice: Math.round(newTotalPrice * 100) / 100 };
+    }).filter(item => item.quantity > 0 && (!item.flavors || item.flavors.length > 0));
+
+    const newSubtotal = updatedItems.reduce((sum, it) => sum + it.totalPrice, 0);
+    const discountAmount = selectedOrder.discount_amount || 0;
+    const newTotal = newSubtotal + (selectedOrder.delivery_fee || 0) - discountAmount;
+
+    const { error } = await supabase
+      .from('orders')
+      .update({ items: updatedItems as any, subtotal: newSubtotal, total: newTotal })
+      .eq('id', selectedOrder.id);
+
+    if (error) {
+      toast({ title: "Erro ao excluir sabor", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    const updatedOrder = { ...selectedOrder, items: updatedItems, subtotal: newSubtotal, total: newTotal };
+    setSelectedOrder(updatedOrder);
+    setOrders(prev => prev.map(o => o.id === selectedOrder.id ? updatedOrder : o));
+    toast({ title: "Sabor removido!", description: "Pedido recalculado automaticamente." });
+  };
+
   const [isGeneratingPix, setIsGeneratingPix] = useState<string | null>(null);
   const [pixResult, setPixResult] = useState<{
     pix_code: string;
