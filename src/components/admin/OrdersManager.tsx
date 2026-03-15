@@ -110,6 +110,8 @@ interface Order {
   paid_at: string | null;
   stock_decremented?: boolean;
   cancellation_type?: string | null;
+  discount_amount?: number | null;
+  coupon_code?: string | null;
   tenant_id?: string | null;
 }
 
