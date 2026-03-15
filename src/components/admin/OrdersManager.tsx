@@ -43,6 +43,7 @@ import {
   Link as LinkIcon,
   Printer,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
