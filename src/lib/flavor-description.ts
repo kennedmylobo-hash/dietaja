@@ -138,6 +138,48 @@ const toPureForm = (carbName: string): string => {
   return `Purê de ${carbName.toLowerCase()}`;
 };
 
+const normalizeForMatch = (value: string): string =>
+  value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+export const enforceEscondidinhoComposition = (
+  itemName: string,
+  line: 'fit' | 'fitness',
+  currentSides: FlavorSideItem[]
+): FlavorSideItem[] => {
+  const normalizedName = normalizeForMatch(itemName);
+  const isEscondidinho = /escondidinho|esondidinho/.test(normalizedName);
+  if (!isEscondidinho) return currentSides;
+
+  const isFrango = normalizedName.includes('frango');
+  const proteinName = isFrango ? 'Frango desfiado' : 'Carne moída';
+
+  let pureName = 'Purê de aipim';
+  if (normalizedName.includes('abobora') || normalizedName.includes('abobrinha')) pureName = 'Purê de abóbora';
+  else if (/batata[\s-]*doce/.test(normalizedName)) pureName = 'Purê de batata doce';
+
+  const hasMixInName = /mix\s+de\s+(salada|legumes)/.test(normalizedName);
+  const mixSide = currentSides.find(s => /mix/i.test(normalizeForMatch(s.name)));
+  const mixName = mixSide?.name || (normalizedName.includes('legumes') ? 'Mix de legumes' : 'Mix de salada');
+
+  if (hasMixInName || !!mixSide) {
+    return line === 'fitness'
+      ? [
+          { name: proteinName, weight: 150 },
+          { name: pureName, weight: 200 },
+          { name: mixName, weight: 100 },
+        ]
+      : [
+          { name: proteinName, weight: 100 },
+          { name: pureName, weight: 150 },
+          { name: mixName, weight: 50 },
+        ];
+  }
+
+  return line === 'fitness'
+    ? [{ name: proteinName, weight: 175 }, { name: pureName, weight: 275 }]
+    : [{ name: proteinName, weight: 120 }, { name: pureName, weight: 180 }];
+};
+
 const parseAllIngredients = (itemName: string): string[] => {
   const lower = itemName.toLowerCase();
   const cleaned = lower.replace(/escondidinho\s+de\s+/i, '');
