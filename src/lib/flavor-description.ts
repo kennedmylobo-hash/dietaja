@@ -165,8 +165,9 @@ const extractCarbName = (itemName: string): string => {
     ['batata-doce', 'Batata-doce'], ['batata doce', 'Batata-doce'], ['batata', 'Batata-doce'],
     ['aipim', 'Aipim'], ['mandioca', 'Aipim'], ['macaxeira', 'Aipim'],
     ['abobora', 'Abóbora'],
-    ['arroz', 'Arroz'],
+    ['arroz integra', 'Arroz integral'], ['arroz integral', 'Arroz integral'], ['arroz', 'Arroz'],
     ['macarrao', 'Macarrão'], ['nhoque', 'Nhoque'],
+    ['feijao', 'Feijão'],
   ];
   for (const [key, label] of carbs) {
     if (lower.includes(key)) return label;
