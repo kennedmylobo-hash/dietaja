@@ -78,10 +78,10 @@ const classifyIngredient = (name: string): 'protein' | 'carb' | 'salad' => {
   return 'salad';
 };
 
-// Resolve protein display name preserving preparation method (em cubos, desfiado, etc.)
-const resolveProteinDisplayName = (flavorName: string, _ingredientName: string): string => {
-  const core = flavorName.split(/\s+com\s+|,\s*/i)[0].trim();
-  return core;
+// Resolve protein display name: use the ingredient name from composition
+// (already resolved by generateDefaultSides / enforceEscondidinhoComposition)
+const resolveProteinDisplayName = (_flavorName: string, ingredientName: string): string => {
+  return ingredientName;
 };
 
 // For kitchen: aggregated ingredients
