@@ -1,5 +1,5 @@
 import type { Json } from "@/integrations/supabase/types";
-import { getFlavorSidesForLine, generateDefaultSides, FlavorSideItem } from "@/lib/flavor-description";
+import { getFlavorSidesForLine, generateDefaultSides, enforceEscondidinhoComposition, FlavorSideItem } from "@/lib/flavor-description";
 import { normalizeVeggieName } from "@/lib/ingredient-normalization";
 
 interface FlavorItem {
