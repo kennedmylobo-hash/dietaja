@@ -22,6 +22,7 @@ import {
   getTotalWeight,
   mapLineTypeToKey,
   generateDefaultSides,
+  enforceEscondidinhoComposition,
 } from "@/lib/flavor-description";
 import { Json } from "@/integrations/supabase/types";
 
