@@ -1673,14 +1673,14 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                                     </p>
                                   )}
                                 </div>
+                                <div className="flex items-center gap-0.5 shrink-0">
                                 {inferredLineType && inferredLineType !== 'personalizada' && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-5 w-5 p-0 shrink-0"
+                                    className="h-5 w-5 p-0"
                                     title="Editar composição"
                                     onClick={() => {
-                                      // Find flavor ID via exact or fuzzy match
                                       let matchedName = flavor.name;
                                       let flavorId = flavorIdMap[flavor.name] || null;
                                       if (!flavorId) {
@@ -1724,6 +1724,20 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                                     <Pencil className="w-3 h-3 text-muted-foreground" />
                                   </Button>
                                 )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0"
+                                    title="Excluir sabor"
+                                    onClick={() => {
+                                      if (window.confirm(`Excluir "${flavor.quantity}x ${flavor.name}" deste pedido?`)) {
+                                        handleDeleteFlavor(i, fi);
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="w-3 h-3 text-destructive/70" />
+                                  </Button>
+                                </div>
                               </div>
                             );
                           })}
