@@ -1,7 +1,7 @@
 // Thermal printer (i9 80mm) optimized print utilities for kitchen use
 
 import type { Json } from "@/integrations/supabase/types";
-import { getFlavorSidesForLine, generateDefaultSides, FlavorSideItem } from "@/lib/flavor-description";
+import { getFlavorSidesForLine, generateDefaultSides, enforceEscondidinhoComposition, FlavorSideItem } from "@/lib/flavor-description";
 import { normalizeVeggieName, normalizeProteinName, classifyIngredientName } from "@/lib/ingredient-normalization";
 
 interface FlavorDetail {
@@ -80,8 +80,8 @@ const findFlavorSides = (
     if (bestMatch) sidesData = flavorSidesMap[bestMatch];
   }
   const items = sidesData ? getFlavorSidesForLine(sidesData, lineKey) : null;
-  if (items && items.length > 0) return items;
-  return generateDefaultSides(flavorName, lineKey);
+  const baseSides = (items && items.length > 0) ? items : generateDefaultSides(flavorName, lineKey);
+  return enforceEscondidinhoComposition(flavorName, lineKey, baseSides);
 };
 
 const normalizeText = (value: string): string =>

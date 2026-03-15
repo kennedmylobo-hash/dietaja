@@ -1,5 +1,5 @@
 import type { Json } from "@/integrations/supabase/types";
-import { getFlavorSidesForLine, generateDefaultSides, FlavorSideItem } from "@/lib/flavor-description";
+import { getFlavorSidesForLine, generateDefaultSides, enforceEscondidinhoComposition, FlavorSideItem } from "@/lib/flavor-description";
 import { normalizeVeggieName } from "@/lib/ingredient-normalization";
 
 interface FlavorItem {
@@ -70,10 +70,8 @@ const findFlavorSides = (
 
   // Get sides for the specific line
   const items = sidesData ? getFlavorSidesForLine(sidesData, lineKey) : null;
-  if (items && items.length > 0) return items;
-
-  // Fallback: generate default
-  return generateDefaultSides(flavorName, lineKey);
+  const baseSides = (items && items.length > 0) ? items : generateDefaultSides(flavorName, lineKey);
+  return enforceEscondidinhoComposition(flavorName, lineKey, baseSides);
 };
 
 /**
