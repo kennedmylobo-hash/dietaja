@@ -82,19 +82,67 @@ export const getTotalWeight = (items: FlavorSideItem[]): number => {
 
 // ── Auto-generation helpers ──
 
+const KNOWN_PROTEINS: [RegExp, string][] = [
+  [/carne\s+mo[ií]da/i, 'Carne moída'],
+  [/carne\s+desfiad/i, 'Carne desfiada'],
+  [/carne\s+(em\s+)?cubos/i, 'Carne em cubos'],
+  [/carne\s+bovina/i, 'Carne bovina'],
+  [/frango\s+desfiad/i, 'Frango desfiado'],
+  [/frango\s+grelhad/i, 'Frango grelhado'],
+  [/frango\s+grlhad/i, 'Frango grelhado'],
+  [/frango\s+(em\s+)?cubos/i, 'Frango em cubos'],
+  [/frango\s+empan/i, 'Frango empanado'],
+  [/estrogonofe\s+de\s+carne/i, 'Estrogonofe de carne'],
+  [/estrogonofe\s+de\s+frango/i, 'Estrogonofe de frango'],
+  [/strogonoff\s+de\s+carne/i, 'Estrogonofe de carne'],
+  [/strogonoff\s+de\s+frango/i, 'Estrogonofe de frango'],
+  [/alm[oô]ndega/i, 'Almôndega'],
+  [/almodeng/i, 'Almôndega'],
+  [/fil[eé]\s+de\s+peixe/i, 'Filé de peixe'],
+  [/til[aá]pia/i, 'Tilápia'],
+  [/peixe/i, 'Peixe'],
+  [/lingui[çc]a/i, 'Linguiça'],
+  [/calabresa/i, 'Calabresa'],
+  [/costela/i, 'Costela'],
+  [/cupim/i, 'Cupim'],
+];
+
 const extractProteinName = (itemName: string, isEscondidinho = false): string => {
   const lower = itemName.toLowerCase();
   const cleaned = lower.replace(/escondidinho\s+de\s+/i, '');
-  const part = cleaned.split(/[,]|\s+com\s+|\s+e\s+/)[0].trim();
-  let protein = part.charAt(0).toUpperCase() + part.slice(1);
-  if (isEscondidinho) {
-    if (/frango/i.test(protein)) {
-      protein = 'Frango desfiado';
-    } else if (/carne/i.test(protein)) {
-      protein = lower.includes('desfiada') ? 'Carne desfiada' : 'Carne moída';
+
+  // Try known protein patterns first (most specific)
+  for (const [pattern, label] of KNOWN_PROTEINS) {
+    if (pattern.test(cleaned)) {
+      if (isEscondidinho) {
+        if (label.toLowerCase().includes('frango')) return 'Frango desfiado';
+        if (label.toLowerCase().includes('carne') && !label.includes('desfiada')) return 'Carne moída';
+      }
+      return label;
     }
   }
-  return protein;
+
+  // Fallback: first word-group before "com" / "e" / ","
+  const part = cleaned.split(/[,]|\s+com\s+|\s+e\s+/)[0].trim();
+  let protein = part.charAt(0).toUpperCase() + part.slice(1);
+
+  // Generic single-word fallbacks for escondidinho
+  if (isEscondidinho) {
+    if (/frango/i.test(protein)) return 'Frango desfiado';
+    if (/carne/i.test(protein)) return 'Carne moída';
+  }
+
+  // If the fallback captured too much (contains carb keywords), trim it
+  const carbWords = ['arroz', 'aipim', 'batata', 'pure', 'purê', 'macarr'];
+  for (const cw of carbWords) {
+    const idx = protein.toLowerCase().indexOf(cw);
+    if (idx > 0) {
+      protein = protein.substring(0, idx).trim();
+      break;
+    }
+  }
+
+  return protein.charAt(0).toUpperCase() + protein.slice(1);
 };
 
 const extractCarbName = (itemName: string): string => {
