@@ -323,7 +323,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 // For the protein ingredient, use the dish name for better display
                 // e.g. "Frango em cubos" instead of generic "Frango"
                 const rawDisplayName = ingredient.name;
-                const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName) : rawDisplayName;
+                const displayName = type === 'salad' ? normalizeVeggieName(rawDisplayName) : type === 'carb' ? normalizeCarbName(rawDisplayName) : rawDisplayName;
                 const ingredientKey = displayName.toLowerCase();
                 const existing = ingredientMap.get(ingredientKey);
                 const totalWeight = flavor.quantity * ingredient.weight;
