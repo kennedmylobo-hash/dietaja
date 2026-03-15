@@ -159,15 +159,20 @@ export const generateDefaultSides = (itemName: string, line: 'fit' | 'fitness'):
   if (isEscondidinho) {
     const carb = extractCarbName(itemName);
     const carbLabel = toPureForm(carb);
+    const carbNorm = carb.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const extras: string[] = [];
-    if (lower.includes('mix de salada') || lower.includes('mix de legumes')) {
-      extras.push(lower.includes('mix de salada') ? 'Mix de salada' : 'Mix de legumes');
+    if (/m[ix]{2}\s+de\s+(salada|legumes)/i.test(lower)) {
+      extras.push(lower.includes('legumes') ? 'Mix de legumes' : 'Mix de salada');
     }
     for (const part of allParts.slice(1)) {
-      const partLower = part.toLowerCase();
-      if (partLower.includes('aipim') || partLower.includes('purê') || partLower.includes('pure')) continue;
+      const partLower = part.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      // Skip the carb ingredient (already handled as purê)
+      if (partLower.includes('aipim') || partLower.includes('pure') || partLower.includes('mandioca')) continue;
+      if (partLower.includes('batata')) continue;
+      if (partLower.includes('abobora') || partLower.includes('abobrinha')) continue;
+      if (carbNorm && partLower.includes(carbNorm.split(/[\s-]/)[0])) continue;
       if (extras.some(e => e.toLowerCase() === partLower)) continue;
-      if (partLower.includes('mix')) continue;
+      if (/m[ix]{1,2}/i.test(partLower) && /salad|legum/i.test(partLower)) continue;
       extras.push(part);
     }
     if (extras.length === 0) {
