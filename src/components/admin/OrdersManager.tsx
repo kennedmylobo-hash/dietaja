@@ -43,6 +43,7 @@ import {
   Link as LinkIcon,
   Printer,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -109,6 +110,8 @@ interface Order {
   paid_at: string | null;
   stock_decremented?: boolean;
   cancellation_type?: string | null;
+  discount_amount?: number | null;
+  coupon_code?: string | null;
   tenant_id?: string | null;
 }
 
@@ -149,7 +152,40 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   // Map from flavor name to its DB id for editing
   const [flavorIdMap, setFlavorIdMap] = useState<Record<string, string>>({});
 
-  // PIX Generation states
+  // Delete a flavor from an order and recalculate totals
+  const handleDeleteFlavor = async (itemIndex: number, flavorIndex: number) => {
+    if (!selectedOrder) return;
+    const updatedItems = selectedOrder.items.map((item, i) => {
+      if (i !== itemIndex || !item.flavors) return item;
+      const updatedFlavors = item.flavors.filter((_, fi) => fi !== flavorIndex);
+      const removedFlavor = item.flavors[flavorIndex];
+      const newQuantity = item.quantity - (removedFlavor?.quantity || 0);
+      // Recalculate totalPrice proportionally
+      const unitPrice = item.quantity > 0 ? item.totalPrice / item.quantity : 0;
+      const newTotalPrice = unitPrice * newQuantity;
+      return { ...item, flavors: updatedFlavors, quantity: newQuantity, totalPrice: Math.round(newTotalPrice * 100) / 100 };
+    }).filter(item => item.quantity > 0 && (!item.flavors || item.flavors.length > 0));
+
+    const newSubtotal = updatedItems.reduce((sum, it) => sum + it.totalPrice, 0);
+    const discountAmount = selectedOrder.discount_amount || 0;
+    const newTotal = newSubtotal + (selectedOrder.delivery_fee || 0) - discountAmount;
+
+    const { error } = await supabase
+      .from('orders')
+      .update({ items: updatedItems as any, subtotal: newSubtotal, total: newTotal })
+      .eq('id', selectedOrder.id);
+
+    if (error) {
+      toast({ title: "Erro ao excluir sabor", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    const updatedOrder = { ...selectedOrder, items: updatedItems, subtotal: newSubtotal, total: newTotal };
+    setSelectedOrder(updatedOrder);
+    setOrders(prev => prev.map(o => o.id === selectedOrder.id ? updatedOrder : o));
+    toast({ title: "Sabor removido!", description: "Pedido recalculado automaticamente." });
+  };
+
   const [isGeneratingPix, setIsGeneratingPix] = useState<string | null>(null);
   const [pixResult, setPixResult] = useState<{
     pix_code: string;
@@ -1637,14 +1673,14 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                                     </p>
                                   )}
                                 </div>
+                                <div className="flex items-center gap-0.5 shrink-0">
                                 {inferredLineType && inferredLineType !== 'personalizada' && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-5 w-5 p-0 shrink-0"
+                                    className="h-5 w-5 p-0"
                                     title="Editar composição"
                                     onClick={() => {
-                                      // Find flavor ID via exact or fuzzy match
                                       let matchedName = flavor.name;
                                       let flavorId = flavorIdMap[flavor.name] || null;
                                       if (!flavorId) {
@@ -1688,6 +1724,20 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                                     <Pencil className="w-3 h-3 text-muted-foreground" />
                                   </Button>
                                 )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0"
+                                    title="Excluir sabor"
+                                    onClick={() => {
+                                      if (window.confirm(`Excluir "${flavor.quantity}x ${flavor.name}" deste pedido?`)) {
+                                        handleDeleteFlavor(i, fi);
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="w-3 h-3 text-destructive/70" />
+                                  </Button>
+                                </div>
                               </div>
                             );
                           })}
