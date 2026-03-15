@@ -206,7 +206,10 @@ export const enforceEscondidinhoComposition = (
   if (normalizedName.includes('abobora') || normalizedName.includes('abobrinha')) pureName = 'Purê de abóbora';
   else if (/batata[\s-]*doce/.test(normalizedName)) pureName = 'Purê de batata doce';
 
-  const hasMixInName = /mix\s+de\s+(salada|legumes)/.test(normalizedName);
+  // Detect mix: catch typos like "mxi", "miz", or just "salada"/"legumes" in escondidinho names
+  const hasMixInName = /m[ixz]{2}\s+de\s+(salada|legumes)/i.test(normalizedName)
+    || (/salada/.test(normalizedName) && !normalizedName.includes('pure'))
+    || /legumes/.test(normalizedName);
   const mixSide = currentSides.find(s => /mix/i.test(normalizeForMatch(s.name)));
   const mixName = mixSide?.name || (normalizedName.includes('legumes') ? 'Mix de legumes' : 'Mix de salada');
 
@@ -252,7 +255,7 @@ export const generateDefaultSides = (itemName: string, line: 'fit' | 'fitness'):
     const carbLabel = toPureForm(carb);
     const carbNorm = carb.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const extras: string[] = [];
-    if (/m[ix]{2}\s+de\s+(salada|legumes)/i.test(lower)) {
+    if (/m[ixz]{1,2}\s+de\s+(salada|legumes)/i.test(lower) || (/salada/.test(lower) && !/pure/.test(lower)) || /legumes/.test(lower)) {
       extras.push(lower.includes('legumes') ? 'Mix de legumes' : 'Mix de salada');
     }
     for (const part of allParts.slice(1)) {
