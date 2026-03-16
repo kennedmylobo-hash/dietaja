@@ -76,6 +76,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const [couponError, setCouponError] = useState("");
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState("");
+  const promoCouponApplied = useRef(false);
   
   // PIX inline state
   const [showPixModal, setShowPixModal] = useState(false);

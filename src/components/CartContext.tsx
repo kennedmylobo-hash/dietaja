@@ -78,6 +78,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkProcessed = useRef(false);
 
+  // Promo coupon: detect ?cupom= URL param and store for auto-apply
+  useEffect(() => {
+    const cupomParam = searchParams.get('cupom') || searchParams.get('coupon');
+    if (cupomParam) {
+      localStorage.setItem('promo_coupon', cupomParam.toUpperCase());
+      searchParams.delete('cupom');
+      searchParams.delete('coupon');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams]);
+
   // Deep link: restore cart from ?cart=CART_ID parameter
   useEffect(() => {
     if (deepLinkProcessed.current) return;
