@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -76,6 +76,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const [couponError, setCouponError] = useState("");
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState("");
+  const promoCouponApplied = useRef(false);
   
   // PIX inline state
   const [showPixModal, setShowPixModal] = useState(false);
@@ -261,6 +262,37 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       setValue('email', customerInfo.email);
     }
   }, [step, customerInfo, setValue]);
+
+  // Auto-apply promo coupon from URL param when entering checkout
+  useEffect(() => {
+    if (step === 'checkout' && !promoCouponApplied.current && !appliedCoupon) {
+      const promoCoupon = localStorage.getItem('promo_coupon');
+      if (promoCoupon) {
+        setCouponCode(promoCoupon);
+        promoCouponApplied.current = true;
+        // Auto-validate after a short delay to let email field populate
+        const timer = setTimeout(async () => {
+          const email = getValues("email");
+          if (!email) return;
+          try {
+            const { data: response } = await supabase.functions.invoke('validate-coupon', {
+              body: { code: promoCoupon, customer_email: email, subtotal: getTotal(), tenant_id: tenantId },
+            });
+            if (response?.valid) {
+              setCouponDiscount(response.discount_amount);
+              setCouponMessage(response.message);
+              setAppliedCoupon(promoCoupon);
+              hapticFeedback('success');
+              toast({ title: "🎉 Cupom promocional aplicado!", description: response.message });
+            }
+          } catch (e) {
+            console.error('Auto-apply promo coupon error:', e);
+          }
+        }, 800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [step, appliedCoupon]);
 
   const deliveryOption = watch("deliveryOption");
   const deliveryFee = deliveryOption === "delivery" ? tenantLocation.deliveryFee : 0;

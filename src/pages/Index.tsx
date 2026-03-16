@@ -41,6 +41,7 @@ const GuaranteeSection = lazy(() => import("@/components/GuaranteeSection"));
 const FAQSection = lazy(() => import("@/components/FAQSection"));
 
 import { SoftIdentificationModal } from "@/components/SoftIdentificationModal";
+import PromoCouponBanner from "@/components/PromoCouponBanner";
 
 const IndexContent = () => {
   const { brand, contact, location, seo } = useTenantConfig();
@@ -186,6 +187,9 @@ const IndexContent = () => {
       </Helmet>
 
       <div className="min-h-screen bg-background">
+        {/* Promo Coupon Banner */}
+        <PromoCouponBanner />
+        
         {/* Header */}
         <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
           <div className="container px-6 py-4">
