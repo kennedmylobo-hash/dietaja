@@ -41,6 +41,7 @@ const GuaranteeSection = lazy(() => import("@/components/GuaranteeSection"));
 const FAQSection = lazy(() => import("@/components/FAQSection"));
 
 import { SoftIdentificationModal } from "@/components/SoftIdentificationModal";
+import PromoCouponBanner from "@/components/PromoCouponBanner";
 
 const IndexContent = () => {
   const { brand, contact, location, seo } = useTenantConfig();
