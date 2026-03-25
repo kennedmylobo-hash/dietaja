@@ -364,7 +364,7 @@ const KitMensal = () => {
             >
               🍽️ Quero meu Kit Mensal
             </Button>
-            <p className="text-[11px] text-muted-foreground">Sem fidelidade. Cancele quando quiser.</p>
+            <p className="text-[11px] text-muted-foreground">Compra única · Sem assinatura</p>
           </div>
         </section>
 
