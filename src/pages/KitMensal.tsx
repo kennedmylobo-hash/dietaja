@@ -112,12 +112,13 @@ const KitMensal = () => {
 
   const total = KIT_PRICE;
 
-  const onSubmit = async (data: FormData) => {
-    if (isLoading) return;
+  const onSubmitCard = async (data: FormData) => {
+    if (isSubmittingRef.current || isLoading) return;
+    isSubmittingRef.current = true;
     setIsLoading(true);
+    setLoadingMethod("card");
 
     try {
-      // Build redirect URL for after payment
       const currentOrigin = window.location.origin;
       const redirectUrl = `${currentOrigin}/pagamento/sucesso`;
 
@@ -147,8 +148,6 @@ const KitMensal = () => {
       if (error) throw error;
 
       if (response?.success && response?.checkout_url) {
-        // Redirect to InfinitePay checkout (supports PIX + Card)
-        // Use window.open as fallback if location.href is blocked (e.g. in iframes)
         const opened = window.open(response.checkout_url, '_self');
         if (!opened) {
           window.open(response.checkout_url, '_blank');
@@ -165,6 +164,80 @@ const KitMensal = () => {
       });
     } finally {
       setIsLoading(false);
+      setLoadingMethod(null);
+      isSubmittingRef.current = false;
+    }
+  };
+
+  const onSubmitPix = async (data: FormData) => {
+    if (isSubmittingRef.current || isLoading) return;
+
+    const cpfDigits = data.cpf?.replace(/\D/g, '') || '';
+    if (!cpfDigits || cpfDigits.length !== 11) {
+      toast({ title: "CPF obrigatório", description: "Informe seu CPF para pagamento via PIX.", variant: "destructive" });
+      return;
+    }
+    if (!validateCPF(cpfDigits)) {
+      toast({ title: "CPF inválido", description: "Verifique os números do CPF.", variant: "destructive" });
+      return;
+    }
+
+    isSubmittingRef.current = true;
+    setIsLoading(true);
+    setLoadingMethod("pix");
+
+    try {
+      const { data: response, error } = await supabase.functions.invoke('create-asaas-pix', {
+        body: {
+          items: [{
+            name: `Kit Mensal Emagrecimento - ${KIT_TOTAL_MEALS} marmitas Fit`,
+            quantity: 1,
+            unitPrice: KIT_PRICE,
+            totalPrice: KIT_PRICE,
+            type: "kit-mensal",
+          }],
+          customer: {
+            name: sanitizeCustomerName(data.name),
+            email: data.email,
+            phone: data.phone,
+            cpf: cpfDigits,
+          },
+          delivery: {
+            option: 'delivery',
+            address: data.address,
+            fee: 0,
+          },
+          cashback: { use: false, amount: 0 },
+          utm_data: getUTMParams() || {},
+          tenant_id: tenantId,
+        },
+      });
+
+      if (error) throw error;
+
+      if (response?.success && response?.qr_code) {
+        setPixModalData({
+          qrCode: response.qr_code,
+          qrCodeBase64: response.qr_code_base64,
+          orderId: response.order_id,
+          total: response.total,
+          expirationDate: response.expiration_date,
+        });
+        toast({ title: "PIX gerado com sucesso!", description: "Escaneie o QR Code ou copie o código para pagar." });
+      } else {
+        throw new Error(response?.error || 'Erro ao gerar PIX');
+      }
+    } catch (error) {
+      console.error('PIX error:', error);
+      toast({
+        title: "Erro ao gerar PIX",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setLoadingMethod(null);
+      isSubmittingRef.current = false;
     }
   };
 
