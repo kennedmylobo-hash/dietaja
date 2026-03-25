@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, CheckCircle2, XCircle, CreditCard, QrCode, Clock, Flame, ShieldCheck, Star, Truck, Zap, ChefHat, Snowflake, ThumbsUp, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, CreditCard, QrCode, Clock, Flame, ShieldCheck, Star, Truck, Zap, ChefHat, Snowflake, AlertTriangle, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatPhone, getPhoneStatus } from "@/lib/phone";
@@ -16,6 +16,7 @@ import { EmailAutocomplete } from "@/components/EmailAutocomplete";
 import PixPaymentModal from "@/components/PixPaymentModal";
 import { useNavigate } from "react-router-dom";
 import { useTenantId } from "@/hooks/useTenantId";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { Helmet } from "react-helmet-async";
 
 import kitImg1 from "@/assets/kit-mensal-1.png";
@@ -91,6 +92,8 @@ const scrollToCheckout = () => document.getElementById('checkout')?.scrollIntoVi
 const KitMensal = () => {
   const navigate = useNavigate();
   const tenantId = useTenantId();
+  const { contact } = useTenantConfig();
+  const whatsappLink = `https://wa.me/55${contact.whatsapp}?text=${encodeURIComponent('Olá! Tenho uma dúvida sobre o Kit Mensal de Marmitas 🍽️')}`;
   const [isLoading, setIsLoading] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [pixModalData, setPixModalData] = useState<{
@@ -553,6 +556,17 @@ const KitMensal = () => {
             © {new Date().getFullYear()} Dieta Já — Todos os direitos reservados.
           </p>
         </section>
+
+        {/* WhatsApp floating button */}
+        <a
+          href={whatsappLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white px-4 py-3 rounded-full shadow-lg transition-colors"
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span className="text-sm font-semibold">Dúvidas?</span>
+        </a>
       </div>
 
       {/* PIX Modal */}
