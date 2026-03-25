@@ -176,31 +176,31 @@ const KitMensal = () => {
       </Helmet>
 
       <div className="min-h-screen bg-background">
-        {/* Hero */}
-        <section className="relative bg-gradient-to-br from-primary/15 via-background to-secondary/30 py-12 md:py-20 px-4">
-          <div className="max-w-4xl mx-auto text-center space-y-4">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium">
-              <Package className="w-4 h-4" />
+        {/* Hero - compact mobile */}
+        <section className="bg-gradient-to-b from-primary/10 to-background px-4 pt-8 pb-6">
+          <div className="max-w-lg mx-auto text-center space-y-3">
+            <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-semibold">
+              <Package className="w-3.5 h-3.5" />
               Oferta Exclusiva
             </div>
-            <h1 className="text-3xl md:text-5xl font-bold text-foreground leading-tight">
+            <h1 className="text-2xl font-bold text-foreground leading-tight">
               Kit Mensal <span className="text-primary">Emagrecimento</span>
             </h1>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              {KIT_TOTAL_MEALS} marmitas Fit com sabores variados para o mês inteiro. 
-              Uma refeição por dia, de segunda a sexta.
+            <p className="text-sm text-muted-foreground">
+              {KIT_TOTAL_MEALS} marmitas Fit · segunda a sexta · entrega grátis
             </p>
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <span className="text-4xl md:text-5xl font-bold text-primary">
-                R$ {KIT_PRICE},00
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-3xl font-bold text-primary">R$ {KIT_PRICE},00</span>
+              <span className="text-muted-foreground text-xs leading-tight">
+                R$ {(KIT_PRICE / KIT_TOTAL_MEALS).toFixed(2).replace('.', ',')}<br />por marmita
               </span>
-              <span className="text-muted-foreground text-sm">
-                apenas<br />R$ {(KIT_PRICE / KIT_TOTAL_MEALS).toFixed(2).replace('.', ',')} / marmita
-              </span>
+            </div>
+            <div className="inline-flex items-center gap-1 text-xs font-medium text-primary bg-primary/5 px-3 py-1 rounded-full">
+              🚚 Entrega grátis
             </div>
             <Button
               size="lg"
-              className="mt-4 text-lg px-8 py-6 rounded-full shadow-lg"
+              className="w-full text-base py-5 rounded-xl shadow-md mt-2"
               onClick={() => document.getElementById('checkout')?.scrollIntoView({ behavior: 'smooth' })}
             >
               Reservar Agora
@@ -208,36 +208,28 @@ const KitMensal = () => {
           </div>
         </section>
 
-        {/* Flavors */}
-        <section className="py-12 px-4">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-bold text-center text-foreground mb-2">
-              <Utensils className="w-6 h-6 inline-block mr-2 text-primary" />
+        {/* Flavors - compact */}
+        <section className="px-4 py-6">
+          <div className="max-w-lg mx-auto">
+            <h2 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+              <Utensils className="w-5 h-5 text-primary" />
               Cardápio do Kit
             </h2>
-            <p className="text-center text-muted-foreground mb-8">
-              {KIT_TOTAL_MEALS} marmitas com sabores selecionados
-            </p>
 
-            <div className="grid gap-3">
+            <div className="grid gap-2">
               {KIT_FLAVORS.map((flavor, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors"
-                >
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border">
+                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
                     {flavor.qty}x
-                  </div>
-                  <span className="text-foreground font-medium">{flavor.name}</span>
+                  </span>
+                  <span className="text-sm text-foreground">{flavor.name}</span>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 p-4 rounded-xl bg-secondary/50 border border-secondary text-center">
-              <p className="text-sm text-muted-foreground">
-                ✅ Todas as marmitas são da linha <strong>Fit</strong> — balanceadas para emagrecimento
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground text-center mt-3">
+              ✅ Linha <strong>Fit</strong> — balanceadas para emagrecimento
+            </p>
           </div>
         </section>
 
