@@ -88,20 +88,15 @@ const KitMensal = () => {
   const {
     register,
     handleSubmit,
-    watch,
     control,
-    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      paymentMethod: "pix",
-      cpf: "",
       address: "",
     },
   });
 
-  const paymentMethod = watch("paymentMethod");
   const total = KIT_PRICE;
 
   const onSubmit = async (data: FormData) => {
