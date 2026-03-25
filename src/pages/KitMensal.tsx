@@ -528,7 +528,7 @@ const KitMensal = () => {
               Preencha os dados abaixo e garanta suas {KIT_TOTAL_MEALS} marmitas fit com entrega grátis.
             </p>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 bg-card p-4 rounded-xl border border-border shadow-sm">
+            <form className="space-y-3 bg-card p-4 rounded-xl border border-border shadow-sm">
               <div>
                 <Label htmlFor="name" className="text-xs font-medium">Nome completo</Label>
                 <Input id="name" placeholder="Seu nome completo" {...register("name")} className="mt-1 h-11" />
@@ -575,8 +575,21 @@ const KitMensal = () => {
                 {errors.address && <p className="text-xs text-destructive mt-0.5">{errors.address.message}</p>}
               </div>
 
-              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-center">
-                <p className="text-xs text-muted-foreground">Ao clicar em pagar, você será direcionado para o checkout seguro da InfinitePay onde poderá escolher entre <strong className="text-foreground">PIX ou Cartão</strong>.</p>
+              {/* CPF for PIX */}
+              <div>
+                <Label htmlFor="cpf" className="text-xs font-medium">
+                  CPF <span className="text-muted-foreground">(obrigatório para PIX)</span>
+                </Label>
+                <Controller name="cpf" control={control} render={({ field }) => (
+                  <Input
+                    id="cpf"
+                    inputMode="numeric"
+                    placeholder="000.000.000-00"
+                    value={formatCPF(field.value || '')}
+                    onChange={(e) => field.onChange(formatCPF(e.target.value))}
+                    className="mt-1 h-11"
+                  />
+                )} />
               </div>
 
               {/* Total */}
@@ -595,9 +608,36 @@ const KitMensal = () => {
                 </div>
               </div>
 
-              <Button type="submit" size="lg" className="w-full text-base font-bold py-5 rounded-xl" disabled={isLoading}>
-                {isLoading ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processando...</> : "🍽️ Pagar e Garantir meu Kit"}
-              </Button>
+              {/* Two payment buttons */}
+              <div className="grid grid-cols-1 gap-2 pt-1">
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full text-base font-bold py-5 rounded-xl"
+                  onClick={handleSubmit(onSubmitPix)}
+                  disabled={isLoading}
+                >
+                  {loadingMethod === "pix" ? (
+                    <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Gerando PIX...</>
+                  ) : (
+                    <><Smartphone className="w-5 h-5 mr-2" /> Garantir meu Kit via PIX</>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full text-base font-bold py-5 rounded-xl border-primary/30 hover:bg-primary/5"
+                  onClick={handleSubmit(onSubmitCard)}
+                  disabled={isLoading}
+                >
+                  {loadingMethod === "card" ? (
+                    <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Redirecionando...</>
+                  ) : (
+                    <><CreditCard className="w-5 h-5 mr-2" /> Garantir meu Kit via Cartão</>
+                  )}
+                </Button>
+              </div>
 
               <div className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground pt-1">
                 <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> 🔒 Pagamento seguro</span>
@@ -605,6 +645,32 @@ const KitMensal = () => {
                 <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> 🚚 Entrega grátis</span>
               </div>
             </form>
+
+            {/* PIX Payment Modal */}
+            {pixModalData && (
+              <PixPaymentModal
+                open={!!pixModalData}
+                onOpenChange={(open) => { if (!open) setPixModalData(null); }}
+                qrCode={pixModalData.qrCode}
+                qrCodeBase64={pixModalData.qrCodeBase64}
+                total={pixModalData.total}
+                paymentId={pixModalData.orderId}
+                orderId={pixModalData.orderId}
+                expirationDate={pixModalData.expirationDate}
+                onPaymentSuccess={(orderNumber) => {
+                  setPixModalData(null);
+                  navigate(`/pagamento/sucesso?order_id=${pixModalData.orderId}&order_number=${orderNumber}`);
+                }}
+                onPaymentFailed={() => {
+                  setPixModalData(null);
+                  toast({
+                    title: "Pagamento não concluído",
+                    description: "O PIX expirou ou foi cancelado. Tente novamente.",
+                    variant: "destructive",
+                  });
+                }}
+              />
+            )}
           </div>
         </section>
 
