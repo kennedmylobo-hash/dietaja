@@ -16,6 +16,7 @@ import { EmailAutocomplete } from "@/components/EmailAutocomplete";
 import PixPaymentModal from "@/components/PixPaymentModal";
 import { useNavigate } from "react-router-dom";
 import { useTenantId } from "@/hooks/useTenantId";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { Helmet } from "react-helmet-async";
 
 import kitImg1 from "@/assets/kit-mensal-1.png";
