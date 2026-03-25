@@ -108,10 +108,10 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   });
 
   const emailValue = watch("email");
-  const [paymentMethod, setPaymentMethod] = useState<"pix" | "whatsapp" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"pix" | "card" | null>(null);
 
   // Sync paymentMethod state with form value for Zod validation
-  const handlePaymentMethodChange = (value: "pix" | "whatsapp") => {
+  const handlePaymentMethodChange = (value: "pix" | "card") => {
     setPaymentMethod(value);
     setValue("paymentMethod", value);
   };
