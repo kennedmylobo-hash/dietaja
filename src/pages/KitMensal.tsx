@@ -94,14 +94,6 @@ const KitMensal = () => {
   const whatsappLink = `https://wa.me/5577991001658?text=${encodeURIComponent('Olá! Tenho uma dúvida sobre o Kit Mensal de Marmitas 🍽️')}`;
   const [isLoading, setIsLoading] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [pixModalData, setPixModalData] = useState<{
-    qrCode: string;
-    qrCodeBase64: string;
-    orderId: string;
-    paymentId: string;
-    total: number;
-    expirationDate: string;
-  } | null>(null);
 
   const {
     register,
