@@ -301,27 +301,10 @@ const KitMensal = () => {
 
         {/* ===== SOCIAL PROOF STATS ===== */}
         <section className="px-4 py-6 bg-card border-y border-border">
-          <div className="max-w-lg mx-auto grid grid-cols-4 gap-2 text-center">
-            <div>
-              <p className="text-xs mb-0.5">⭐⭐⭐⭐⭐</p>
-              <p className="text-lg font-extrabold text-foreground">4,9</p>
-              <p className="text-[10px] text-muted-foreground">de avaliação</p>
-            </div>
-            <div>
-              <p className="text-xs mb-0.5">👥</p>
-              <p className="text-lg font-extrabold text-foreground">1.200+</p>
-              <p className="text-[10px] text-muted-foreground">clientes ativos</p>
-            </div>
-            <div>
-              <p className="text-xs mb-0.5">🍱</p>
-              <p className="text-lg font-extrabold text-foreground">48.000+</p>
-              <p className="text-[10px] text-muted-foreground">marmitas entregues</p>
-            </div>
-            <div>
-              <p className="text-xs mb-0.5">🎯</p>
-              <p className="text-lg font-extrabold text-foreground">96%</p>
-              <p className="text-[10px] text-muted-foreground">renovam o kit</p>
-            </div>
+          <div className="max-w-lg mx-auto text-center">
+            <p className="text-xs mb-0.5">⭐⭐⭐⭐⭐</p>
+            <p className="text-lg font-extrabold text-foreground">4,9 de avaliação</p>
+            <p className="text-[10px] text-muted-foreground">Nota média dos nossos clientes</p>
           </div>
         </section>
 
