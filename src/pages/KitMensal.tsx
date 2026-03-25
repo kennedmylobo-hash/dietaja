@@ -5,14 +5,12 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle2, XCircle, CreditCard, QrCode, Clock, Flame, ShieldCheck, Star, Truck, ChefHat, Snowflake, AlertTriangle, MessageCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock, Flame, ShieldCheck, Star, Truck, ChefHat, Snowflake, AlertTriangle, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatPhone, getPhoneStatus } from "@/lib/phone";
-import { validateCPF, formatCPF } from "@/lib/cpf";
 import { sanitizeCustomerName } from "@/lib/name-sanitizer";
 import { EmailAutocomplete } from "@/components/EmailAutocomplete";
-
 import { useNavigate } from "react-router-dom";
 import { useTenantId } from "@/hooks/useTenantId";
 import { Helmet } from "react-helmet-async";
