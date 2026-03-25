@@ -71,16 +71,14 @@ const KitMensal = () => {
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      deliveryOption: "pickup",
       paymentMethod: "pix",
       cpf: "",
+      address: "",
     },
   });
 
-  const deliveryOption = watch("deliveryOption");
   const paymentMethod = watch("paymentMethod");
-  const deliveryFee = deliveryOption === "delivery" ? 10 : 0;
-  const total = KIT_PRICE + deliveryFee;
+  const total = KIT_PRICE;
 
   const onSubmit = async (data: FormData) => {
     if (isLoading) return;
