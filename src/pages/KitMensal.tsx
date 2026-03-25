@@ -671,7 +671,7 @@ const KitMensal = () => {
 
               <div className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground pt-1">
                 <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> 🔒 Pagamento seguro</span>
-                <span className="flex items-center gap-1">✅ Sem fidelidade</span>
+                <span className="flex items-center gap-1">✅ Compra única</span>
                 <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> 🚚 Entrega grátis</span>
               </div>
             </form>
