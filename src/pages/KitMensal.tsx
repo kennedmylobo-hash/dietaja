@@ -85,7 +85,17 @@ const KitMensal = () => {
   const tenantId = useTenantId();
   const whatsappLink = `https://wa.me/5577991001658?text=${encodeURIComponent('Olá! Tenho uma dúvida sobre o Kit Mensal de Marmitas 🍽️')}`;
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMethod, setLoadingMethod] = useState<"pix" | "card" | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const isSubmittingRef = useRef(false);
+  
+  const [pixModalData, setPixModalData] = useState<{
+    qrCode: string;
+    qrCodeBase64: string;
+    orderId: string;
+    total: number;
+    expirationDate: string;
+  } | null>(null);
 
   const {
     register,
@@ -96,6 +106,7 @@ const KitMensal = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       address: "",
+      cpf: "",
     },
   });
 
