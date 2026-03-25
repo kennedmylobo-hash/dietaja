@@ -270,18 +270,8 @@ const KitMensal = () => {
               <strong className="text-foreground"> Sem tempo de cozinhar? A gente resolve — entrega grátis.</strong>
             </p>
 
-            {/* Image gallery */}
-            <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide">
-              {KIT_IMAGES.map((img, i) => (
-                <img
-                  key={i}
-                  src={img}
-                  alt={`Marmita fit ${i + 1}`}
-                  className="w-40 h-40 object-cover rounded-xl flex-shrink-0 snap-center shadow-sm border border-border"
-                  loading={i === 0 ? "eager" : "lazy"}
-                />
-              ))}
-            </div>
+            {/* Auto-scrolling image carousel */}
+            <AutoScrollGallery images={KIT_IMAGES} />
 
             <div className="flex items-center justify-center gap-3">
               <span className="text-3xl font-extrabold text-primary">R$ {KIT_PRICE},00</span>
