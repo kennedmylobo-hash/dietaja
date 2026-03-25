@@ -118,76 +118,41 @@ const KitMensal = () => {
     if (isLoading) return;
     setIsLoading(true);
 
-    const cpfDigits = data.cpf.replace(/\D/g, '');
-
     try {
-      if (data.paymentMethod === "pix") {
-        const { data: response, error } = await supabase.functions.invoke('create-asaas-pix', {
-          body: {
-            items: [{
-              name: `Kit Mensal Emagrecimento - ${KIT_TOTAL_MEALS} marmitas Fit`,
-              quantity: 1,
-              unitPrice: KIT_PRICE,
-              totalPrice: KIT_PRICE,
-              type: "kit-mensal",
-            }],
-            customer: {
-              name: sanitizeCustomerName(data.name),
-              email: data.email,
-              phone: data.phone,
-              cpf: cpfDigits,
-            },
-            delivery: {
-              option: 'delivery',
-              address: data.address,
-              fee: 0,
-            },
-            tenant_id: tenantId,
+      // Build redirect URL for after payment
+      const currentOrigin = window.location.origin;
+      const redirectUrl = `${currentOrigin}/pagamento/sucesso`;
+
+      const { data: response, error } = await supabase.functions.invoke('create-infinitepay-checkout', {
+        body: {
+          items: [{
+            name: `Kit Mensal Emagrecimento - ${KIT_TOTAL_MEALS} marmitas Fit`,
+            quantity: 1,
+            totalPrice: KIT_PRICE,
+            type: "kit-mensal",
+          }],
+          customer: {
+            name: sanitizeCustomerName(data.name),
+            email: data.email,
+            phone: data.phone,
           },
-        });
+          delivery: {
+            option: 'delivery',
+            address: data.address,
+            fee: 0,
+          },
+          redirect_url: redirectUrl,
+          tenant_id: tenantId,
+        },
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        if (response?.success && response?.qr_code) {
-          setPixModalData({
-            qrCode: response.qr_code,
-            qrCodeBase64: response.qr_code_base64,
-            orderId: response.order_id,
-            paymentId: response.payment_id,
-            total: response.total,
-            expirationDate: response.expiration_date,
-          });
-          toast({ title: "PIX gerado!", description: "Escaneie o QR Code ou copie o código para pagar." });
-        } else {
-          throw new Error(response?.error || 'Erro ao gerar PIX');
-        }
+      if (response?.success && response?.checkout_url) {
+        // Redirect to InfinitePay checkout (supports PIX + Card)
+        window.location.href = response.checkout_url;
       } else {
-        const { data: response, error } = await supabase.functions.invoke('create-asaas-credit', {
-          body: {
-            item_name: `Kit Mensal Emagrecimento - ${KIT_TOTAL_MEALS} marmitas Fit`,
-            amount: total,
-            customer: {
-              name: sanitizeCustomerName(data.name),
-              email: data.email,
-              phone: data.phone,
-              cpf: cpfDigits,
-            },
-            delivery: {
-              option: 'delivery',
-              address: data.address,
-              fee: 0,
-            },
-            tenant_id: tenantId,
-          },
-        });
-
-        if (error) throw error;
-
-        if (response?.success && response?.payment_link) {
-          window.location.href = response.payment_link;
-        } else {
-          throw new Error(response?.error || 'Erro ao gerar link de pagamento');
-        }
+        throw new Error(response?.error || 'Erro ao gerar link de pagamento');
       }
     } catch (error) {
       console.error('Payment error:', error);
