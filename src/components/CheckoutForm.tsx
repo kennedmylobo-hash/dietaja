@@ -552,7 +552,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
         <Label className="text-sm font-medium">Forma de pagamento</Label>
         <RadioGroup
           value={paymentMethod || ""}
-          onValueChange={(value) => handlePaymentMethodChange(value as "pix" | "whatsapp")}
+          onValueChange={(value) => handlePaymentMethodChange(value as "pix" | "card")}
           className="grid grid-cols-2 gap-3"
         >
           <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'pix' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
@@ -562,11 +562,11 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
               PIX
             </Label>
           </div>
-          <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'whatsapp' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
-            <RadioGroupItem value="whatsapp" id="payment-whatsapp" className="sr-only" />
-            <Label htmlFor="payment-whatsapp" className="flex items-center gap-2 cursor-pointer font-medium">
-              <MessageCircle className="w-5 h-5" />
-              WhatsApp
+          <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'card' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
+            <RadioGroupItem value="card" id="payment-card" className="sr-only" />
+            <Label htmlFor="payment-card" className="flex items-center gap-2 cursor-pointer font-medium">
+              <CreditCard className="w-5 h-5" />
+              Cartão
             </Label>
           </div>
         </RadioGroup>
