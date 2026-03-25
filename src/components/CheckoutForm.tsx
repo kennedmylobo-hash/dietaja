@@ -622,17 +622,23 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           </Button>
         )}
 
-        {paymentMethod === "whatsapp" && (
+        {paymentMethod === "card" && (
           <Button
             type="button"
             variant="cta"
             size="lg"
             className="w-full"
-            onClick={handleSubmit(handleWhatsApp)}
+            onClick={handleSubmit(handleCardPayment)}
             disabled={!hasItems || isLoading}
           >
-            <MessageCircle className="w-5 h-5" />
-            Finalizar via WhatsApp
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <CreditCard className="w-5 h-5" />
+                Pagar com Cartão
+              </>
+            )}
           </Button>
         )}
 
