@@ -65,6 +65,19 @@ const Licenca = () => {
         recommendation_type: "licenca",
       });
       if (error) throw error;
+      
+      // Notify admin via WhatsApp (fire-and-forget)
+      supabase.functions.invoke("notify-license-lead", {
+        body: {
+          nome: answers.nome.trim(),
+          whatsapp: answers.whatsapp,
+          interesse_faturar: answers.interesse_faturar,
+          comprometimento: answers.comprometimento,
+          expectativa: answers.expectativa,
+          investimento_ok: answers.investimento_ok,
+        },
+      }).catch(console.error);
+      
       setSubmitted(true);
     } catch {
       toast.error("Erro ao enviar. Tente novamente.");
