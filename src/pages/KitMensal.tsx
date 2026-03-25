@@ -255,6 +255,11 @@ const KitMensal = () => {
               </div>
             </div>
 
+            <div className="bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2 text-center">
+              <p className="text-xs font-bold text-destructive">⏳ Pedidos confirmados hoje entram na produção da próxima entrega</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Vagas limitadas por lote — garanta a sua agora</p>
+            </div>
+
             <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1 font-medium text-primary bg-primary/5 px-2.5 py-1 rounded-full">🚚 Entrega grátis</span>
               <span className="inline-flex items-center gap-1 font-medium text-primary bg-primary/5 px-2.5 py-1 rounded-full">🔒 Compra segura</span>
