@@ -30,12 +30,12 @@ const KIT_PRICE = 499;
 const KIT_TOTAL_MEALS = 20;
 
 const KIT_FLAVORS = [
-  { qty: 3, name: "Macarrão integral à bolonhesa" },
-  { qty: 3, name: "Almôndegas de carne ao molho sugo natural com espaguete integral" },
-  { qty: 3, name: "Estrogonofe de carne com arroz e mix de salada" },
-  { qty: 3, name: "Estrogonofe de frango com arroz e mix de salada" },
-  { qty: 4, name: "Escondidinho de carne com purê de aipim" },
-  { qty: 4, name: "Frango em cubos ao molho de maracujá com purê de batata doce e mix de legumes" },
+  { qty: 3, emoji: "🍝", name: "Macarrão integral à bolonhesa", tag: "Alto em proteína, carboidrato de baixo IG" },
+  { qty: 3, emoji: "🍳", name: "Almôndegas ao molho sugo com espaguete integral", tag: "Rico em ferro e proteína magra" },
+  { qty: 3, emoji: "🥩", name: "Estrogonofe de carne com arroz e mix de salada", tag: "Clássico reconfortante, versão fit" },
+  { qty: 3, emoji: "🍗", name: "Estrogonofe de frango com arroz e mix de salada", tag: "Proteína magra, baixo em gordura" },
+  { qty: 4, emoji: "🍖", name: "Escondidinho de carne com purê de aipim", tag: "Comfort food sem culpa, rico em fibras" },
+  { qty: 4, emoji: "🍋", name: "Frango ao molho de maracujá com purê de batata doce", tag: "Anti-inflamatório, sabor agridoce incrível" },
 ];
 
 const BENEFITS = [
