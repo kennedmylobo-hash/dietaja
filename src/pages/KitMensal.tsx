@@ -43,7 +43,7 @@ const BENEFITS = [
   { icon: Truck, title: "Entrega grátis toda semana", text: "Sem taxas escondidas. O preço que você vê é o que você paga — com entrega na sua porta, de segunda a sexta." },
   { icon: Clock, title: "Pronta em 4 minutos", text: "Micro-ondas ou banho-maria. Sua refeição fica pronta mais rápido do que qualquer app de delivery chegaria." },
   { icon: ChefHat, title: "Sabor que faz você querer repetir", text: "96% dos nossos clientes renovam o kit no mês seguinte. Não é por obrigação — é porque gostaram de verdade." },
-  { icon: ShieldCheck, title: "Sem fidelidade", text: "Você compra mês a mês, sem contratos ou taxas de cancelamento. Sem risco nenhum pra você." },
+  { icon: ShieldCheck, title: "Compra única e simples", text: "Você faz seu pedido uma vez, recebe suas 20 marmitas e aproveita. Sem complicação nenhuma." },
 ];
 
 const STEPS = [
