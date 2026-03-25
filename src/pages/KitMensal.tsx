@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -79,6 +79,75 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 const scrollToCheckout = () => document.getElementById('checkout')?.scrollIntoView({ behavior: 'smooth' });
+
+const AutoScrollGallery = ({ images }: { images: string[] }) => {
+  const galScrollRef = useRef<HTMLDivElement>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!galScrollRef.current) return;
+      const container = galScrollRef.current;
+      const nextIdx = (activeIdx + 1) % images.length;
+      const child = container.children[nextIdx] as HTMLElement;
+      if (child) {
+        container.scrollTo({ left: child.offsetLeft - container.offsetLeft - 16, behavior: 'smooth' });
+        setActiveIdx(nextIdx);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [activeIdx, images.length]);
+
+  const handleGalScroll = () => {
+    if (!galScrollRef.current) return;
+    const container = galScrollRef.current;
+    const scrollLeft = container.scrollLeft;
+    const children = Array.from(container.children) as HTMLElement[];
+    let closest = 0;
+    let minDist = Infinity;
+    children.forEach((child, i) => {
+      const dist = Math.abs(child.offsetLeft - container.offsetLeft - scrollLeft - 16);
+      if (dist < minDist) { minDist = dist; closest = i; }
+    });
+    setActiveIdx(closest);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div
+        ref={galScrollRef}
+        onScroll={handleGalScroll}
+        className="flex gap-2.5 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide"
+      >
+        {images.map((img, i) => (
+          <img
+            key={i}
+            src={img}
+            alt={`Marmita fit ${i + 1}`}
+            className="w-40 h-40 object-cover rounded-xl flex-shrink-0 snap-center shadow-sm border border-border"
+            loading={i === 0 ? "eager" : "lazy"}
+          />
+        ))}
+      </div>
+      <div className="flex justify-center gap-1.5">
+        {images.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => {
+              if (!galScrollRef.current) return;
+              const child = galScrollRef.current.children[i] as HTMLElement;
+              if (child) {
+                galScrollRef.current.scrollTo({ left: child.offsetLeft - galScrollRef.current.offsetLeft - 16, behavior: 'smooth' });
+                setActiveIdx(i);
+              }
+            }}
+            className={`w-2 h-2 rounded-full transition-colors ${i === activeIdx ? 'bg-primary' : 'bg-border'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const KitMensal = () => {
   const navigate = useNavigate();
@@ -270,18 +339,8 @@ const KitMensal = () => {
               <strong className="text-foreground"> Sem tempo de cozinhar? A gente resolve — entrega grátis.</strong>
             </p>
 
-            {/* Image gallery */}
-            <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide">
-              {KIT_IMAGES.map((img, i) => (
-                <img
-                  key={i}
-                  src={img}
-                  alt={`Marmita fit ${i + 1}`}
-                  className="w-40 h-40 object-cover rounded-xl flex-shrink-0 snap-center shadow-sm border border-border"
-                  loading={i === 0 ? "eager" : "lazy"}
-                />
-              ))}
-            </div>
+            {/* Auto-scrolling image carousel */}
+            <AutoScrollGallery images={KIT_IMAGES} />
 
             <div className="flex items-center justify-center gap-3">
               <span className="text-3xl font-extrabold text-primary">R$ {KIT_PRICE},00</span>
@@ -311,27 +370,10 @@ const KitMensal = () => {
 
         {/* ===== SOCIAL PROOF STATS ===== */}
         <section className="px-4 py-6 bg-card border-y border-border">
-          <div className="max-w-lg mx-auto grid grid-cols-4 gap-2 text-center">
-            <div>
-              <p className="text-xs mb-0.5">⭐⭐⭐⭐⭐</p>
-              <p className="text-lg font-extrabold text-foreground">4,9</p>
-              <p className="text-[10px] text-muted-foreground">de avaliação</p>
-            </div>
-            <div>
-              <p className="text-xs mb-0.5">👥</p>
-              <p className="text-lg font-extrabold text-foreground">1.200+</p>
-              <p className="text-[10px] text-muted-foreground">clientes ativos</p>
-            </div>
-            <div>
-              <p className="text-xs mb-0.5">🍱</p>
-              <p className="text-lg font-extrabold text-foreground">48.000+</p>
-              <p className="text-[10px] text-muted-foreground">marmitas entregues</p>
-            </div>
-            <div>
-              <p className="text-xs mb-0.5">🎯</p>
-              <p className="text-lg font-extrabold text-foreground">96%</p>
-              <p className="text-[10px] text-muted-foreground">renovam o kit</p>
-            </div>
+          <div className="max-w-lg mx-auto text-center">
+            <p className="text-xs mb-0.5">⭐⭐⭐⭐⭐</p>
+            <p className="text-lg font-extrabold text-foreground">4,9 de avaliação</p>
+            <p className="text-[10px] text-muted-foreground">Nota média dos nossos clientes</p>
           </div>
         </section>
 
