@@ -504,18 +504,6 @@ const KitMensal = () => {
           </div>
         </section>
 
-        {/* ===== GARANTIA ===== */}
-        <section className="px-4 py-6">
-          <div className="max-w-lg mx-auto">
-            <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 text-center">
-              <p className="text-sm font-bold text-foreground mb-1">✓ Satisfação Garantida</p>
-              <p className="text-lg font-extrabold text-primary mb-2">Você não corre nenhum risco</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Se qualquer marmita apresentar problema de qualidade — embalagem danificada, produto fora do padrão — entre em contato e fazemos a reposição imediata. Simples assim. Nossa reputação foi construída com 96% de renovações mensais, e queremos manter isso. <strong className="text-foreground">Você pode confiar.</strong>
-              </p>
-            </div>
-          </div>
-        </section>
 
         {/* ===== CHECKOUT ===== */}
         <section id="checkout" className="px-4 py-8 bg-muted/30">
