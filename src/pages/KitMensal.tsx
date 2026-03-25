@@ -64,7 +64,7 @@ const FAQ_ITEMS = [
 
 const TESTIMONIALS = [
   { name: "Carla M.", text: "Perdi 4kg no primeiro mês sem sofrer. A comida é gostosa demais e eu não preciso pensar em nada.", stars: 5 },
-  { name: "Rafael S.", text: "Eu gastava R$40 por dia no iFood. Agora como melhor por R$25 e ainda emagreci.", stars: 5 },
+  { name: "Rafael S.", text: "Por ser congelada, fiquei com minhas dúvidas. Mas quando provei, vi que é tudo fresquinho e bem temperado. Salvou meu dia a dia, não fico sem!", stars: 5 },
   { name: "Juliana P.", text: "Meu almoço tá resolvido de segunda a sexta. Aquece em 3 minutos e pronto. Vida mudou!", stars: 5 },
 ];
 
