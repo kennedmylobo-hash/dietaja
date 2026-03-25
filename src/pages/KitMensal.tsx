@@ -18,6 +18,13 @@ import { useNavigate } from "react-router-dom";
 import { useTenantId } from "@/hooks/useTenantId";
 import { Helmet } from "react-helmet-async";
 
+import kitImg1 from "@/assets/kit-mensal-1.png";
+import kitImg2 from "@/assets/kit-mensal-2.png";
+import kitImg3 from "@/assets/kit-mensal-3.png";
+import kitImg4 from "@/assets/kit-mensal-4.png";
+
+const KIT_IMAGES = [kitImg1, kitImg2, kitImg3, kitImg4];
+
 const KIT_PRICE = 499;
 const KIT_TOTAL_MEALS = 20;
 
@@ -189,6 +196,20 @@ const KitMensal = () => {
             <p className="text-sm text-muted-foreground">
               {KIT_TOTAL_MEALS} marmitas Fit · segunda a sexta · entrega grátis
             </p>
+
+            {/* Image gallery - horizontal scroll */}
+            <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide">
+              {KIT_IMAGES.map((img, i) => (
+                <img
+                  key={i}
+                  src={img}
+                  alt={`Marmita fit ${i + 1}`}
+                  className="w-40 h-40 object-cover rounded-xl flex-shrink-0 snap-center shadow-sm border border-border"
+                  loading={i === 0 ? "eager" : "lazy"}
+                />
+              ))}
+            </div>
+
             <div className="flex items-center justify-center gap-2">
               <span className="text-3xl font-bold text-primary">R$ {KIT_PRICE},00</span>
               <span className="text-muted-foreground text-xs leading-tight">
