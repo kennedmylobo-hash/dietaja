@@ -36,30 +36,13 @@ const formSchema = z.object({
   phone: z.string().min(10, "Telefone inválido").max(15),
   cpf: z.string().min(1, "CPF é obrigatório"),
   paymentMethod: z.enum(["pix", "credit_card"]),
-  deliveryOption: z.enum(["pickup", "delivery"]),
-  address: z.string().optional(),
-}).refine((data) => {
-  if (data.deliveryOption === "delivery" && (!data.address || data.address.length < 10)) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Endereço completo é obrigatório para entrega",
-  path: ["address"],
+  address: z.string().min(10, "Endereço completo é obrigatório"),
 }).superRefine((data, ctx) => {
   const cpfDigits = data.cpf?.replace(/\D/g, '') || '';
   if (!cpfDigits || cpfDigits.length !== 11) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "CPF deve ter 11 dígitos",
-      path: ["cpf"],
-    });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CPF deve ter 11 dígitos", path: ["cpf"] });
   } else if (!validateCPF(cpfDigits)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "CPF inválido. Verifique os números.",
-      path: ["cpf"],
-    });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CPF inválido.", path: ["cpf"] });
   }
 });
 
