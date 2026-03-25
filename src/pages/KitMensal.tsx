@@ -72,6 +72,7 @@ const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
+  cpf: z.string().optional(),
   address: z.string().min(10, "Endereço completo é obrigatório"),
 });
 
