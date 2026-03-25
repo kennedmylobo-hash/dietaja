@@ -140,9 +140,9 @@ const KitMensal = () => {
               cpf: cpfDigits,
             },
             delivery: {
-              option: data.deliveryOption,
+              option: 'delivery',
               address: data.address,
-              fee: deliveryFee,
+              fee: 0,
             },
             tenant_id: tenantId,
           },
