@@ -33,6 +33,7 @@ const ClientFeedback = lazy(() => import("./pages/ClientFeedback"));
 const ClubeDietaJa = lazy(() => import("./pages/ClubeDietaJa"));
 const SuperAdmin = lazy(() => import("./pages/SuperAdmin"));
 const MonteSeuCardapio = lazy(() => import("./pages/MonteSeuCardapio"));
+const Licenca = lazy(() => import("./pages/Licenca"));
 
 // Simple loading fallback
 const PageLoader = () => (
