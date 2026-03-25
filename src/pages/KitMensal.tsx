@@ -556,6 +556,17 @@ const KitMensal = () => {
             © {new Date().getFullYear()} Dieta Já — Todos os direitos reservados.
           </p>
         </section>
+
+        {/* WhatsApp floating button */}
+        <a
+          href={whatsappLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white px-4 py-3 rounded-full shadow-lg transition-colors"
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span className="text-sm font-semibold">Dúvidas?</span>
+        </a>
       </div>
 
       {/* PIX Modal */}
