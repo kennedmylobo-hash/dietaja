@@ -71,16 +71,7 @@ const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
-  cpf: z.string().min(1, "CPF é obrigatório"),
-  paymentMethod: z.enum(["pix", "credit_card"]),
   address: z.string().min(10, "Endereço completo é obrigatório"),
-}).superRefine((data, ctx) => {
-  const cpfDigits = data.cpf?.replace(/\D/g, '') || '';
-  if (!cpfDigits || cpfDigits.length !== 11) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CPF deve ter 11 dígitos", path: ["cpf"] });
-  } else if (!validateCPF(cpfDigits)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CPF inválido.", path: ["cpf"] });
-  }
 });
 
 type FormData = z.infer<typeof formSchema>;
