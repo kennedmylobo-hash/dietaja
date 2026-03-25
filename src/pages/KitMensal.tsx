@@ -43,7 +43,7 @@ const BENEFITS = [
   { icon: Truck, title: "Entrega grátis toda semana", text: "Sem taxas escondidas. O preço que você vê é o que você paga — com entrega na sua porta, de segunda a sexta." },
   { icon: Clock, title: "Pronta em 4 minutos", text: "Micro-ondas ou banho-maria. Sua refeição fica pronta mais rápido do que qualquer app de delivery chegaria." },
   { icon: ChefHat, title: "Sabor que faz você querer repetir", text: "96% dos nossos clientes renovam o kit no mês seguinte. Não é por obrigação — é porque gostaram de verdade." },
-  { icon: ShieldCheck, title: "Sem fidelidade", text: "Você compra mês a mês, sem contratos ou taxas de cancelamento. Sem risco nenhum pra você." },
+  { icon: ShieldCheck, title: "Compra única e simples", text: "Você faz seu pedido uma vez, recebe suas 20 marmitas e aproveita. Sem complicação nenhuma." },
 ];
 
 const STEPS = [
@@ -57,7 +57,7 @@ const FAQ_ITEMS = [
   { q: "Quais formas de pagamento vocês aceitam?", a: "Aceitamos PIX (confirmação instantânea) e cartão de crédito. O pagamento é processado de forma segura e você recebe confirmação imediata para agendarmos a entrega." },
   { q: "Como funciona a entrega?", a: "Entregamos de segunda a sexta, congelado e pronto pra guardar no freezer. A entrega é grátis — sem taxas escondidas." },
   { q: "E se eu não gostar?", a: "Se qualquer marmita apresentar problema de qualidade — embalagem danificada, produto fora do padrão — entre em contato e fazemos a reposição imediata. Simples assim." },
-  { q: "Preciso me comprometer por meses?", a: "Não! Sem fidelidade. Você compra mês a mês, sem contratos ou taxas de cancelamento. Cancele quando quiser." },
+  { q: "É uma compra única?", a: "Sim! Você faz o pedido, recebe suas 20 marmitas e pronto. Sem assinatura, sem compromisso." },
   { q: "Funciona pra emagrecer?", a: "Sim! Todas são da linha Fit, balanceadas nutricionalmente. Combinadas com bons hábitos, os resultados aparecem já nas primeiras semanas." },
   { q: "Quanto tempo dura no freezer?", a: "Nossas marmitas duram até 3 meses congeladas, mantendo sabor e nutrientes. Basta aquecer em 4 minutos no micro-ondas." },
 ];
@@ -364,7 +364,7 @@ const KitMensal = () => {
             >
               🍽️ Quero meu Kit Mensal
             </Button>
-            <p className="text-[11px] text-muted-foreground">Sem fidelidade. Cancele quando quiser.</p>
+            <p className="text-[11px] text-muted-foreground">Compra única · Sem assinatura</p>
           </div>
         </section>
 
@@ -671,7 +671,7 @@ const KitMensal = () => {
 
               <div className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground pt-1">
                 <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> 🔒 Pagamento seguro</span>
-                <span className="flex items-center gap-1">✅ Sem fidelidade</span>
+                <span className="flex items-center gap-1">✅ Compra única</span>
                 <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> 🚚 Entrega grátis</span>
               </div>
             </form>
