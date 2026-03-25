@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle2, XCircle, Clock, Flame, ShieldCheck, Star, Truck, ChefHat, Snowflake, AlertTriangle, MessageCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock, Flame, ShieldCheck, Star, Truck, ChefHat, Snowflake, AlertTriangle, MessageCircle, Smartphone, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatPhone, getPhoneStatus } from "@/lib/phone";
 import { sanitizeCustomerName } from "@/lib/name-sanitizer";
+import { validateCPF, formatCPF } from "@/lib/cpf";
+import { getUTMParams } from "@/lib/utm";
 import { EmailAutocomplete } from "@/components/EmailAutocomplete";
+import PixPaymentModal from "@/components/PixPaymentModal";
 import { useNavigate } from "react-router-dom";
 import { useTenantId } from "@/hooks/useTenantId";
 import { Helmet } from "react-helmet-async";
@@ -69,6 +72,7 @@ const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
+  cpf: z.string().optional(),
   address: z.string().min(10, "Endereço completo é obrigatório"),
 });
 
@@ -81,7 +85,17 @@ const KitMensal = () => {
   const tenantId = useTenantId();
   const whatsappLink = `https://wa.me/5577991001658?text=${encodeURIComponent('Olá! Tenho uma dúvida sobre o Kit Mensal de Marmitas 🍽️')}`;
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMethod, setLoadingMethod] = useState<"pix" | "card" | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const isSubmittingRef = useRef(false);
+  
+  const [pixModalData, setPixModalData] = useState<{
+    qrCode: string;
+    qrCodeBase64: string;
+    orderId: string;
+    total: number;
+    expirationDate: string;
+  } | null>(null);
 
   const {
     register,
@@ -92,17 +106,19 @@ const KitMensal = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       address: "",
+      cpf: "",
     },
   });
 
   const total = KIT_PRICE;
 
-  const onSubmit = async (data: FormData) => {
-    if (isLoading) return;
+  const onSubmitCard = async (data: FormData) => {
+    if (isSubmittingRef.current || isLoading) return;
+    isSubmittingRef.current = true;
     setIsLoading(true);
+    setLoadingMethod("card");
 
     try {
-      // Build redirect URL for after payment
       const currentOrigin = window.location.origin;
       const redirectUrl = `${currentOrigin}/pagamento/sucesso`;
 
@@ -132,8 +148,6 @@ const KitMensal = () => {
       if (error) throw error;
 
       if (response?.success && response?.checkout_url) {
-        // Redirect to InfinitePay checkout (supports PIX + Card)
-        // Use window.open as fallback if location.href is blocked (e.g. in iframes)
         const opened = window.open(response.checkout_url, '_self');
         if (!opened) {
           window.open(response.checkout_url, '_blank');
@@ -150,6 +164,80 @@ const KitMensal = () => {
       });
     } finally {
       setIsLoading(false);
+      setLoadingMethod(null);
+      isSubmittingRef.current = false;
+    }
+  };
+
+  const onSubmitPix = async (data: FormData) => {
+    if (isSubmittingRef.current || isLoading) return;
+
+    const cpfDigits = data.cpf?.replace(/\D/g, '') || '';
+    if (!cpfDigits || cpfDigits.length !== 11) {
+      toast({ title: "CPF obrigatório", description: "Informe seu CPF para pagamento via PIX.", variant: "destructive" });
+      return;
+    }
+    if (!validateCPF(cpfDigits)) {
+      toast({ title: "CPF inválido", description: "Verifique os números do CPF.", variant: "destructive" });
+      return;
+    }
+
+    isSubmittingRef.current = true;
+    setIsLoading(true);
+    setLoadingMethod("pix");
+
+    try {
+      const { data: response, error } = await supabase.functions.invoke('create-asaas-pix', {
+        body: {
+          items: [{
+            name: `Kit Mensal Emagrecimento - ${KIT_TOTAL_MEALS} marmitas Fit`,
+            quantity: 1,
+            unitPrice: KIT_PRICE,
+            totalPrice: KIT_PRICE,
+            type: "kit-mensal",
+          }],
+          customer: {
+            name: sanitizeCustomerName(data.name),
+            email: data.email,
+            phone: data.phone,
+            cpf: cpfDigits,
+          },
+          delivery: {
+            option: 'delivery',
+            address: data.address,
+            fee: 0,
+          },
+          cashback: { use: false, amount: 0 },
+          utm_data: getUTMParams() || {},
+          tenant_id: tenantId,
+        },
+      });
+
+      if (error) throw error;
+
+      if (response?.success && response?.qr_code) {
+        setPixModalData({
+          qrCode: response.qr_code,
+          qrCodeBase64: response.qr_code_base64,
+          orderId: response.order_id,
+          total: response.total,
+          expirationDate: response.expiration_date,
+        });
+        toast({ title: "PIX gerado com sucesso!", description: "Escaneie o QR Code ou copie o código para pagar." });
+      } else {
+        throw new Error(response?.error || 'Erro ao gerar PIX');
+      }
+    } catch (error) {
+      console.error('PIX error:', error);
+      toast({
+        title: "Erro ao gerar PIX",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setLoadingMethod(null);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -440,7 +528,7 @@ const KitMensal = () => {
               Preencha os dados abaixo e garanta suas {KIT_TOTAL_MEALS} marmitas fit com entrega grátis.
             </p>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 bg-card p-4 rounded-xl border border-border shadow-sm">
+            <form className="space-y-3 bg-card p-4 rounded-xl border border-border shadow-sm">
               <div>
                 <Label htmlFor="name" className="text-xs font-medium">Nome completo</Label>
                 <Input id="name" placeholder="Seu nome completo" {...register("name")} className="mt-1 h-11" />
@@ -487,8 +575,21 @@ const KitMensal = () => {
                 {errors.address && <p className="text-xs text-destructive mt-0.5">{errors.address.message}</p>}
               </div>
 
-              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-center">
-                <p className="text-xs text-muted-foreground">Ao clicar em pagar, você será direcionado para o checkout seguro da InfinitePay onde poderá escolher entre <strong className="text-foreground">PIX ou Cartão</strong>.</p>
+              {/* CPF for PIX */}
+              <div>
+                <Label htmlFor="cpf" className="text-xs font-medium">
+                  CPF <span className="text-muted-foreground">(obrigatório para PIX)</span>
+                </Label>
+                <Controller name="cpf" control={control} render={({ field }) => (
+                  <Input
+                    id="cpf"
+                    inputMode="numeric"
+                    placeholder="000.000.000-00"
+                    value={formatCPF(field.value || '')}
+                    onChange={(e) => field.onChange(formatCPF(e.target.value))}
+                    className="mt-1 h-11"
+                  />
+                )} />
               </div>
 
               {/* Total */}
@@ -507,9 +608,36 @@ const KitMensal = () => {
                 </div>
               </div>
 
-              <Button type="submit" size="lg" className="w-full text-base font-bold py-5 rounded-xl" disabled={isLoading}>
-                {isLoading ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processando...</> : "🍽️ Pagar e Garantir meu Kit"}
-              </Button>
+              {/* Two payment buttons */}
+              <div className="grid grid-cols-1 gap-2 pt-1">
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full text-base font-bold py-5 rounded-xl"
+                  onClick={handleSubmit(onSubmitPix)}
+                  disabled={isLoading}
+                >
+                  {loadingMethod === "pix" ? (
+                    <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Gerando PIX...</>
+                  ) : (
+                    <><Smartphone className="w-5 h-5 mr-2" /> Garantir meu Kit via PIX</>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full text-base font-bold py-5 rounded-xl border-primary/30 hover:bg-primary/5"
+                  onClick={handleSubmit(onSubmitCard)}
+                  disabled={isLoading}
+                >
+                  {loadingMethod === "card" ? (
+                    <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Redirecionando...</>
+                  ) : (
+                    <><CreditCard className="w-5 h-5 mr-2" /> Garantir meu Kit via Cartão</>
+                  )}
+                </Button>
+              </div>
 
               <div className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground pt-1">
                 <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> 🔒 Pagamento seguro</span>
@@ -517,6 +645,32 @@ const KitMensal = () => {
                 <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> 🚚 Entrega grátis</span>
               </div>
             </form>
+
+            {/* PIX Payment Modal */}
+            {pixModalData && (
+              <PixPaymentModal
+                open={!!pixModalData}
+                onOpenChange={(open) => { if (!open) setPixModalData(null); }}
+                qrCode={pixModalData.qrCode}
+                qrCodeBase64={pixModalData.qrCodeBase64}
+                total={pixModalData.total}
+                paymentId={pixModalData.orderId}
+                orderId={pixModalData.orderId}
+                expirationDate={pixModalData.expirationDate}
+                onPaymentSuccess={(orderNumber) => {
+                  setPixModalData(null);
+                  navigate(`/pagamento/sucesso?order_id=${pixModalData.orderId}&order_number=${orderNumber}`);
+                }}
+                onPaymentFailed={() => {
+                  setPixModalData(null);
+                  toast({
+                    title: "Pagamento não concluído",
+                    description: "O PIX expirou ou foi cancelado. Tente novamente.",
+                    variant: "destructive",
+                  });
+                }}
+              />
+            )}
           </div>
         </section>
 
