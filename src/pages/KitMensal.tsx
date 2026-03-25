@@ -55,12 +55,12 @@ const STEPS = [
 ];
 
 const FAQ_ITEMS = [
-  { q: "É gostoso mesmo?", a: "Sim! São receitas caseiras com tempero natural. Nossos clientes dizem que nem parece comida de dieta." },
-  { q: "Vou enjoar de comer sempre a mesma coisa?", a: "Não! São 6 sabores diferentes que se revezam durante a semana. Variedade é garantida." },
-  { q: "A porção é grande o suficiente?", a: "Sim! Nossas marmitas têm em média 350-400g, uma refeição completa com proteína, carboidrato e salada." },
+  { q: "Quais formas de pagamento vocês aceitam?", a: "Aceitamos PIX (confirmação instantânea) e cartão de crédito. O pagamento é processado de forma segura e você recebe confirmação imediata para agendarmos a entrega." },
+  { q: "Como funciona a entrega?", a: "Entregamos de segunda a sexta, congelado e pronto pra guardar no freezer. A entrega é grátis — sem taxas escondidas." },
+  { q: "E se eu não gostar?", a: "Se qualquer marmita apresentar problema de qualidade — embalagem danificada, produto fora do padrão — entre em contato e fazemos a reposição imediata. Simples assim." },
+  { q: "Preciso me comprometer por meses?", a: "Não! Sem fidelidade. Você compra mês a mês, sem contratos ou taxas de cancelamento. Cancele quando quiser." },
   { q: "Funciona pra emagrecer?", a: "Sim! Todas são da linha Fit, balanceadas nutricionalmente. Combinadas com bons hábitos, os resultados aparecem já nas primeiras semanas." },
-  { q: "Preciso cozinhar alguma coisa?", a: "Nada! É só tirar do freezer, aquecer no micro-ondas por 3 minutos e comer. Zero preparo." },
-  { q: "Como funciona a entrega?", a: "Entregamos na sua casa, grátis. As marmitas chegam congeladas e prontas para armazenar no freezer." },
+  { q: "Quanto tempo dura no freezer?", a: "Nossas marmitas duram até 3 meses congeladas, mantendo sabor e nutrientes. Basta aquecer em 4 minutos no micro-ondas." },
 ];
 
 const TESTIMONIALS = [
