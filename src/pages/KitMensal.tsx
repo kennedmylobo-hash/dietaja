@@ -480,48 +480,13 @@ const KitMensal = () => {
               </div>
 
               <div>
-                <Label htmlFor="cpf" className="text-xs font-medium">CPF</Label>
-                <Controller name="cpf" control={control} render={({ field }) => (
-                  <Input id="cpf" type="tel" inputMode="numeric" placeholder="000.000.000-00"
-                    value={formatCPF(field.value || '')}
-                    onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                    className="mt-1 h-11"
-                  />
-                )} />
-                {errors.cpf && <p className="text-xs text-destructive mt-0.5">{errors.cpf.message}</p>}
-              </div>
-
-              <div>
                 <Label htmlFor="address" className="text-xs font-medium">Endereço de entrega completo</Label>
                 <Input id="address" placeholder="Rua, número, bairro, cidade" {...register("address")} className="mt-1 h-11" />
                 {errors.address && <p className="text-xs text-destructive mt-0.5">{errors.address.message}</p>}
               </div>
 
-              {/* Payment method */}
-              <div className="pt-1">
-                <Label className="text-xs font-medium">Forma de pagamento</Label>
-                <div className="mt-1.5 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setValue("paymentMethod", "pix")}
-                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'pix' ? 'border-primary bg-primary/5' : 'border-border'}`}
-                  >
-                    <span className="flex items-center gap-1.5 text-sm font-medium">
-                      <QrCode className="w-4 h-4 text-primary" /> 🟩 PIX
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">Confirmação imediata</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setValue("paymentMethod", "credit_card")}
-                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'credit_card' ? 'border-primary bg-primary/5' : 'border-border'}`}
-                  >
-                    <span className="flex items-center gap-1.5 text-sm font-medium">
-                      <CreditCard className="w-4 h-4 text-primary" /> 💳 Cartão
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">Crédito ou débito</span>
-                  </button>
-                </div>
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-center">
+                <p className="text-xs text-muted-foreground">Ao clicar em pagar, você será direcionado para o checkout seguro da InfinitePay onde poderá escolher entre <strong className="text-foreground">PIX ou Cartão</strong>.</p>
               </div>
 
               {/* Total */}
