@@ -133,7 +133,11 @@ const KitMensal = () => {
 
       if (response?.success && response?.checkout_url) {
         // Redirect to InfinitePay checkout (supports PIX + Card)
-        window.location.href = response.checkout_url;
+        // Use window.open as fallback if location.href is blocked (e.g. in iframes)
+        const opened = window.open(response.checkout_url, '_self');
+        if (!opened) {
+          window.open(response.checkout_url, '_blank');
+        }
       } else {
         throw new Error(response?.error || 'Erro ao gerar link de pagamento');
       }
