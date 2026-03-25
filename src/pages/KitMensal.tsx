@@ -92,6 +92,8 @@ const scrollToCheckout = () => document.getElementById('checkout')?.scrollIntoVi
 const KitMensal = () => {
   const navigate = useNavigate();
   const tenantId = useTenantId();
+  const { contact } = useTenantConfig();
+  const whatsappLink = `https://wa.me/55${contact.whatsapp}?text=${encodeURIComponent('Olá! Tenho uma dúvida sobre o Kit Mensal de Marmitas 🍽️')}`;
   const [isLoading, setIsLoading] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [pixModalData, setPixModalData] = useState<{
