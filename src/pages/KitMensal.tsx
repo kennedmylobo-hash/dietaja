@@ -314,10 +314,10 @@ const KitMensal = () => {
 
             <div className="grid gap-3">
               {[
-                { emoji: "😩", title: ""Não tenho tempo de cozinhar todo dia"", desc: "Você chega cansado, o freezer tá vazio, e o delivery de fast food parece a única saída." },
-                { emoji: "🍔", title: ""Acabo comendo besteira por falta de opção"", desc: "Lanches, frituras e fast food viram rotina não por querer, mas por necessidade." },
-                { emoji: "💸", title: ""Comida saudável é cara e trabalhosa"", desc: "Preparar refeições equilibradas exige tempo, conhecimento e ingredientes específicos." },
-                { emoji: "📉", title: ""Começo a dieta mas não consigo manter"", desc: "Sem estrutura e praticidade, qualquer dieta perde para a correria do dia a dia." },
+                { emoji: "😩", title: "\u201CNão tenho tempo de cozinhar todo dia\u201D", desc: "Você chega cansado, o freezer tá vazio, e o delivery de fast food parece a única saída." },
+                { emoji: "🍔", title: "\u201CAcabo comendo besteira por falta de opção\u201D", desc: "Lanches, frituras e fast food viram rotina não por querer, mas por necessidade." },
+                { emoji: "💸", title: "\u201CComida saudável é cara e trabalhosa\u201D", desc: "Preparar refeições equilibradas exige tempo, conhecimento e ingredientes específicos." },
+                { emoji: "📉", title: "\u201CComeço a dieta mas não consigo manter\u201D", desc: "Sem estrutura e praticidade, qualquer dieta perde para a correria do dia a dia." },
               ].map((pain, i) => (
                 <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-card border border-border">
                   <span className="text-2xl flex-shrink-0">{pain.emoji}</span>
