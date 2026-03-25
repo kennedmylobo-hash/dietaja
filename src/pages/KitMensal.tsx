@@ -36,30 +36,13 @@ const formSchema = z.object({
   phone: z.string().min(10, "Telefone inválido").max(15),
   cpf: z.string().min(1, "CPF é obrigatório"),
   paymentMethod: z.enum(["pix", "credit_card"]),
-  deliveryOption: z.enum(["pickup", "delivery"]),
-  address: z.string().optional(),
-}).refine((data) => {
-  if (data.deliveryOption === "delivery" && (!data.address || data.address.length < 10)) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Endereço completo é obrigatório para entrega",
-  path: ["address"],
+  address: z.string().min(10, "Endereço completo é obrigatório"),
 }).superRefine((data, ctx) => {
   const cpfDigits = data.cpf?.replace(/\D/g, '') || '';
   if (!cpfDigits || cpfDigits.length !== 11) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "CPF deve ter 11 dígitos",
-      path: ["cpf"],
-    });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CPF deve ter 11 dígitos", path: ["cpf"] });
   } else if (!validateCPF(cpfDigits)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "CPF inválido. Verifique os números.",
-      path: ["cpf"],
-    });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CPF inválido.", path: ["cpf"] });
   }
 });
 
@@ -88,16 +71,14 @@ const KitMensal = () => {
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      deliveryOption: "pickup",
       paymentMethod: "pix",
       cpf: "",
+      address: "",
     },
   });
 
-  const deliveryOption = watch("deliveryOption");
   const paymentMethod = watch("paymentMethod");
-  const deliveryFee = deliveryOption === "delivery" ? 10 : 0;
-  const total = KIT_PRICE + deliveryFee;
+  const total = KIT_PRICE;
 
   const onSubmit = async (data: FormData) => {
     if (isLoading) return;
@@ -123,9 +104,9 @@ const KitMensal = () => {
               cpf: cpfDigits,
             },
             delivery: {
-              option: data.deliveryOption,
+              option: 'delivery',
               address: data.address,
-              fee: deliveryFee,
+              fee: 0,
             },
             tenant_id: tenantId,
           },
@@ -159,9 +140,9 @@ const KitMensal = () => {
               cpf: cpfDigits,
             },
             delivery: {
-              option: data.deliveryOption,
+              option: 'delivery',
               address: data.address,
-              fee: deliveryFee,
+              fee: 0,
             },
             tenant_id: tenantId,
           },
@@ -195,31 +176,31 @@ const KitMensal = () => {
       </Helmet>
 
       <div className="min-h-screen bg-background">
-        {/* Hero */}
-        <section className="relative bg-gradient-to-br from-primary/15 via-background to-secondary/30 py-12 md:py-20 px-4">
-          <div className="max-w-4xl mx-auto text-center space-y-4">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium">
-              <Package className="w-4 h-4" />
+        {/* Hero - compact mobile */}
+        <section className="bg-gradient-to-b from-primary/10 to-background px-4 pt-8 pb-6">
+          <div className="max-w-lg mx-auto text-center space-y-3">
+            <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-semibold">
+              <Package className="w-3.5 h-3.5" />
               Oferta Exclusiva
             </div>
-            <h1 className="text-3xl md:text-5xl font-bold text-foreground leading-tight">
+            <h1 className="text-2xl font-bold text-foreground leading-tight">
               Kit Mensal <span className="text-primary">Emagrecimento</span>
             </h1>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              {KIT_TOTAL_MEALS} marmitas Fit com sabores variados para o mês inteiro. 
-              Uma refeição por dia, de segunda a sexta.
+            <p className="text-sm text-muted-foreground">
+              {KIT_TOTAL_MEALS} marmitas Fit · segunda a sexta · entrega grátis
             </p>
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <span className="text-4xl md:text-5xl font-bold text-primary">
-                R$ {KIT_PRICE},00
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-3xl font-bold text-primary">R$ {KIT_PRICE},00</span>
+              <span className="text-muted-foreground text-xs leading-tight">
+                R$ {(KIT_PRICE / KIT_TOTAL_MEALS).toFixed(2).replace('.', ',')}<br />por marmita
               </span>
-              <span className="text-muted-foreground text-sm">
-                apenas<br />R$ {(KIT_PRICE / KIT_TOTAL_MEALS).toFixed(2).replace('.', ',')} / marmita
-              </span>
+            </div>
+            <div className="inline-flex items-center gap-1 text-xs font-medium text-primary bg-primary/5 px-3 py-1 rounded-full">
+              🚚 Entrega grátis
             </div>
             <Button
               size="lg"
-              className="mt-4 text-lg px-8 py-6 rounded-full shadow-lg"
+              className="w-full text-base py-5 rounded-xl shadow-md mt-2"
               onClick={() => document.getElementById('checkout')?.scrollIntoView({ behavior: 'smooth' })}
             >
               Reservar Agora
@@ -227,228 +208,132 @@ const KitMensal = () => {
           </div>
         </section>
 
-        {/* Flavors */}
-        <section className="py-12 px-4">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-bold text-center text-foreground mb-2">
-              <Utensils className="w-6 h-6 inline-block mr-2 text-primary" />
+        {/* Flavors - compact */}
+        <section className="px-4 py-6">
+          <div className="max-w-lg mx-auto">
+            <h2 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+              <Utensils className="w-5 h-5 text-primary" />
               Cardápio do Kit
             </h2>
-            <p className="text-center text-muted-foreground mb-8">
-              {KIT_TOTAL_MEALS} marmitas com sabores selecionados
-            </p>
 
-            <div className="grid gap-3">
+            <div className="grid gap-2">
               {KIT_FLAVORS.map((flavor, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors"
-                >
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border">
+                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
                     {flavor.qty}x
-                  </div>
-                  <span className="text-foreground font-medium">{flavor.name}</span>
+                  </span>
+                  <span className="text-sm text-foreground">{flavor.name}</span>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 p-4 rounded-xl bg-secondary/50 border border-secondary text-center">
-              <p className="text-sm text-muted-foreground">
-                ✅ Todas as marmitas são da linha <strong>Fit</strong> — balanceadas para emagrecimento
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground text-center mt-3">
+              ✅ Linha <strong>Fit</strong> — balanceadas para emagrecimento
+            </p>
           </div>
         </section>
 
-        {/* Checkout */}
-        <section id="checkout" className="py-12 px-4 bg-card/50">
+        {/* Checkout - compact */}
+        <section id="checkout" className="px-4 py-6 bg-muted/30">
           <div className="max-w-lg mx-auto">
-            <h2 className="text-2xl font-bold text-center text-foreground mb-6">
-              Reserve o seu Kit
-            </h2>
+            <h2 className="text-lg font-bold text-center text-foreground mb-4">Reserve o seu Kit</h2>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 bg-card p-6 rounded-2xl border border-border shadow-sm">
-              {/* Name */}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 bg-card p-4 rounded-xl border border-border shadow-sm">
               <div>
-                <Label htmlFor="name" className="text-sm font-medium">Nome completo</Label>
-                <Input id="name" placeholder="Seu nome" {...register("name")} className="mt-1" />
-                {errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}
+                <Label htmlFor="name" className="text-xs font-medium">Nome completo</Label>
+                <Input id="name" placeholder="Seu nome" {...register("name")} className="mt-1 h-11" />
+                {errors.name && <p className="text-xs text-destructive mt-0.5">{errors.name.message}</p>}
               </div>
 
-              {/* Email */}
               <div>
-                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                <Controller
-                  name="email"
-                  control={control}
-                  render={({ field }) => (
-                    <EmailAutocomplete id="email" value={field.value} onChange={field.onChange} className="mt-1" error={!!errors.email} />
-                  )}
-                />
-                {errors.email && <p className="text-xs text-destructive mt-1">{errors.email.message}</p>}
+                <Label htmlFor="email" className="text-xs font-medium">Email</Label>
+                <Controller name="email" control={control} render={({ field }) => (
+                  <EmailAutocomplete id="email" value={field.value} onChange={field.onChange} className="mt-1" error={!!errors.email} />
+                )} />
+                {errors.email && <p className="text-xs text-destructive mt-0.5">{errors.email.message}</p>}
               </div>
 
-              {/* Phone */}
               <div>
-                <Label htmlFor="phone" className="text-sm font-medium">WhatsApp</Label>
-                <Controller
-                  name="phone"
-                  control={control}
-                  render={({ field }) => {
-                    const cleanValue = (() => {
-                      const d = (field.value || '').replace(/\D/g, '');
-                      if (d.startsWith('55') && d.length > 11) return d.slice(2);
-                      return d;
-                    })();
-                    const status = getPhoneStatus(cleanValue);
-                    return (
-                      <div className="space-y-1">
-                        <div className="relative flex mt-1">
-                          <div className="flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm font-medium select-none">
-                            🇧🇷 +55
+                <Label htmlFor="phone" className="text-xs font-medium">WhatsApp</Label>
+                <Controller name="phone" control={control} render={({ field }) => {
+                  const cleanValue = (() => { const d = (field.value || '').replace(/\D/g, ''); return d.startsWith('55') && d.length > 11 ? d.slice(2) : d; })();
+                  const status = getPhoneStatus(cleanValue);
+                  return (
+                    <div className="relative flex mt-1">
+                      <div className="flex items-center px-2.5 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-xs font-medium select-none">🇧🇷 +55</div>
+                      <div className="relative flex-1">
+                        <Input id="phone" type="tel" inputMode="numeric" placeholder="(77) 99100-1658" value={formatPhone(cleanValue)}
+                          onChange={(e) => { let raw = e.target.value.replace(/\D/g, '').slice(0, 11); if (raw.startsWith('55') && raw.length > 11) raw = raw.slice(2); field.onChange(raw); }}
+                          className={`rounded-l-none h-11 pr-9 ${status.color === 'green' ? 'border-green-500' : status.color === 'red' ? 'border-destructive' : ''}`}
+                        />
+                        {cleanValue.length > 0 && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            {status.color === 'green' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                            {status.color === 'red' && <XCircle className="w-4 h-4 text-destructive" />}
                           </div>
-                          <div className="relative flex-1">
-                            <Input
-                              id="phone"
-                              type="tel"
-                              inputMode="numeric"
-                              placeholder="(77) 99100-1658"
-                              value={formatPhone(cleanValue)}
-                              onChange={(e) => {
-                                let raw = e.target.value.replace(/\D/g, '').slice(0, 11);
-                                if (raw.startsWith('55') && raw.length > 11) raw = raw.slice(2);
-                                field.onChange(raw);
-                              }}
-                              className={`rounded-l-none pr-10 ${status.color === 'green' ? 'border-green-500 focus-visible:ring-green-500' : status.color === 'yellow' ? 'border-yellow-500' : status.color === 'red' ? 'border-destructive' : ''}`}
-                            />
-                            {cleanValue.length > 0 && (
-                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                {status.color === 'green' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                                {status.color === 'yellow' && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
-                                {status.color === 'red' && <XCircle className="w-4 h-4 text-destructive" />}
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                        )}
                       </div>
-                    );
-                  }}
-                />
-                {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone.message}</p>}
+                    </div>
+                  );
+                }} />
+                {errors.phone && <p className="text-xs text-destructive mt-0.5">{errors.phone.message}</p>}
               </div>
 
-              {/* CPF */}
               <div>
-                <Label htmlFor="cpf" className="text-sm font-medium">CPF</Label>
-                <Controller
-                  name="cpf"
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      id="cpf"
-                      type="tel"
-                      inputMode="numeric"
-                      placeholder="000.000.000-00"
-                      value={formatCPF(field.value || '')}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
-                        field.onChange(raw);
-                      }}
-                      className="mt-1"
-                    />
-                  )}
-                />
-                {errors.cpf && <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>}
+                <Label htmlFor="cpf" className="text-xs font-medium">CPF</Label>
+                <Controller name="cpf" control={control} render={({ field }) => (
+                  <Input id="cpf" type="tel" inputMode="numeric" placeholder="000.000.000-00"
+                    value={formatCPF(field.value || '')}
+                    onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                    className="mt-1 h-11"
+                  />
+                )} />
+                {errors.cpf && <p className="text-xs text-destructive mt-0.5">{errors.cpf.message}</p>}
               </div>
 
-              {/* Delivery */}
-              <div className="pt-2">
-                <Label className="text-sm font-medium">Entrega ou retirada</Label>
-                <RadioGroup
-                  defaultValue="pickup"
-                  onValueChange={(value) => setValue("deliveryOption", value as "pickup" | "delivery")}
-                  className="mt-2 space-y-2"
-                >
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/30 border border-transparent hover:border-primary/30 transition-colors">
-                    <RadioGroupItem value="pickup" id="pickup" />
-                    <Label htmlFor="pickup" className="flex-1 cursor-pointer">
-                      <span className="font-medium">📍 Retirada grátis</span>
-                      <span className="text-sm text-muted-foreground block">Bairro Recreio</span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50 border border-transparent hover:border-primary/30 transition-colors">
-                    <RadioGroupItem value="delivery" id="delivery" />
-                    <Label htmlFor="delivery" className="flex-1 cursor-pointer">
-                      <span className="font-medium">🛵 Entrega</span>
-                      <span className="text-sm text-muted-foreground ml-2">+ R$ 10,00</span>
-                    </Label>
-                  </div>
-                </RadioGroup>
+              <div>
+                <Label htmlFor="address" className="text-xs font-medium">Endereço de entrega</Label>
+                <Input id="address" placeholder="Rua, número, bairro" {...register("address")} className="mt-1 h-11" />
+                {errors.address && <p className="text-xs text-destructive mt-0.5">{errors.address.message}</p>}
               </div>
-
-              {deliveryOption === "delivery" && (
-                <div>
-                  <Label htmlFor="address" className="text-sm font-medium">Endereço completo</Label>
-                  <Input id="address" placeholder="Rua, número, bairro" {...register("address")} className="mt-1" />
-                  {errors.address && <p className="text-xs text-destructive mt-1">{errors.address.message}</p>}
-                </div>
-              )}
 
               {/* Payment method */}
-              <div className="pt-2">
-                <Label className="text-sm font-medium">Forma de pagamento</Label>
-                <RadioGroup
-                  defaultValue="pix"
-                  onValueChange={(value) => setValue("paymentMethod", value as "pix" | "credit_card")}
-                  className="mt-2 space-y-2"
-                >
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/30 border border-transparent hover:border-primary/30 transition-colors">
-                    <RadioGroupItem value="pix" id="pix" />
-                    <Label htmlFor="pix" className="flex-1 cursor-pointer flex items-center gap-2">
-                      <QrCode className="w-4 h-4 text-primary" />
-                      <span className="font-medium">PIX</span>
-                      <span className="text-xs text-muted-foreground">— Aprovação imediata</span>
+              <div className="pt-1">
+                <Label className="text-xs font-medium">Forma de pagamento</Label>
+                <RadioGroup defaultValue="pix" onValueChange={(v) => setValue("paymentMethod", v as "pix" | "credit_card")} className="mt-1.5 grid grid-cols-2 gap-2">
+                  <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'pix' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                    <RadioGroupItem value="pix" id="pix" className="sr-only" />
+                    <Label htmlFor="pix" className="cursor-pointer flex items-center gap-1.5 text-sm font-medium">
+                      <QrCode className="w-4 h-4 text-primary" /> PIX
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50 border border-transparent hover:border-primary/30 transition-colors">
-                    <RadioGroupItem value="credit_card" id="credit_card" />
-                    <Label htmlFor="credit_card" className="flex-1 cursor-pointer flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-primary" />
-                      <span className="font-medium">Cartão de Crédito</span>
+                  <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'credit_card' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                    <RadioGroupItem value="credit_card" id="credit_card" className="sr-only" />
+                    <Label htmlFor="credit_card" className="cursor-pointer flex items-center gap-1.5 text-sm font-medium">
+                      <CreditCard className="w-4 h-4 text-primary" /> Cartão
                     </Label>
                   </div>
                 </RadioGroup>
               </div>
 
               {/* Total */}
-              <div className="pt-3 border-t border-border space-y-1">
+              <div className="pt-2 border-t border-border">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Kit Mensal ({KIT_TOTAL_MEALS} marmitas)</span>
+                  <span className="text-muted-foreground">Kit ({KIT_TOTAL_MEALS} marmitas)</span>
                   <span>R$ {KIT_PRICE},00</span>
                 </div>
-                {deliveryFee > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Entrega</span>
-                    <span>R$ {deliveryFee.toFixed(2).replace(".", ",")}</span>
-                  </div>
-                )}
+                <div className="flex justify-between text-xs text-primary">
+                  <span>🚚 Entrega</span>
+                  <span className="font-medium">Grátis</span>
+                </div>
                 <div className="flex justify-between font-bold text-lg pt-1">
                   <span>Total</span>
                   <span className="text-primary">R$ {total.toFixed(2).replace(".", ",")}</span>
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full text-lg py-6 rounded-xl"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processando...</>
-                ) : (
-                  paymentMethod === "pix" ? "Pagar via PIX" : "Pagar com Cartão"
-                )}
+              <Button type="submit" size="lg" className="w-full text-base py-5 rounded-xl" disabled={isLoading}>
+                {isLoading ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processando...</> : paymentMethod === "pix" ? "Pagar via PIX" : "Pagar com Cartão"}
               </Button>
             </form>
           </div>
