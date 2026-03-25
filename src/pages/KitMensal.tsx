@@ -558,22 +558,28 @@ const KitMensal = () => {
               {/* Payment method */}
               <div className="pt-1">
                 <Label className="text-xs font-medium">Forma de pagamento</Label>
-                <RadioGroup defaultValue="pix" onValueChange={(v) => setValue("paymentMethod", v as "pix" | "credit_card")} className="mt-1.5 grid grid-cols-2 gap-2">
-                  <div className={`flex flex-col items-center justify-center gap-1 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'pix' ? 'border-primary bg-primary/5' : 'border-border'}`}>
-                    <RadioGroupItem value="pix" id="pix" className="sr-only" />
-                    <Label htmlFor="pix" className="cursor-pointer flex items-center gap-1.5 text-sm font-medium">
+                <div className="mt-1.5 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setValue("paymentMethod", "pix")}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'pix' ? 'border-primary bg-primary/5' : 'border-border'}`}
+                  >
+                    <span className="flex items-center gap-1.5 text-sm font-medium">
                       <QrCode className="w-4 h-4 text-primary" /> 🟩 PIX
-                    </Label>
+                    </span>
                     <span className="text-[10px] text-muted-foreground">Confirmação imediata</span>
-                  </div>
-                  <div className={`flex flex-col items-center justify-center gap-1 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'credit_card' ? 'border-primary bg-primary/5' : 'border-border'}`}>
-                    <RadioGroupItem value="credit_card" id="credit_card" className="sr-only" />
-                    <Label htmlFor="credit_card" className="cursor-pointer flex items-center gap-1.5 text-sm font-medium">
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setValue("paymentMethod", "credit_card")}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'credit_card' ? 'border-primary bg-primary/5' : 'border-border'}`}
+                  >
+                    <span className="flex items-center gap-1.5 text-sm font-medium">
                       <CreditCard className="w-4 h-4 text-primary" /> 💳 Cartão
-                    </Label>
+                    </span>
                     <span className="text-[10px] text-muted-foreground">Crédito ou débito</span>
-                  </div>
-                </RadioGroup>
+                  </button>
+                </div>
               </div>
 
               {/* Total */}
