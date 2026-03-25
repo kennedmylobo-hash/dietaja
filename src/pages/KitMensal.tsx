@@ -476,6 +476,74 @@ const KitMensal = () => {
             </div>
           </div>
         </section>
+const AutoScrollGallery = ({ images }: { images: string[] }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!scrollRef.current) return;
+      const container = scrollRef.current;
+      const nextIndex = (activeIndex + 1) % images.length;
+      const child = container.children[nextIndex] as HTMLElement;
+      if (child) {
+        container.scrollTo({ left: child.offsetLeft - container.offsetLeft - 16, behavior: 'smooth' });
+        setActiveIndex(nextIndex);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [activeIndex, images.length]);
+
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const container = scrollRef.current;
+    const scrollLeft = container.scrollLeft;
+    const children = Array.from(container.children) as HTMLElement[];
+    let closest = 0;
+    let minDist = Infinity;
+    children.forEach((child, i) => {
+      const dist = Math.abs(child.offsetLeft - container.offsetLeft - scrollLeft - 16);
+      if (dist < minDist) { minDist = dist; closest = i; }
+    });
+    setActiveIndex(closest);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex gap-2.5 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide"
+      >
+        {images.map((img, i) => (
+          <img
+            key={i}
+            src={img}
+            alt={`Marmita fit ${i + 1}`}
+            className="w-40 h-40 object-cover rounded-xl flex-shrink-0 snap-center shadow-sm border border-border"
+            loading={i === 0 ? "eager" : "lazy"}
+          />
+        ))}
+      </div>
+      <div className="flex justify-center gap-1.5">
+        {images.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => {
+              if (!scrollRef.current) return;
+              const child = scrollRef.current.children[i] as HTMLElement;
+              if (child) {
+                scrollRef.current.scrollTo({ left: child.offsetLeft - scrollRef.current.offsetLeft - 16, behavior: 'smooth' });
+                setActiveIndex(i);
+              }
+            }}
+            className={`w-2 h-2 rounded-full transition-colors ${i === activeIndex ? 'bg-primary' : 'bg-border'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 
         {/* ===== CHECKOUT ===== */}
