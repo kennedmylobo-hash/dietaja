@@ -80,6 +80,75 @@ type FormData = z.infer<typeof formSchema>;
 
 const scrollToCheckout = () => document.getElementById('checkout')?.scrollIntoView({ behavior: 'smooth' });
 
+const AutoScrollGallery = ({ images }: { images: string[] }) => {
+  const galScrollRef = useRef<HTMLDivElement>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!galScrollRef.current) return;
+      const container = galScrollRef.current;
+      const nextIdx = (activeIdx + 1) % images.length;
+      const child = container.children[nextIdx] as HTMLElement;
+      if (child) {
+        container.scrollTo({ left: child.offsetLeft - container.offsetLeft - 16, behavior: 'smooth' });
+        setActiveIdx(nextIdx);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [activeIdx, images.length]);
+
+  const handleGalScroll = () => {
+    if (!galScrollRef.current) return;
+    const container = galScrollRef.current;
+    const scrollLeft = container.scrollLeft;
+    const children = Array.from(container.children) as HTMLElement[];
+    let closest = 0;
+    let minDist = Infinity;
+    children.forEach((child, i) => {
+      const dist = Math.abs(child.offsetLeft - container.offsetLeft - scrollLeft - 16);
+      if (dist < minDist) { minDist = dist; closest = i; }
+    });
+    setActiveIdx(closest);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div
+        ref={galScrollRef}
+        onScroll={handleGalScroll}
+        className="flex gap-2.5 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide"
+      >
+        {images.map((img, i) => (
+          <img
+            key={i}
+            src={img}
+            alt={`Marmita fit ${i + 1}`}
+            className="w-40 h-40 object-cover rounded-xl flex-shrink-0 snap-center shadow-sm border border-border"
+            loading={i === 0 ? "eager" : "lazy"}
+          />
+        ))}
+      </div>
+      <div className="flex justify-center gap-1.5">
+        {images.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => {
+              if (!galScrollRef.current) return;
+              const child = galScrollRef.current.children[i] as HTMLElement;
+              if (child) {
+                galScrollRef.current.scrollTo({ left: child.offsetLeft - galScrollRef.current.offsetLeft - 16, behavior: 'smooth' });
+                setActiveIdx(i);
+              }
+            }}
+            className={`w-2 h-2 rounded-full transition-colors ${i === activeIdx ? 'bg-primary' : 'bg-border'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const KitMensal = () => {
   const navigate = useNavigate();
   const tenantId = useTenantId();
