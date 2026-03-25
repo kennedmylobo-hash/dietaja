@@ -48,10 +48,10 @@ const BENEFITS = [
 ];
 
 const STEPS = [
-  { step: "1", title: "Escolha", desc: "Peça seu kit com 20 marmitas" },
-  { step: "2", title: "Receba", desc: "Entrega grátis na sua casa" },
-  { step: "3", title: "Congele", desc: "Dura até 3 meses no freezer" },
-  { step: "4", title: "Aqueça", desc: "Pronto em 3 min no micro-ondas" },
+  { step: "1", title: "Escolha seu Kit", desc: "Preencha o formulário aqui embaixo e reserve seu kit mensal." },
+  { step: "2", title: "Confirme o pagamento", desc: "Pague via PIX ou cartão em poucos segundos, com total segurança." },
+  { step: "3", title: "Receba em casa", desc: "Entregamos de segunda a sexta, congelado e pronto pra guardar." },
+  { step: "4", title: "Aqueça e aproveite", desc: "4 minutos no micro-ondas. Uma refeição saborosa e equilibrada todo dia." },
 ];
 
 const FAQ_ITEMS = [
