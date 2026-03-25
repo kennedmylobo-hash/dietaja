@@ -18,6 +18,13 @@ import { useNavigate } from "react-router-dom";
 import { useTenantId } from "@/hooks/useTenantId";
 import { Helmet } from "react-helmet-async";
 
+import kitImg1 from "@/assets/kit-mensal-1.png";
+import kitImg2 from "@/assets/kit-mensal-2.png";
+import kitImg3 from "@/assets/kit-mensal-3.png";
+import kitImg4 from "@/assets/kit-mensal-4.png";
+
+const KIT_IMAGES = [kitImg1, kitImg2, kitImg3, kitImg4];
+
 const KIT_PRICE = 499;
 const KIT_TOTAL_MEALS = 20;
 
