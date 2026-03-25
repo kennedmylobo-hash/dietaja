@@ -270,16 +270,71 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     }
   };
 
-  const handleWhatsApp = async (data: FormData) => {
-    // Create account if checkbox is checked
-    await createCustomerAccount(data);
+  const handleCardPayment = async (data: FormData) => {
+    if (isSubmittingRef.current || isLoading) return;
     
-    onWhatsAppClick({
-      name: sanitizeCustomerName(data.name),
-      phone: data.phone,
-      deliveryOption: data.deliveryOption,
-      address: data.address,
-    });
+    isSubmittingRef.current = true;
+    setIsLoading(true);
+
+    // Track InitiateCheckout
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'InitiateCheckout', {
+        value: total,
+        currency: 'BRL',
+        num_items: items.length,
+      });
+    }
+
+    try {
+      await createCustomerAccount(data);
+
+      const currentOrigin = window.location.origin;
+      const redirectUrl = `${currentOrigin}/pagamento/sucesso`;
+
+      const { data: response, error } = await supabase.functions.invoke('create-infinitepay-checkout', {
+        body: {
+          items: items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            totalPrice: item.totalPrice,
+            type: item.type,
+          })),
+          customer: {
+            name: sanitizeCustomerName(data.name),
+            email: data.email,
+            phone: data.phone,
+          },
+          delivery: {
+            option: data.deliveryOption,
+            address: data.address,
+            fee: deliveryFee,
+          },
+          redirect_url: redirectUrl,
+          tenant_id: tenantId,
+        },
+      });
+
+      if (error) throw error;
+
+      if (response?.success && response?.checkout_url) {
+        const opened = window.open(response.checkout_url, '_self');
+        if (!opened) {
+          window.open(response.checkout_url, '_blank');
+        }
+      } else {
+        throw new Error(response?.error || 'Erro ao gerar link de pagamento');
+      }
+    } catch (error) {
+      console.error('Error creating card payment:', error);
+      toast({
+        title: "Erro no pagamento",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      isSubmittingRef.current = false;
+    }
   };
 
   const handlePixPaymentWithAccount = async (data: FormData) => {
