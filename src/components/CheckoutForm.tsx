@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Smartphone, MessageCircle, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { Loader2, Smartphone, CreditCard, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { useCart } from "./CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
@@ -27,7 +27,7 @@ const formSchema = z.object({
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
   cpf: z.string().optional(),
-  paymentMethod: z.enum(["pix", "whatsapp"]).optional(),
+  paymentMethod: z.enum(["pix", "card"]).optional(),
   deliveryOption: z.enum(["pickup", "delivery"]),
   address: z.string().optional(),
   saveData: z.boolean().optional(),
@@ -61,7 +61,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 interface CheckoutFormProps {
-  onWhatsAppClick: (customerData: { name: string; phone: string; deliveryOption: string; address?: string }) => void;
+  onWhatsAppClick?: (customerData: { name: string; phone: string; deliveryOption: string; address?: string }) => void;
 }
 
 const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
@@ -108,10 +108,10 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   });
 
   const emailValue = watch("email");
-  const [paymentMethod, setPaymentMethod] = useState<"pix" | "whatsapp" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"pix" | "card" | null>(null);
 
   // Sync paymentMethod state with form value for Zod validation
-  const handlePaymentMethodChange = (value: "pix" | "whatsapp") => {
+  const handlePaymentMethodChange = (value: "pix" | "card") => {
     setPaymentMethod(value);
     setValue("paymentMethod", value);
   };
@@ -270,16 +270,71 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     }
   };
 
-  const handleWhatsApp = async (data: FormData) => {
-    // Create account if checkbox is checked
-    await createCustomerAccount(data);
+  const handleCardPayment = async (data: FormData) => {
+    if (isSubmittingRef.current || isLoading) return;
     
-    onWhatsAppClick({
-      name: sanitizeCustomerName(data.name),
-      phone: data.phone,
-      deliveryOption: data.deliveryOption,
-      address: data.address,
-    });
+    isSubmittingRef.current = true;
+    setIsLoading(true);
+
+    // Track InitiateCheckout
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'InitiateCheckout', {
+        value: total,
+        currency: 'BRL',
+        num_items: items.length,
+      });
+    }
+
+    try {
+      await createCustomerAccount(data);
+
+      const currentOrigin = window.location.origin;
+      const redirectUrl = `${currentOrigin}/pagamento/sucesso`;
+
+      const { data: response, error } = await supabase.functions.invoke('create-infinitepay-checkout', {
+        body: {
+          items: items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            totalPrice: item.totalPrice,
+            type: item.type,
+          })),
+          customer: {
+            name: sanitizeCustomerName(data.name),
+            email: data.email,
+            phone: data.phone,
+          },
+          delivery: {
+            option: data.deliveryOption,
+            address: data.address,
+            fee: deliveryFee,
+          },
+          redirect_url: redirectUrl,
+          tenant_id: tenantId,
+        },
+      });
+
+      if (error) throw error;
+
+      if (response?.success && response?.checkout_url) {
+        const opened = window.open(response.checkout_url, '_self');
+        if (!opened) {
+          window.open(response.checkout_url, '_blank');
+        }
+      } else {
+        throw new Error(response?.error || 'Erro ao gerar link de pagamento');
+      }
+    } catch (error) {
+      console.error('Error creating card payment:', error);
+      toast({
+        title: "Erro no pagamento",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      isSubmittingRef.current = false;
+    }
   };
 
   const handlePixPaymentWithAccount = async (data: FormData) => {
@@ -497,7 +552,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
         <Label className="text-sm font-medium">Forma de pagamento</Label>
         <RadioGroup
           value={paymentMethod || ""}
-          onValueChange={(value) => handlePaymentMethodChange(value as "pix" | "whatsapp")}
+          onValueChange={(value) => handlePaymentMethodChange(value as "pix" | "card")}
           className="grid grid-cols-2 gap-3"
         >
           <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'pix' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
@@ -507,11 +562,11 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
               PIX
             </Label>
           </div>
-          <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'whatsapp' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
-            <RadioGroupItem value="whatsapp" id="payment-whatsapp" className="sr-only" />
-            <Label htmlFor="payment-whatsapp" className="flex items-center gap-2 cursor-pointer font-medium">
-              <MessageCircle className="w-5 h-5" />
-              WhatsApp
+          <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === 'card' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
+            <RadioGroupItem value="card" id="payment-card" className="sr-only" />
+            <Label htmlFor="payment-card" className="flex items-center gap-2 cursor-pointer font-medium">
+              <CreditCard className="w-5 h-5" />
+              Cartão
             </Label>
           </div>
         </RadioGroup>
@@ -567,17 +622,23 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           </Button>
         )}
 
-        {paymentMethod === "whatsapp" && (
+        {paymentMethod === "card" && (
           <Button
             type="button"
             variant="cta"
             size="lg"
             className="w-full"
-            onClick={handleSubmit(handleWhatsApp)}
+            onClick={handleSubmit(handleCardPayment)}
             disabled={!hasItems || isLoading}
           >
-            <MessageCircle className="w-5 h-5" />
-            Finalizar via WhatsApp
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <CreditCard className="w-5 h-5" />
+                Pagar com Cartão
+              </>
+            )}
           </Button>
         )}
 
