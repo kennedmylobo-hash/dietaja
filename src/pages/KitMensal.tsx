@@ -382,17 +382,6 @@ const KitMensal = () => {
           </div>
         </section>
 
-        {/* ===== GARANTIA ===== */}
-        <section className="px-4 py-8 bg-muted/30">
-          <div className="max-w-lg mx-auto text-center">
-            <ShieldCheck className="w-12 h-12 text-primary mx-auto mb-3" />
-            <h2 className="text-lg font-bold text-foreground mb-2">Garantia de satisfação</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Se você não gostar da primeira refeição, devolvemos seu dinheiro.
-              <strong className="text-foreground"> Sem burocracia, sem perguntas.</strong> O risco é todo nosso.
-            </p>
-          </div>
-        </section>
 
         {/* ===== FAQ ===== */}
         <section className="px-4 py-8">
