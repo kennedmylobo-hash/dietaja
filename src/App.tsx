@@ -95,6 +95,7 @@ const App = () => (
                   <Route path="/super-admin" element={<SuperAdmin />} />
                   <Route path="/monte-seu-cardapio" element={<MonteSeuCardapio />} />
                   <Route path="/licenca" element={<Licenca />} />
+                  <Route path="/kit-mensal" element={<KitMensal />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
