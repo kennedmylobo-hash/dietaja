@@ -39,12 +39,12 @@ const KIT_FLAVORS = [
 ];
 
 const BENEFITS = [
-  { icon: Clock, text: "Sem tempo pra cozinhar? Pronto em 3 minutos." },
-  { icon: Flame, text: "Refeições balanceadas feitas pra você emagrecer." },
-  { icon: Snowflake, text: "Congeladas: duram até 3 meses no freezer." },
-  { icon: ChefHat, text: "6 sabores diferentes — você não enjoa nunca." },
-  { icon: Truck, text: "Entrega grátis na sua porta." },
-  { icon: Zap, text: "Chega de iFood caro e comida que engorda." },
+  { icon: Snowflake, title: "Congelado = mais praticidade", text: "Guarde no freezer e tenha sempre uma refeição pronta. Sem desperdício, sem correria, sem desculpa." },
+  { icon: Flame, title: "Nutricionalmente balanceadas", text: "Cada marmita foi pensada para ajudar no emagrecimento sem passar fome. Proteína, fibra e sabor na medida certa." },
+  { icon: Truck, title: "Entrega grátis toda semana", text: "Sem taxas escondidas. O preço que você vê é o que você paga — com entrega na sua porta, de segunda a sexta." },
+  { icon: Clock, title: "Pronta em 4 minutos", text: "Micro-ondas ou banho-maria. Sua refeição fica pronta mais rápido do que qualquer app de delivery chegaria." },
+  { icon: ChefHat, title: "Sabor que faz você querer repetir", text: "96% dos nossos clientes renovam o kit no mês seguinte. Não é por obrigação — é porque gostaram de verdade." },
+  { icon: ShieldCheck, title: "Sem fidelidade", text: "Você compra mês a mês, sem contratos ou taxas de cancelamento. Sem risco nenhum pra você." },
 ];
 
 const STEPS = [
