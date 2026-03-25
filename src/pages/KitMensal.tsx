@@ -590,27 +590,6 @@ const KitMensal = () => {
         </a>
       </div>
 
-      {/* PIX Modal */}
-      {pixModalData && (
-        <PixPaymentModal
-          open={!!pixModalData}
-          onOpenChange={(open) => { if (!open) setPixModalData(null); }}
-          qrCode={pixModalData.qrCode}
-          qrCodeBase64={pixModalData.qrCodeBase64}
-          total={pixModalData.total}
-          paymentId={pixModalData.paymentId}
-          orderId={pixModalData.orderId}
-          expirationDate={pixModalData.expirationDate}
-          onPaymentSuccess={(orderNumber) => {
-            setPixModalData(null);
-            navigate(`/pagamento/sucesso?order=${orderNumber}`);
-          }}
-          onPaymentFailed={() => {
-            setPixModalData(null);
-            toast({ title: "Pagamento não confirmado", description: "Tente novamente.", variant: "destructive" });
-          }}
-        />
-      )}
     </>
   );
 };
