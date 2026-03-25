@@ -13,7 +13,7 @@ import { formatPhone, getPhoneStatus } from "@/lib/phone";
 import { validateCPF, formatCPF } from "@/lib/cpf";
 import { sanitizeCustomerName } from "@/lib/name-sanitizer";
 import { EmailAutocomplete } from "@/components/EmailAutocomplete";
-import PixPaymentModal from "@/components/PixPaymentModal";
+
 import { useNavigate } from "react-router-dom";
 import { useTenantId } from "@/hooks/useTenantId";
 import { Helmet } from "react-helmet-async";
