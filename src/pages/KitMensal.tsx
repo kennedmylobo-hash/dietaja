@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, CheckCircle2, AlertTriangle, XCircle, Package, Utensils, CreditCard, QrCode } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, CreditCard, QrCode, Clock, Flame, ShieldCheck, Star, Truck, Zap, ChefHat, Snowflake, ThumbsUp, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatPhone, getPhoneStatus } from "@/lib/phone";
@@ -37,6 +37,37 @@ const KIT_FLAVORS = [
   { qty: 4, name: "Frango em cubos ao molho de maracujá com purê de batata doce e mix de legumes" },
 ];
 
+const BENEFITS = [
+  { icon: Clock, text: "Sem tempo pra cozinhar? Pronto em 3 minutos." },
+  { icon: Flame, text: "Refeições balanceadas feitas pra você emagrecer." },
+  { icon: Snowflake, text: "Congeladas: duram até 3 meses no freezer." },
+  { icon: ChefHat, text: "6 sabores diferentes — você não enjoa nunca." },
+  { icon: Truck, text: "Entrega grátis na sua porta." },
+  { icon: Zap, text: "Chega de iFood caro e comida que engorda." },
+];
+
+const STEPS = [
+  { step: "1", title: "Escolha", desc: "Peça seu kit com 20 marmitas" },
+  { step: "2", title: "Receba", desc: "Entrega grátis na sua casa" },
+  { step: "3", title: "Congele", desc: "Dura até 3 meses no freezer" },
+  { step: "4", title: "Aqueça", desc: "Pronto em 3 min no micro-ondas" },
+];
+
+const FAQ_ITEMS = [
+  { q: "É gostoso mesmo?", a: "Sim! São receitas caseiras com tempero natural. Nossos clientes dizem que nem parece comida de dieta." },
+  { q: "Vou enjoar de comer sempre a mesma coisa?", a: "Não! São 6 sabores diferentes que se revezam durante a semana. Variedade é garantida." },
+  { q: "A porção é grande o suficiente?", a: "Sim! Nossas marmitas têm em média 350-400g, uma refeição completa com proteína, carboidrato e salada." },
+  { q: "Funciona pra emagrecer?", a: "Sim! Todas são da linha Fit, balanceadas nutricionalmente. Combinadas com bons hábitos, os resultados aparecem já nas primeiras semanas." },
+  { q: "Preciso cozinhar alguma coisa?", a: "Nada! É só tirar do freezer, aquecer no micro-ondas por 3 minutos e comer. Zero preparo." },
+  { q: "Como funciona a entrega?", a: "Entregamos na sua casa, grátis. As marmitas chegam congeladas e prontas para armazenar no freezer." },
+];
+
+const TESTIMONIALS = [
+  { name: "Carla M.", text: "Perdi 4kg no primeiro mês sem sofrer. A comida é gostosa demais e eu não preciso pensar em nada.", stars: 5 },
+  { name: "Rafael S.", text: "Eu gastava R$40 por dia no iFood. Agora como melhor por R$25 e ainda emagreci.", stars: 5 },
+  { name: "Juliana P.", text: "Meu almoço tá resolvido de segunda a sexta. Aquece em 3 minutos e pronto. Vida mudou!", stars: 5 },
+];
+
 const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
@@ -55,10 +86,13 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+const scrollToCheckout = () => document.getElementById('checkout')?.scrollIntoView({ behavior: 'smooth' });
+
 const KitMensal = () => {
   const navigate = useNavigate();
   const tenantId = useTenantId();
   const [isLoading, setIsLoading] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [pixModalData, setPixModalData] = useState<{
     qrCode: string;
     qrCodeBase64: string;
@@ -135,7 +169,6 @@ const KitMensal = () => {
           throw new Error(response?.error || 'Erro ao gerar PIX');
         }
       } else {
-        // Credit card via Asaas
         const { data: response, error } = await supabase.functions.invoke('create-asaas-credit', {
           body: {
             item_name: `Kit Mensal Emagrecimento - ${KIT_TOTAL_MEALS} marmitas Fit`,
@@ -179,25 +212,29 @@ const KitMensal = () => {
     <>
       <Helmet>
         <title>Kit Mensal Emagrecimento - 20 Marmitas Fit | Dieta Já</title>
-        <meta name="description" content="Kit mensal com 20 marmitas fit para emagrecimento. Sabores variados, almoço de segunda a sexta. Por apenas R$499." />
+        <meta name="description" content="Emagreça sem cozinhar. 20 marmitas fit congeladas entregues na sua porta por R$24,95 cada. Entrega grátis." />
       </Helmet>
 
       <div className="min-h-screen bg-background">
-        {/* Hero - compact mobile */}
-        <section className="bg-gradient-to-b from-primary/10 to-background px-4 pt-8 pb-6">
+
+        {/* ===== HERO ===== */}
+        <section className="bg-gradient-to-b from-primary/15 to-background px-4 pt-8 pb-6">
           <div className="max-w-lg mx-auto text-center space-y-3">
-            <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-semibold">
-              <Package className="w-3.5 h-3.5" />
-              Oferta Exclusiva
+            <div className="inline-flex items-center gap-1.5 bg-destructive/10 text-destructive px-3 py-1 rounded-full text-xs font-bold animate-pulse">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Vagas limitadas — produção semanal
             </div>
-            <h1 className="text-2xl font-bold text-foreground leading-tight">
-              Kit Mensal <span className="text-primary">Emagrecimento</span>
+
+            <h1 className="text-2xl font-extrabold text-foreground leading-tight">
+              Emagreça sem cozinhar.<br />
+              <span className="text-primary">20 marmitas fit na sua porta.</span>
             </h1>
-            <p className="text-sm text-muted-foreground">
-              {KIT_TOTAL_MEALS} marmitas Fit · segunda a sexta · entrega grátis
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Comida de verdade, congelada e pronta em 3 minutos.
+              <strong className="text-foreground"> Sem dieta maluca, sem cozinha, sem estresse.</strong>
             </p>
 
-            {/* Image gallery - horizontal scroll */}
+            {/* Image gallery */}
             <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide">
               {KIT_IMAGES.map((img, i) => (
                 <img
@@ -210,32 +247,77 @@ const KitMensal = () => {
               ))}
             </div>
 
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-3xl font-bold text-primary">R$ {KIT_PRICE},00</span>
-              <span className="text-muted-foreground text-xs leading-tight">
-                R$ {(KIT_PRICE / KIT_TOTAL_MEALS).toFixed(2).replace('.', ',')}<br />por marmita
-              </span>
+            <div className="flex items-center justify-center gap-3">
+              <span className="text-3xl font-extrabold text-primary">R$ {KIT_PRICE},00</span>
+              <div className="text-left">
+                <span className="text-xs text-muted-foreground line-through">R$ 35,00/un</span>
+                <p className="text-sm font-bold text-primary">R$ {(KIT_PRICE / KIT_TOTAL_MEALS).toFixed(2).replace('.', ',')}/marmita</p>
+              </div>
             </div>
-            <div className="inline-flex items-center gap-1 text-xs font-medium text-primary bg-primary/5 px-3 py-1 rounded-full">
-              🚚 Entrega grátis
+
+            <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1 font-medium text-primary bg-primary/5 px-2.5 py-1 rounded-full">🚚 Entrega grátis</span>
+              <span className="inline-flex items-center gap-1 font-medium text-primary bg-primary/5 px-2.5 py-1 rounded-full">🔒 Compra segura</span>
             </div>
+
             <Button
               size="lg"
-              className="w-full text-base py-5 rounded-xl shadow-md mt-2"
-              onClick={() => document.getElementById('checkout')?.scrollIntoView({ behavior: 'smooth' })}
+              className="w-full text-base font-bold py-5 rounded-xl shadow-lg mt-2"
+              onClick={scrollToCheckout}
             >
-              Reservar Agora
+              Quero minhas marmitas →
             </Button>
+            <p className="text-[11px] text-muted-foreground">Preencha o formulário abaixo e garanta seu kit</p>
           </div>
         </section>
 
-        {/* Flavors - compact */}
-        <section className="px-4 py-6">
+        {/* ===== BENEFITS ===== */}
+        <section className="px-4 py-8">
           <div className="max-w-lg mx-auto">
-            <h2 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
-              <Utensils className="w-5 h-5 text-primary" />
-              Cardápio do Kit
+            <h2 className="text-lg font-bold text-foreground text-center mb-5">
+              Por que milhares de pessoas estão trocando o iFood por isso?
             </h2>
+
+            <div className="grid gap-3">
+              {BENEFITS.map((b, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-card border border-border">
+                  <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                    <b.icon className="w-4.5 h-4.5 text-primary" />
+                  </div>
+                  <p className="text-sm text-foreground leading-snug pt-1.5">{b.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ===== COMO FUNCIONA ===== */}
+        <section className="px-4 py-8 bg-muted/30">
+          <div className="max-w-lg mx-auto">
+            <h2 className="text-lg font-bold text-foreground text-center mb-5">
+              Como funciona? É simples demais.
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {STEPS.map((s, i) => (
+                <div key={i} className="text-center p-4 rounded-xl bg-card border border-border">
+                  <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg mx-auto mb-2">
+                    {s.step}
+                  </div>
+                  <p className="font-bold text-sm text-foreground">{s.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ===== CARDÁPIO ===== */}
+        <section className="px-4 py-8">
+          <div className="max-w-lg mx-auto">
+            <h2 className="text-lg font-bold text-foreground text-center mb-1">
+              🍽️ Cardápio da Semana
+            </h2>
+            <p className="text-xs text-muted-foreground text-center mb-4">6 sabores que se revezam — você não enjoa nunca</p>
 
             <div className="grid gap-2">
               {KIT_FLAVORS.map((flavor, i) => (
@@ -254,10 +336,116 @@ const KitMensal = () => {
           </div>
         </section>
 
-        {/* Checkout - compact */}
-        <section id="checkout" className="px-4 py-6 bg-muted/30">
+        {/* ===== PROVA DE VALOR ===== */}
+        <section className="px-4 py-8 bg-muted/30">
+          <div className="max-w-lg mx-auto text-center">
+            <h2 className="text-lg font-bold text-foreground mb-4">
+              Compare e veja a economia
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-4 rounded-xl bg-card border border-destructive/30">
+                <p className="text-xs text-muted-foreground mb-1">🍔 iFood / Comer fora</p>
+                <p className="text-2xl font-extrabold text-destructive">R$ 35-50</p>
+                <p className="text-xs text-muted-foreground">por refeição</p>
+              </div>
+              <div className="p-4 rounded-xl bg-card border-2 border-primary">
+                <p className="text-xs text-muted-foreground mb-1">🥗 Kit Dieta Já</p>
+                <p className="text-2xl font-extrabold text-primary">R$ 24,95</p>
+                <p className="text-xs text-muted-foreground">por refeição</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mt-3">
+              Você <strong className="text-foreground">economiza até R$ 500/mês</strong> e ainda emagrece.
+            </p>
+          </div>
+        </section>
+
+        {/* ===== PROVA SOCIAL ===== */}
+        <section className="px-4 py-8">
           <div className="max-w-lg mx-auto">
-            <h2 className="text-lg font-bold text-center text-foreground mb-4">Reserve o seu Kit</h2>
+            <h2 className="text-lg font-bold text-foreground text-center mb-4">
+              Quem provou, aprovou ⭐
+            </h2>
+            <div className="grid gap-3">
+              {TESTIMONIALS.map((t, i) => (
+                <div key={i} className="p-4 rounded-xl bg-card border border-border">
+                  <div className="flex items-center gap-1 mb-2">
+                    {Array.from({ length: t.stars }).map((_, j) => (
+                      <Star key={j} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                  <p className="text-sm text-foreground italic">"{t.text}"</p>
+                  <p className="text-xs text-muted-foreground mt-2 font-medium">— {t.name}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ===== GARANTIA ===== */}
+        <section className="px-4 py-8 bg-muted/30">
+          <div className="max-w-lg mx-auto text-center">
+            <ShieldCheck className="w-12 h-12 text-primary mx-auto mb-3" />
+            <h2 className="text-lg font-bold text-foreground mb-2">Garantia de satisfação</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Se você não gostar da primeira refeição, devolvemos seu dinheiro.
+              <strong className="text-foreground"> Sem burocracia, sem perguntas.</strong> O risco é todo nosso.
+            </p>
+          </div>
+        </section>
+
+        {/* ===== FAQ ===== */}
+        <section className="px-4 py-8">
+          <div className="max-w-lg mx-auto">
+            <h2 className="text-lg font-bold text-foreground text-center mb-4">
+              Dúvidas frequentes
+            </h2>
+            <div className="grid gap-2">
+              {FAQ_ITEMS.map((item, i) => (
+                <div key={i} className="rounded-xl border border-border bg-card overflow-hidden">
+                  <button
+                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                    className="w-full flex items-center justify-between p-3.5 text-left"
+                  >
+                    <span className="text-sm font-semibold text-foreground">{item.q}</span>
+                    <span className="text-muted-foreground text-lg leading-none">{openFaq === i ? '−' : '+'}</span>
+                  </button>
+                  {openFaq === i && (
+                    <div className="px-3.5 pb-3.5 pt-0">
+                      <p className="text-sm text-muted-foreground leading-relaxed">{item.a}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ===== CTA INTERMEDIÁRIO ===== */}
+        <section className="px-4 py-6 bg-primary/10">
+          <div className="max-w-lg mx-auto text-center space-y-3">
+            <p className="text-sm font-bold text-foreground">
+              🔥 Últimas vagas dessa semana — garanta antes que esgote
+            </p>
+            <Button
+              size="lg"
+              className="w-full text-base font-bold py-5 rounded-xl shadow-lg"
+              onClick={scrollToCheckout}
+            >
+              Quero começar agora →
+            </Button>
+          </div>
+        </section>
+
+        {/* ===== CHECKOUT ===== */}
+        <section id="checkout" className="px-4 py-8 bg-muted/30">
+          <div className="max-w-lg mx-auto">
+            <h2 className="text-lg font-bold text-center text-foreground mb-1">
+              Garanta seu Kit agora 🚀
+            </h2>
+            <p className="text-xs text-muted-foreground text-center mb-4">
+              Preencha seus dados e receba suas marmitas em casa
+            </p>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 bg-card p-4 rounded-xl border border-border shadow-sm">
               <div>
@@ -353,11 +541,23 @@ const KitMensal = () => {
                 </div>
               </div>
 
-              <Button type="submit" size="lg" className="w-full text-base py-5 rounded-xl" disabled={isLoading}>
-                {isLoading ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processando...</> : paymentMethod === "pix" ? "Pagar via PIX" : "Pagar com Cartão"}
+              <Button type="submit" size="lg" className="w-full text-base font-bold py-5 rounded-xl" disabled={isLoading}>
+                {isLoading ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processando...</> : "Quero minhas marmitas →"}
               </Button>
+
+              <div className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground pt-1">
+                <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> Compra segura</span>
+                <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> Entrega grátis</span>
+              </div>
             </form>
           </div>
+        </section>
+
+        {/* ===== RODAPÉ FINAL ===== */}
+        <section className="px-4 py-6 text-center">
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} Dieta Já — Todos os direitos reservados.
+          </p>
         </section>
       </div>
 
