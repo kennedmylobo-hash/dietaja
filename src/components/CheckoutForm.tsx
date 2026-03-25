@@ -61,7 +61,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 interface CheckoutFormProps {
-  onWhatsAppClick: (customerData: { name: string; phone: string; deliveryOption: string; address?: string }) => void;
+  onWhatsAppClick?: (customerData: { name: string; phone: string; deliveryOption: string; address?: string }) => void;
 }
 
 const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
