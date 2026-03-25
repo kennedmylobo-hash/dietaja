@@ -27,7 +27,7 @@ const formSchema = z.object({
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
   cpf: z.string().optional(),
-  paymentMethod: z.enum(["pix", "whatsapp"]).optional(),
+  paymentMethod: z.enum(["pix", "card"]).optional(),
   deliveryOption: z.enum(["pickup", "delivery"]),
   address: z.string().optional(),
   saveData: z.boolean().optional(),
