@@ -1431,7 +1431,24 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     ) : (
                       <>
                         <Smartphone className="w-5 h-5" />
-                        Pagar via PIX (Automático)
+                        Pagar via PIX
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full border-primary/30 hover:bg-primary/5"
+                    onClick={handleCardPayment}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <CreditCard className="w-5 h-5" />
+                        Pagar via Cartão de Crédito
                       </>
                     )}
                   </Button>
@@ -1451,7 +1468,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     ) : (
                       <>
                         <MessageCircle className="w-5 h-5" />
-                        Pagar via WhatsApp
+                        Finalizar no WhatsApp
                       </>
                     )}
                   </Button>
