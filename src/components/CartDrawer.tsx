@@ -62,7 +62,7 @@ interface CartDrawerProps {
 }
 
 const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
-  const { location: tenantLocation } = useTenantConfig();
+  const { brand, contact, location: tenantLocation } = useTenantConfig();
   const { items, removeItem, updateItemFlavors, getTotal, clearCart, trackCartOpen, trackCheckoutStart, trackCheckoutComplete, customerInfo, setCustomerInfo, markCartAsConverted } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'confirmation' | 'success'>('cart');
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState<string>("");
