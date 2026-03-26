@@ -728,79 +728,67 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   };
 
   const handleWhatsAppContact = async () => {
+    if (!formData) return;
     hapticFeedback('medium');
     setIsLoading(true);
-    
+
     try {
-      // Get order ID from order_number
-      const { data: orderData, error: orderFetchError } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('order_number', confirmedOrderNumber)
-        .single();
-
-      if (orderFetchError || !orderData) {
-        console.error('Error fetching order:', orderFetchError);
-        toast({
-          title: "Erro",
-          description: "Não foi possível processar. Tente novamente.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
       // Update order status to whatsapp_pending
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'whatsapp_pending',
-          payment_method: 'whatsapp'
-        })
-        .eq('order_number', confirmedOrderNumber);
-
-      if (updateError) {
-        console.error('Error updating order status:', updateError);
+      if (confirmedOrderNumber) {
+        await supabase
+          .from('orders')
+          .update({ 
+            status: 'whatsapp_pending',
+            payment_method: 'whatsapp'
+          })
+          .eq('order_number', confirmedOrderNumber);
       }
 
-      // Generate PIX and send notifications (WhatsApp + Email) automatically
-      console.log('Generating PIX and sending notifications...');
-      try {
-        const { data: pixResult, error: pixError } = await supabase.functions.invoke('generate-pix-admin', {
-          body: {
-            order_id: orderData.id,
-            send_whatsapp: true,
-            send_email: true,
-          },
-        });
+      // Build WhatsApp message with order details
+      const total = getTotal();
+      const deliveryFee = formData.deliveryOption === 'delivery' ? (tenantLocation.deliveryFee || 0) : 0;
+      const finalTotal = total - couponDiscount + deliveryFee;
 
-        if (pixError) {
-          console.error('Error generating PIX:', pixError);
-          // Fallback: send WhatsApp without PIX code
-          try {
-            await supabase.functions.invoke('send-order-whatsapp', {
-              body: {
-                order_id: orderData.id,
-                status: 'whatsapp_pending',
-              },
-            });
-          } catch (fallbackError) {
-            console.error('Fallback WhatsApp also failed:', fallbackError);
-          }
-          toast({
-            title: "Pedido enviado!",
-            description: "Você receberá os detalhes no WhatsApp. Não foi possível gerar o PIX automaticamente.",
-          });
+      let message = `Oi 😊\nVi o site da *${brand.name}* e quero fazer meu pedido.\n\n`;
+      message += `👤 *DADOS:*\n`;
+      message += `Nome: ${formData.name}\n`;
+      message += `WhatsApp: ${formData.phone}\n`;
+      message += `Email: ${formData.email}\n`;
+      message += `Opção: ${formData.deliveryOption === 'pickup' ? `Retirada` : 'Entrega em domicílio'}\n`;
+      if (formData.address) {
+        message += `Endereço: ${formData.address}\n`;
+      }
+      if (confirmedOrderNumber) {
+        message += `Pedido: #${confirmedOrderNumber}\n`;
+      }
+      message += `\n🛒 *CARRINHO:*\n`;
+
+      items.forEach((item) => {
+        if (item.type === "kit") {
+          message += `📦 ${item.name} - R$ ${item.totalPrice.toFixed(2).replace(".", ",")}\n`;
         } else {
-          console.log('✅ PIX generated and notifications sent!', pixResult);
-          toast({
-            title: "Pedido enviado com PIX! 💳",
-            description: "Você receberá o código PIX no WhatsApp para pagamento.",
+          message += `🍱 ${item.name} (${item.quantity} marmitas) - R$ ${item.totalPrice.toFixed(2).replace(".", ",")}\n`;
+        }
+        // Add flavor details
+        if (item.flavors && item.flavors.length > 0) {
+          item.flavors.forEach(f => {
+            message += `   • ${f.name} x${f.quantity}\n`;
           });
         }
-      } catch (invokeError) {
-        console.error('Error invoking generate-pix-admin:', invokeError);
+      });
+
+      message += `\n💰 *SUBTOTAL:* R$ ${total.toFixed(2).replace(".", ",")}\n`;
+      if (couponDiscount > 0) {
+        message += `🏷️ *DESCONTO:* -R$ ${couponDiscount.toFixed(2).replace(".", ",")}\n`;
       }
+      if (deliveryFee > 0) {
+        message += `🛵 *ENTREGA:* R$ ${deliveryFee.toFixed(2).replace(".", ",")}\n`;
+      }
+      message += `✅ *TOTAL:* R$ ${finalTotal.toFixed(2).replace(".", ",")}\n`;
+      message += `\n⏳ *Aguardando confirmação de pagamento*\n\nPode me confirmar o pedido?`;
+
+      const encodedMessage = encodeURIComponent(message);
+      window.open(`https://wa.me/${contact.whatsapp}?text=${encodedMessage}`, "_blank");
 
       // Close drawer and go to thank you page
       handleCloseAfterSuccess();
