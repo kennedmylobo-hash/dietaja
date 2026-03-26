@@ -655,6 +655,62 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     }
   };
 
+  const handleCardPayment = async () => {
+    if (!formData || isLoading) return;
+    
+    setIsLoading(true);
+    hapticFeedback('medium');
+
+    try {
+      const currentOrigin = window.location.origin;
+      const redirectUrl = `${currentOrigin}/pagamento/sucesso`;
+
+      const { data: response, error } = await supabase.functions.invoke('create-infinitepay-checkout', {
+        body: {
+          items: items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            totalPrice: item.totalPrice,
+            type: item.type,
+          })),
+          customer: {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+          },
+          delivery: {
+            option: formData.deliveryOption,
+            address: formData.address,
+            fee: deliveryFee,
+          },
+          redirect_url: redirectUrl,
+          tenant_id: tenantId,
+        },
+      });
+
+      if (error) throw error;
+
+      if (response?.success && response?.checkout_url) {
+        clearCart();
+        const opened = window.open(response.checkout_url, '_self');
+        if (!opened) {
+          window.open(response.checkout_url, '_blank');
+        }
+      } else {
+        throw new Error(response?.error || 'Erro ao gerar link de pagamento');
+      }
+    } catch (error) {
+      console.error('Error creating card payment:', error);
+      toast({
+        title: "Erro no pagamento",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handlePixPaymentSuccess = (orderNumber: string) => {
     setShowPixModal(false);
     setConfirmedOrderNumber(orderNumber);
