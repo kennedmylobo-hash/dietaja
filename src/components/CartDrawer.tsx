@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, MessageCircle, ShoppingBag, Loader2, ArrowLeft, Smartphone, Pencil, CheckCircle2, Mail, Tag, X, User } from "lucide-react";
+import { Trash2, MessageCircle, ShoppingBag, Loader2, ArrowLeft, Smartphone, Pencil, CheckCircle2, Mail, Tag, X, User, CreditCard } from "lucide-react";
 import { useCart, CartItem, FlavorSelection } from "./CartContext";
 import { hapticFeedback } from "@/lib/haptics";
 import { celebrateCheckout } from "@/lib/confetti";
@@ -649,6 +649,62 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         description: isCpfError 
           ? "Verifique o CPF informado e tente novamente." 
           : "Clique no botão PIX para tentar novamente ou fale com um atendente.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCardPayment = async () => {
+    if (!formData || isLoading) return;
+    
+    setIsLoading(true);
+    hapticFeedback('medium');
+
+    try {
+      const currentOrigin = window.location.origin;
+      const redirectUrl = `${currentOrigin}/pagamento/sucesso`;
+
+      const { data: response, error } = await supabase.functions.invoke('create-infinitepay-checkout', {
+        body: {
+          items: items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            totalPrice: item.totalPrice,
+            type: item.type,
+          })),
+          customer: {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+          },
+          delivery: {
+            option: formData.deliveryOption,
+            address: formData.address,
+            fee: deliveryFee,
+          },
+          redirect_url: redirectUrl,
+          tenant_id: tenantId,
+        },
+      });
+
+      if (error) throw error;
+
+      if (response?.success && response?.checkout_url) {
+        clearCart();
+        const opened = window.open(response.checkout_url, '_self');
+        if (!opened) {
+          window.open(response.checkout_url, '_blank');
+        }
+      } else {
+        throw new Error(response?.error || 'Erro ao gerar link de pagamento');
+      }
+    } catch (error) {
+      console.error('Error creating card payment:', error);
+      toast({
+        title: "Erro no pagamento",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -1375,7 +1431,24 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     ) : (
                       <>
                         <Smartphone className="w-5 h-5" />
-                        Pagar via PIX (Automático)
+                        Pagar via PIX
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full border-primary/30 hover:bg-primary/5"
+                    onClick={handleCardPayment}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <CreditCard className="w-5 h-5" />
+                        Pagar via Cartão de Crédito
                       </>
                     )}
                   </Button>
@@ -1395,7 +1468,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     ) : (
                       <>
                         <MessageCircle className="w-5 h-5" />
-                        Pagar via WhatsApp
+                        Finalizar no WhatsApp
                       </>
                     )}
                   </Button>
