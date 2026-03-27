@@ -786,7 +786,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         }
       });
 
-      message += `\n💰 *SUBTOTAL:* R$ ${total.toFixed(2).replace(".", ",")}\n`;
+      message += `\n💰 *SUBTOTAL:* R$ ${subtotal.toFixed(2).replace(".", ",")}\n`;
       if (couponDiscount > 0) {
         message += `🏷️ *DESCONTO:* -R$ ${couponDiscount.toFixed(2).replace(".", ",")}\n`;
       }
