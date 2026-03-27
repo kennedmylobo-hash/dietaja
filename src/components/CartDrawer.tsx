@@ -755,9 +755,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       }
 
       // Build WhatsApp message with order details
-      const total = getTotal();
-      const deliveryFee = formData.deliveryOption === 'delivery' ? (tenantLocation.deliveryFee || 0) : 0;
-      const finalTotal = total - couponDiscount + deliveryFee;
+      // Use the already-calculated total (includes delivery + discount)
+      const finalTotal = total;
 
       let message = `Oi 😊\nVi o site da *${brand.name}* e quero fazer meu pedido.\n\n`;
       message += `👤 *DADOS:*\n`;
