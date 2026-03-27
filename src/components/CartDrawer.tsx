@@ -810,7 +810,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingWhatsApp(false);
     }
   };
 
