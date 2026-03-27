@@ -666,11 +666,20 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     hapticFeedback('medium');
 
     try {
+      // If we already have an order from handleConfirmOrder, update it for card payment
+      if (confirmedOrderId) {
+        await supabase
+          .from('orders')
+          .update({ payment_method: 'infinitepay' })
+          .eq('id', confirmedOrderId);
+      }
+
       const currentOrigin = window.location.origin;
       const redirectUrl = `${currentOrigin}/pagamento/sucesso`;
 
       const { data: response, error } = await supabase.functions.invoke('create-infinitepay-checkout', {
         body: {
+          existing_order_id: confirmedOrderId || null,
           items: items.map(item => ({
             name: item.name,
             quantity: item.quantity,
