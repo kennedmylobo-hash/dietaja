@@ -98,7 +98,9 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     setStep('checkout');
     trackCheckoutStart();
   };
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingPix, setIsLoadingPix] = useState(false);
+  const [isLoadingCard, setIsLoadingCard] = useState(false);
+  const [isLoadingWhatsApp, setIsLoadingWhatsApp] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const [editingMarmita, setEditingMarmita] = useState<CartItem | null>(null);
   const [editingKit, setEditingKit] = useState<CartItem | null>(null);
@@ -576,7 +578,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     }
     
     setCpfError("");
-    setIsLoading(true);
+    setIsLoadingPix(true);
     hapticFeedback('medium');
 
     try {
@@ -651,14 +653,14 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           : "Clique no botão PIX para tentar novamente ou fale com um atendente.",
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingPix(false);
     }
   };
 
   const handleCardPayment = async () => {
-    if (!formData || isLoading) return;
+    if (!formData || isLoadingCard) return;
     
-    setIsLoading(true);
+    setIsLoadingCard(true);
     hapticFeedback('medium');
 
     try {
@@ -672,6 +674,12 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             quantity: item.quantity,
             totalPrice: item.totalPrice,
             type: item.type,
+            lineType: item.lineType || null,
+            flavors: item.flavors?.map(f => ({
+              name: f.name,
+              quantity: f.quantity,
+              category: f.category,
+            })),
           })),
           customer: {
             name: formData.name,
@@ -683,6 +691,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             address: formData.address,
             fee: deliveryFee,
           },
+          coupon_code: appliedCoupon || null,
+          discount_amount: couponDiscount,
           redirect_url: redirectUrl,
           tenant_id: tenantId,
         },
@@ -707,7 +717,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingCard(false);
     }
   };
 
@@ -730,7 +740,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const handleWhatsAppContact = async () => {
     if (!formData) return;
     hapticFeedback('medium');
-    setIsLoading(true);
+    setIsLoadingWhatsApp(true);
 
     try {
       // Update order status to whatsapp_pending
@@ -800,7 +810,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingWhatsApp(false);
     }
   };
 
@@ -1099,14 +1109,14 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                         <RadioGroupItem value="pickup" id="drawer-pickup" />
                         <Label htmlFor="drawer-pickup" className="flex-1 cursor-pointer">
                           <span className="font-medium">📍 Retirada grátis</span>
-                          <span className="text-sm text-muted-foreground block">Bairro Recreio</span>
+                          <span className="text-sm text-muted-foreground block">{tenantLocation.pickupNeighborhood || 'Local de retirada'}</span>
                         </Label>
                       </div>
                       <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50 border border-transparent hover:border-primary/30 transition-colors">
                         <RadioGroupItem value="delivery" id="drawer-delivery" />
                         <Label htmlFor="drawer-delivery" className="flex-1 cursor-pointer">
                           <span className="font-medium">🛵 Entrega</span>
-                          <span className="text-sm text-muted-foreground ml-2">+ R$ 10,00</span>
+                          <span className="text-sm text-muted-foreground ml-2">+ R$ {tenantLocation.deliveryFee.toFixed(2).replace(".", ",")}</span>
                         </Label>
                       </div>
                     </RadioGroup>
@@ -1236,7 +1246,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     <p className="text-sm"><strong>📱</strong> {formData.phone}</p>
                     <p className="text-sm mt-2">
                       {formData.deliveryOption === "pickup" 
-                        ? "📍 Retirada no local - Bairro Recreio"
+                        ? `📍 Retirada no local - ${tenantLocation.pickupNeighborhood || 'Local de retirada'}`
                         : `🛵 Entrega - ${formData.address}`
                       }
                     </p>
@@ -1388,50 +1398,68 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                   transition={{ delay: 0.5 }}
                   className="w-full space-y-3"
                 >
-                  {/* CPF - obrigatório para PIX */}
-                  <div className="space-y-1">
-                    <Label htmlFor="cpf-drawer" className="text-sm font-medium">
-                      CPF <span className="text-muted-foreground text-xs">(exigido pelo PIX)</span>
-                    </Label>
-                    <Input
-                      id="cpf-drawer"
-                      inputMode="numeric"
-                      placeholder="000.000.000-00"
-                      value={formatCPF(cpfValue)}
-                      onChange={(e) => {
-                        setCpfValue(e.target.value);
-                        setCpfError("");
-                      }}
-                      className={cpfError ? 'border-destructive' : ''}
-                    />
-                    {cpfError && <p className="text-xs text-destructive">{cpfError}</p>}
-                  </div>
+                  {/* CPF inline - only shows when clicking PIX */}
+                  {showCpfInput && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="space-y-2 p-3 rounded-lg bg-muted/30 border border-border"
+                    >
+                      <Label htmlFor="cpf-drawer" className="text-sm font-medium">
+                        CPF <span className="text-muted-foreground text-xs">(obrigatório para PIX)</span>
+                      </Label>
+                      <Input
+                        id="cpf-drawer"
+                        inputMode="numeric"
+                        placeholder="000.000.000-00"
+                        value={formatCPF(cpfValue)}
+                        onChange={(e) => {
+                          setCpfValue(e.target.value);
+                          setCpfError("");
+                        }}
+                        className={cpfError ? 'border-destructive' : ''}
+                      />
+                      {cpfError && <p className="text-xs text-destructive">{cpfError}</p>}
+                      <Button
+                        variant="cta"
+                        size="lg"
+                        className="w-full"
+                        onClick={() => handlePixPayment()}
+                        disabled={isLoadingPix}
+                      >
+                        {isLoadingPix ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <>
+                            <Smartphone className="w-5 h-5" />
+                            Gerar PIX agora
+                          </>
+                        )}
+                      </Button>
+                    </motion.div>
+                  )}
 
-                  <Button
-                    variant="cta"
-                    size="lg"
-                    className="w-full"
-                    onClick={() => handlePixPayment()}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        <Smartphone className="w-5 h-5" />
-                        Pagar via PIX
-                      </>
-                    )}
-                  </Button>
+                  {!showCpfInput && (
+                    <Button
+                      variant="cta"
+                      size="lg"
+                      className="w-full"
+                      onClick={() => setShowCpfInput(true)}
+                      disabled={isLoadingCard || isLoadingWhatsApp}
+                    >
+                      <Smartphone className="w-5 h-5" />
+                      Pagar via PIX
+                    </Button>
+                  )}
 
                   <Button
                     variant="outline"
                     size="lg"
                     className="w-full border-primary/30 hover:bg-primary/5"
                     onClick={handleCardPayment}
-                    disabled={isLoading}
+                    disabled={isLoadingCard || isLoadingPix || isLoadingWhatsApp}
                   >
-                    {isLoading ? (
+                    {isLoadingCard ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
                       <>
@@ -1446,9 +1474,9 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     size="lg"
                     className="w-full"
                     onClick={handleWhatsAppContact}
-                    disabled={isLoading}
+                    disabled={isLoadingWhatsApp || isLoadingPix || isLoadingCard}
                   >
-                    {isLoading ? (
+                    {isLoadingWhatsApp ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
                         Enviando...
