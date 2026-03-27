@@ -1398,50 +1398,68 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                   transition={{ delay: 0.5 }}
                   className="w-full space-y-3"
                 >
-                  {/* CPF - obrigatório para PIX */}
-                  <div className="space-y-1">
-                    <Label htmlFor="cpf-drawer" className="text-sm font-medium">
-                      CPF <span className="text-muted-foreground text-xs">(exigido pelo PIX)</span>
-                    </Label>
-                    <Input
-                      id="cpf-drawer"
-                      inputMode="numeric"
-                      placeholder="000.000.000-00"
-                      value={formatCPF(cpfValue)}
-                      onChange={(e) => {
-                        setCpfValue(e.target.value);
-                        setCpfError("");
-                      }}
-                      className={cpfError ? 'border-destructive' : ''}
-                    />
-                    {cpfError && <p className="text-xs text-destructive">{cpfError}</p>}
-                  </div>
+                  {/* CPF inline - only shows when clicking PIX */}
+                  {showCpfInput && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="space-y-2 p-3 rounded-lg bg-muted/30 border border-border"
+                    >
+                      <Label htmlFor="cpf-drawer" className="text-sm font-medium">
+                        CPF <span className="text-muted-foreground text-xs">(obrigatório para PIX)</span>
+                      </Label>
+                      <Input
+                        id="cpf-drawer"
+                        inputMode="numeric"
+                        placeholder="000.000.000-00"
+                        value={formatCPF(cpfValue)}
+                        onChange={(e) => {
+                          setCpfValue(e.target.value);
+                          setCpfError("");
+                        }}
+                        className={cpfError ? 'border-destructive' : ''}
+                      />
+                      {cpfError && <p className="text-xs text-destructive">{cpfError}</p>}
+                      <Button
+                        variant="cta"
+                        size="lg"
+                        className="w-full"
+                        onClick={() => handlePixPayment()}
+                        disabled={isLoadingPix}
+                      >
+                        {isLoadingPix ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <>
+                            <Smartphone className="w-5 h-5" />
+                            Gerar PIX agora
+                          </>
+                        )}
+                      </Button>
+                    </motion.div>
+                  )}
 
-                  <Button
-                    variant="cta"
-                    size="lg"
-                    className="w-full"
-                    onClick={() => handlePixPayment()}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        <Smartphone className="w-5 h-5" />
-                        Pagar via PIX
-                      </>
-                    )}
-                  </Button>
+                  {!showCpfInput && (
+                    <Button
+                      variant="cta"
+                      size="lg"
+                      className="w-full"
+                      onClick={() => setShowCpfInput(true)}
+                      disabled={isLoadingCard || isLoadingWhatsApp}
+                    >
+                      <Smartphone className="w-5 h-5" />
+                      Pagar via PIX
+                    </Button>
+                  )}
 
                   <Button
                     variant="outline"
                     size="lg"
                     className="w-full border-primary/30 hover:bg-primary/5"
                     onClick={handleCardPayment}
-                    disabled={isLoading}
+                    disabled={isLoadingCard || isLoadingPix || isLoadingWhatsApp}
                   >
-                    {isLoading ? (
+                    {isLoadingCard ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
                       <>
@@ -1456,9 +1474,9 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     size="lg"
                     className="w-full"
                     onClick={handleWhatsAppContact}
-                    disabled={isLoading}
+                    disabled={isLoadingWhatsApp || isLoadingPix || isLoadingCard}
                   >
-                    {isLoading ? (
+                    {isLoadingWhatsApp ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
                         Enviando...
