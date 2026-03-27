@@ -502,6 +502,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
 
       const orderNumber = orderData.order_number;
       setConfirmedOrderNumber(orderNumber);
+      setConfirmedOrderId(orderData.id);
 
       // Record coupon usage in background (don't wait)
       if (appliedCoupon) {
