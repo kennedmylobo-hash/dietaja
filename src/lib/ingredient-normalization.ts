@@ -48,7 +48,7 @@ const CARB_KW = ['arroz', 'aipim', 'batata', 'purê', 'pure', 'feijão', 'feijao
  */
 export const normalizeCarbName = (name: string): string => {
   const norm = stripAccents(name);
-  if (norm === 'graos' || norm === 'grao') return 'Purê de abóbora';
+  if (norm === 'graos' || norm === 'grao' || norm === 'grao de bico') return 'Grão de Bico';
   return name;
 };
 
