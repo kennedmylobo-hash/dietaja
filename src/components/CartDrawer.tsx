@@ -98,7 +98,9 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     setStep('checkout');
     trackCheckoutStart();
   };
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingPix, setIsLoadingPix] = useState(false);
+  const [isLoadingCard, setIsLoadingCard] = useState(false);
+  const [isLoadingWhatsApp, setIsLoadingWhatsApp] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const [editingMarmita, setEditingMarmita] = useState<CartItem | null>(null);
   const [editingKit, setEditingKit] = useState<CartItem | null>(null);
