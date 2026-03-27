@@ -839,6 +839,9 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       setEditingKit(null);
       setConfirmedOrderNumber("");
       setFormData(null);
+      setShowCpfInput(false);
+      setCpfValue("");
+      setCpfError("");
       // Reset coupon state on close
       setCouponCode("");
       setCouponDiscount(0);
