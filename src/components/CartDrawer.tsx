@@ -674,6 +674,12 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             quantity: item.quantity,
             totalPrice: item.totalPrice,
             type: item.type,
+            lineType: item.lineType || null,
+            flavors: item.flavors?.map(f => ({
+              name: f.name,
+              quantity: f.quantity,
+              category: f.category,
+            })),
           })),
           customer: {
             name: formData.name,
@@ -685,6 +691,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             address: formData.address,
             fee: deliveryFee,
           },
+          coupon_code: appliedCoupon || null,
+          discount_amount: couponDiscount,
           redirect_url: redirectUrl,
           tenant_id: tenantId,
         },
