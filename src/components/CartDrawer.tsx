@@ -820,6 +820,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     reset();
     setStep('cart');
     setConfirmedOrderNumber("");
+    setConfirmedOrderId("");
     setFormData(null);
     // Reset coupon state
     setCouponCode("");
