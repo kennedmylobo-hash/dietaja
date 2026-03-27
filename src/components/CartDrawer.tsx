@@ -653,14 +653,14 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           : "Clique no botão PIX para tentar novamente ou fale com um atendente.",
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingPix(false);
     }
   };
 
   const handleCardPayment = async () => {
-    if (!formData || isLoading) return;
+    if (!formData || isLoadingCard) return;
     
-    setIsLoading(true);
+    setIsLoadingCard(true);
     hapticFeedback('medium');
 
     try {
