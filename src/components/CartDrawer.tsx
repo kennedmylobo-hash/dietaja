@@ -1246,7 +1246,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                     <p className="text-sm"><strong>📱</strong> {formData.phone}</p>
                     <p className="text-sm mt-2">
                       {formData.deliveryOption === "pickup" 
-                        ? "📍 Retirada no local - Bairro Recreio"
+                        ? `📍 Retirada no local - ${tenantLocation.pickupNeighborhood || 'Local de retirada'}`
                         : `🛵 Entrega - ${formData.address}`
                       }
                     </p>
