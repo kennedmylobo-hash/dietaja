@@ -740,7 +740,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const handleWhatsAppContact = async () => {
     if (!formData) return;
     hapticFeedback('medium');
-    setIsLoading(true);
+    setIsLoadingWhatsApp(true);
 
     try {
       // Update order status to whatsapp_pending
