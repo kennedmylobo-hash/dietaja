@@ -66,6 +66,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const { items, removeItem, updateItemFlavors, getTotal, clearCart, trackCartOpen, trackCheckoutStart, trackCheckoutComplete, customerInfo, setCustomerInfo, markCartAsConverted } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'confirmation' | 'success'>('cart');
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState<string>("");
+  const [confirmedOrderId, setConfirmedOrderId] = useState<string>("");
   const [isConfirming, setIsConfirming] = useState(false);
   const [formData, setFormData] = useState<FormData | null>(null);
   
@@ -501,6 +502,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
 
       const orderNumber = orderData.order_number;
       setConfirmedOrderNumber(orderNumber);
+      setConfirmedOrderId(orderData.id);
 
       // Record coupon usage in background (don't wait)
       if (appliedCoupon) {
@@ -664,11 +666,20 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     hapticFeedback('medium');
 
     try {
+      // If we already have an order from handleConfirmOrder, update it for card payment
+      if (confirmedOrderId) {
+        await supabase
+          .from('orders')
+          .update({ payment_method: 'infinitepay' })
+          .eq('id', confirmedOrderId);
+      }
+
       const currentOrigin = window.location.origin;
       const redirectUrl = `${currentOrigin}/pagamento/sucesso`;
 
       const { data: response, error } = await supabase.functions.invoke('create-infinitepay-checkout', {
         body: {
+          existing_order_id: confirmedOrderId || null,
           items: items.map(item => ({
             name: item.name,
             quantity: item.quantity,
@@ -755,9 +766,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       }
 
       // Build WhatsApp message with order details
-      const total = getTotal();
-      const deliveryFee = formData.deliveryOption === 'delivery' ? (tenantLocation.deliveryFee || 0) : 0;
-      const finalTotal = total - couponDiscount + deliveryFee;
+      // Use the already-calculated total (includes delivery + discount)
+      const finalTotal = total;
 
       let message = `Oi 😊\nVi o site da *${brand.name}* e quero fazer meu pedido.\n\n`;
       message += `👤 *DADOS:*\n`;
@@ -787,7 +797,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         }
       });
 
-      message += `\n💰 *SUBTOTAL:* R$ ${total.toFixed(2).replace(".", ",")}\n`;
+      message += `\n💰 *SUBTOTAL:* R$ ${subtotal.toFixed(2).replace(".", ",")}\n`;
       if (couponDiscount > 0) {
         message += `🏷️ *DESCONTO:* -R$ ${couponDiscount.toFixed(2).replace(".", ",")}\n`;
       }
@@ -819,6 +829,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     reset();
     setStep('cart');
     setConfirmedOrderNumber("");
+    setConfirmedOrderId("");
     setFormData(null);
     // Reset coupon state
     setCouponCode("");
@@ -839,7 +850,11 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       setEditingMarmita(null);
       setEditingKit(null);
       setConfirmedOrderNumber("");
+      setConfirmedOrderId("");
       setFormData(null);
+      setShowCpfInput(false);
+      setCpfValue("");
+      setCpfError("");
       // Reset coupon state on close
       setCouponCode("");
       setCouponDiscount(0);

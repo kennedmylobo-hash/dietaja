@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { items, customer, delivery, tenant_id } = body;
+    const { items, customer, delivery, tenant_id, existing_order_id } = body;
 
     if (!items || !items.length) {
       throw new Error("Nenhum item informado");
@@ -39,31 +39,56 @@ Deno.serve(async (req) => {
     const totalCents = infiniteItems.reduce((sum: number, i: { price: number; quantity: number }) => sum + i.price * i.quantity, 0);
     const totalReais = Math.round(totalCents) / 100;
 
-    // Create order in database first
-    const orderData = {
-      customer_name: customer.name,
-      customer_email: customer.email,
-      customer_phone: customer.phone,
-      items: JSON.stringify(items),
-      subtotal: totalReais,
-      total: totalReais,
-      delivery_option: delivery?.option || "delivery",
-      delivery_address: delivery?.address || null,
-      delivery_fee: delivery?.fee || 0,
-      status: "pending",
-      payment_method: "infinitepay",
-      tenant_id: tenant_id || null,
-    };
+    let order: { id: string; order_number: string | null };
 
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert(orderData)
-      .select("id, order_number")
-      .single();
+    if (existing_order_id) {
+      // Reuse existing order — just update payment method
+      const { data: existingOrder, error: fetchError } = await supabase
+        .from("orders")
+        .select("id, order_number")
+        .eq("id", existing_order_id)
+        .single();
 
-    if (orderError) {
-      console.error("Order creation error:", orderError);
-      throw new Error("Erro ao criar pedido: " + orderError.message);
+      if (fetchError || !existingOrder) {
+        console.error("Existing order not found:", fetchError);
+        throw new Error("Pedido não encontrado: " + (fetchError?.message || existing_order_id));
+      }
+
+      await supabase
+        .from("orders")
+        .update({ payment_method: "infinitepay" })
+        .eq("id", existing_order_id);
+
+      order = existingOrder;
+    } else {
+      // Create order in database
+      const orderData = {
+        customer_name: customer.name,
+        customer_email: customer.email,
+        customer_phone: customer.phone,
+        items: JSON.stringify(items),
+        subtotal: totalReais,
+        total: totalReais,
+        delivery_option: delivery?.option || "delivery",
+        delivery_address: delivery?.address || null,
+        delivery_fee: delivery?.fee || 0,
+        status: "pending",
+        payment_method: "infinitepay",
+        tenant_id: tenant_id || null,
+      };
+
+      const { data: newOrder, error: orderError } = await supabase
+        .from("orders")
+        .insert(orderData)
+        .select("id, order_number")
+        .single();
+
+      if (orderError) {
+        console.error("Order creation error:", orderError);
+        throw new Error("Erro ao criar pedido: " + orderError.message);
+      }
+
+      order = newOrder;
     }
 
     // Build redirect URL
