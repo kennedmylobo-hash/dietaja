@@ -841,6 +841,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       setEditingMarmita(null);
       setEditingKit(null);
       setConfirmedOrderNumber("");
+      setConfirmedOrderId("");
       setFormData(null);
       setShowCpfInput(false);
       setCpfValue("");
