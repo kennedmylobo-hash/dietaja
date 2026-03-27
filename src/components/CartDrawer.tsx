@@ -66,6 +66,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const { items, removeItem, updateItemFlavors, getTotal, clearCart, trackCartOpen, trackCheckoutStart, trackCheckoutComplete, customerInfo, setCustomerInfo, markCartAsConverted } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'confirmation' | 'success'>('cart');
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState<string>("");
+  const [confirmedOrderId, setConfirmedOrderId] = useState<string>("");
   const [isConfirming, setIsConfirming] = useState(false);
   const [formData, setFormData] = useState<FormData | null>(null);
   
