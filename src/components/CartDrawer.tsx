@@ -578,7 +578,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     }
     
     setCpfError("");
-    setIsLoading(true);
+    setIsLoadingPix(true);
     hapticFeedback('medium');
 
     try {
