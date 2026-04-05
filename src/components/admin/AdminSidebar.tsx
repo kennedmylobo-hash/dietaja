@@ -62,6 +62,7 @@ const menuGroups: AdminMenuGroup[] = [
       { id: "analytics", label: "Analytics", icon: BarChart3 },
       { id: "funnel", label: "Funil", icon: Activity },
       { id: "customers", label: "Clientes", icon: Users },
+      { id: "utm-report", label: "Campanhas UTM", icon: Target },
       { id: "ab-tests", label: "Teste A/B", icon: BarChart3 },
     ],
   },
