@@ -40,7 +40,7 @@ const KIT_FLAVORS = [
 const BENEFITS = [
   { icon: Snowflake, title: "Congelado = mais praticidade", text: "Guarde no freezer e tenha sempre uma refeição pronta. Sem desperdício, sem correria, sem desculpa." },
   { icon: Flame, title: "Nutricionalmente balanceadas", text: "Cada marmita foi pensada para ajudar no emagrecimento sem passar fome. Proteína, fibra e sabor na medida certa." },
-  { icon: Truck, title: "Entrega grátis toda semana", text: "Sem taxas escondidas. O preço que você vê é o que você paga — com entrega na sua porta, de segunda a sexta." },
+  { icon: Truck, title: "Entrega grátis do kit completo", text: "Sem taxas escondidas. O preço que você vê é o que você paga — com entrega única das 20 marmitas na sua porta." },
   { icon: Clock, title: "Pronta em 4 minutos", text: "Micro-ondas ou banho-maria. Sua refeição fica pronta mais rápido do que qualquer app de delivery chegaria." },
   { icon: ChefHat, title: "Sabor que faz você querer repetir", text: "96% dos nossos clientes renovam o kit no mês seguinte. Não é por obrigação — é porque gostaram de verdade." },
   { icon: ShieldCheck, title: "Compra única e simples", text: "Você faz seu pedido uma vez, recebe suas 20 marmitas e aproveita. Sem complicação nenhuma." },
@@ -49,13 +49,13 @@ const BENEFITS = [
 const STEPS = [
   { step: "1", title: "Escolha seu Kit", desc: "Preencha o formulário aqui embaixo e reserve seu kit mensal." },
   { step: "2", title: "Confirme o pagamento", desc: "Pague via PIX ou cartão em poucos segundos, com total segurança." },
-  { step: "3", title: "Receba em casa", desc: "Entregamos de segunda a sexta, congelado e pronto pra guardar." },
+  { step: "3", title: "Receba em casa", desc: "Entregamos o kit completo com as 20 marmitas, congelado e pronto pra guardar." },
   { step: "4", title: "Aqueça e aproveite", desc: "4 minutos no micro-ondas. Uma refeição saborosa e equilibrada todo dia." },
 ];
 
 const FAQ_ITEMS = [
   { q: "Quais formas de pagamento vocês aceitam?", a: "Aceitamos PIX (confirmação instantânea) e cartão de crédito. O pagamento é processado de forma segura e você recebe confirmação imediata para agendarmos a entrega." },
-  { q: "Como funciona a entrega?", a: "Entregamos de segunda a sexta, congelado e pronto pra guardar no freezer. A entrega é grátis — sem taxas escondidas." },
+  { q: "Como funciona a entrega?", a: "Entregamos o kit completo com as 20 marmitas de uma só vez, congelado e pronto pra guardar no freezer. A entrega é grátis — sem taxas escondidas." },
   { q: "E se eu não gostar?", a: "Se qualquer marmita apresentar problema de qualidade — embalagem danificada, produto fora do padrão — entre em contato e fazemos a reposição imediata. Simples assim." },
   { q: "É uma compra única?", a: "Sim! Você faz o pedido, recebe suas 20 marmitas e pronto. Sem assinatura, sem compromisso." },
   { q: "Funciona pra emagrecer?", a: "Sim! Todas são da linha Fit, balanceadas nutricionalmente. Combinadas com bons hábitos, os resultados aparecem já nas primeiras semanas." },
@@ -375,7 +375,7 @@ const KitMensal = () => {
             </h1>
             <p className="text-lg font-bold text-foreground">Emagreça com gostinho.</p>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Marmitas congeladas balanceadas, entregues na sua porta de segunda a sexta.
+              Marmitas congeladas balanceadas, entregues na sua porta em uma única entrega.
               <strong className="text-foreground"> Sem tempo de cozinhar? A gente resolve — entrega grátis.</strong>
             </p>
 
