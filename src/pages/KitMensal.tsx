@@ -809,7 +809,7 @@ const KitMensal = () => {
                   variant="outline"
                   size="lg"
                   className="w-full text-base font-bold py-5 rounded-xl border-primary/30 hover:bg-primary/5"
-                  onClick={() => { setPendingPaymentMethod("card"); handleConfirmAndPay(); }}
+                  onClick={() => handleConfirmAndPay("card")}
                   disabled={isLoading || remaining !== 0}
                 >
                   {isLoading && loadingMethod === "card" ? (
