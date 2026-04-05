@@ -771,6 +771,9 @@ const Admin = () => {
       case "reviews":
         return <ReviewsManager />;
 
+      case "utm-report":
+        return <UTMCampaignReport dateFilter={dateFilter} />;
+
       case "analytics":
         return (
           <div className="space-y-8">
