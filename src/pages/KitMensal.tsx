@@ -677,34 +677,26 @@ const KitMensal = () => {
                 </div>
               </div>
 
-              {/* Two payment buttons */}
+              {/* Two payment buttons - go to confirmation step */}
               <div className="grid grid-cols-1 gap-2 pt-1">
                 <Button
                   type="button"
                   size="lg"
                   className="w-full text-base font-bold py-5 rounded-xl"
-                  onClick={handleSubmit(onSubmitPix)}
+                  onClick={handleSubmit(() => handleShowConfirmation("pix"))}
                   disabled={isLoading}
                 >
-                  {loadingMethod === "pix" ? (
-                    <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Gerando PIX...</>
-                  ) : (
-                    <><Smartphone className="w-5 h-5 mr-2" /> Garantir meu Kit via PIX</>
-                  )}
+                  <Smartphone className="w-5 h-5 mr-2" /> Garantir meu Kit via PIX
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="lg"
                   className="w-full text-base font-bold py-5 rounded-xl border-primary/30 hover:bg-primary/5"
-                  onClick={handleSubmit(onSubmitCard)}
+                  onClick={handleSubmit(() => handleShowConfirmation("card"))}
                   disabled={isLoading}
                 >
-                  {loadingMethod === "card" ? (
-                    <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Redirecionando...</>
-                  ) : (
-                    <><CreditCard className="w-5 h-5 mr-2" /> Garantir meu Kit via Cartão</>
-                  )}
+                  <CreditCard className="w-5 h-5 mr-2" /> Garantir meu Kit via Cartão
                 </Button>
               </div>
 
