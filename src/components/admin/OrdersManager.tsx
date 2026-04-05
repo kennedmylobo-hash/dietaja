@@ -1665,7 +1665,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                               <div key={fi} className="flex items-start gap-1">
                                 <div className="flex-1">
                                   <p className="text-xs text-muted-foreground">
-                                    • {flavor.quantity}x {flavor.name}
+                                    • {flavor.quantity || (flavor as any).qty || 0}x {flavor.name}
                                   </p>
                                   {composition && (
                                     <p className="text-[10px] text-muted-foreground/70 ml-3">

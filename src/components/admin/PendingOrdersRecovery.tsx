@@ -637,7 +637,7 @@ const PendingOrdersRecovery = () => {
                       </div>
                       {item.flavors && item.flavors.length > 0 && (
                         <div className="mt-1 pl-4 text-xs text-muted-foreground">
-                          Sabores: {item.flavors.map(f => `${f.quantity}x ${f.name}`).join(', ')}
+                          Sabores: {item.flavors.map((f: any) => `${f.quantity || f.qty || 0}x ${f.name}`).join(', ')}
                         </div>
                       )}
                     </div>
