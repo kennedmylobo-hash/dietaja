@@ -40,7 +40,7 @@ const KIT_FLAVORS = [
 const BENEFITS = [
   { icon: Snowflake, title: "Congelado = mais praticidade", text: "Guarde no freezer e tenha sempre uma refeição pronta. Sem desperdício, sem correria, sem desculpa." },
   { icon: Flame, title: "Nutricionalmente balanceadas", text: "Cada marmita foi pensada para ajudar no emagrecimento sem passar fome. Proteína, fibra e sabor na medida certa." },
-  { icon: Truck, title: "Entrega grátis toda semana", text: "Sem taxas escondidas. O preço que você vê é o que você paga — com entrega na sua porta, de segunda a sexta." },
+  { icon: Truck, title: "Entrega grátis do kit completo", text: "Sem taxas escondidas. O preço que você vê é o que você paga — com entrega única das 20 marmitas na sua porta." },
   { icon: Clock, title: "Pronta em 4 minutos", text: "Micro-ondas ou banho-maria. Sua refeição fica pronta mais rápido do que qualquer app de delivery chegaria." },
   { icon: ChefHat, title: "Sabor que faz você querer repetir", text: "96% dos nossos clientes renovam o kit no mês seguinte. Não é por obrigação — é porque gostaram de verdade." },
   { icon: ShieldCheck, title: "Compra única e simples", text: "Você faz seu pedido uma vez, recebe suas 20 marmitas e aproveita. Sem complicação nenhuma." },
