@@ -795,7 +795,7 @@ const KitMensal = () => {
                   type="button"
                   size="lg"
                   className="w-full text-base font-bold py-5 rounded-xl"
-                  onClick={() => { setPendingPaymentMethod("pix"); handleConfirmAndPay(); }}
+                  onClick={() => handleConfirmAndPay("pix")}
                   disabled={isLoading || remaining !== 0}
                 >
                   {isLoading && loadingMethod === "pix" ? (
