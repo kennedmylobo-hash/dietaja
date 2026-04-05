@@ -29,12 +29,12 @@ const KIT_PRICE = 499;
 const KIT_TOTAL_MEALS = 20;
 
 const KIT_FLAVORS = [
-  { qty: 3, emoji: "🍝", name: "Macarrão integral à bolonhesa", tag: "Alto em proteína, carboidrato de baixo IG" },
-  { qty: 3, emoji: "🍳", name: "Almôndegas ao molho sugo com espaguete integral", tag: "Rico em ferro e proteína magra" },
-  { qty: 3, emoji: "🥩", name: "Estrogonofe de carne com arroz e mix de salada", tag: "Clássico reconfortante, versão fit" },
-  { qty: 3, emoji: "🍗", name: "Estrogonofe de frango com arroz e mix de salada", tag: "Proteína magra, baixo em gordura" },
-  { qty: 4, emoji: "🍖", name: "Escondidinho de carne com purê de aipim", tag: "Comfort food sem culpa, rico em fibras" },
-  { qty: 4, emoji: "🍋", name: "Frango ao molho de maracujá com purê de batata doce", tag: "Anti-inflamatório, sabor agridoce incrível" },
+  { qty: 3, emoji: "🍝", name: "Macarrão integral à bolonhesa", tag: "120g massa integral, 80g molho caseiro artesanal, 100g carne magra bovina moída" },
+  { qty: 3, emoji: "🍳", name: "Almôndegas ao molho sugo com espaguete integral", tag: "100g almôndegas de carne magra, 60g molho caseiro artesanal, 140g espaguete integral" },
+  { qty: 3, emoji: "🥩", name: "Estrogonofe de carne com arroz e mix de salada", tag: "120g estrogonofe de carne + 130g arroz + 50g mix de salada" },
+  { qty: 3, emoji: "🍗", name: "Estrogonofe de frango com arroz e mix de salada", tag: "120g estrogonofe de frango + 130g arroz + 50g mix de salada" },
+  { qty: 4, emoji: "🍖", name: "Escondidinho de carne com purê de aipim", tag: "120g carne magra bovina + 180g purê de aipim" },
+  { qty: 4, emoji: "🍋", name: "Frango ao molho de maracujá com purê de batata doce", tag: "120g frango ao molho de maracujá + 180g purê de batata doce" },
 ];
 
 const BENEFITS = [
