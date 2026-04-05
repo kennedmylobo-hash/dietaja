@@ -337,7 +337,7 @@ const KitMensal = () => {
             quantity: 1,
             totalPrice: KIT_PRICE,
             type: "kit-mensal",
-            flavors: customFlavors.filter(f => f.qty > 0).map(f => ({ name: f.name, qty: f.qty })),
+            flavors: customFlavors.filter(f => f.qty > 0).map(f => ({ name: f.name, qty: f.qty, quantity: f.qty })),
           }],
           customer: {
             name: sanitizeCustomerName(data.name),
