@@ -320,6 +320,12 @@ const KitMensal = () => {
     setIsLoading(true);
     setLoadingMethod("card");
 
+    // ===== Lead event (with customer data for CAPI) =====
+    const leadEid = generateEventId();
+    trackPixelEvent('Lead', { content_name: 'Kit Mensal - Cartão', value: KIT_PRICE, currency: 'BRL' }, leadEid);
+    trackGA4('generate_lead', { currency: 'BRL', value: KIT_PRICE, payment_type: 'card' });
+    sendCAPI('Lead', leadEid, { value: KIT_PRICE, customer_email: data.email, customer_phone: data.phone }, tenantId);
+
     try {
       const currentOrigin = window.location.origin;
       const redirectUrl = `${currentOrigin}/pagamento/sucesso`;
