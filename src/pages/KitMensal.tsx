@@ -185,6 +185,39 @@ const KitMensal = () => {
 
   const total = KIT_PRICE;
 
+  const totalCustomMeals = customFlavors.reduce((sum, f) => sum + f.qty, 0);
+  const remaining = KIT_TOTAL_MEALS - totalCustomMeals;
+
+  const updateFlavorQty = useCallback((index: number, delta: number) => {
+    setCustomFlavors(prev => {
+      const updated = [...prev];
+      const newQty = updated[index].qty + delta;
+      if (newQty < 0) return prev;
+      const newTotal = prev.reduce((s, f, i) => s + (i === index ? newQty : f.qty), 0);
+      if (newTotal > KIT_TOTAL_MEALS) return prev;
+      updated[index] = { ...updated[index], qty: newQty };
+      return updated;
+    });
+  }, []);
+
+  const handleShowConfirmation = (method: "pix" | "card") => {
+    setPendingPaymentMethod(method);
+    setShowConfirmation(true);
+    setTimeout(() => confirmationRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+  };
+
+  const handleConfirmAndPay = () => {
+    if (remaining !== 0) {
+      toast({ title: "Ajuste as quantidades", description: `O total deve ser ${KIT_TOTAL_MEALS} marmitas. Faltam ${remaining}.`, variant: "destructive" });
+      return;
+    }
+    if (pendingPaymentMethod === "pix") {
+      handleSubmit(onSubmitPix)();
+    } else {
+      handleSubmit(onSubmitCard)();
+    }
+  };
+
   const onSubmitCard = async (data: FormData) => {
     if (isSubmittingRef.current || isLoading) return;
     isSubmittingRef.current = true;
