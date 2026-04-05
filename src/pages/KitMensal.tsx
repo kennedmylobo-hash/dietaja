@@ -260,6 +260,22 @@ const KitMensal = () => {
   const handleShowConfirmation = (method: "pix" | "card") => {
     setPendingPaymentMethod(method);
     setShowConfirmation(true);
+
+    // ===== InitiateCheckout =====
+    const eid = generateEventId();
+    trackPixelEvent('InitiateCheckout', {
+      content_name: 'Kit Mensal Emagrecimento',
+      value: KIT_PRICE,
+      currency: 'BRL',
+      num_items: KIT_TOTAL_MEALS,
+    }, eid);
+    trackGA4('begin_checkout', {
+      currency: 'BRL',
+      value: KIT_PRICE,
+      items: [{ item_id: 'kit-mensal-20', item_name: 'Kit Mensal 20 Marmitas', price: KIT_PRICE, quantity: 1 }],
+    });
+    sendCAPI('InitiateCheckout', eid, { value: KIT_PRICE }, tenantId);
+
     setTimeout(() => confirmationRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
