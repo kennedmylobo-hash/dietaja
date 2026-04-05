@@ -117,7 +117,12 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-const scrollToCheckout = () => document.getElementById('checkout')?.scrollIntoView({ behavior: 'smooth' });
+const scrollToCheckout = () => {
+  // Track scroll to checkout as custom event
+  trackPixelEvent('CustomizeProduct', { content_name: 'Kit Mensal', value: KIT_PRICE, currency: 'BRL' });
+  trackGA4('select_content', { content_type: 'cta', content_id: 'scroll_to_checkout' });
+  document.getElementById('checkout')?.scrollIntoView({ behavior: 'smooth' });
+};
 
 const AutoScrollGallery = ({ images }: { images: string[] }) => {
   const galScrollRef = useRef<HTMLDivElement>(null);
