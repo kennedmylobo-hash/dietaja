@@ -156,6 +156,10 @@ const KitMensal = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMethod, setLoadingMethod] = useState<"pix" | "card" | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [customFlavors, setCustomFlavors] = useState(() => KIT_FLAVORS.map(f => ({ ...f })));
+  const [pendingPaymentMethod, setPendingPaymentMethod] = useState<"pix" | "card" | null>(null);
+  const confirmationRef = useRef<HTMLDivElement>(null);
   const isSubmittingRef = useRef(false);
   
   const [pixModalData, setPixModalData] = useState<{
