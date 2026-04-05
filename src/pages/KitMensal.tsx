@@ -284,6 +284,23 @@ const KitMensal = () => {
       toast({ title: "Ajuste as quantidades", description: `O total deve ser ${KIT_TOTAL_MEALS} marmitas. Faltam ${remaining}.`, variant: "destructive" });
       return;
     }
+
+    // ===== AddPaymentInfo =====
+    const eid = generateEventId();
+    trackPixelEvent('AddPaymentInfo', {
+      content_name: 'Kit Mensal Emagrecimento',
+      value: KIT_PRICE,
+      currency: 'BRL',
+      payment_method: method,
+    }, eid);
+    trackGA4('add_payment_info', {
+      currency: 'BRL',
+      value: KIT_PRICE,
+      payment_type: method,
+      items: [{ item_id: 'kit-mensal-20', item_name: 'Kit Mensal 20 Marmitas', price: KIT_PRICE, quantity: 1 }],
+    });
+    sendCAPI('AddPaymentInfo', eid, { value: KIT_PRICE }, tenantId);
+
     setPendingPaymentMethod(method);
     if (method === "pix") {
       handleSubmit(onSubmitPix)();
