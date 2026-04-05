@@ -748,7 +748,7 @@ const KitMensal = () => {
                   <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border">
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-medium text-foreground leading-snug">{flavor.name}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{flavor.tag}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{flavor.weight}</p>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
