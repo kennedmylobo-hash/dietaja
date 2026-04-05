@@ -206,12 +206,13 @@ const KitMensal = () => {
     setTimeout(() => confirmationRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
-  const handleConfirmAndPay = () => {
+  const handleConfirmAndPay = (method: "pix" | "card") => {
     if (remaining !== 0) {
       toast({ title: "Ajuste as quantidades", description: `O total deve ser ${KIT_TOTAL_MEALS} marmitas. Faltam ${remaining}.`, variant: "destructive" });
       return;
     }
-    if (pendingPaymentMethod === "pix") {
+    setPendingPaymentMethod(method);
+    if (method === "pix") {
       handleSubmit(onSubmitPix)();
     } else {
       handleSubmit(onSubmitCard)();
@@ -677,8 +678,8 @@ const KitMensal = () => {
                 </div>
               </div>
 
-              {/* Two payment buttons - go to confirmation step */}
-              <div className="grid grid-cols-1 gap-2 pt-1">
+              {/* Single button to go to confirmation step */}
+              <div className="pt-1">
                 <Button
                   type="button"
                   size="lg"
@@ -686,17 +687,7 @@ const KitMensal = () => {
                   onClick={handleSubmit(() => handleShowConfirmation("pix"))}
                   disabled={isLoading}
                 >
-                  <Smartphone className="w-5 h-5 mr-2" /> Garantir meu Kit via PIX
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  className="w-full text-base font-bold py-5 rounded-xl border-primary/30 hover:bg-primary/5"
-                  onClick={handleSubmit(() => handleShowConfirmation("card"))}
-                  disabled={isLoading}
-                >
-                  <CreditCard className="w-5 h-5 mr-2" /> Garantir meu Kit via Cartão
+                  <CheckCircle2 className="w-5 h-5 mr-2" /> Confirmar Dados e Sabores
                 </Button>
               </div>
 
@@ -798,23 +789,36 @@ const KitMensal = () => {
                 )}
               </div>
 
-              {/* Confirm button */}
-              <Button
-                type="button"
-                size="lg"
-                className="w-full text-base font-bold py-5 rounded-xl"
-                onClick={handleConfirmAndPay}
-                disabled={isLoading || remaining !== 0}
-              >
-                {isLoading ? (
-                  <><Loader2 className="w-5 h-5 animate-spin mr-2" /> {loadingMethod === "pix" ? "Gerando PIX..." : "Redirecionando..."}</>
-                ) : (
-                  <>
-                    {pendingPaymentMethod === "pix" ? <Smartphone className="w-5 h-5 mr-2" /> : <CreditCard className="w-5 h-5 mr-2" />}
-                    Confirmar e pagar via {pendingPaymentMethod === "pix" ? "PIX" : "Cartão"}
-                  </>
-                )}
-              </Button>
+              {/* Payment buttons */}
+              <div className="grid grid-cols-1 gap-2">
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full text-base font-bold py-5 rounded-xl"
+                  onClick={() => handleConfirmAndPay("pix")}
+                  disabled={isLoading || remaining !== 0}
+                >
+                  {isLoading && loadingMethod === "pix" ? (
+                    <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Gerando PIX...</>
+                  ) : (
+                    <><Smartphone className="w-5 h-5 mr-2" /> Confirmar e pagar via PIX</>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full text-base font-bold py-5 rounded-xl border-primary/30 hover:bg-primary/5"
+                  onClick={() => handleConfirmAndPay("card")}
+                  disabled={isLoading || remaining !== 0}
+                >
+                  {isLoading && loadingMethod === "card" ? (
+                    <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Redirecionando...</>
+                  ) : (
+                    <><CreditCard className="w-5 h-5 mr-2" /> Confirmar e pagar via Cartão</>
+                  )}
+                </Button>
+              </div>
 
               <button
                 type="button"
