@@ -21,6 +21,7 @@ import {
    CalendarClock,
    Store,
    Palette,
+   Target,
   ShoppingCart,
     ClipboardList,
     type LucideIcon,
