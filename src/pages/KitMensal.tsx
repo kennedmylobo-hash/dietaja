@@ -745,31 +745,27 @@ const KitMensal = () => {
 
               <div className="grid gap-2 mb-4">
                 {customFlavors.map((flavor, i) => (
-                  <div key={i} className="rounded-lg bg-card border border-border p-3">
-                    <div className="flex items-start gap-2 mb-2">
-                      <span className="text-lg flex-shrink-0">{flavor.emoji}</span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground leading-tight">{flavor.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{flavor.tag}</p>
-                      </div>
+                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-foreground leading-snug">{flavor.name}</p>
                     </div>
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         type="button"
                         onClick={() => updateFlavorQty(i, -1)}
                         disabled={flavor.qty <= 0}
-                        className="w-10 h-10 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        className="w-9 h-9 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
-                        <Minus className="w-5 h-5 text-foreground" />
+                        <Minus className="w-4 h-4 text-foreground" />
                       </button>
-                      <span className="w-8 text-center font-bold text-foreground text-xl">{flavor.qty}</span>
+                      <span className="w-7 text-center font-bold text-foreground text-lg">{flavor.qty}</span>
                       <button
                         type="button"
                         onClick={() => updateFlavorQty(i, 1)}
                         disabled={remaining <= 0}
-                        className="w-10 h-10 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        className="w-9 h-9 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
-                        <Plus className="w-5 h-5 text-primary" />
+                        <Plus className="w-4 h-4 text-primary" />
                       </button>
                     </div>
                   </div>
