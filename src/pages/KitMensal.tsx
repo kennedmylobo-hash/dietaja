@@ -18,6 +18,45 @@ import { useNavigate } from "react-router-dom";
 import { useTenantId } from "@/hooks/useTenantId";
 import { Helmet } from "react-helmet-async";
 
+// ===== META PIXEL HELPERS =====
+const generateEventId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+const trackPixelEvent = (eventName: string, params?: Record<string, unknown>, eventId?: string) => {
+  if (typeof window !== 'undefined' && window.fbq) {
+    const opts = eventId ? { eventID: eventId } : undefined;
+    if (['Purchase', 'InitiateCheckout', 'AddPaymentInfo', 'ViewContent', 'Lead', 'Contact'].includes(eventName)) {
+      window.fbq('track', eventName, params, opts);
+    } else {
+      window.fbq('trackCustom', eventName, params, opts);
+    }
+  }
+};
+
+const sendCAPI = async (eventName: string, eventId: string, params: Record<string, unknown>, tenantId: string) => {
+  try {
+    await supabase.functions.invoke('meta-capi', {
+      body: {
+        event_name: eventName,
+        event_id: eventId,
+        value: params.value || 0,
+        currency: 'BRL',
+        customer_email: params.customer_email || null,
+        customer_phone: params.customer_phone || null,
+        source_url: window.location.href,
+        tenant_id: tenantId,
+      },
+    });
+  } catch (e) {
+    console.debug('CAPI error:', e);
+  }
+};
+
+const trackGA4 = (eventName: string, params?: Record<string, unknown>) => {
+  if (typeof window !== 'undefined' && (window as any).gtag) {
+    (window as any).gtag('event', eventName, params);
+  }
+};
+
 import kitImg1 from "@/assets/kit-mensal-1.png";
 import kitImg2 from "@/assets/kit-mensal-2.png";
 import kitImg3 from "@/assets/kit-mensal-3.png";
@@ -78,7 +117,12 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-const scrollToCheckout = () => document.getElementById('checkout')?.scrollIntoView({ behavior: 'smooth' });
+const scrollToCheckout = () => {
+  // Track scroll to checkout as custom event
+  trackPixelEvent('CustomizeProduct', { content_name: 'Kit Mensal', value: KIT_PRICE, currency: 'BRL' });
+  trackGA4('select_content', { content_type: 'cta', content_id: 'scroll_to_checkout' });
+  document.getElementById('checkout')?.scrollIntoView({ behavior: 'smooth' });
+};
 
 const AutoScrollGallery = ({ images }: { images: string[] }) => {
   const galScrollRef = useRef<HTMLDivElement>(null);
@@ -188,6 +232,24 @@ const KitMensal = () => {
   const totalCustomMeals = customFlavors.reduce((sum, f) => sum + f.qty, 0);
   const remaining = KIT_TOTAL_MEALS - totalCustomMeals;
 
+  // ===== ViewContent on page load =====
+  useEffect(() => {
+    const eid = generateEventId();
+    trackPixelEvent('ViewContent', {
+      content_name: 'Kit Mensal Emagrecimento',
+      content_type: 'product',
+      content_ids: ['kit-mensal-20'],
+      value: KIT_PRICE,
+      currency: 'BRL',
+    }, eid);
+    trackGA4('view_item', {
+      currency: 'BRL',
+      value: KIT_PRICE,
+      items: [{ item_id: 'kit-mensal-20', item_name: 'Kit Mensal 20 Marmitas', price: KIT_PRICE, quantity: 1 }],
+    });
+    sendCAPI('ViewContent', eid, { value: KIT_PRICE }, tenantId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const updateFlavorQty = useCallback((index: number, delta: number) => {
     setCustomFlavors(prev => {
       const updated = [...prev];
@@ -203,6 +265,22 @@ const KitMensal = () => {
   const handleShowConfirmation = (method: "pix" | "card") => {
     setPendingPaymentMethod(method);
     setShowConfirmation(true);
+
+    // ===== InitiateCheckout =====
+    const eid = generateEventId();
+    trackPixelEvent('InitiateCheckout', {
+      content_name: 'Kit Mensal Emagrecimento',
+      value: KIT_PRICE,
+      currency: 'BRL',
+      num_items: KIT_TOTAL_MEALS,
+    }, eid);
+    trackGA4('begin_checkout', {
+      currency: 'BRL',
+      value: KIT_PRICE,
+      items: [{ item_id: 'kit-mensal-20', item_name: 'Kit Mensal 20 Marmitas', price: KIT_PRICE, quantity: 1 }],
+    });
+    sendCAPI('InitiateCheckout', eid, { value: KIT_PRICE }, tenantId);
+
     setTimeout(() => confirmationRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
@@ -211,6 +289,23 @@ const KitMensal = () => {
       toast({ title: "Ajuste as quantidades", description: `O total deve ser ${KIT_TOTAL_MEALS} marmitas. Faltam ${remaining}.`, variant: "destructive" });
       return;
     }
+
+    // ===== AddPaymentInfo =====
+    const eid = generateEventId();
+    trackPixelEvent('AddPaymentInfo', {
+      content_name: 'Kit Mensal Emagrecimento',
+      value: KIT_PRICE,
+      currency: 'BRL',
+      payment_method: method,
+    }, eid);
+    trackGA4('add_payment_info', {
+      currency: 'BRL',
+      value: KIT_PRICE,
+      payment_type: method,
+      items: [{ item_id: 'kit-mensal-20', item_name: 'Kit Mensal 20 Marmitas', price: KIT_PRICE, quantity: 1 }],
+    });
+    sendCAPI('AddPaymentInfo', eid, { value: KIT_PRICE }, tenantId);
+
     setPendingPaymentMethod(method);
     if (method === "pix") {
       handleSubmit(onSubmitPix)();
@@ -224,6 +319,12 @@ const KitMensal = () => {
     isSubmittingRef.current = true;
     setIsLoading(true);
     setLoadingMethod("card");
+
+    // ===== Lead event (with customer data for CAPI) =====
+    const leadEid = generateEventId();
+    trackPixelEvent('Lead', { content_name: 'Kit Mensal - Cartão', value: KIT_PRICE, currency: 'BRL' }, leadEid);
+    trackGA4('generate_lead', { currency: 'BRL', value: KIT_PRICE, payment_type: 'card' });
+    sendCAPI('Lead', leadEid, { value: KIT_PRICE, customer_email: data.email, customer_phone: data.phone }, tenantId);
 
     try {
       const currentOrigin = window.location.origin;
@@ -293,6 +394,12 @@ const KitMensal = () => {
     isSubmittingRef.current = true;
     setIsLoading(true);
     setLoadingMethod("pix");
+
+    // ===== Lead event (with customer data for CAPI) =====
+    const leadEid = generateEventId();
+    trackPixelEvent('Lead', { content_name: 'Kit Mensal - PIX', value: KIT_PRICE, currency: 'BRL' }, leadEid);
+    trackGA4('generate_lead', { currency: 'BRL', value: KIT_PRICE, payment_type: 'pix' });
+    sendCAPI('Lead', leadEid, { value: KIT_PRICE, customer_email: data.email, customer_phone: data.phone }, tenantId);
 
     try {
       const { data: response, error } = await supabase.functions.invoke('create-asaas-pix', {
