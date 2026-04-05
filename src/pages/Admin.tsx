@@ -69,6 +69,7 @@ import FlavorProfitReport from "@/components/admin/FlavorProfitReport";
 import ABTestManager from "@/components/admin/ABTestManager";
 import ClientFeedbackManager from "@/components/admin/ClientFeedbackManager";
 import PersonalizedDietHub from "@/components/admin/PersonalizedDietHub";
+import UTMCampaignReport from "@/components/admin/UTMCampaignReport";
 
 interface Lead {
   id: string;
@@ -769,6 +770,9 @@ const Admin = () => {
 
       case "reviews":
         return <ReviewsManager />;
+
+      case "utm-report":
+        return <UTMCampaignReport dateFilter={dateFilter} />;
 
       case "analytics":
         return (
