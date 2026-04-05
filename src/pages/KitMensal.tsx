@@ -375,7 +375,7 @@ const KitMensal = () => {
             </h1>
             <p className="text-lg font-bold text-foreground">Emagreça com gostinho.</p>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Marmitas congeladas balanceadas, entregues na sua porta de segunda a sexta.
+              Marmitas congeladas balanceadas, entregues na sua porta em uma única entrega.
               <strong className="text-foreground"> Sem tempo de cozinhar? A gente resolve — entrega grátis.</strong>
             </p>
 
