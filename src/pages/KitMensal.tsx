@@ -395,6 +395,12 @@ const KitMensal = () => {
     setIsLoading(true);
     setLoadingMethod("pix");
 
+    // ===== Lead event (with customer data for CAPI) =====
+    const leadEid = generateEventId();
+    trackPixelEvent('Lead', { content_name: 'Kit Mensal - PIX', value: KIT_PRICE, currency: 'BRL' }, leadEid);
+    trackGA4('generate_lead', { currency: 'BRL', value: KIT_PRICE, payment_type: 'pix' });
+    sendCAPI('Lead', leadEid, { value: KIT_PRICE, customer_email: data.email, customer_phone: data.phone }, tenantId);
+
     try {
       const { data: response, error } = await supabase.functions.invoke('create-asaas-pix', {
         body: {
