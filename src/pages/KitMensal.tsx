@@ -29,12 +29,12 @@ const KIT_PRICE = 499;
 const KIT_TOTAL_MEALS = 20;
 
 const KIT_FLAVORS = [
-  { qty: 3, emoji: "🍝", name: "Macarrão integral à bolonhesa", tag: "120g massa integral, 80g molho caseiro artesanal, 100g carne magra bovina moída" },
-  { qty: 3, emoji: "🍳", name: "Almôndegas ao molho sugo com espaguete integral", tag: "100g almôndegas de carne magra, 60g molho caseiro artesanal, 140g espaguete integral" },
-  { qty: 3, emoji: "🥩", name: "Estrogonofe de carne com arroz e mix de salada", tag: "120g estrogonofe de carne + 130g arroz + 50g mix de salada" },
-  { qty: 3, emoji: "🍗", name: "Estrogonofe de frango com arroz e mix de salada", tag: "120g estrogonofe de frango + 130g arroz + 50g mix de salada" },
-  { qty: 4, emoji: "🍖", name: "Escondidinho de carne com purê de aipim", tag: "120g carne magra bovina + 180g purê de aipim" },
-  { qty: 4, emoji: "🍋", name: "Frango ao molho de maracujá com purê de batata doce", tag: "120g frango ao molho de maracujá + 180g purê de batata doce" },
+  { qty: 3, emoji: "🍝", name: "Macarrão integral à bolonhesa", tag: "120g massa integral, 80g molho caseiro artesanal, 100g carne magra bovina moída", weight: "300g" },
+  { qty: 3, emoji: "🍳", name: "Almôndegas ao molho sugo com espaguete integral", tag: "100g almôndegas de carne magra, 60g molho caseiro artesanal, 140g espaguete integral", weight: "300g" },
+  { qty: 3, emoji: "🥩", name: "Estrogonofe de carne com arroz e mix de salada", tag: "120g estrogonofe de carne + 130g arroz + 50g mix de salada", weight: "300g" },
+  { qty: 3, emoji: "🍗", name: "Estrogonofe de frango com arroz e mix de salada", tag: "120g estrogonofe de frango + 130g arroz + 50g mix de salada", weight: "300g" },
+  { qty: 4, emoji: "🍖", name: "Escondidinho de carne com purê de aipim", tag: "120g carne magra bovina + 180g purê de aipim", weight: "300g" },
+  { qty: 4, emoji: "🍋", name: "Frango ao molho de maracujá com purê de batata doce", tag: "120g frango ao molho de maracujá + 180g purê de batata doce", weight: "300g" },
 ];
 
 const BENEFITS = [
@@ -748,7 +748,7 @@ const KitMensal = () => {
                   <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border">
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-medium text-foreground leading-snug">{flavor.name}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{flavor.tag}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{flavor.weight}</p>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
