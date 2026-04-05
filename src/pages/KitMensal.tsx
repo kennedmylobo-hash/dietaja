@@ -788,23 +788,36 @@ const KitMensal = () => {
                 )}
               </div>
 
-              {/* Confirm button */}
-              <Button
-                type="button"
-                size="lg"
-                className="w-full text-base font-bold py-5 rounded-xl"
-                onClick={handleConfirmAndPay}
-                disabled={isLoading || remaining !== 0}
-              >
-                {isLoading ? (
-                  <><Loader2 className="w-5 h-5 animate-spin mr-2" /> {loadingMethod === "pix" ? "Gerando PIX..." : "Redirecionando..."}</>
-                ) : (
-                  <>
-                    {pendingPaymentMethod === "pix" ? <Smartphone className="w-5 h-5 mr-2" /> : <CreditCard className="w-5 h-5 mr-2" />}
-                    Confirmar e pagar via {pendingPaymentMethod === "pix" ? "PIX" : "Cartão"}
-                  </>
-                )}
-              </Button>
+              {/* Payment buttons */}
+              <div className="grid grid-cols-1 gap-2">
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full text-base font-bold py-5 rounded-xl"
+                  onClick={() => { setPendingPaymentMethod("pix"); handleConfirmAndPay(); }}
+                  disabled={isLoading || remaining !== 0}
+                >
+                  {isLoading && loadingMethod === "pix" ? (
+                    <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Gerando PIX...</>
+                  ) : (
+                    <><Smartphone className="w-5 h-5 mr-2" /> Confirmar e pagar via PIX</>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full text-base font-bold py-5 rounded-xl border-primary/30 hover:bg-primary/5"
+                  onClick={() => { setPendingPaymentMethod("card"); handleConfirmAndPay(); }}
+                  disabled={isLoading || remaining !== 0}
+                >
+                  {isLoading && loadingMethod === "card" ? (
+                    <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Redirecionando...</>
+                  ) : (
+                    <><CreditCard className="w-5 h-5 mr-2" /> Confirmar e pagar via Cartão</>
+                  )}
+                </Button>
+              </div>
 
               <button
                 type="button"
