@@ -206,12 +206,13 @@ const KitMensal = () => {
     setTimeout(() => confirmationRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
-  const handleConfirmAndPay = () => {
+  const handleConfirmAndPay = (method: "pix" | "card") => {
     if (remaining !== 0) {
       toast({ title: "Ajuste as quantidades", description: `O total deve ser ${KIT_TOTAL_MEALS} marmitas. Faltam ${remaining}.`, variant: "destructive" });
       return;
     }
-    if (pendingPaymentMethod === "pix") {
+    setPendingPaymentMethod(method);
+    if (method === "pix") {
       handleSubmit(onSubmitPix)();
     } else {
       handleSubmit(onSubmitCard)();
