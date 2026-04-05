@@ -227,6 +227,24 @@ const KitMensal = () => {
   const totalCustomMeals = customFlavors.reduce((sum, f) => sum + f.qty, 0);
   const remaining = KIT_TOTAL_MEALS - totalCustomMeals;
 
+  // ===== ViewContent on page load =====
+  useEffect(() => {
+    const eid = generateEventId();
+    trackPixelEvent('ViewContent', {
+      content_name: 'Kit Mensal Emagrecimento',
+      content_type: 'product',
+      content_ids: ['kit-mensal-20'],
+      value: KIT_PRICE,
+      currency: 'BRL',
+    }, eid);
+    trackGA4('view_item', {
+      currency: 'BRL',
+      value: KIT_PRICE,
+      items: [{ item_id: 'kit-mensal-20', item_name: 'Kit Mensal 20 Marmitas', price: KIT_PRICE, quantity: 1 }],
+    });
+    sendCAPI('ViewContent', eid, { value: KIT_PRICE }, tenantId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const updateFlavorQty = useCallback((index: number, delta: number) => {
     setCustomFlavors(prev => {
       const updated = [...prev];
