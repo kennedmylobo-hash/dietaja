@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle2, XCircle, Clock, Flame, ShieldCheck, Star, Truck, ChefHat, Snowflake, AlertTriangle, MessageCircle, Smartphone, CreditCard } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock, Flame, ShieldCheck, Star, Truck, ChefHat, Snowflake, AlertTriangle, MessageCircle, Smartphone, CreditCard, Minus, Plus, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatPhone, getPhoneStatus } from "@/lib/phone";
