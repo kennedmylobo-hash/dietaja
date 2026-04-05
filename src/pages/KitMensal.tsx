@@ -484,15 +484,13 @@ const KitMensal = () => {
             </h2>
             <p className="text-xs text-muted-foreground text-center mb-4">{KIT_TOTAL_MEALS} marmitas cuidadosamente selecionadas, balanceadas para emagrecer sem abrir mão do sabor.</p>
 
-            <div className="grid gap-2">
+            <div className="rounded-xl bg-card border border-border overflow-hidden">
               {KIT_FLAVORS.map((flavor, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-card border border-border">
-                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
-                    {flavor.qty}x
-                  </span>
-                  <div>
-                    <span className="text-sm text-foreground font-medium">{flavor.emoji} {flavor.name}</span>
-                    <p className="text-[11px] text-muted-foreground">{flavor.tag}</p>
+                <div key={i} className={`flex items-baseline gap-2 px-3 py-2.5 ${i !== KIT_FLAVORS.length - 1 ? 'border-b border-border' : ''}`}>
+                  <span className="text-primary font-bold text-xs flex-shrink-0">{flavor.qty}x</span>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-foreground leading-snug">{flavor.name}</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">{flavor.tag}</p>
                   </div>
                 </div>
               ))}
