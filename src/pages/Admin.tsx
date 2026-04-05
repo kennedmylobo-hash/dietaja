@@ -69,6 +69,7 @@ import FlavorProfitReport from "@/components/admin/FlavorProfitReport";
 import ABTestManager from "@/components/admin/ABTestManager";
 import ClientFeedbackManager from "@/components/admin/ClientFeedbackManager";
 import PersonalizedDietHub from "@/components/admin/PersonalizedDietHub";
+import UTMCampaignReport from "@/components/admin/UTMCampaignReport";
 
 interface Lead {
   id: string;
