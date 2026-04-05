@@ -735,6 +735,98 @@ const KitMensal = () => {
           </div>
         </section>
 
+        {/* ===== CONFIRMAÇÃO DO PEDIDO ===== */}
+        {showConfirmation && (
+          <section ref={confirmationRef} className="px-4 py-8 bg-primary/5 border-t-2 border-primary/20">
+            <div className="max-w-lg mx-auto">
+              <div className="flex items-center gap-2 mb-1">
+                <button onClick={() => setShowConfirmation(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <p className="text-xs text-primary font-semibold">Antes de pagar</p>
+              </div>
+              <h2 className="text-lg font-bold text-foreground mb-1">
+                Deseja modificar algum sabor?
+              </h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                Não gosta de algum item? Sem problema! Ajuste as quantidades abaixo. O total deve ser <strong className="text-foreground">{KIT_TOTAL_MEALS} marmitas</strong>.
+              </p>
+
+              <div className="grid gap-2 mb-4">
+                {customFlavors.map((flavor, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border">
+                    <span className="text-xl flex-shrink-0">{flavor.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground leading-tight truncate">{flavor.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{flavor.tag}</p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => updateFlavorQty(i, -1)}
+                        disabled={flavor.qty <= 0}
+                        className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Minus className="w-4 h-4 text-foreground" />
+                      </button>
+                      <span className="w-8 text-center font-bold text-foreground text-lg">{flavor.qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateFlavorQty(i, 1)}
+                        disabled={remaining <= 0}
+                        className="w-8 h-8 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Plus className="w-4 h-4 text-primary" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Counter */}
+              <div className={`p-3 rounded-xl border text-center mb-4 ${remaining === 0 ? 'bg-primary/5 border-primary/20' : 'bg-destructive/5 border-destructive/20'}`}>
+                <p className="text-sm font-bold text-foreground">
+                  {totalCustomMeals} de {KIT_TOTAL_MEALS} marmitas
+                </p>
+                {remaining > 0 && (
+                  <p className="text-xs text-destructive mt-0.5">
+                    Distribua mais {remaining} {remaining === 1 ? 'marmita' : 'marmitas'}
+                  </p>
+                )}
+                {remaining === 0 && (
+                  <p className="text-xs text-primary mt-0.5">✅ Tudo certo!</p>
+                )}
+              </div>
+
+              {/* Confirm button */}
+              <Button
+                type="button"
+                size="lg"
+                className="w-full text-base font-bold py-5 rounded-xl"
+                onClick={handleConfirmAndPay}
+                disabled={isLoading || remaining !== 0}
+              >
+                {isLoading ? (
+                  <><Loader2 className="w-5 h-5 animate-spin mr-2" /> {loadingMethod === "pix" ? "Gerando PIX..." : "Redirecionando..."}</>
+                ) : (
+                  <>
+                    {pendingPaymentMethod === "pix" ? <Smartphone className="w-5 h-5 mr-2" /> : <CreditCard className="w-5 h-5 mr-2" />}
+                    Confirmar e pagar via {pendingPaymentMethod === "pix" ? "PIX" : "Cartão"}
+                  </>
+                )}
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => { setCustomFlavors(KIT_FLAVORS.map(f => ({ ...f }))); }}
+                className="w-full text-center text-xs text-muted-foreground hover:text-foreground mt-2 py-1 transition-colors"
+              >
+                🔄 Restaurar quantidades originais
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* ===== RODAPÉ FINAL ===== */}
         <section className="px-4 py-6 text-center">
           <p className="text-xs text-muted-foreground">
