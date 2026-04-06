@@ -163,7 +163,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
           .from('orders')
           .select('id, order_number, status, items, customer_name, created_at')
           .gte('created_at', startDate)
-          .in('status', ['approved', 'preparing', 'ready', 'whatsapp_pending'])
+          .in('status', ['approved', 'paid', 'preparing', 'ready', 'whatsapp_pending'])
           .order('created_at', { ascending: false }),
         supabase.from('marmita_sides').select('*').eq('active', true).order('sort_order'),
         supabase.from('marmita_flavors').select('id, name, category, sides').eq('active', true),
@@ -195,7 +195,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
   const filteredOrders = useMemo(() => {
     if (statusFilter === 'all') return orders;
     if (statusFilter === 'production') {
-      return orders.filter(o => ['approved', 'preparing'].includes(o.status));
+      return orders.filter(o => ['approved', 'paid', 'preparing'].includes(o.status));
     }
     return orders.filter(o => o.status === statusFilter);
   }, [orders, statusFilter]);
