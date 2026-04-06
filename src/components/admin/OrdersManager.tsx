@@ -383,7 +383,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   }, [orders, statusFilter]);
 
   const stats = useMemo(() => {
-    const approved = orders.filter(o => o.status === 'approved');
+    const approved = orders.filter(o => o.status === 'approved' || o.status === 'paid');
     const preparing = orders.filter(o => o.status === 'preparing');
     const ready = orders.filter(o => o.status === 'ready');
     const delivering = orders.filter(o => o.status === 'delivering');
