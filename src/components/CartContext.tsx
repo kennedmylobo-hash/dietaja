@@ -294,8 +294,30 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [items, customerInfo, isIdentified, syncCartToDatabase]);
 
   const addItem = useCallback((newItem: Omit<CartItem, "id">) => {
-    // If not identified, show modal and save pending item
+    const trackAddToCartMeta = () => {
+      const eventId = generateMetaEventId('add_to_cart');
+
+      trackMetaEvent({
+        eventName: 'AddToCart',
+        eventId,
+        tenantId,
+        customerEmail: customerInfo.email,
+        customerPhone: customerInfo.phone,
+        params: {
+          content_name: newItem.name,
+          content_type: 'product',
+          content_ids: [`${newItem.type}:${newItem.name}`],
+          num_items: newItem.quantity,
+          value: newItem.totalPrice,
+          currency: 'BRL',
+        },
+      });
+    };
+
+    // If not identified, track intent first and then show modal
     if (!isIdentified) {
+      trackAddToCartMeta();
+      pendingAddToCartTrackedRef.current = true;
       setPendingItem(newItem);
       setShowIdentificationModal(true);
       return;
@@ -303,23 +325,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     // Proceed with adding item
     const id = `${newItem.type}-${newItem.name}-${Date.now()}`;
-    const eventId = generateMetaEventId('add_to_cart');
-
-    trackMetaEvent({
-      eventName: 'AddToCart',
-      eventId,
-      tenantId,
-      customerEmail: customerInfo.email,
-      customerPhone: customerInfo.phone,
-      params: {
-        content_name: newItem.name,
-        content_type: 'product',
-        content_ids: [`${newItem.type}:${newItem.name}`],
-        num_items: newItem.quantity,
-        value: newItem.totalPrice,
-        currency: 'BRL',
-      },
-    });
+    trackAddToCartMeta();
     
     // Track AddToCart with GA4
     if (typeof window !== 'undefined' && window.gtag) {
@@ -355,23 +361,25 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (!pendingItem) return;
 
     const id = `${pendingItem.type}-${pendingItem.name}-${Date.now()}`;
-    const eventId = generateMetaEventId('add_to_cart');
 
-    trackMetaEvent({
-      eventName: 'AddToCart',
-      eventId,
-      tenantId,
-      customerEmail: customerInfo.email,
-      customerPhone: customerInfo.phone,
-      params: {
-        content_name: pendingItem.name,
-        content_type: 'product',
-        content_ids: [`${pendingItem.type}:${pendingItem.name}`],
-        num_items: pendingItem.quantity,
-        value: pendingItem.totalPrice,
-        currency: 'BRL',
-      },
-    });
+    if (!pendingAddToCartTrackedRef.current) {
+      const eventId = generateMetaEventId('add_to_cart');
+      trackMetaEvent({
+        eventName: 'AddToCart',
+        eventId,
+        tenantId,
+        customerEmail: customerInfo.email,
+        customerPhone: customerInfo.phone,
+        params: {
+          content_name: pendingItem.name,
+          content_type: 'product',
+          content_ids: [`${pendingItem.type}:${pendingItem.name}`],
+          num_items: pendingItem.quantity,
+          value: pendingItem.totalPrice,
+          currency: 'BRL',
+        },
+      });
+    }
     
     // Track AddToCart with GA4
     if (typeof window !== 'undefined' && window.gtag) {
@@ -401,6 +409,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       return [...filtered, { ...pendingItem, id }];
     });
 
+    pendingAddToCartTrackedRef.current = false;
     setPendingItem(null);
     setShowIdentificationModal(false);
   }, [pendingItem, trackCartEvent, tenantId, customerInfo.email, customerInfo.phone]);
