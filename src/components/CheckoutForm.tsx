@@ -123,7 +123,8 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   }, [emailValue]);
 
   const deliveryOption = watch("deliveryOption");
-  const deliveryFee = deliveryOption === "delivery" ? 10 : 0; // TODO: use tenant delivery fee
+  const { location: tenantLocation } = useTenantConfig();
+  const deliveryFee = deliveryOption === "delivery" ? tenantLocation.deliveryFee : 0;
   const subtotal = getTotal();
   const totalBeforeCashback = subtotal + deliveryFee;
   const total = totalBeforeCashback - cashbackAmount;
