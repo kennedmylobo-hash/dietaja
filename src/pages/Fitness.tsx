@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
+import { useTenantId } from "@/hooks/useTenantId";
 import { Helmet } from "react-helmet-async";
 import { Dumbbell, Flame, ShieldCheck, Clock } from "lucide-react";
 import marmitaImage from "@/assets/marmita-2.png";
@@ -46,16 +48,15 @@ const FitnessContent = () => {
     description: `${pkg.quantity} marmitas de 450g`,
   }));
 
-  // Meta Pixel: ViewContent
+  const tenantId = useTenantId();
   useEffect(() => {
-    if (packages.length > 0 && typeof window !== 'undefined' && (window as any).fbq) {
+    if (packages.length > 0) {
       const avgPrice = packages.reduce((sum, p) => sum + p.price, 0) / packages.length;
-      (window as any).fbq('track', 'ViewContent', {
-        content_type: 'product_group',
-        content_name: 'Marmita Fitness 450g',
-        content_category: 'Hipertrofia',
-        value: avgPrice,
-        currency: 'BRL',
+      trackMetaEvent({
+        eventName: 'ViewContent',
+        eventId: generateMetaEventId('view'),
+        params: { content_type: 'product_group', content_name: 'Marmita Fitness 450g', content_category: 'Hipertrofia', value: avgPrice, currency: 'BRL' },
+        tenantId,
       });
     }
   }, [packages.length]);
