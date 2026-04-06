@@ -40,25 +40,23 @@ const ClientFeedback = () => {
       if (!token) { setError("Link inválido"); setLoading(false); return; }
 
       const { data, error: err } = await supabase
-        .from("client_feedback_tokens")
-        .select("id, customer_name, tenant_id, recurring_customer_id")
-        .eq("token", token)
-        .eq("is_active", true)
+        .rpc("get_feedback_token" as any, { _token: token })
         .maybeSingle();
 
-      if (err || !data) {
+      const tokenData = data as any;
+      if (err || !tokenData) {
         setError("Link inválido ou desativado");
         setLoading(false);
         return;
       }
 
-      setTokenInfo(data);
+      setTokenInfo(tokenData);
 
       // Load previous feedbacks
       const { data: feedbacks } = await supabase
         .from("client_feedbacks")
         .select("*")
-        .eq("token_id", data.id)
+        .eq("token_id", tokenData.id)
         .order("created_at", { ascending: false })
         .limit(10);
 

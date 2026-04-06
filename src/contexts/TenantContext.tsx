@@ -170,14 +170,13 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
               if (adminTenantId) {
                 const { data: adminTenant } = await supabase
-                  .from('tenants')
-                  .select('*')
-                  .eq('id', adminTenantId)
+                  .rpc('get_admin_tenant_config' as any, { _tenant_id: adminTenantId })
                   .maybeSingle();
 
                 if (adminTenant) {
-                  console.log(`Admin override: using tenant "${adminTenant.brand_name}" instead of hostname`);
-                  detectedTenant = mapTenantRow(adminTenant);
+                  const tenantRow = adminTenant as any;
+                  console.log(`Admin override: using tenant "${tenantRow.brand_name}" instead of hostname`);
+                  detectedTenant = mapTenantRow(tenantRow);
                 }
               }
             }
