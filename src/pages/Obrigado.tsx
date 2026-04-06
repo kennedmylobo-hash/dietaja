@@ -7,6 +7,8 @@ import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { celebrateCheckout } from "@/lib/confetti";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
+import { useTenantId } from "@/hooks/useTenantId";
 
 const Obrigado = () => {
   const { brand, contact, urls } = useTenantConfig();
