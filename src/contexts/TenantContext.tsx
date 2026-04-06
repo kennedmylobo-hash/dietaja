@@ -95,10 +95,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // If ?tenant=slug is present, resolve by slug (for testing)
         if (tenantSlug) {
           const { data: slugData, error: slugErr } = await supabase
-            .from('tenants_public' as any)
-            .select('*')
-            .eq('slug', tenantSlug)
-            .eq('is_active', true)
+            .rpc('get_tenant_by_filter', { _slug: tenantSlug })
             .maybeSingle();
 
           if (!slugErr && slugData) {
