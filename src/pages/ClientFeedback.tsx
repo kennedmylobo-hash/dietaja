@@ -40,7 +40,7 @@ const ClientFeedback = () => {
       if (!token) { setError("Link inválido"); setLoading(false); return; }
 
       const { data, error: err } = await supabase
-        .rpc("get_feedback_token", { _token: token })
+        .rpc("get_feedback_token" as any, { _token: token })
         .maybeSingle();
 
       if (err || !data) {

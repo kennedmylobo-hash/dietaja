@@ -170,9 +170,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
               if (adminTenantId) {
                 const { data: adminTenant } = await supabase
-                  .from('tenants')
-                  .select('*')
-                  .eq('id', adminTenantId)
+                  .rpc('get_admin_tenant_config' as any, { _tenant_id: adminTenantId })
                   .maybeSingle();
 
                 if (adminTenant) {
