@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
@@ -9,6 +9,8 @@ import { toast } from "@/hooks/use-toast";
 import { hapticFeedback } from "@/lib/haptics";
 import { celebrateCheckout } from "@/lib/confetti";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
+import { useTenantId } from "@/hooks/useTenantId";
 
 interface PixData {
   qr_code: string;
@@ -22,6 +24,7 @@ interface PixData {
 
 const PixPayment = () => {
   const { brand } = useTenantConfig();
+  const tenantId = useTenantId();
   const { paymentId } = useParams<{ paymentId: string }>();
   const navigate = useNavigate();
   const [pixData, setPixData] = useState<PixData | null>(null);
@@ -30,6 +33,7 @@ const PixPayment = () => {
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const pixTrackedRef = useRef(false);
 
   // Fetch PIX data
   const fetchPixData = useCallback(async () => {
@@ -48,6 +52,23 @@ const PixPayment = () => {
 
       if (data?.success) {
         setPixData(data);
+
+        // Track PIX generated event for funnel analysis (abandonment tracking)
+        if (!pixTrackedRef.current) {
+          pixTrackedRef.current = true;
+          const eventId = `pix_generated_${paymentId}`;
+          trackMetaEvent({
+            eventName: 'GeneratePIX',
+            eventId,
+            tenantId,
+            params: {
+              value: data.total || 0,
+              currency: 'BRL',
+              order_id: paymentId,
+              content_type: 'payment',
+            },
+          });
+        }
         
         // If already approved, redirect to success
         if (data.status === 'approved') {
