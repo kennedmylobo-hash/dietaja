@@ -46,10 +46,12 @@ const PagamentoSucesso = () => {
           setRealStatus(data.status);
           setOrder({
             id: orderId,
-            customer_name: '',
-            items: [],
+            customer_name: data.customer_name || '',
+            customer_email: data.customer_email || '',
+            customer_phone: data.customer_phone || '',
+            items: data.items || [],
             total: data.total || 0,
-            delivery_option: '',
+            delivery_option: data.delivery_option || '',
             status: data.status,
           });
         } else {
@@ -58,6 +60,8 @@ const PagamentoSucesso = () => {
           setOrder({
             id: orderId,
             customer_name: '',
+            customer_email: '',
+            customer_phone: '',
             items: [],
             total: 0,
             delivery_option: '',
