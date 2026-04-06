@@ -256,6 +256,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
         setPixModalData({
           qrCode: response.qr_code,
           qrCodeBase64: response.qr_code_base64,
+          paymentId: response.payment_id,
           orderId: response.order_id,
           total: response.total,
           expirationDate: response.expiration_date,
