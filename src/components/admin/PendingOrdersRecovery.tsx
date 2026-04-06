@@ -278,6 +278,26 @@ const PendingOrdersRecovery = () => {
         console.error('Email confirmation error:', emailError);
       }
 
+      // Fire Meta CAPI Purchase event (server-side)
+      try {
+        await supabase.functions.invoke('meta-capi', {
+          body: {
+            event_name: 'Purchase',
+            event_id: `purchase_${orderId}_admin`,
+            value: orderData?.total,
+            currency: 'BRL',
+            customer_email: orderData?.customer_email,
+            customer_phone: orderData?.customer_phone,
+            source_url: `https://diet-on-demand.lovable.app/pagamento-sucesso?order_id=${orderId}`,
+            tenant_id: orderData?.tenant_id,
+            custom_data: { order_id: orderId, payment_method: paymentNote === 'delivery' ? 'na_entrega' : 'manual' },
+          }
+        });
+        console.log('✅ Meta CAPI Purchase event sent for manual confirmation');
+      } catch (capiError) {
+        console.error('Error sending Meta CAPI:', capiError);
+      }
+
       // Mark associated cart as converted
       if (orderData?.customer_phone) {
         await markCartAsConverted(orderData.customer_phone);
