@@ -254,21 +254,19 @@ const KitMensal = () => {
       return;
     }
 
-    // ===== AddPaymentInfo =====
-    const eid = generateEventId();
-    trackPixelEvent('AddPaymentInfo', {
-      content_name: 'Kit Mensal Emagrecimento',
-      value: KIT_PRICE,
-      currency: 'BRL',
-      payment_method: method,
-    }, eid);
+    const eid = generateMetaEventId('payment');
+    trackMetaEvent({
+      eventName: 'AddPaymentInfo',
+      eventId: eid,
+      params: { content_name: 'Kit Mensal Emagrecimento', value: KIT_PRICE, currency: 'BRL', payment_method: method },
+      tenantId,
+    });
     trackGA4('add_payment_info', {
       currency: 'BRL',
       value: KIT_PRICE,
       payment_type: method,
       items: [{ item_id: 'kit-mensal-20', item_name: 'Kit Mensal 20 Marmitas', price: KIT_PRICE, quantity: 1 }],
     });
-    sendCAPI('AddPaymentInfo', eid, { value: KIT_PRICE }, tenantId);
 
     setPendingPaymentMethod(method);
     if (method === "pix") {
