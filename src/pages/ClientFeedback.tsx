@@ -40,10 +40,7 @@ const ClientFeedback = () => {
       if (!token) { setError("Link inválido"); setLoading(false); return; }
 
       const { data, error: err } = await supabase
-        .from("client_feedback_tokens")
-        .select("id, customer_name, tenant_id, recurring_customer_id")
-        .eq("token", token)
-        .eq("is_active", true)
+        .rpc("get_feedback_token", { _token: token })
         .maybeSingle();
 
       if (err || !data) {
