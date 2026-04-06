@@ -106,8 +106,8 @@ const PagamentoSucesso = () => {
   useEffect(() => {
     if (realStatus !== 'approved' || !orderId) return;
     
-    // Generate unique event_id for deduplication between browser and server
-    const eventId = crypto.randomUUID();
+    // Use deterministic event_id so browser + webhook deduplicate correctly
+    const eventId = `purchase_${orderId}`;
     
     // Track Purchase event - Meta Pixel (browser-side)
     if (typeof window !== 'undefined' && window.fbq) {
@@ -129,6 +129,10 @@ const PagamentoSucesso = () => {
         customer_email: order?.customer_email || '',
         customer_phone: order?.customer_phone || '',
         source_url: window.location.href,
+        custom_data: {
+          order_id: orderId,
+          content_type: 'product',
+        },
       }
     }).catch(err => console.error('Meta CAPI error:', err));
     

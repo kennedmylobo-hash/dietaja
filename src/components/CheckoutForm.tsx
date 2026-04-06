@@ -184,14 +184,22 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     isSubmittingRef.current = true;
     setIsLoading(true);
 
-    // Track InitiateCheckout
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'InitiateCheckout', {
+    trackMetaEvent({
+      eventName: 'AddPaymentInfo',
+      eventId: generateMetaEventId('add_payment_info'),
+      tenantId,
+      customerEmail: data.email,
+      customerPhone: data.phone,
+      params: {
         value: total,
         currency: 'BRL',
+        payment_method: 'pix',
         num_items: items.length,
-      });
-    }
+        content_type: 'product',
+        content_name: items.map((item) => item.name).join(', '),
+        content_ids: items.map((item) => item.id),
+      },
+    });
 
     try {
       const { data: response, error } = await supabase.functions.invoke('create-asaas-pix', {
@@ -277,14 +285,22 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     isSubmittingRef.current = true;
     setIsLoading(true);
 
-    // Track InitiateCheckout
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'InitiateCheckout', {
+    trackMetaEvent({
+      eventName: 'AddPaymentInfo',
+      eventId: generateMetaEventId('add_payment_info'),
+      tenantId,
+      customerEmail: data.email,
+      customerPhone: data.phone,
+      params: {
         value: total,
         currency: 'BRL',
+        payment_method: 'card',
         num_items: items.length,
-      });
-    }
+        content_type: 'product',
+        content_name: items.map((item) => item.name).join(', '),
+        content_ids: items.map((item) => item.id),
+      },
+    });
 
     try {
       await createCustomerAccount(data);

@@ -172,13 +172,17 @@ serve(async (req) => {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
             body: JSON.stringify({
               event_name: 'Purchase',
-              event_id: `server_asaas_${orderId}`,
+              event_id: `purchase_${orderId}`,
               value: order.total,
               currency: 'BRL',
               customer_email: order.customer_email,
               customer_phone: order.customer_phone,
               source_url: `https://diet-on-demand.lovable.app/pagamento-sucesso?order_id=${orderId}`,
               tenant_id: order.tenant_id,
+              custom_data: {
+                order_id: orderId,
+                payment_method: 'pix',
+              },
             }),
           });
           console.log('[asaas-webhook] ✅ Meta CAPI Purchase event sent for order', order.order_number);
