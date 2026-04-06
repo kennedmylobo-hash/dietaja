@@ -18,6 +18,7 @@ import { EmailAutocomplete } from "@/components/EmailAutocomplete";
 import PixPaymentModal from "@/components/PixPaymentModal";
 import { useNavigate } from "react-router-dom";
 import CashbackUsage from "@/components/checkout/CashbackUsage";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { useTenantId } from "@/hooks/useTenantId";
 
 import { validateCPF, formatCPF } from "@/lib/cpf";
@@ -123,7 +124,8 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   }, [emailValue]);
 
   const deliveryOption = watch("deliveryOption");
-  const deliveryFee = deliveryOption === "delivery" ? 10 : 0; // TODO: use tenant delivery fee
+  const { location: tenantLocation } = useTenantConfig();
+  const deliveryFee = deliveryOption === "delivery" ? tenantLocation.deliveryFee : 0;
   const subtotal = getTotal();
   const totalBeforeCashback = subtotal + deliveryFee;
   const total = totalBeforeCashback - cashbackAmount;
@@ -167,6 +169,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   const [pixModalData, setPixModalData] = useState<{
     qrCode: string;
     qrCodeBase64: string;
+    paymentId: string;
     orderId: string;
     total: number;
     expirationDate: string;
@@ -254,6 +257,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
         setPixModalData({
           qrCode: response.qr_code,
           qrCodeBase64: response.qr_code_base64,
+          paymentId: response.payment_id,
           orderId: response.order_id,
           total: response.total,
           expirationDate: response.expiration_date,
@@ -480,14 +484,14 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             <RadioGroupItem value="pickup" id="pickup" />
             <Label htmlFor="pickup" className="flex-1 cursor-pointer">
               <span className="font-medium">📍 Retirada grátis</span>
-              <span className="text-sm text-muted-foreground block">Bairro Recreio</span>
+              <span className="text-sm text-muted-foreground block">{tenantLocation.pickupNeighborhood || 'Local de retirada'}</span>
             </Label>
           </div>
           <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50 border border-transparent hover:border-primary/30 transition-colors">
             <RadioGroupItem value="delivery" id="delivery" />
             <Label htmlFor="delivery" className="flex-1 cursor-pointer">
               <span className="font-medium">🛵 Entrega</span>
-              <span className="text-sm text-muted-foreground ml-2">+ R$ 10,00</span>
+              <span className="text-sm text-muted-foreground ml-2">+ R$ {tenantLocation.deliveryFee.toFixed(2).replace(".", ",")}</span>
             </Label>
           </div>
         </RadioGroup>
@@ -676,7 +680,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           qrCode={pixModalData.qrCode}
           qrCodeBase64={pixModalData.qrCodeBase64}
           total={pixModalData.total}
-          paymentId={pixModalData.orderId}
+          paymentId={pixModalData.paymentId}
           orderId={pixModalData.orderId}
           expirationDate={pixModalData.expirationDate}
           onPaymentSuccess={(orderNumber) => {
