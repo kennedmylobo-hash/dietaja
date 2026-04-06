@@ -679,7 +679,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           qrCode={pixModalData.qrCode}
           qrCodeBase64={pixModalData.qrCodeBase64}
           total={pixModalData.total}
-          paymentId={pixModalData.orderId}
+          paymentId={pixModalData.paymentId}
           orderId={pixModalData.orderId}
           expirationDate={pixModalData.expirationDate}
           onPaymentSuccess={(orderNumber) => {
