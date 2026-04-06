@@ -18,6 +18,7 @@ import { EmailAutocomplete } from "@/components/EmailAutocomplete";
 import PixPaymentModal from "@/components/PixPaymentModal";
 import { useNavigate } from "react-router-dom";
 import CashbackUsage from "@/components/checkout/CashbackUsage";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { useTenantId } from "@/hooks/useTenantId";
 
 import { validateCPF, formatCPF } from "@/lib/cpf";
