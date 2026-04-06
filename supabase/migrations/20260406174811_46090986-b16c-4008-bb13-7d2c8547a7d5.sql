@@ -1,0 +1,1 @@
+UPDATE public.orders SET status = 'approved' WHERE id = 'bb139c14-aac1-4ddf-b86d-6b7df997e948' AND status = 'paid';
