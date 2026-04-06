@@ -149,7 +149,7 @@ const handler = async (req: Request): Promise<Response> => {
       await supabase.from('notification_events').insert({
         channel: 'email', event_type: 'failed', order_number: data.order_number,
         recipient_email: data.customer_email, template_name: 'order_confirmation',
-        tenant_id: data.tenant_id, metadata: { error: error.message }
+        tenant_id: data.tenant_id, metadata: { error: 'Erro interno' }
       });
       throw error;
     }
@@ -164,7 +164,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ success: true, emailId: emailResponse?.id }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
   } catch (error: any) {
     console.error("Error in send-order-confirmation function:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
   }
 };
 

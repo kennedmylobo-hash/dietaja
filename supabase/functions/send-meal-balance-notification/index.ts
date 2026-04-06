@@ -87,7 +87,7 @@ Qualquer dúvida, estamos à disposição! 💚`.trim();
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error("[MEAL-BALANCE] Error:", error);
-    return new Response(JSON.stringify({ success: false, error: error.message }),
+    return new Response(JSON.stringify({ success: false, error: 'Erro interno' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
