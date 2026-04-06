@@ -128,12 +128,104 @@ interface OrdersManagerProps {
   dateFilter: 'today' | 'week' | 'month';
 }
 
+const toFiniteNumber = (value: unknown, fallback = 0): number => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const normalizeFlavorItem = (value: unknown): FlavorItem | null => {
+  if (!value || typeof value !== 'object') return null;
+
+  const flavor = value as Record<string, unknown>;
+  const name = typeof flavor.name === 'string' ? flavor.name : '';
+  if (!name) return null;
+
+  return {
+    name,
+    quantity: toFiniteNumber(flavor.quantity ?? flavor.qty, 1),
+    category: typeof flavor.category === 'string' ? flavor.category : undefined,
+  };
+};
+
+const normalizeOrderItem = (value: unknown): OrderItem | null => {
+  if (!value || typeof value !== 'object') return null;
+
+  const item = value as Record<string, unknown>;
+  const name = typeof item.name === 'string' ? item.name : '';
+  if (!name) return null;
+
+  const normalizedItem: OrderItem = {
+    name,
+    quantity: toFiniteNumber(item.quantity, 1),
+    totalPrice: toFiniteNumber(item.totalPrice ?? item.total_price, 0),
+    type: typeof item.type === 'string' ? item.type : 'outro',
+  };
+
+  const lineType = typeof item.lineType === 'string'
+    ? item.lineType
+    : typeof item.line_type === 'string'
+      ? item.line_type
+      : undefined;
+
+  if (lineType) {
+    normalizedItem.lineType = lineType;
+  }
+
+  if (Array.isArray(item.flavors)) {
+    const flavors = item.flavors
+      .map(normalizeFlavorItem)
+      .filter((flavor): flavor is FlavorItem => Boolean(flavor));
+
+    if (flavors.length > 0) {
+      normalizedItem.flavors = flavors;
+    }
+  }
+
+  return normalizedItem;
+};
+
+const normalizeOrderItems = (value: unknown): OrderItem[] => {
+  if (Array.isArray(value)) {
+    return value
+      .map(normalizeOrderItem)
+      .filter((item): item is OrderItem => Boolean(item));
+  }
+
+  if (typeof value === 'string') {
+    try {
+      return normalizeOrderItems(JSON.parse(value));
+    } catch {
+      return [];
+    }
+  }
+
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const singleItem = normalizeOrderItem(record);
+    if (singleItem) return [singleItem];
+    if ('items' in record) return normalizeOrderItems(record.items);
+    return Object.values(record).flatMap((entry) => normalizeOrderItems(entry));
+  }
+
+  return [];
+};
+
+const normalizeOrder = (order: Order): Order => ({
+  ...order,
+  items: normalizeOrderItems((order as unknown as { items?: unknown }).items),
+});
+
 const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const { settings: pricingSettings, loaded: pricingLoaded } = useOrderCostCalculator();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersState, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrderState, setSelectedOrder] = useState<Order | null>(null);
+  const orders = useMemo(() => ordersState.map(normalizeOrder), [ordersState]);
+  const selectedOrder = useMemo(
+    () => (selectedOrderState ? normalizeOrder(selectedOrderState) : null),
+    [selectedOrderState]
+  );
   const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
