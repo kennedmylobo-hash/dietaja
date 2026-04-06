@@ -174,8 +174,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   .maybeSingle();
 
                 if (adminTenant) {
-                  console.log(`Admin override: using tenant "${adminTenant.brand_name}" instead of hostname`);
-                  detectedTenant = mapTenantRow(adminTenant);
+                  const tenantRow = adminTenant as any;
+                  console.log(`Admin override: using tenant "${tenantRow.brand_name}" instead of hostname`);
+                  detectedTenant = mapTenantRow(tenantRow);
                 }
               }
             }

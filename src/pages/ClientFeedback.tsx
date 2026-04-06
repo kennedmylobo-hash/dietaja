@@ -43,19 +43,20 @@ const ClientFeedback = () => {
         .rpc("get_feedback_token" as any, { _token: token })
         .maybeSingle();
 
-      if (err || !data) {
+      const tokenData = data as any;
+      if (err || !tokenData) {
         setError("Link inválido ou desativado");
         setLoading(false);
         return;
       }
 
-      setTokenInfo(data);
+      setTokenInfo(tokenData);
 
       // Load previous feedbacks
       const { data: feedbacks } = await supabase
         .from("client_feedbacks")
         .select("*")
-        .eq("token_id", data.id)
+        .eq("token_id", tokenData.id)
         .order("created_at", { ascending: false })
         .limit(10);
 
