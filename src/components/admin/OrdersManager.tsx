@@ -369,7 +369,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const ordersByCategory = useMemo(() => {
     return {
       pending: orders.filter(o => ['pending', 'whatsapp_pending', 'awaiting_payment'].includes(o.status)),
-      production: orders.filter(o => ['approved', 'preparing'].includes(o.status)),
+      production: orders.filter(o => ['approved', 'preparing', 'paid'].includes(o.status)),
       ready: orders.filter(o => o.status === 'ready'),
       delivering: orders.filter(o => o.status === 'delivering'),
       delivered: orders.filter(o => o.status === 'delivered'),
