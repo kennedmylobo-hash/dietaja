@@ -95,10 +95,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // If ?tenant=slug is present, resolve by slug (for testing)
         if (tenantSlug) {
           const { data: slugData, error: slugErr } = await supabase
-            .from('tenants')
-            .select('*')
-            .eq('slug', tenantSlug)
-            .eq('is_active', true)
+            .rpc('get_tenant_by_filter', { _slug: tenantSlug })
             .maybeSingle();
 
           if (!slugErr && slugData) {
@@ -120,7 +117,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (hostname === 'localhost' || hostname.includes('lovable.app') || hostname.includes('lovable.dev')) {
           detectedTenant = fallbackTenant;
         } else {
-          // Extract slug from subdomain
+          // Try by domain first, then by slug
           const platformDomains = ['suaplataforma.com.br'];
           let extractedSlug: string | null = null;
           for (const pd of platformDomains) {
@@ -130,28 +127,26 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }
           }
 
-          const orConditions = [`domain.eq.${hostname}`];
-          // Also try www variant and without www
-          if (hostname.startsWith('www.')) {
-            orConditions.push(`domain.eq.${hostname.slice(4)}`);
-          } else {
-            orConditions.push(`domain.eq.www.${hostname}`);
-          }
-          // Try matching subdomains of the same root domain (e.g. sub.dietajavca.com.br)
-          const rootDomain = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
-          orConditions.push(`domain.ilike.%.${rootDomain}`);
-          if (extractedSlug) {
-            orConditions.push(`slug.eq.${extractedSlug}`);
-          } else {
-            orConditions.push(`slug.eq.${hostname.split('.')[0]}`);
-          }
+          const domainToTry = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+          let data: any = null;
+          let fetchError: any = null;
 
-          const { data, error: fetchError } = await supabase
-            .from('tenants')
-            .select('*')
-            .or(orConditions.join(','))
-            .eq('is_active', true)
+          // Try domain match first
+          const domainResult = await supabase
+            .rpc('get_tenant_by_filter', { _domain: domainToTry })
             .maybeSingle();
+          data = domainResult.data;
+          fetchError = domainResult.error;
+
+          // If not found by domain, try by slug
+          if (!data && !fetchError) {
+            const slugToTry = extractedSlug || hostname.split('.')[0];
+            const slugResult = await supabase
+              .rpc('get_tenant_by_filter', { _slug: slugToTry })
+              .maybeSingle();
+            data = slugResult.data;
+            fetchError = slugResult.error;
+          }
 
           if (fetchError) {
             console.error('Error fetching tenant:', fetchError);

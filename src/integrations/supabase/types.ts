@@ -2277,6 +2277,41 @@ export type Database = {
     Functions: {
       get_admin_tenant_id: { Args: { _user_id: string }; Returns: string }
       get_current_tenant_id: { Args: never; Returns: string }
+      get_tenant_by_filter: {
+        Args: {
+          _domain?: string
+          _id?: string
+          _or_filter?: string
+          _slug?: string
+        }
+        Returns: {
+          admin_notify_phone: string
+          brand_name: string
+          brand_slogan: string
+          city: string
+          created_at: string
+          delivery_fee: number
+          domain: string
+          facebook_pixel_id: string
+          google_analytics_id: string
+          id: string
+          is_active: boolean
+          logo_url: string
+          og_image_url: string
+          order_prefix: string
+          pickup_neighborhood: string
+          plan_due_date: string
+          plan_status: string
+          plan_type: string
+          primary_color: string
+          resend_from_email: string
+          slug: string
+          state: string
+          updated_at: string
+          whatsapp: string
+          whatsapp_formatted: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
