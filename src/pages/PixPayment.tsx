@@ -52,6 +52,23 @@ const PixPayment = () => {
 
       if (data?.success) {
         setPixData(data);
+
+        // Track PIX generated event for funnel analysis (abandonment tracking)
+        if (!pixTrackedRef.current) {
+          pixTrackedRef.current = true;
+          const eventId = `pix_generated_${paymentId}`;
+          trackMetaEvent({
+            eventName: 'GeneratePIX',
+            eventId,
+            tenantId,
+            params: {
+              value: data.total || 0,
+              currency: 'BRL',
+              order_id: paymentId,
+              content_type: 'payment',
+            },
+          });
+        }
         
         // If already approved, redirect to success
         if (data.status === 'approved') {
