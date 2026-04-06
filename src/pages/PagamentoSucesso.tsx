@@ -7,6 +7,8 @@ import Logo from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
 import { Helmet } from "react-helmet-async";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
+import { trackMetaEvent } from "@/lib/meta";
+import { useTenantId } from "@/hooks/useTenantId";
 
 interface OrderData {
   id: string;
