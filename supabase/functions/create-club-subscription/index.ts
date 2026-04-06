@@ -190,7 +190,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('[create-club-subscription] Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Erro interno' }),
+      JSON.stringify({ error: 'Erro interno. Tente novamente.' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

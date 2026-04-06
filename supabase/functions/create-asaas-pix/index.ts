@@ -503,7 +503,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : 'Erro ao criar pagamento PIX. Tente novamente.' 
+        error: 'Erro ao criar pagamento PIX. Tente novamente.' 
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

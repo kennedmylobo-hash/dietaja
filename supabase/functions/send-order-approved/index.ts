@@ -128,7 +128,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (error) {
         results.email.error = error.message;
-        await supabase.from('notification_events').insert({ channel: 'email', event_type: 'failed', order_number: data.order_number, recipient_email: data.customer_email, template_name: 'order_approved', tenant_id: data.tenant_id, metadata: { error: error.message } });
+        await supabase.from('notification_events').insert({ channel: 'email', event_type: 'failed', order_number: data.order_number, recipient_email: data.customer_email, template_name: 'order_approved', tenant_id: data.tenant_id, metadata: { error: 'Erro interno' } });
       } else {
         results.email.success = true;
         await supabase.from('notification_events').insert({ channel: 'email', event_type: 'sent', order_number: data.order_number, recipient_email: data.customer_email, template_name: 'order_approved', tenant_id: data.tenant_id, message_id: emailResponse?.id });
@@ -164,7 +164,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ success: results.email.success || results.whatsapp.success, results }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
   } catch (error: any) {
     console.error("Error in send-order-approved:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
   }
 };
 

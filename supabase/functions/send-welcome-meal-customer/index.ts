@@ -68,7 +68,7 @@ Estamos comprometidos com a qualidade do seu pedido. Qualquer dúvida ou ajuste,
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error("[WELCOME] Error:", error);
-    return new Response(JSON.stringify({ success: false, error: error.message }),
+    return new Response(JSON.stringify({ success: false, error: 'Erro interno' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Erro desconhecido",
+        error: "Erro ao processar pagamento. Tente novamente.",
       }),
       {
         status: 400,

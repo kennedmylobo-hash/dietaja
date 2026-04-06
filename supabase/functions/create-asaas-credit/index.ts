@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('[create-asaas-credit] Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Erro interno' }),
+      JSON.stringify({ error: 'Erro ao processar pagamento. Tente novamente.' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

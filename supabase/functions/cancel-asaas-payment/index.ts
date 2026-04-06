@@ -105,7 +105,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in cancel-asaas-payment:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Erro ao cancelar cobrança' }),
+      JSON.stringify({ success: false, error: 'Erro interno. Tente novamente.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
