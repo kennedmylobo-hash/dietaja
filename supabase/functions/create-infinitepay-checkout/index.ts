@@ -101,12 +101,19 @@ Deno.serve(async (req) => {
     // Build webhook URL
     const webhookUrl = `${supabaseUrl}/functions/v1/infinitepay-webhook`;
 
+    // Append order_id to redirect URL so PagamentoSucesso can track Purchase
+    let finalRedirectUrl = body.redirect_url || null;
+    if (finalRedirectUrl) {
+      const separator = finalRedirectUrl.includes('?') ? '&' : '?';
+      finalRedirectUrl = `${finalRedirectUrl}${separator}order_id=${order.id}`;
+    }
+
     // Build InfinitePay payload
     const payload: Record<string, unknown> = {
       handle,
       items: infiniteItems,
       order_nsu: orderNsu,
-      redirect_url: body.redirect_url || null,
+      redirect_url: finalRedirectUrl,
       webhook_url: webhookUrl,
     };
 
