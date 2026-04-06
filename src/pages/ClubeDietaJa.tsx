@@ -28,11 +28,6 @@ const ClubeDietaJa = () => {
       params: { page: '/clube' },
     });
   }, [tenantId]);
-  const { brand, urls } = useTenantConfig();
-  const plansRef = useRef<HTMLDivElement>(null);
-  const [selectedPlan, setSelectedPlan] = useState<ClubPlan | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const { data: plans = [] } = useClubPlans();
 
