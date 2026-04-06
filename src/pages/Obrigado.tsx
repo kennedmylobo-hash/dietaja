@@ -12,6 +12,7 @@ import { useTenantId } from "@/hooks/useTenantId";
 
 const Obrigado = () => {
   const { brand, contact, urls } = useTenantConfig();
+  const tenantId = useTenantId();
   const params = new URLSearchParams(window.location.search);
   const total = parseFloat(params.get("total") || "0");
   const itemsCount = parseInt(params.get("items") || "0");
