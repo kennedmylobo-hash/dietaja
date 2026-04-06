@@ -1,4 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
+import { useTenantId } from "@/hooks/useTenantId";
 import { Helmet } from "react-helmet-async";
 import { useForm } from "react-hook-form";
 import { z } from "zod";

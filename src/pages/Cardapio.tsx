@@ -85,7 +85,18 @@ const lines = [
 const CardapioContent = () => {
   const navigate = useNavigate();
   const { brand } = useTenantConfig();
+  const tenantId = useTenantId();
   const { addItem, showIdentificationModal, setShowIdentificationModal, setCustomerInfo, confirmAddItem } = useCart();
+
+  // PageView tracking
+  useEffect(() => {
+    trackMetaEvent({
+      eventName: 'PageView',
+      eventId: generateMetaEventId('pageview'),
+      tenantId,
+      params: { page: '/cardapio' },
+    });
+  }, [tenantId]);
 
   const [cartOpen, setCartOpen] = useState(false);
   const [flavorModalOpen, setFlavorModalOpen] = useState(false);
