@@ -483,7 +483,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             <RadioGroupItem value="pickup" id="pickup" />
             <Label htmlFor="pickup" className="flex-1 cursor-pointer">
               <span className="font-medium">📍 Retirada grátis</span>
-              <span className="text-sm text-muted-foreground block">Bairro Recreio</span>
+              <span className="text-sm text-muted-foreground block">{tenantLocation.pickupNeighborhood || 'Local de retirada'}</span>
             </Label>
           </div>
           <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50 border border-transparent hover:border-primary/30 transition-colors">
