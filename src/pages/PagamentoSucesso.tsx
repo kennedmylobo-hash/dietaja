@@ -11,6 +11,8 @@ import { useTenantConfig } from "@/hooks/useTenantConfig";
 interface OrderData {
   id: string;
   customer_name: string;
+  customer_email: string;
+  customer_phone: string;
   items: Array<{ name: string; quantity: number; totalPrice: number }>;
   total: number;
   delivery_option: string;
