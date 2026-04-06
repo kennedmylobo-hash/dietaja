@@ -491,7 +491,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             <RadioGroupItem value="delivery" id="delivery" />
             <Label htmlFor="delivery" className="flex-1 cursor-pointer">
               <span className="font-medium">🛵 Entrega</span>
-              <span className="text-sm text-muted-foreground ml-2">+ R$ 10,00</span>
+              <span className="text-sm text-muted-foreground ml-2">+ R$ {tenantLocation.deliveryFee.toFixed(2).replace(".", ",")}</span>
             </Label>
           </div>
         </RadioGroup>
