@@ -24,6 +24,7 @@ interface PixData {
 
 const PixPayment = () => {
   const { brand } = useTenantConfig();
+  const tenantId = useTenantId();
   const { paymentId } = useParams<{ paymentId: string }>();
   const navigate = useNavigate();
   const [pixData, setPixData] = useState<PixData | null>(null);
@@ -32,6 +33,7 @@ const PixPayment = () => {
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const pixTrackedRef = useRef(false);
 
   // Fetch PIX data
   const fetchPixData = useCallback(async () => {
