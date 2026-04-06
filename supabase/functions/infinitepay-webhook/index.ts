@@ -53,11 +53,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update order status to paid
+    // Use 'approved' status to match Asaas flow and ensure visibility in admin panel
     const { error: updateError } = await supabase
       .from("orders")
       .update({
-        status: "paid",
+        status: "approved",
         paid_at: new Date().toISOString(),
         payment_method: capture_method === "pix" ? "pix" : "credit_card",
         mp_payment_id: transaction_nsu || order.mp_payment_id,
@@ -71,6 +71,42 @@ Deno.serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Record status history
+    try {
+      await supabase.from("order_status_history").insert({
+        order_id: order.id,
+        previous_status: order.status,
+        new_status: "approved",
+        changed_by_name: "InfinitePay Webhook",
+        tenant_id: order.tenant_id,
+      });
+    } catch (e) {
+      console.error("Error recording status history:", e);
+    }
+
+    // Decrement stock
+    try {
+      await supabase.functions.invoke("decrement-stock", {
+        body: { order_id: order.id },
+      });
+    } catch (e) {
+      console.error("Error decrementing stock:", e);
+    }
+
+    // Process cashback
+    try {
+      await supabase.functions.invoke("process-cashback", {
+        body: {
+          order_id: order.id,
+          customer_email: order.customer_email,
+          total: order.total,
+          tenant_id: order.tenant_id,
+        },
+      });
+    } catch (e) {
+      console.error("Error processing cashback:", e);
     }
 
     // Log notification event
@@ -93,16 +129,25 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Try to send order confirmation
+    // Send order confirmation notification (with full context)
     try {
       await supabase.functions.invoke("send-order-approved", {
-        body: { order_id: order.id },
+        body: {
+          order_id: order.id,
+          order_number: order.order_number,
+          customer_name: order.customer_name,
+          customer_email: order.customer_email,
+          customer_phone: order.customer_phone,
+          total: order.total,
+          items: order.items,
+          tenant_id: order.tenant_id,
+        },
       });
     } catch (notifError) {
       console.error("Error sending notification:", notifError);
     }
 
-    console.log(`Order ${order.order_number} marked as paid via InfinitePay (${capture_method})`);
+    console.log(`Order ${order.order_number} marked as approved via InfinitePay (${capture_method})`);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
