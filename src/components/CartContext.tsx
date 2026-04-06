@@ -73,6 +73,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [autoOpenCart, setAutoOpenCart] = useState(false);
   const { trackCartEvent } = useCartTracking();
   const tenantId = useTenantId();
+  const pendingAddToCartTrackedRef = useRef(false);
 
   const isIdentified = !!(customerInfo.phone && customerInfo.name);
 
