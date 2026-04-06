@@ -163,7 +163,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
           .from('orders')
           .select('id, order_number, status, items, customer_name, created_at')
           .gte('created_at', startDate)
-          .in('status', ['approved', 'preparing', 'ready', 'whatsapp_pending'])
+          .in('status', ['approved', 'paid', 'preparing', 'ready', 'whatsapp_pending'])
           .order('created_at', { ascending: false }),
         supabase.from('marmita_sides').select('*').eq('active', true).order('sort_order'),
         supabase.from('marmita_flavors').select('id, name, category, sides').eq('active', true),
