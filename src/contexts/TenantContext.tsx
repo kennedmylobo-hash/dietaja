@@ -147,7 +147,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
 
           const { data, error: fetchError } = await supabase
-            .from('tenants')
+            .from('tenants_public' as any)
             .select('*')
             .or(orConditions.join(','))
             .eq('is_active', true)
