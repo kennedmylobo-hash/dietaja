@@ -48,16 +48,15 @@ const DetoxContent = () => {
     description: kit.description || `${kit.days} dias de detox`,
   }));
 
-  // Track ViewContent when page loads with packages data
+  const tenantId = useTenantId();
   useEffect(() => {
-    if (packages.length > 0 && typeof window !== 'undefined' && window.fbq) {
+    if (packages.length > 0) {
       const avgPrice = packages.reduce((sum, p) => sum + p.price, 0) / packages.length;
-      window.fbq('track', 'ViewContent', {
-        content_type: 'product_group',
-        content_name: 'Kit Detox',
-        content_category: 'Detox',
-        value: avgPrice,
-        currency: 'BRL',
+      trackMetaEvent({
+        eventName: 'ViewContent',
+        eventId: generateMetaEventId('view'),
+        params: { content_type: 'product_group', content_name: 'Kit Detox', content_category: 'Detox', value: avgPrice, currency: 'BRL' },
+        tenantId,
       });
     }
   }, [packages.length]);
