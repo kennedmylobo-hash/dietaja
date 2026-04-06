@@ -156,13 +156,17 @@ Deno.serve(async (req) => {
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
         body: JSON.stringify({
           event_name: "Purchase",
-          event_id: `server_ip_${order.id}`,
+          event_id: `purchase_${order.id}`,
           value: order.total,
           currency: "BRL",
           customer_email: order.customer_email,
           customer_phone: order.customer_phone,
           source_url: `https://diet-on-demand.lovable.app/pagamento-sucesso?order_id=${order.id}`,
           tenant_id: order.tenant_id,
+          custom_data: {
+            order_id: order.id,
+            payment_method: order.payment_method,
+          },
         }),
       });
       console.log(`✅ Meta CAPI Purchase event sent for order ${order.order_number}`);

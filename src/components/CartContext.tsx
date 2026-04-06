@@ -2,6 +2,7 @@ import { createContext, useContext, useState, ReactNode, useCallback, useEffect,
 import { useCartTracking } from "@/hooks/useSectionTracking";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
 import { useTenantId } from "@/hooks/useTenantId";
 import { useSearchParams } from "react-router-dom";
 
@@ -293,8 +294,30 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [items, customerInfo, isIdentified, syncCartToDatabase]);
 
   const addItem = useCallback((newItem: Omit<CartItem, "id">) => {
-    // If not identified, show modal and save pending item
+    const trackAddToCartMeta = () => {
+      const eventId = generateMetaEventId('add_to_cart');
+
+      trackMetaEvent({
+        eventName: 'AddToCart',
+        eventId,
+        tenantId,
+        customerEmail: customerInfo.email,
+        customerPhone: customerInfo.phone,
+        params: {
+          content_name: newItem.name,
+          content_type: 'product',
+          content_ids: [`${newItem.type}:${newItem.name}`],
+          num_items: newItem.quantity,
+          value: newItem.totalPrice,
+          currency: 'BRL',
+        },
+      });
+    };
+
+    // If not identified, track intent first and then show modal
     if (!isIdentified) {
+      trackAddToCartMeta();
+      pendingAddToCartTrackedRef.current = true;
       setPendingItem(newItem);
       setShowIdentificationModal(true);
       return;
@@ -302,16 +325,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     // Proceed with adding item
     const id = `${newItem.type}-${newItem.name}-${Date.now()}`;
-    
-    // Track AddToCart event with Meta Pixel
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'AddToCart', {
-        content_name: newItem.name,
-        content_type: 'product',
-        value: newItem.totalPrice,
-        currency: 'BRL'
-      });
-    }
+    trackAddToCartMeta();
     
     // Track AddToCart with GA4
     if (typeof window !== 'undefined' && window.gtag) {
@@ -340,21 +354,30 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const filtered = prev.filter((item) => item.type !== newItem.type);
       return [...filtered, { ...newItem, id }];
     });
-  }, [trackCartEvent, isIdentified]);
+  }, [trackCartEvent, isIdentified, tenantId, customerInfo.email, customerInfo.phone]);
 
   // Confirm adding item after identification
   const confirmAddItem = useCallback(() => {
     if (!pendingItem) return;
 
     const id = `${pendingItem.type}-${pendingItem.name}-${Date.now()}`;
-    
-    // Track AddToCart event with Meta Pixel
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'AddToCart', {
-        content_name: pendingItem.name,
-        content_type: 'product',
-        value: pendingItem.totalPrice,
-        currency: 'BRL'
+
+    if (!pendingAddToCartTrackedRef.current) {
+      const eventId = generateMetaEventId('add_to_cart');
+      trackMetaEvent({
+        eventName: 'AddToCart',
+        eventId,
+        tenantId,
+        customerEmail: customerInfo.email,
+        customerPhone: customerInfo.phone,
+        params: {
+          content_name: pendingItem.name,
+          content_type: 'product',
+          content_ids: [`${pendingItem.type}:${pendingItem.name}`],
+          num_items: pendingItem.quantity,
+          value: pendingItem.totalPrice,
+          currency: 'BRL',
+        },
       });
     }
     
@@ -386,9 +409,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       return [...filtered, { ...pendingItem, id }];
     });
 
+    pendingAddToCartTrackedRef.current = false;
     setPendingItem(null);
     setShowIdentificationModal(false);
-  }, [pendingItem, trackCartEvent]);
+  }, [pendingItem, trackCartEvent, tenantId, customerInfo.email, customerInfo.phone]);
 
   const removeItem = useCallback((id: string) => {
     trackCartEvent('cart_remove');
@@ -416,22 +440,36 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [trackCartEvent]);
   
   const trackCheckoutStart = useCallback(() => {
-    trackCartEvent('checkout_start', { items_count: items.length, total: getTotal() });
-    
-    // Meta Pixel InitiateCheckout
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'InitiateCheckout', {
-        value: getTotal(),
+    const checkoutValue = getTotal();
+
+    trackCartEvent('checkout_start', { items_count: items.length, total: checkoutValue });
+
+    trackMetaEvent({
+      eventName: 'InitiateCheckout',
+      eventId: generateMetaEventId('initiate_checkout'),
+      tenantId,
+      customerEmail: customerInfo.email,
+      customerPhone: customerInfo.phone,
+      params: {
+        value: checkoutValue,
         currency: 'BRL',
-        num_items: items.length
-      });
-    }
+        num_items: items.length,
+        content_type: 'product',
+        content_name: items.map((item) => item.name).join(', '),
+        content_ids: items.map((item) => item.id),
+        contents: items.map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+          item_price: item.unitPrice,
+        })),
+      },
+    });
     
     // GA4 begin_checkout
     if (typeof window !== 'undefined' && window.gtag) {
       window.gtag('event', 'begin_checkout', {
         currency: 'BRL',
-        value: getTotal(),
+        value: checkoutValue,
         items: items.map((item, index) => ({
           item_id: item.id,
           item_name: item.name,
@@ -442,7 +480,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         }))
       });
     }
-  }, [trackCartEvent, items, getTotal]);
+  }, [trackCartEvent, items, getTotal, tenantId, customerInfo.email, customerInfo.phone]);
   
   const trackCheckoutComplete = useCallback((total: number) => {
     trackCartEvent('checkout_complete', { total });

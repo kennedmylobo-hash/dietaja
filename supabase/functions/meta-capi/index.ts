@@ -29,6 +29,10 @@ Deno.serve(async (req) => {
       customer_phone,
       source_url,
       tenant_id,
+      fbp,
+      fbc,
+      client_user_agent,
+      custom_data,
     } = await req.json();
 
     const accessToken = Deno.env.get("META_CONVERSIONS_API_TOKEN");
@@ -38,6 +42,11 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const normalizedCustomData =
+      custom_data && typeof custom_data === "object" && !Array.isArray(custom_data)
+        ? (custom_data as Record<string, unknown>)
+        : {};
 
     // Get pixel ID from tenant
     const supabase = createClient(
@@ -60,13 +69,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build user_data with hashed PII
-    const userData: Record<string, string> = {};
+    // Build user_data with hashed PII + browser identifiers for better match quality
+    const userData: Record<string, unknown> = {};
     if (customer_email) userData.em = [await sha256(customer_email)];
     if (customer_phone) {
       const phone = customer_phone.replace(/\D/g, "");
-      userData.ph = [await sha256(phone)];
+      if (phone) userData.ph = [await sha256(phone)];
     }
+    if (fbp) userData.fbp = fbp;
+    if (fbc) userData.fbc = fbc;
+
+    const forwardedUserAgent = client_user_agent || req.headers.get("user-agent") || "";
+    if (forwardedUserAgent) userData.client_user_agent = forwardedUserAgent;
 
     // Get client IP from request headers
     const clientIp =
@@ -74,6 +88,8 @@ Deno.serve(async (req) => {
       req.headers.get("cf-connecting-ip") ||
       "";
     if (clientIp) userData.client_ip_address = clientIp;
+
+    const parsedValue = Number(value ?? normalizedCustomData.value ?? 0);
 
     const eventData = {
       data: [
@@ -85,7 +101,8 @@ Deno.serve(async (req) => {
           action_source: "website",
           user_data: userData,
           custom_data: {
-            value: parseFloat(value) || 0,
+            ...normalizedCustomData,
+            value: Number.isFinite(parsedValue) ? parsedValue : 0,
             currency,
           },
         },

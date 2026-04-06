@@ -106,17 +106,6 @@ const FitnessContent = () => {
   }, []);
 
   const handlePackageSelect = (pkg: PackageOption) => {
-    // Meta Pixel: AddToCart
-    if (typeof window !== 'undefined' && (window as any).fbq) {
-      (window as any).fbq('track', 'AddToCart', {
-        content_name: pkg.name,
-        content_type: 'product',
-        content_ids: [pkg.id],
-        value: pkg.price,
-        currency: 'BRL',
-      });
-    }
-
     setLoadingId(pkg.id);
     setSelectedPackage(pkg);
     setTimeout(() => {

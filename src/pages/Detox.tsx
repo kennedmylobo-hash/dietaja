@@ -73,17 +73,6 @@ const DetoxContent = () => {
   }, []);
 
   const handlePackageSelect = (pkg: PackageOption) => {
-    // Track AddToCart for Meta Pixel optimization
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'AddToCart', {
-        content_name: pkg.name,
-        content_type: 'product',
-        content_ids: [pkg.id],
-        value: pkg.price,
-        currency: 'BRL',
-      });
-    }
-
     setLoadingId(pkg.id);
     setSelectedKit(pkg);
     setTimeout(() => {
