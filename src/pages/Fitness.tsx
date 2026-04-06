@@ -51,11 +51,11 @@ const FitnessContent = () => {
   const tenantId = useTenantId();
   useEffect(() => {
     if (packages.length > 0) {
-      const avgPrice = packages.reduce((sum, p) => sum + p.price, 0) / packages.length;
+      const minPrice = Math.min(...packages.map(p => p.pricePerUnit));
       trackMetaEvent({
         eventName: 'ViewContent',
         eventId: generateMetaEventId('view'),
-        params: { content_type: 'product_group', content_name: 'Marmita Fitness 450g', content_category: 'Hipertrofia', value: avgPrice, currency: 'BRL' },
+        params: { content_type: 'product_group', content_name: 'Marmita Fitness 450g', content_category: 'Hipertrofia', value: minPrice, currency: 'BRL', contents: packages.map(p => ({ id: p.id, quantity: p.quantity, item_price: p.pricePerUnit })) },
         tenantId,
       });
     }

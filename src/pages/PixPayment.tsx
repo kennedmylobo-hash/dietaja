@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
@@ -9,6 +9,8 @@ import { toast } from "@/hooks/use-toast";
 import { hapticFeedback } from "@/lib/haptics";
 import { celebrateCheckout } from "@/lib/confetti";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
+import { useTenantId } from "@/hooks/useTenantId";
 
 interface PixData {
   qr_code: string;

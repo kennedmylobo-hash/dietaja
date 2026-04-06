@@ -51,11 +51,11 @@ const DetoxContent = () => {
   const tenantId = useTenantId();
   useEffect(() => {
     if (packages.length > 0) {
-      const avgPrice = packages.reduce((sum, p) => sum + p.price, 0) / packages.length;
+      const minPrice = Math.min(...packages.map(p => p.price));
       trackMetaEvent({
         eventName: 'ViewContent',
         eventId: generateMetaEventId('view'),
-        params: { content_type: 'product_group', content_name: 'Kit Detox', content_category: 'Detox', value: avgPrice, currency: 'BRL' },
+        params: { content_type: 'product_group', content_name: 'Kit Detox', content_category: 'Detox', value: minPrice, currency: 'BRL', contents: packages.map(p => ({ id: p.id, quantity: 1, item_price: p.price })) },
         tenantId,
       });
     }
