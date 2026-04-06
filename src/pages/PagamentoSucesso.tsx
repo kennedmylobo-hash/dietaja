@@ -89,9 +89,9 @@ const PagamentoSucesso = () => {
           body: { order_id: orderId }
         });
         
-        if (!error && data?.status === 'approved') {
+        if (!error && data && ['approved', 'paid'].includes(data.status)) {
           setRealStatus('approved');
-          setOrder(prev => prev ? { ...prev, status: 'approved', total: data.total || prev.total } : null);
+          setOrder(prev => prev ? { ...prev, status: 'approved', total: data.total || prev.total, customer_email: data.customer_email || prev.customer_email, customer_phone: data.customer_phone || prev.customer_phone } : null);
           clearInterval(interval);
         }
       } catch (err) {
