@@ -1,58 +1,27 @@
+## Varredura Completa - Resultados
 
+### 🔴 CRÍTICO (Segurança)
 
-## Plano: Recuperação em massa de carrinhos abandonados com deep link
+1. **Cupons expostos publicamente** - Qualquer pessoa pode listar TODOS os cupons ativos (incluindo cupons pessoais como KENNEDY/ALESSA com 99% de desconto). Solução: restringir a policy de SELECT público para validar apenas via RPC (já existe `validate_coupon_code`), removendo a policy pública.
 
-### Objetivo
-Criar um fluxo onde o admin pode disparar uma mensagem de recuperação para **todos** os carrinhos abandonados de uma vez, e cada mensagem inclui um **deep link** que restaura automaticamente o carrinho do cliente no site.
+2. **Telefones de clientes expostos via feedback tokens** - A policy `Anyone can view token by value` expõe nome e telefone de todos os tokens ativos. Solução: restringir para que só retorne dados quando filtrado por token específico.
 
-### Como funciona o deep link
+### 🟡 MÉDIO (Segurança)
 
-O site receberá um parâmetro `?cart=CART_ID` na URL. O `CartContext` detecta esse parâmetro, busca o carrinho no banco pelo ID, e restaura os itens + dados do cliente automaticamente — sem precisar de login. O cliente cai direto na página com o carrinho pronto para finalizar.
+3. **Proteção contra senhas vazadas desativada** - Ativar leaked password protection no auth.
 
-### Mudanças
+4. **Realtime sem RLS** - Qualquer usuário autenticado pode se inscrever em qualquer canal Realtime. Risco baixo pois a tabela `orders` não está na publicação Realtime.
 
-**1. Deep link no CartContext (`src/components/CartContext.tsx`)**
-- No `useEffect` de inicialização, verificar `URLSearchParams` para o param `cart`
-- Se presente, buscar o carrinho pelo ID no banco (`carts` table) e restaurar itens + customerInfo
-- Salvar no localStorage para persistir a sessão
-- Abrir o carrinho automaticamente (ou scrollar para checkout)
+5. **Extensão no schema public** - Mover extensões para schema separado (risco baixo).
 
-**2. Botão "Recuperar Todos" no painel admin (`src/components/admin/AbandonedCartsRecovery.tsx`)**
-- Adicionar botão no topo: "📩 Enviar recuperação em massa"
-- Ao clicar, chama uma nova edge function que envia a mensagem personalizada para cada carrinho abandonado que ainda não recebeu essa mensagem específica
-- Adicionar um campo `recovery_sent_at` na tabela `carts` para controlar o envio (migration)
+### 🟢 Performance (DB)
 
-**3. Nova edge function `send-cart-recovery` (`supabase/functions/send-cart-recovery/index.ts`)**
-- Busca todos os carrinhos com status `abandoned` ou `active` (inativos há mais de X tempo) que não tenham `recovery_sent_at`
-- Para cada carrinho, monta a mensagem com o template fornecido pelo usuário, incluindo o deep link: `{baseUrl}?cart={cart.id}`
-- Envia via Evolution API (WhatsApp)
-- Atualiza `recovery_sent_at` no registro
+6. **20 índices com 0 scans** - Índices nunca utilizados como `idx_orders_mp_preference_id`, `idx_notification_events_event_type`, etc. Podem ser removidos para reduzir overhead de escrita, mas risco baixo.
 
-**4. Migration: adicionar coluna `recovery_sent_at`**
-```sql
-ALTER TABLE carts ADD COLUMN IF NOT EXISTS recovery_sent_at timestamptz;
-```
+### ✅ Rastreamento (OK)
 
-**5. Atualizar mensagens de WhatsApp individuais**
-- Os botões existentes "WhatsApp" e "Oferta 10%" também passarão a incluir o deep link do carrinho na mensagem
+7. O funil Meta está completo (ViewContent → AddToCart → InitiateCheckout → Purchase) com deduplicação e CAPI redundante. Nenhuma ação necessária.
 
-### Mensagem template
-```
-🍽️ Seu pedido ainda está salvo!
+---
 
-Vi que você montou seu kit, mas não finalizou.
-
-Deixei tudo separado aqui pra você 👇
-Clique e finalize em menos de 1 minuto:
-
-🔗 {link}
-
-Comece a semana organizada, com tudo pesado e pronto.
-
-Posso confirmar para você?
-```
-
-### Segurança
-- O cart ID é um UUID, difícil de adivinhar
-- Nenhum dado sensível é exposto na URL — apenas o ID que permite restaurar o carrinho
-
+**Recomendo corrigir os itens 1 e 2 agora (críticos). Deseja prosseguir?**
