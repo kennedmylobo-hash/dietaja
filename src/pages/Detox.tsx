@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
+import { useTenantId } from "@/hooks/useTenantId";
 import { Helmet } from "react-helmet-async";
 import { Droplets, Zap, Scale, ShieldCheck } from "lucide-react";
 import detoxVideo from "@/assets/produtos-detox-video.mp4";

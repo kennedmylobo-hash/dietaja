@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
+import { useTenantId } from "@/hooks/useTenantId";
 import { Helmet } from "react-helmet-async";
 import { Dumbbell, Flame, ShieldCheck, Clock } from "lucide-react";
 import marmitaImage from "@/assets/marmita-2.png";

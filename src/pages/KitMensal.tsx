@@ -18,38 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { useTenantId } from "@/hooks/useTenantId";
 import { Helmet } from "react-helmet-async";
 
-// ===== META PIXEL HELPERS =====
-const generateEventId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-const trackPixelEvent = (eventName: string, params?: Record<string, unknown>, eventId?: string) => {
-  if (typeof window !== 'undefined' && window.fbq) {
-    const opts = eventId ? { eventID: eventId } : undefined;
-    if (['Purchase', 'InitiateCheckout', 'AddPaymentInfo', 'ViewContent', 'Lead', 'Contact'].includes(eventName)) {
-      window.fbq('track', eventName, params, opts);
-    } else {
-      window.fbq('trackCustom', eventName, params, opts);
-    }
-  }
-};
-
-const sendCAPI = async (eventName: string, eventId: string, params: Record<string, unknown>, tenantId: string) => {
-  try {
-    await supabase.functions.invoke('meta-capi', {
-      body: {
-        event_name: eventName,
-        event_id: eventId,
-        value: params.value || 0,
-        currency: 'BRL',
-        customer_email: params.customer_email || null,
-        customer_phone: params.customer_phone || null,
-        source_url: window.location.href,
-        tenant_id: tenantId,
-      },
-    });
-  } catch (e) {
-    console.debug('CAPI error:', e);
-  }
-};
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
 
 const trackGA4 = (eventName: string, params?: Record<string, unknown>) => {
   if (typeof window !== 'undefined' && (window as any).gtag) {

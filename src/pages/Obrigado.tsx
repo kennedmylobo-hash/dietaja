@@ -42,19 +42,25 @@ const Obrigado = () => {
     month: "long",
   });
 
-  // Disparar evento Purchase no Meta Pixel + confetti
+  // Disparar evento Purchase no Meta Pixel + CAPI + confetti
   useEffect(() => {
-    // Celebrar a compra com confetti
     celebrateCheckout();
 
-    if (typeof window !== "undefined" && (window as any).fbq && total > 0) {
-      (window as any).fbq("track", "Purchase", {
-        value: total,
-        currency: "BRL",
-        num_items: itemsCount,
+    if (total > 0) {
+      const eventId = generateMetaEventId("whatsapp_purchase");
+      trackMetaEvent({
+        eventName: "Purchase",
+        eventId,
+        params: {
+          value: total,
+          currency: "BRL",
+          num_items: itemsCount,
+          content_name: "WhatsApp Order",
+        },
+        tenantId,
       });
     }
-  }, [total, itemsCount]);
+  }, [total, itemsCount, tenantId]);
 
   const steps = [
     {
