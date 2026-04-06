@@ -11,6 +11,8 @@ import { useTenantConfig } from "@/hooks/useTenantConfig";
 interface OrderData {
   id: string;
   customer_name: string;
+  customer_email: string;
+  customer_phone: string;
   items: Array<{ name: string; quantity: number; totalPrice: number }>;
   total: number;
   delivery_option: string;
@@ -44,10 +46,12 @@ const PagamentoSucesso = () => {
           setRealStatus(data.status);
           setOrder({
             id: orderId,
-            customer_name: '',
-            items: [],
+            customer_name: data.customer_name || '',
+            customer_email: data.customer_email || '',
+            customer_phone: data.customer_phone || '',
+            items: data.items || [],
             total: data.total || 0,
-            delivery_option: '',
+            delivery_option: data.delivery_option || '',
             status: data.status,
           });
         } else {
@@ -56,6 +60,8 @@ const PagamentoSucesso = () => {
           setOrder({
             id: orderId,
             customer_name: '',
+            customer_email: '',
+            customer_phone: '',
             items: [],
             total: 0,
             delivery_option: '',
@@ -83,9 +89,9 @@ const PagamentoSucesso = () => {
           body: { order_id: orderId }
         });
         
-        if (!error && data?.status === 'approved') {
+        if (!error && data && ['approved', 'paid'].includes(data.status)) {
           setRealStatus('approved');
-          setOrder(prev => prev ? { ...prev, status: 'approved', total: data.total || prev.total } : null);
+          setOrder(prev => prev ? { ...prev, status: 'approved', total: data.total || prev.total, customer_email: data.customer_email || prev.customer_email, customer_phone: data.customer_phone || prev.customer_phone } : null);
           clearInterval(interval);
         }
       } catch (err) {
@@ -120,7 +126,8 @@ const PagamentoSucesso = () => {
         event_id: eventId,
         value: order?.total || 0,
         currency: 'BRL',
-        customer_email: order?.customer_name || '', // will be improved when order data includes email
+        customer_email: order?.customer_email || '',
+        customer_phone: order?.customer_phone || '',
         source_url: window.location.href,
       }
     }).catch(err => console.error('Meta CAPI error:', err));

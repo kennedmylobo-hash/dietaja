@@ -35,7 +35,7 @@ serve(async (req) => {
     if (!paymentIdToCheck && order_id) {
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .select('mp_payment_id, status, order_number, tenant_id')
+        .select('mp_payment_id, status, order_number, tenant_id, total, customer_email, customer_phone, customer_name, payment_method, items, delivery_option')
         .eq('id', order_id)
         .maybeSingle();
 
@@ -53,9 +53,33 @@ serve(async (req) => {
 
       orderTenantId = order.tenant_id;
 
-      if (order.status === 'approved') {
+      // If already approved/paid, return immediately with full data
+      if (['approved', 'paid'].includes(order.status)) {
         return new Response(
-          JSON.stringify({ status: 'approved', order_number: order.order_number }),
+          JSON.stringify({
+            status: 'approved',
+            order_number: order.order_number,
+            total: order.total,
+            customer_email: order.customer_email,
+            customer_phone: order.customer_phone,
+            customer_name: order.customer_name,
+            items: order.items,
+            delivery_option: order.delivery_option,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // For InfinitePay orders without Asaas payment ID, return pending status with data
+      if (order.payment_method === 'infinitepay' && !order.mp_payment_id) {
+        return new Response(
+          JSON.stringify({
+            status: 'pending',
+            message: 'Aguardando confirmação InfinitePay',
+            total: order.total,
+            customer_email: order.customer_email,
+            customer_phone: order.customer_phone,
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
