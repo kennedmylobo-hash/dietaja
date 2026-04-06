@@ -2,6 +2,7 @@ import { createContext, useContext, useState, ReactNode, useCallback, useEffect,
 import { useCartTracking } from "@/hooks/useSectionTracking";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
 import { useTenantId } from "@/hooks/useTenantId";
 import { useSearchParams } from "react-router-dom";
 

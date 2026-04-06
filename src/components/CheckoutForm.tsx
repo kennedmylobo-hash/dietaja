@@ -12,6 +12,7 @@ import { Loader2, Smartphone, CreditCard, CheckCircle2, AlertTriangle, XCircle }
 import { useCart } from "./CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTMParams } from "@/lib/utm";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
 import { toast } from "@/hooks/use-toast";
 import { EmailAutocomplete } from "@/components/EmailAutocomplete";
 import PixPaymentModal from "@/components/PixPaymentModal";
