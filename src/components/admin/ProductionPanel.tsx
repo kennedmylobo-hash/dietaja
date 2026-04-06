@@ -195,7 +195,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
   const filteredOrders = useMemo(() => {
     if (statusFilter === 'all') return orders;
     if (statusFilter === 'production') {
-      return orders.filter(o => ['approved', 'preparing'].includes(o.status));
+      return orders.filter(o => ['approved', 'paid', 'preparing'].includes(o.status));
     }
     return orders.filter(o => o.status === statusFilter);
   }, [orders, statusFilter]);
