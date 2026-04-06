@@ -165,6 +165,27 @@ serve(async (req) => {
           console.error('[asaas-webhook] Error processing cashback:', cashbackError);
         }
 
+        // Fire server-side Purchase event to Meta CAPI (backup for browser pixel)
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/meta-capi`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+            body: JSON.stringify({
+              event_name: 'Purchase',
+              event_id: `server_asaas_${orderId}`,
+              value: order.total,
+              currency: 'BRL',
+              customer_email: order.customer_email,
+              customer_phone: order.customer_phone,
+              source_url: `https://diet-on-demand.lovable.app/pagamento-sucesso?order_id=${orderId}`,
+              tenant_id: order.tenant_id,
+            }),
+          });
+          console.log('[asaas-webhook] ✅ Meta CAPI Purchase event sent for order', order.order_number);
+        } catch (capiError) {
+          console.error('[asaas-webhook] Error sending Meta CAPI:', capiError);
+        }
+
         // Send WhatsApp alert to admin
         try {
           const { getWhatsAppCredentials } = await import("../_shared/tenant-credentials.ts");
