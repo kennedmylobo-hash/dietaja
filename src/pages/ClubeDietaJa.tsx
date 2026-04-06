@@ -1,8 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { ShieldCheck } from "lucide-react";
 import { useClubPlans, ClubPlan } from "@/hooks/useClubPlans";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
+import { useTenantId } from "@/hooks/useTenantId";
 import ClubHero from "@/components/clube/ClubHero";
 import ClubBenefits from "@/components/clube/ClubBenefits";
 import ClubPlanCards from "@/components/clube/ClubPlanCards";
@@ -12,10 +14,20 @@ import ClubSubscriptionModal from "@/components/clube/ClubSubscriptionModal";
 
 const ClubeDietaJa = () => {
   const { brand, urls } = useTenantConfig();
+  const tenantId = useTenantId();
   const plansRef = useRef<HTMLDivElement>(null);
   const [selectedPlan, setSelectedPlan] = useState<ClubPlan | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    trackMetaEvent({
+      eventName: 'PageView',
+      eventId: generateMetaEventId('pageview'),
+      tenantId,
+      params: { page: '/clube' },
+    });
+  }, [tenantId]);
 
   const { data: plans = [] } = useClubPlans();
 

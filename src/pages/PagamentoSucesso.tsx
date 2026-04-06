@@ -7,6 +7,8 @@ import Logo from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
 import { Helmet } from "react-helmet-async";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
+import { trackMetaEvent } from "@/lib/meta";
+import { useTenantId } from "@/hooks/useTenantId";
 
 interface OrderData {
   id: string;
@@ -102,6 +104,8 @@ const PagamentoSucesso = () => {
     return () => clearInterval(interval);
   }, [realStatus, orderId]);
 
+  const tenantId = useTenantId();
+
   // Track Purchase event - Meta Pixel (browser) + CAPI (server) + GA4
   useEffect(() => {
     if (realStatus !== 'approved' || !orderId) return;
@@ -109,32 +113,20 @@ const PagamentoSucesso = () => {
     // Use deterministic event_id so browser + webhook deduplicate correctly
     const eventId = `purchase_${orderId}`;
     
-    // Track Purchase event - Meta Pixel (browser-side)
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'Purchase', {
+    // Unified tracker: browser Pixel + CAPI with fbp/fbc/userAgent signals
+    trackMetaEvent({
+      eventName: 'Purchase',
+      eventId,
+      tenantId,
+      customerEmail: order?.customer_email || null,
+      customerPhone: order?.customer_phone || null,
+      params: {
         value: order?.total || 0,
         currency: 'BRL',
         content_type: 'product',
         order_id: orderId,
-      }, { eventID: eventId });
-    }
-    
-    // Track Purchase event - CAPI (server-side) with same event_id
-    supabase.functions.invoke('meta-capi', {
-      body: {
-        event_name: 'Purchase',
-        event_id: eventId,
-        value: order?.total || 0,
-        currency: 'BRL',
-        customer_email: order?.customer_email || '',
-        customer_phone: order?.customer_phone || '',
-        source_url: window.location.href,
-        custom_data: {
-          order_id: orderId,
-          content_type: 'product',
-        },
-      }
-    }).catch(err => console.error('Meta CAPI error:', err));
+      },
+    });
     
     // Track Purchase event - GA4
     if (typeof window !== 'undefined' && window.gtag) {
@@ -150,7 +142,7 @@ const PagamentoSucesso = () => {
         })) || []
       });
     }
-  }, [realStatus, orderId, order?.total, order?.items]);
+  }, [realStatus, orderId, order?.total, order?.items, tenantId]);
 
   const isPending = realStatus === 'pending';
 
