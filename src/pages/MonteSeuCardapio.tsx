@@ -59,7 +59,17 @@ const speechSupported = typeof window !== "undefined" && ("SpeechRecognition" in
 
 const MonteSeuCardapioContent = () => {
   const { brand, contact } = useTenantConfig();
+  const tenantId = useTenantId();
   const { addItem, itemCount, showIdentificationModal, setShowIdentificationModal, customerInfo, setCustomerInfo, confirmAddItem } = useCart();
+
+  useEffect(() => {
+    trackMetaEvent({
+      eventName: 'PageView',
+      eventId: generateMetaEventId('pageview'),
+      tenantId,
+      params: { page: '/monte-seu-cardapio' },
+    });
+  }, [tenantId]);
   const [searchParams] = useSearchParams();
   const initialLine = searchParams.get("linha") === "hipertrofia" ? "hipertrofia" : "emagrecimento";
   const [loading, setLoading] = useState(false);
