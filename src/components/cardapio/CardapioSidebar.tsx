@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface SidebarCategory {
