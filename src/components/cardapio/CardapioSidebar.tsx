@@ -37,7 +37,14 @@ const CardapioSidebar = ({ activeCategory, onCategoryClick, className }: Cardapi
           return (
             <button
               key={category.id}
-              onClick={() => onCategoryClick(category.id)}
+              onClick={() => {
+                onCategoryClick(category.id);
+                trackMetaEvent({
+                  eventName: 'ViewContent',
+                  eventId: generateMetaEventId('view_category'),
+                  params: { content_type: 'category', content_name: category.name, content_category: category.id },
+                });
+              }}
               className={cn(
                 "w-full text-left px-6 py-3.5 text-sm font-medium transition-all",
                 "border-l-4 flex items-center gap-2",
