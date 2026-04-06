@@ -366,10 +366,12 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   };
 
   // Group orders by status category (6 stages)
+  const isOperationallyApproved = (status: string) => ['approved', 'paid'].includes(status);
+
   const ordersByCategory = useMemo(() => {
     return {
       pending: orders.filter(o => ['pending', 'whatsapp_pending', 'awaiting_payment'].includes(o.status)),
-      production: orders.filter(o => ['approved', 'preparing', 'paid'].includes(o.status)),
+      production: orders.filter(o => [...['preparing'], ...['approved', 'paid']].includes(o.status)),
       ready: orders.filter(o => o.status === 'ready'),
       delivering: orders.filter(o => o.status === 'delivering'),
       delivered: orders.filter(o => o.status === 'delivered'),
@@ -379,11 +381,12 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
 
   const filteredOrders = useMemo(() => {
     if (statusFilter === 'all') return orders;
+    if (statusFilter === 'approved') return orders.filter(o => isOperationallyApproved(o.status));
     return orders.filter(o => o.status === statusFilter);
   }, [orders, statusFilter]);
 
   const stats = useMemo(() => {
-    const approved = orders.filter(o => o.status === 'approved' || o.status === 'paid');
+    const approved = orders.filter(o => isOperationallyApproved(o.status));
     const preparing = orders.filter(o => o.status === 'preparing');
     const ready = orders.filter(o => o.status === 'ready');
     const delivering = orders.filter(o => o.status === 'delivering');
@@ -441,6 +444,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
+      case 'paid':
         return <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">✅ Pago</Badge>;
       case 'preparing':
         return <Badge className="bg-blue-500/10 text-blue-600 hover:bg-blue-500/20">👨‍🍳 Produção</Badge>;
@@ -491,6 +495,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
     { value: 'pending', label: '⏳ PIX Pendente' },
     { value: 'whatsapp_pending', label: '📲 WhatsApp' },
     { value: 'approved', label: '✅ Pagamento Aprovado' },
+    { value: 'paid', label: '✅ Pagamento Aprovado' },
     { value: 'preparing', label: '👨‍🍳 Em Produção' },
     { value: 'ready', label: '📦 Pronto p/ Retirada/Entrega' },
     { value: 'delivering', label: '🛵 Em Entrega' },
@@ -984,6 +989,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   const getNextStatusAction = (status: string): { label: string; nextStatus: string; icon: React.ReactNode; color: string } | null => {
     switch (status) {
       case 'approved':
+      case 'paid':
         return { label: 'Iniciar Produção', nextStatus: 'preparing', icon: <ChefHat className="w-4 h-4" />, color: 'bg-blue-600 hover:bg-blue-700' };
       case 'preparing':
         return { label: 'Separar p/ Entrega', nextStatus: 'ready', icon: <Package className="w-4 h-4" />, color: 'bg-purple-600 hover:bg-purple-700' };
