@@ -126,7 +126,8 @@ const PagamentoSucesso = () => {
         event_id: eventId,
         value: order?.total || 0,
         currency: 'BRL',
-        customer_email: order?.customer_name || '', // will be improved when order data includes email
+        customer_email: order?.customer_email || '',
+        customer_phone: order?.customer_phone || '',
         source_url: window.location.href,
       }
     }).catch(err => console.error('Meta CAPI error:', err));
