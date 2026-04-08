@@ -26,10 +26,12 @@ import {
     ClipboardList,
     type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useTenant } from "@/contexts/TenantContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 
 interface AdminMenuItem {
   id: string;
@@ -107,7 +109,8 @@ function SidebarContent({
   onSectionChange,
   onItemClick,
   brandName,
-}: AdminSidebarProps & { onItemClick?: () => void; brandName?: string }) {
+  recentErrorCount,
+}: AdminSidebarProps & { onItemClick?: () => void; brandName?: string; recentErrorCount?: number }) {
   return (
     <div className="flex flex-col h-full py-4">
       <div className="px-4 mb-6">
@@ -147,6 +150,11 @@ function SidebarContent({
                         )}
                       </div>
                       <span>{item.label}</span>
+                      {item.id === 'payment-errors' && recentErrorCount && recentErrorCount > 0 ? (
+                        <Badge variant="destructive" className="ml-auto text-[10px] px-1.5 py-0 min-w-[20px] h-5">
+                          {recentErrorCount}
+                        </Badge>
+                      ) : null}
                     </button>
                   </li>
                 );
@@ -170,8 +178,23 @@ export function AdminSidebar({
   onSectionChange,
 }: AdminSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [recentErrorCount, setRecentErrorCount] = useState(0);
   const { tenant } = useTenant();
   const brandName = tenant?.brand_name || "Meu Restaurante";
+
+  useEffect(() => {
+    const fetchErrorCount = async () => {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { count } = await supabase
+        .from('payment_error_logs')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', since);
+      setRecentErrorCount(count || 0);
+    };
+    fetchErrorCount();
+    const interval = setInterval(fetchErrorCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <>
@@ -181,6 +204,7 @@ export function AdminSidebar({
           activeSection={activeSection}
           onSectionChange={onSectionChange}
           brandName={brandName}
+          recentErrorCount={recentErrorCount}
         />
       </aside>
 
@@ -202,6 +226,7 @@ export function AdminSidebar({
               onSectionChange={onSectionChange}
               onItemClick={() => setMobileOpen(false)}
               brandName={brandName}
+              recentErrorCount={recentErrorCount}
             />
           </SheetContent>
         </Sheet>
