@@ -386,26 +386,30 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
     setStep('confirmation');
   };
 
-  // Insert order with automatic retry (up to 2 attempts)
-  const insertOrderWithRetry = async (payload: any, maxRetries = 2) => {
-    let lastError: unknown = null;
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      const { data, error } = await supabase
-        .from('orders')
-        .insert(payload)
-        .select('order_number, id')
-        .single();
+  // Reserve order via backend to avoid public SELECT on orders
+  const reserveOrder = async (payload: Record<string, unknown>) => {
+    const { data, error } = await supabase.functions.invoke('create-order-reservation', {
+      body: payload,
+    });
 
-      if (!error && data) return { data, error: null };
-
-      lastError = error;
-      console.warn(`Order insert attempt ${attempt}/${maxRetries} failed:`, error);
-
-      if (attempt < maxRetries) {
-        await new Promise(r => setTimeout(r, 1000));
-      }
+    if (error) {
+      return { data: null, error };
     }
-    return { data: null, error: lastError };
+
+    if (!data?.success || !data?.order_id) {
+      return {
+        data: null,
+        error: new Error(data?.error || 'Falha ao reservar pedido'),
+      };
+    }
+
+    return {
+      data: {
+        id: data.order_id as string,
+        order_number: (data.order_number as string) || '',
+      },
+      error: null,
+    };
   };
 
   // Log checkout failure to payment_error_logs for admin diagnosis
