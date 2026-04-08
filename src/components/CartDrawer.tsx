@@ -620,6 +620,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
           utm_data: getUTMParams(),
           coupon_code: appliedCoupon || null,
           discount_amount: couponDiscount,
+          order_id: confirmedOrderId || undefined,
           tenant_id: tenantId,
         },
       });
