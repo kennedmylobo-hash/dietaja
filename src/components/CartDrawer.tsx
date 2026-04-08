@@ -475,14 +475,18 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       const { data: orderData, error: orderError } = await insertOrderWithRetry(orderPayload);
 
       if (orderError || !orderData) {
-        console.error('Error creating order after retries:', orderError);
+        console.error('Error creating order after retries:', JSON.stringify(orderError, null, 2));
+        console.error('Order payload that failed:', JSON.stringify({ ...orderPayload, items: `[${items.length} items]` }));
         
         // Log the error persistently for admin diagnosis
         await logCheckoutError(orderError, {
           error_source: 'checkout_insert',
           customer_name: formData.name,
+          customer_email: formData.email,
+          customer_phone: formData.phone,
           total,
           items_count: items.length,
+          error_detail: orderError ? JSON.stringify(orderError) : 'no data returned',
         });
         
         toast({
