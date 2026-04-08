@@ -475,8 +475,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         discount_amount: couponDiscount,
       };
 
-      // Save order with retry logic (2 attempts, 1s delay between)
-      const { data: orderData, error: orderError } = await insertOrderWithRetry(orderPayload);
+      // Reserve order via backend so anonymous checkout does not depend on direct table reads
+      const { data: orderData, error: orderError } = await reserveOrder(orderPayload);
 
       if (orderError || !orderData) {
         console.error('Error creating order after retries:', JSON.stringify(orderError, null, 2));
