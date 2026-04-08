@@ -150,6 +150,11 @@ function SidebarContent({
                         )}
                       </div>
                       <span>{item.label}</span>
+                      {item.id === 'payment-errors' && recentErrorCount && recentErrorCount > 0 ? (
+                        <Badge variant="destructive" className="ml-auto text-[10px] px-1.5 py-0 min-w-[20px] h-5">
+                          {recentErrorCount}
+                        </Badge>
+                      ) : null}
                     </button>
                   </li>
                 );
