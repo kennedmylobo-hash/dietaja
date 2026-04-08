@@ -418,7 +418,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       await supabase.from('payment_error_logs').insert({
         tenant_id: tenantId,
         error_code: 'CHECKOUT_INSERT',
-        error_message: error instanceof Error ? error.message : String(error),
+        error_message: error instanceof Error ? error.message : (typeof error === 'object' ? JSON.stringify(error) : String(error)),
         provider: 'checkout',
         customer_email: formData?.email || null,
         customer_phone: formData?.phone || null,
