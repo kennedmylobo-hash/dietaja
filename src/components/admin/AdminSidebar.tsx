@@ -178,8 +178,23 @@ export function AdminSidebar({
   onSectionChange,
 }: AdminSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [recentErrorCount, setRecentErrorCount] = useState(0);
   const { tenant } = useTenant();
   const brandName = tenant?.brand_name || "Meu Restaurante";
+
+  useEffect(() => {
+    const fetchErrorCount = async () => {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { count } = await supabase
+        .from('payment_error_logs')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', since);
+      setRecentErrorCount(count || 0);
+    };
+    fetchErrorCount();
+    const interval = setInterval(fetchErrorCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <>
@@ -189,6 +204,7 @@ export function AdminSidebar({
           activeSection={activeSection}
           onSectionChange={onSectionChange}
           brandName={brandName}
+          recentErrorCount={recentErrorCount}
         />
       </aside>
 
@@ -210,6 +226,7 @@ export function AdminSidebar({
               onSectionChange={onSectionChange}
               onItemClick={() => setMobileOpen(false)}
               brandName={brandName}
+              recentErrorCount={recentErrorCount}
             />
           </SheetContent>
         </Sheet>
