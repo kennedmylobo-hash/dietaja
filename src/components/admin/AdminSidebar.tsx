@@ -109,7 +109,8 @@ function SidebarContent({
   onSectionChange,
   onItemClick,
   brandName,
-}: AdminSidebarProps & { onItemClick?: () => void; brandName?: string }) {
+  recentErrorCount,
+}: AdminSidebarProps & { onItemClick?: () => void; brandName?: string; recentErrorCount?: number }) {
   return (
     <div className="flex flex-col h-full py-4">
       <div className="px-4 mb-6">
