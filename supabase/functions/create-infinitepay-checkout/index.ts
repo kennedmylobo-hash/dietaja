@@ -30,10 +30,12 @@ Deno.serve(async (req) => {
     let handle = "dletajavca";
 
     // Build items in InfinitePay format (price in cents)
+    // IMPORTANT: item.totalPrice already includes quantity, so we set quantity=1
+    // to avoid double-multiplying (e.g. 28x kit at R$641 would become R$17,953)
     const infiniteItems = items.map((item: { name: string; quantity: number; totalPrice: number }) => ({
-      description: item.name,
-      quantity: item.quantity || 1,
-      price: Math.round((item.totalPrice || 0) * 100), // Convert to cents
+      description: `${item.quantity > 1 ? item.quantity + 'x ' : ''}${item.name}`,
+      quantity: 1,
+      price: Math.round((item.totalPrice || 0) * 100), // Convert to cents — already includes qty
     }));
 
     const totalCents = infiniteItems.reduce((sum: number, i: { price: number; quantity: number }) => sum + i.price * i.quantity, 0);
