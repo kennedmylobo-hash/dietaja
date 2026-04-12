@@ -320,8 +320,8 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
     addItem({
       type: item.type,
       name: item.name,
-      quantity: item.quantity || 1,
-      unitPrice: item.type === 'marmita' && item.quantity ? item.price / item.quantity : item.price,
+      quantity: 1,
+      unitPrice: item.price,
       totalPrice: item.price,
       description: item.description,
     });
@@ -336,8 +336,8 @@ const SalesQuizModal = ({ open, onOpenChange }: SalesQuizModalProps) => {
     addItem({
       type: 'marmita',
       name: item.name,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
+      quantity: 1,
+      unitPrice: item.totalPrice,
       totalPrice: item.totalPrice,
       description: `${item.quantity} marmitas congeladas`,
     });
