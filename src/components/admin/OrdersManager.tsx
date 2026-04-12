@@ -1927,10 +1927,71 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
                       <span>R$ {selectedOrder.delivery_fee.toFixed(2).replace('.', ',')}</span>
                     </div>
                   )}
+                  {(selectedOrder.discount_amount ?? 0) > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Desconto {selectedOrder.coupon_code ? `(${selectedOrder.coupon_code})` : '(manual)'}</span>
+                      <span>- R$ {(selectedOrder.discount_amount || 0).toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold">
                     <span>Total</span>
                     <span className="text-primary">R$ {selectedOrder.total.toFixed(2).replace('.', ',')}</span>
                    </div>
+                   {/* Manual Discount */}
+                   {!showDiscountInput ? (
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       className="w-full mt-1"
+                       onClick={() => { setShowDiscountInput(true); setDiscountValue(''); }}
+                     >
+                       <Pencil className="w-3 h-3 mr-1" />
+                       Aplicar desconto manual
+                     </Button>
+                   ) : (
+                     <div className="border rounded-lg p-3 mt-1 space-y-2 bg-muted/30">
+                       <p className="text-xs font-medium">Desconto manual</p>
+                       <div className="flex gap-2">
+                         <Select value={discountType} onValueChange={(v) => setDiscountType(v as 'percent' | 'fixed')}>
+                           <SelectTrigger className="w-24 h-8 text-xs">
+                             <SelectValue />
+                           </SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="percent">%</SelectItem>
+                             <SelectItem value="fixed">R$</SelectItem>
+                           </SelectContent>
+                         </Select>
+                         <Input
+                           type="text"
+                           inputMode="decimal"
+                           placeholder={discountType === 'percent' ? 'Ex: 5' : 'Ex: 30,00'}
+                           value={discountValue}
+                           onChange={(e) => setDiscountValue(e.target.value)}
+                           className="h-8 text-sm flex-1"
+                         />
+                       </div>
+                       {discountValue && (() => {
+                         const val = parseFloat(discountValue.replace(',', '.'));
+                         if (isNaN(val) || val <= 0) return null;
+                         const amount = discountType === 'percent'
+                           ? Math.round(selectedOrder.subtotal * (val / 100) * 100) / 100
+                           : val;
+                         return (
+                           <p className="text-xs text-muted-foreground">
+                             = R$ {amount.toFixed(2).replace('.', ',')} de desconto → Total: R$ {Math.max(0, selectedOrder.subtotal + (selectedOrder.delivery_fee || 0) - amount).toFixed(2).replace('.', ',')}
+                           </p>
+                         );
+                       })()}
+                       <div className="flex gap-2">
+                         <Button size="sm" className="flex-1 h-7 text-xs" onClick={handleApplyManualDiscount} disabled={applyingDiscount}>
+                           {applyingDiscount ? 'Aplicando...' : 'Aplicar'}
+                         </Button>
+                         <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowDiscountInput(false)}>
+                           Cancelar
+                         </Button>
+                       </div>
+                     </div>
+                   )}
                    {/* Estimated Cost & Margin */}
                    {pricingLoaded && selectedOrder.items.some((i: any) => i.type === 'marmita' && i.flavors?.length) && (() => {
                      const costResult = calculateOrderCost(selectedOrder.items, flavorSidesMap, pricingSettings);
