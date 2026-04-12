@@ -315,8 +315,8 @@ const MarmitasSection = () => {
     addItem({
       type: "marmita",
       name: selectedMarmita.name,
-      quantity: totalQuantity,
-      unitPrice: selectedMarmita.unitPrice,
+      quantity: 1,
+      unitPrice: calculatedTotal,
       totalPrice: calculatedTotal,
       description: `${totalQuantity} marmitas de ${selectedMarmita.weight}g`,
       flavors: flavors,
