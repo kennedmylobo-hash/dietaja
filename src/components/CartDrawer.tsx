@@ -972,7 +972,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                           {item.description && (
                             <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
                           )}
-                          {item.type === "marmita" && (
+                          {item.type === "marmita" && item.quantity > 1 && (
                             <p className="text-xs text-muted-foreground mt-1">
                               {item.quantity}x R$ {item.unitPrice.toFixed(2).replace(".", ",")}
                             </p>
