@@ -245,6 +245,57 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
   // Map from flavor name to its DB id for editing
   const [flavorIdMap, setFlavorIdMap] = useState<Record<string, string>>({});
 
+  // Manual discount state
+  const [showDiscountInput, setShowDiscountInput] = useState(false);
+  const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
+  const [discountValue, setDiscountValue] = useState('');
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
+
+  const handleApplyManualDiscount = async () => {
+    if (!selectedOrder || !discountValue) return;
+    setApplyingDiscount(true);
+    try {
+      const val = parseFloat(discountValue.replace(',', '.'));
+      if (isNaN(val) || val <= 0) {
+        toast({ title: "Valor inválido", variant: "destructive" });
+        return;
+      }
+      const subtotal = selectedOrder.subtotal;
+      const discountAmount = discountType === 'percent' 
+        ? Math.round(subtotal * (val / 100) * 100) / 100
+        : Math.round(val * 100) / 100;
+      
+      if (discountAmount > subtotal) {
+        toast({ title: "Desconto maior que o subtotal", variant: "destructive" });
+        return;
+      }
+
+      const newTotal = Math.round((subtotal + (selectedOrder.delivery_fee || 0) - discountAmount) * 100) / 100;
+
+      const { error } = await supabase
+        .from('orders')
+        .update({ discount_amount: discountAmount, total: newTotal })
+        .eq('id', selectedOrder.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setSelectedOrder({ ...selectedOrderState!, discount_amount: discountAmount, total: newTotal } as any);
+      setOrdersState(prev => prev.map(o => 
+        o.id === selectedOrder.id ? { ...o, discount_amount: discountAmount, total: newTotal } : o
+      ));
+
+      toast({ title: `Desconto de R$ ${discountAmount.toFixed(2).replace('.', ',')} aplicado!` });
+      setShowDiscountInput(false);
+      setDiscountValue('');
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erro ao aplicar desconto", variant: "destructive" });
+    } finally {
+      setApplyingDiscount(false);
+    }
+  };
+
   // Delete a flavor from an order and recalculate totals
   const handleDeleteFlavor = async (itemIndex: number, flavorIndex: number) => {
     if (!selectedOrder) return;
