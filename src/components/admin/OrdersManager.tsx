@@ -65,6 +65,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { printOrderTicket } from "@/lib/print-utils";
 import { printOrderProduction, generateOrderProductionWhatsApp } from "@/lib/order-production-utils";
