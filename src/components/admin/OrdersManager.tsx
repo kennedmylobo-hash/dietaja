@@ -281,7 +281,7 @@ const OrdersManager = ({ dateFilter }: OrdersManagerProps) => {
 
       // Update local state
       setSelectedOrder({ ...selectedOrderState!, discount_amount: discountAmount, total: newTotal } as any);
-      setOrdersState(prev => prev.map(o => 
+      setOrders(prev => prev.map(o => 
         o.id === selectedOrder.id ? { ...o, discount_amount: discountAmount, total: newTotal } : o
       ));
 
