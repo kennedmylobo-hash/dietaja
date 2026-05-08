@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle, Fish, TrendingDown } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle, Fish, TrendingDown, Zap, CalendarClock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { celebrateCheckout } from "@/lib/confetti";
 import { hapticFeedback } from "@/lib/haptics";
@@ -130,7 +130,25 @@ const FlavorSelectionModal = ({
   const [celebrationInfo, setCelebrationInfo] = useState<{ discount: number } | null>(null);
   const prevTierPriceRef = useRef<number | null>(null);
 
-  const flavorCategories = flavorsByCategory || defaultFlavorCategories;
+  // Delivery mode toggle — only for FIT (emagrecimento) line, where we hold ready stock
+  const isFitLine = lineType === 'emagrecimento';
+  const [deliveryMode, setDeliveryMode] = useState<'pronta' | 'encomenda'>('pronta');
+
+  const allCategories = flavorsByCategory || defaultFlavorCategories;
+  const flavorCategories = useMemo(() => {
+    if (!isFitLine || deliveryMode === 'encomenda') return allCategories;
+    // Pronta entrega: only flavors that have visible stock with quantity > 0
+    return allCategories
+      .map(cat => ({
+        ...cat,
+        flavors: cat.flavors.filter(f => {
+          const s = flavorStockData.find(fs => fs.name === f);
+          return s?.show_stock && (s.stock_quantity ?? 0) > 0;
+        }),
+      }))
+      .filter(cat => cat.flavors.length > 0);
+  }, [allCategories, isFitLine, deliveryMode, flavorStockData]);
+
   const maxFlavors = getMaxFlavors(packageQuantity);
 
   // Sort tiers ascending by minQuantity for tier lookup
@@ -278,6 +296,7 @@ const FlavorSelectionModal = ({
     if (isOpen) {
       prevTierPriceRef.current = sortedTiers.length > 0 ? getEffectiveBasePrice(packageQuantity) : null;
       setCelebrationInfo(null);
+      setDeliveryMode('pronta');
     }
   }, [isOpen]);
 
@@ -292,7 +311,8 @@ const FlavorSelectionModal = ({
     if (leaveToUs) return;
     
     const stockData = getFlavorStock(flavor);
-    const maxStock = (stockData?.show_stock && stockData?.stock_quantity !== null) ? stockData.stock_quantity : Infinity;
+    const ignoreStock = isFitLine && deliveryMode === 'encomenda';
+    const maxStock = (!ignoreStock && stockData?.show_stock && stockData?.stock_quantity !== null) ? stockData.stock_quantity : Infinity;
     
     setSelections((prev) => {
       const current = prev[flavor] || 0;
@@ -549,6 +569,67 @@ const FlavorSelectionModal = ({
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-4 space-y-6">
+            {/* Delivery mode toggle (FIT only) */}
+            {isFitLine && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (deliveryMode !== 'pronta') {
+                        setDeliveryMode('pronta');
+                        setSelections({});
+                      }
+                    }}
+                    className={`relative p-3 rounded-xl border-2 text-left transition-all ${
+                      deliveryMode === 'pronta'
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border bg-background hover:border-primary/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Zap className={`w-4 h-4 ${deliveryMode === 'pronta' ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <span className="font-semibold text-sm text-foreground">Pronta entrega</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      Só sabores em estoque. Enviamos no mesmo dia 🚀
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (deliveryMode !== 'encomenda') {
+                        setDeliveryMode('encomenda');
+                        setSelections({});
+                      }
+                    }}
+                    className={`relative p-3 rounded-xl border-2 text-left transition-all ${
+                      deliveryMode === 'encomenda'
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border bg-background hover:border-primary/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <CalendarClock className={`w-4 h-4 ${deliveryMode === 'encomenda' ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <span className="font-semibold text-sm text-foreground">Encomenda</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      Cardápio completo. Produzimos e entregamos em até 4 dias.
+                    </p>
+                  </button>
+                </div>
+                <div className={`text-[11px] px-3 py-2 rounded-lg border ${
+                  deliveryMode === 'pronta'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-200'
+                    : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-200'
+                }`}>
+                  {deliveryMode === 'pronta'
+                    ? '✅ Você está vendo apenas sabores prontos para envio hoje.'
+                    : '📅 Você está montando uma encomenda — produziremos sob medida e entregamos em até 4 dias úteis.'}
+                </div>
+              </div>
+            )}
+
             {/* Leave to us option */}
             <motion.div 
               onClick={() => handleLeaveToUsChange(!leaveToUs)}
@@ -634,10 +715,11 @@ const FlavorSelectionModal = ({
                       const qty = selections[flavor] || 0;
                       const isSelected = qty > 0;
                       const stockData = getFlavorStock(flavor);
+                      const ignoreStock = isFitLine && deliveryMode === 'encomenda';
                       const threshold = stockData?.low_stock_threshold ?? 5;
-                      const hasLowStock = stockData?.show_stock && stockData.stock_quantity !== null && stockData.stock_quantity < threshold;
-                      const isOutOfStock = stockData?.show_stock && stockData.stock_quantity === 0;
-                      const maxReached = stockData?.show_stock && stockData?.stock_quantity !== null && qty >= (stockData?.stock_quantity ?? Infinity);
+                      const hasLowStock = !ignoreStock && stockData?.show_stock && stockData.stock_quantity !== null && stockData.stock_quantity < threshold;
+                      const isOutOfStock = !ignoreStock && stockData?.show_stock && stockData.stock_quantity === 0;
+                      const maxReached = !ignoreStock && stockData?.show_stock && stockData?.stock_quantity !== null && qty >= (stockData?.stock_quantity ?? Infinity);
                       const isFish = flavor === FISH_FLAVOR_NAME;
                       const flavorPrice = getFlavorPrice(flavor, effectiveBasePrice);
                       const hasCustomPrice = flavorPrice !== effectiveBasePrice;
