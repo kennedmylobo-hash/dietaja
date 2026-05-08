@@ -130,7 +130,25 @@ const FlavorSelectionModal = ({
   const [celebrationInfo, setCelebrationInfo] = useState<{ discount: number } | null>(null);
   const prevTierPriceRef = useRef<number | null>(null);
 
-  const flavorCategories = flavorsByCategory || defaultFlavorCategories;
+  // Delivery mode toggle — only for FIT (emagrecimento) line, where we hold ready stock
+  const isFitLine = lineType === 'emagrecimento';
+  const [deliveryMode, setDeliveryMode] = useState<'pronta' | 'encomenda'>('pronta');
+
+  const allCategories = flavorsByCategory || defaultFlavorCategories;
+  const flavorCategories = useMemo(() => {
+    if (!isFitLine || deliveryMode === 'encomenda') return allCategories;
+    // Pronta entrega: only flavors that have visible stock with quantity > 0
+    return allCategories
+      .map(cat => ({
+        ...cat,
+        flavors: cat.flavors.filter(f => {
+          const s = flavorStockData.find(fs => fs.name === f);
+          return s?.show_stock && (s.stock_quantity ?? 0) > 0;
+        }),
+      }))
+      .filter(cat => cat.flavors.length > 0);
+  }, [allCategories, isFitLine, deliveryMode, flavorStockData]);
+
   const maxFlavors = getMaxFlavors(packageQuantity);
 
   // Sort tiers ascending by minQuantity for tier lookup
