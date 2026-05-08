@@ -568,6 +568,67 @@ const FlavorSelectionModal = ({
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-4 space-y-6">
+            {/* Delivery mode toggle (FIT only) */}
+            {isFitLine && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (deliveryMode !== 'pronta') {
+                        setDeliveryMode('pronta');
+                        setSelections({});
+                      }
+                    }}
+                    className={`relative p-3 rounded-xl border-2 text-left transition-all ${
+                      deliveryMode === 'pronta'
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border bg-background hover:border-primary/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Zap className={`w-4 h-4 ${deliveryMode === 'pronta' ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <span className="font-semibold text-sm text-foreground">Pronta entrega</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      Só sabores em estoque. Enviamos no mesmo dia 🚀
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (deliveryMode !== 'encomenda') {
+                        setDeliveryMode('encomenda');
+                        setSelections({});
+                      }
+                    }}
+                    className={`relative p-3 rounded-xl border-2 text-left transition-all ${
+                      deliveryMode === 'encomenda'
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border bg-background hover:border-primary/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <CalendarClock className={`w-4 h-4 ${deliveryMode === 'encomenda' ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <span className="font-semibold text-sm text-foreground">Encomenda</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      Cardápio completo. Produzimos e entregamos em até 4 dias.
+                    </p>
+                  </button>
+                </div>
+                <div className={`text-[11px] px-3 py-2 rounded-lg border ${
+                  deliveryMode === 'pronta'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-200'
+                    : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-200'
+                }`}>
+                  {deliveryMode === 'pronta'
+                    ? '✅ Você está vendo apenas sabores prontos para envio hoje.'
+                    : '📅 Você está montando uma encomenda — produziremos sob medida e entregamos em até 4 dias úteis.'}
+                </div>
+              </div>
+            )}
+
             {/* Leave to us option */}
             <motion.div 
               onClick={() => handleLeaveToUsChange(!leaveToUs)}
