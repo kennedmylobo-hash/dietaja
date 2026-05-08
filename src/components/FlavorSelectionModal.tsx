@@ -310,7 +310,8 @@ const FlavorSelectionModal = ({
     if (leaveToUs) return;
     
     const stockData = getFlavorStock(flavor);
-    const maxStock = (stockData?.show_stock && stockData?.stock_quantity !== null) ? stockData.stock_quantity : Infinity;
+    const ignoreStock = isFitLine && deliveryMode === 'encomenda';
+    const maxStock = (!ignoreStock && stockData?.show_stock && stockData?.stock_quantity !== null) ? stockData.stock_quantity : Infinity;
     
     setSelections((prev) => {
       const current = prev[flavor] || 0;
