@@ -886,6 +886,7 @@ const FlavorSelectionModal = ({
         </div>
 
         {/* Footer */}
+        {modeChosen && (
         <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t bg-background shrink-0 space-y-3">
           {/* Price breakdown */}
           {!leaveToUs && totalSelected > 0 && (
@@ -921,6 +922,7 @@ const FlavorSelectionModal = ({
             )}
           </Button>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );
