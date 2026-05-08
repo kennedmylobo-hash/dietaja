@@ -653,10 +653,11 @@ const FlavorSelectionModal = ({
                       const qty = selections[flavor] || 0;
                       const isSelected = qty > 0;
                       const stockData = getFlavorStock(flavor);
+                      const ignoreStock = isFitLine && deliveryMode === 'encomenda';
                       const threshold = stockData?.low_stock_threshold ?? 5;
-                      const hasLowStock = stockData?.show_stock && stockData.stock_quantity !== null && stockData.stock_quantity < threshold;
-                      const isOutOfStock = stockData?.show_stock && stockData.stock_quantity === 0;
-                      const maxReached = stockData?.show_stock && stockData?.stock_quantity !== null && qty >= (stockData?.stock_quantity ?? Infinity);
+                      const hasLowStock = !ignoreStock && stockData?.show_stock && stockData.stock_quantity !== null && stockData.stock_quantity < threshold;
+                      const isOutOfStock = !ignoreStock && stockData?.show_stock && stockData.stock_quantity === 0;
+                      const maxReached = !ignoreStock && stockData?.show_stock && stockData?.stock_quantity !== null && qty >= (stockData?.stock_quantity ?? Infinity);
                       const isFish = flavor === FISH_FLAVOR_NAME;
                       const flavorPrice = getFlavorPrice(flavor, effectiveBasePrice);
                       const hasCustomPrice = flavorPrice !== effectiveBasePrice;
