@@ -420,6 +420,7 @@ const FlavorSelectionModal = ({
         )}
 
         {/* Progress indicator */}
+        {modeChosen && (
         <div className="px-4 py-3 bg-muted/50 border-b shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="flex flex-col gap-0.5">
