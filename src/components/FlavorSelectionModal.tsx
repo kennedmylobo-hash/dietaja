@@ -399,19 +399,25 @@ const FlavorSelectionModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[100dvh] sm:max-h-[90vh] h-[100dvh] sm:h-auto p-0 gap-0 flex flex-col sm:rounded-lg rounded-none">
-        <DialogHeader className="p-4 pb-2 border-b bg-background shrink-0">
-          <DialogTitle className="text-lg font-bold">
-            Escolha seus sabores
-          </DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            {packageName} • mín. {packageQuantity} marmitas de {packageWeight}g
-            {sortedTiers.length > 0 && totalSelected > 0 && (
-              <span className="ml-1 font-medium text-primary">
-                • {formatPrice(effectiveBasePrice)}/un
-              </span>
-            )}
-          </p>
-        </DialogHeader>
+        {modeChosen ? (
+          <DialogHeader className="p-4 pb-2 border-b bg-background shrink-0">
+            <DialogTitle className="text-lg font-bold">
+              Escolha seus sabores
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              {packageName} • mín. {packageQuantity} marmitas de {packageWeight}g
+              {sortedTiers.length > 0 && totalSelected > 0 && (
+                <span className="ml-1 font-medium text-primary">
+                  • {formatPrice(effectiveBasePrice)}/un
+                </span>
+              )}
+            </p>
+          </DialogHeader>
+        ) : (
+          <DialogHeader className="sr-only">
+            <DialogTitle>Como prefere receber?</DialogTitle>
+          </DialogHeader>
+        )}
 
         {/* Progress indicator */}
         <div className="px-4 py-3 bg-muted/50 border-b shrink-0">
