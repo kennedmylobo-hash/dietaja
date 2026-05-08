@@ -666,25 +666,27 @@ const FlavorSelectionModal = ({
               </div>
             </motion.div>
 
-            {/* AI option */}
-            <motion.div
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                onClose();
-                navigate(`/monte-seu-cardapio?linha=${lineType === 'hipertrofia' ? 'hipertrofia' : 'emagrecimento'}`);
-              }}
-              className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/30 hover:border-purple-400 dark:hover:border-purple-600 cursor-pointer transition-all"
-            >
-              <Sparkles className="w-5 h-5 text-purple-500 dark:text-purple-400 flex-shrink-0" />
-              <div>
-                <span className="font-semibold text-foreground">
-                  ✨ Liste o que gosta e montamos pra você
-                </span>
-                <p className="text-sm text-muted-foreground">
-                  Diga seus ingredientes preferidos e a IA monta seu cardápio
-                </p>
-              </div>
-            </motion.div>
+            {/* AI option — only for non-FIT lines OR FIT in "encomenda" mode */}
+            {(!isFitLine || deliveryMode === 'encomenda') && (
+              <motion.div
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  onClose();
+                  navigate(`/monte-seu-cardapio?linha=${lineType === 'hipertrofia' ? 'hipertrofia' : 'emagrecimento'}`);
+                }}
+                className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/30 hover:border-purple-400 dark:hover:border-purple-600 cursor-pointer transition-all"
+              >
+                <Sparkles className="w-5 h-5 text-purple-500 dark:text-purple-400 flex-shrink-0" />
+                <div>
+                  <span className="font-semibold text-foreground">
+                    ✨ Liste o que gosta e montamos pra você
+                  </span>
+                  <p className="text-sm text-muted-foreground">
+                    Diga seus ingredientes preferidos e a IA monta seu cardápio
+                  </p>
+                </div>
+              </motion.div>
+            )}
 
             {/* Divider */}
             <div className="flex items-center gap-3">
