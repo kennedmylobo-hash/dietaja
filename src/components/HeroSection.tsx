@@ -117,7 +117,14 @@ const HeroSection = () => {
             <Button
               size="lg"
               className="text-xs sm:text-lg px-4 sm:px-8 py-4 sm:py-6 rounded-full shadow-lg max-w-full"
-              onClick={() => navigate("/cardapio")}
+              onClick={() => {
+                const el = document.getElementById("marmitas");
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth", block: "start" });
+                } else {
+                  navigate("/cardapio");
+                }
+              }}
             >
               <span className="truncate">{getVariantValue("hero_cta") ?? "Investir na minha saúde — a partir de R$ 22,90"}</span>
             </Button>
