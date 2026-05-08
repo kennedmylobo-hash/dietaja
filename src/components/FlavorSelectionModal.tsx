@@ -882,6 +882,7 @@ const FlavorSelectionModal = ({
               );
             })}
           </div>
+        )}
         </div>
 
         {/* Footer */}
