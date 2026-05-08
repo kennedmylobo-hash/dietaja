@@ -133,6 +133,7 @@ const FlavorSelectionModal = ({
   // Delivery mode toggle — only for FIT (emagrecimento) line, where we hold ready stock
   const isFitLine = lineType === 'emagrecimento';
   const [deliveryMode, setDeliveryMode] = useState<'pronta' | 'encomenda'>('pronta');
+  const [modeChosen, setModeChosen] = useState<boolean>(!isFitLine);
 
   const allCategories = flavorsByCategory || defaultFlavorCategories;
   const flavorCategories = useMemo(() => {
@@ -297,6 +298,7 @@ const FlavorSelectionModal = ({
       prevTierPriceRef.current = sortedTiers.length > 0 ? getEffectiveBasePrice(packageQuantity) : null;
       setCelebrationInfo(null);
       setDeliveryMode('pronta');
+      setModeChosen(!isFitLine);
     }
   }, [isOpen]);
 
@@ -568,65 +570,112 @@ const FlavorSelectionModal = ({
         </AnimatePresence>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
+        {isFitLine && !modeChosen ? (
+          <div className="p-4 sm:p-6 flex flex-col justify-center min-h-full">
+            <div className="text-center mb-6">
+              <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+                Como você prefere receber? 🚚
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                Escolha uma opção para abrirmos o cardápio
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:gap-4 max-w-xl mx-auto w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeliveryMode('pronta');
+                  setSelections({});
+                  setModeChosen(true);
+                }}
+                className="group relative p-5 sm:p-6 rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-emerald-100/50 hover:border-emerald-500 hover:shadow-lg dark:from-emerald-950/30 dark:to-emerald-900/20 dark:border-emerald-800 transition-all text-left active:scale-[0.99]"
+              >
+                <div className="absolute -top-2 -right-2 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide shadow">
+                  ⚡ Mais rápido
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0 shadow">
+                    <Zap className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-base sm:text-lg text-foreground mb-1">
+                      Pronta entrega
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-snug mb-2">
+                      Apenas sabores em estoque. <strong className="text-emerald-700 dark:text-emerald-300">Enviamos no mesmo dia 🚀</strong>
+                    </p>
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 group-hover:gap-2 transition-all">
+                      Ver sabores disponíveis →
+                    </span>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDeliveryMode('encomenda');
+                  setSelections({});
+                  setModeChosen(true);
+                }}
+                className="group relative p-5 sm:p-6 rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-amber-100/50 hover:border-amber-500 hover:shadow-lg dark:from-amber-950/30 dark:to-amber-900/20 dark:border-amber-800 transition-all text-left active:scale-[0.99]"
+              >
+                <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide shadow">
+                  🍽️ Cardápio completo
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-amber-500 flex items-center justify-center shrink-0 shadow">
+                    <CalendarClock className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-base sm:text-lg text-foreground mb-1">
+                      Encomenda
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-snug mb-2">
+                      Acesso ao cardápio inteiro. Produzimos sob medida e <strong className="text-amber-700 dark:text-amber-300">entregamos em até 4 dias úteis</strong>.
+                    </p>
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-300 group-hover:gap-2 transition-all">
+                      Ver cardápio completo →
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        ) : (
           <div className="p-4 space-y-6">
-            {/* Delivery mode toggle (FIT only) */}
+            {/* Compact mode banner with switch link */}
             {isFitLine && (
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (deliveryMode !== 'pronta') {
-                        setDeliveryMode('pronta');
-                        setSelections({});
-                      }
-                    }}
-                    className={`relative p-3 rounded-xl border-2 text-left transition-all ${
-                      deliveryMode === 'pronta'
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border bg-background hover:border-primary/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Zap className={`w-4 h-4 ${deliveryMode === 'pronta' ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className="font-semibold text-sm text-foreground">Pronta entrega</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-tight">
-                      Só sabores em estoque. Enviamos no mesmo dia 🚀
-                    </p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (deliveryMode !== 'encomenda') {
-                        setDeliveryMode('encomenda');
-                        setSelections({});
-                      }
-                    }}
-                    className={`relative p-3 rounded-xl border-2 text-left transition-all ${
-                      deliveryMode === 'encomenda'
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border bg-background hover:border-primary/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <CalendarClock className={`w-4 h-4 ${deliveryMode === 'encomenda' ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className="font-semibold text-sm text-foreground">Encomenda</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-tight">
-                      Cardápio completo. Produzimos e entregamos em até 4 dias.
-                    </p>
-                  </button>
+              <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border ${
+                deliveryMode === 'pronta'
+                  ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800'
+                  : 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800'
+              }`}>
+                {deliveryMode === 'pronta' ? (
+                  <Zap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                ) : (
+                  <CalendarClock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                )}
+                <div className="flex-1 text-xs leading-tight">
+                  <span className="font-semibold text-foreground">
+                    {deliveryMode === 'pronta' ? 'Pronta entrega' : 'Encomenda'}
+                  </span>
+                  <span className="text-muted-foreground ml-1">
+                    {deliveryMode === 'pronta' ? '• envio no mesmo dia' : '• entrega em até 4 dias'}
+                  </span>
                 </div>
-                <div className={`text-[11px] px-3 py-2 rounded-lg border ${
-                  deliveryMode === 'pronta'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-200'
-                    : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-200'
-                }`}>
-                  {deliveryMode === 'pronta'
-                    ? '✅ Você está vendo apenas sabores prontos para envio hoje.'
-                    : '📅 Você está montando uma encomenda — produziremos sob medida e entregamos em até 4 dias úteis.'}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModeChosen(false);
+                    setSelections({});
+                    setLeaveToUs(false);
+                  }}
+                  className="text-xs font-semibold text-primary hover:underline shrink-0"
+                >
+                  Trocar
+                </button>
               </div>
             )}
 
@@ -833,9 +882,11 @@ const FlavorSelectionModal = ({
               );
             })}
           </div>
+        )}
         </div>
 
         {/* Footer */}
+        {modeChosen && (
         <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t bg-background shrink-0 space-y-3">
           {/* Price breakdown */}
           {!leaveToUs && totalSelected > 0 && (
@@ -871,6 +922,7 @@ const FlavorSelectionModal = ({
             )}
           </Button>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );
