@@ -133,6 +133,7 @@ const FlavorSelectionModal = ({
   // Delivery mode toggle — only for FIT (emagrecimento) line, where we hold ready stock
   const isFitLine = lineType === 'emagrecimento';
   const [deliveryMode, setDeliveryMode] = useState<'pronta' | 'encomenda'>('pronta');
+  const [modeChosen, setModeChosen] = useState<boolean>(!isFitLine);
 
   const allCategories = flavorsByCategory || defaultFlavorCategories;
   const flavorCategories = useMemo(() => {
