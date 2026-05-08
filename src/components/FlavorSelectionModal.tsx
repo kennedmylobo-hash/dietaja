@@ -550,6 +550,7 @@ const FlavorSelectionModal = ({
             )}
           </AnimatePresence>
         </div>
+        )}
 
         {/* Alert when max flavors reached but still need to complete base */}
         <AnimatePresence>
