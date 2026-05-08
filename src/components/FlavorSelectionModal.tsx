@@ -298,6 +298,7 @@ const FlavorSelectionModal = ({
       prevTierPriceRef.current = sortedTiers.length > 0 ? getEffectiveBasePrice(packageQuantity) : null;
       setCelebrationInfo(null);
       setDeliveryMode('pronta');
+      setModeChosen(!isFitLine);
     }
   }, [isOpen]);
 
