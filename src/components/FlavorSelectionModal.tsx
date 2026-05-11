@@ -131,7 +131,7 @@ const FlavorSelectionModal = ({
   const prevTierPriceRef = useRef<number | null>(null);
 
   // Delivery mode toggle — only for FIT (emagrecimento) line, where we hold ready stock
-  const isFitLine = lineType === 'emagrecimento';
+  const isFitLine = lineKey === 'fit';
   const [deliveryMode, setDeliveryMode] = useState<'pronta' | 'encomenda'>('pronta');
   const [modeChosen, setModeChosen] = useState<boolean>(!isFitLine);
 
@@ -300,7 +300,7 @@ const FlavorSelectionModal = ({
       setDeliveryMode('pronta');
       setModeChosen(!isFitLine);
     }
-  }, [isOpen]);
+  }, [isOpen, isFitLine, packageName]);
 
   useEffect(() => {
     if (isMaxFlavorsReached && !prevMaxReachedRef.current && remaining > 0) {
