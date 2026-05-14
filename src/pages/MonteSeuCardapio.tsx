@@ -81,6 +81,8 @@ const MonteSeuCardapioContent = () => {
   const [interimText, setInterimText] = useState("");
   const [highlightNextStep, setHighlightNextStep] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [showWaIdModal, setShowWaIdModal] = useState(false);
+  const [isCreatingWaOrder, setIsCreatingWaOrder] = useState(false);
   const recognitionRef = useRef<any>(null);
   const lineSectionRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
