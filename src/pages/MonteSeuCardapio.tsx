@@ -650,11 +650,16 @@ const MonteSeuCardapioContent = () => {
 
                 <Button
                   onClick={handleWhatsApp}
+                  disabled={isCreatingWaOrder}
                   variant="outline"
                   className="w-full h-12 text-base gap-2 border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white"
                 >
-                  <Send className="w-5 h-5" />
-                  Enviar pelo WhatsApp
+                  {isCreatingWaOrder ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                  {isCreatingWaOrder ? "Reservando pedido..." : "Enviar pelo WhatsApp"}
                 </Button>
 
                 {/* Melhoria 3: Regenerate button */}
