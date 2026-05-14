@@ -692,6 +692,14 @@ const MonteSeuCardapioContent = () => {
             setTimeout(() => setIsCartOpen(true), 300);
           }}
         />
+        <SoftIdentificationModal
+          open={showWaIdModal}
+          onConfirm={(name, phone, email) => {
+            setCustomerInfo({ name, phone, email, cartId: customerInfo.cartId });
+            sendWhatsAppWithOrder(name, phone, email);
+          }}
+          onSkip={() => setShowWaIdModal(false)}
+        />
       </div>
     </>
   );
