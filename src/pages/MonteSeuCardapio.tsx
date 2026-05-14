@@ -705,6 +705,7 @@ const MonteSeuCardapioContent = () => {
             sendWhatsAppWithOrder(name, phone, email);
           }}
           onSkip={() => setShowWaIdModal(false)}
+          phoneMinDigits={11}
         />
       </div>
     </>
