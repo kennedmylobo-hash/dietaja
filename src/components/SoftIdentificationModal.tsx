@@ -24,7 +24,8 @@ const formatPhone = (value: string) => {
 export const SoftIdentificationModal = ({ 
   open, 
   onConfirm,
-  onSkip 
+  onSkip,
+  phoneMinDigits = 10,
 }: SoftIdentificationModalProps) => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
