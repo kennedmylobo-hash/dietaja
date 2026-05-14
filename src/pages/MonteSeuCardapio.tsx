@@ -354,7 +354,7 @@ const MonteSeuCardapioContent = () => {
           status: "pending",
           payment_method: "whatsapp",
           delivery_option: "pickup",
-          items: [orderItem],
+          items: [orderItem] as any,
           subtotal: totalPrice,
           delivery_fee: 0,
           total: totalPrice,
