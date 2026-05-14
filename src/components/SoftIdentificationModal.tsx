@@ -60,8 +60,10 @@ export const SoftIdentificationModal = ({
     }
     
     const phoneDigits = phone.replace(/\D/g, "");
-    if (phoneDigits.length < 10) {
-      newErrors.phone = "WhatsApp inválido";
+    if (phoneDigits.length < phoneMinDigits) {
+      newErrors.phone = phoneMinDigits === 11
+        ? "Digite o WhatsApp com 11 dígitos (DDD + 9 + número)"
+        : "WhatsApp inválido";
     }
 
     // Email é opcional, mas se preenchido, deve ser válido
