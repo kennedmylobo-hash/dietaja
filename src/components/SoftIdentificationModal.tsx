@@ -11,6 +11,7 @@ interface SoftIdentificationModalProps {
   open: boolean;
   onConfirm: (name: string, phone: string, email: string) => void;
   onSkip?: () => void;
+  phoneMinDigits?: number;
 }
 
 const formatPhone = (value: string) => {
