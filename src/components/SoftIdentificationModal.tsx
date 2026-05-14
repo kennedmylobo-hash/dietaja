@@ -11,6 +11,7 @@ interface SoftIdentificationModalProps {
   open: boolean;
   onConfirm: (name: string, phone: string, email: string) => void;
   onSkip?: () => void;
+  phoneMinDigits?: number;
 }
 
 const formatPhone = (value: string) => {
@@ -23,7 +24,8 @@ const formatPhone = (value: string) => {
 export const SoftIdentificationModal = ({ 
   open, 
   onConfirm,
-  onSkip 
+  onSkip,
+  phoneMinDigits = 10,
 }: SoftIdentificationModalProps) => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -58,8 +60,10 @@ export const SoftIdentificationModal = ({
     }
     
     const phoneDigits = phone.replace(/\D/g, "");
-    if (phoneDigits.length < 10) {
-      newErrors.phone = "WhatsApp inválido";
+    if (phoneDigits.length < phoneMinDigits) {
+      newErrors.phone = phoneMinDigits === 11
+        ? "Digite o WhatsApp com 11 dígitos (DDD + 9 + número)"
+        : "WhatsApp inválido";
     }
 
     // Email é opcional, mas se preenchido, deve ser válido

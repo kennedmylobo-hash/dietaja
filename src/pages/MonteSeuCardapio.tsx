@@ -319,6 +319,12 @@ const MonteSeuCardapioContent = () => {
   const sendWhatsAppWithOrder = useCallback(async (custName: string, custPhone: string, custEmail: string) => {
     if (!flavors || !selectedQuantity) return;
 
+    const phoneDigits = custPhone.replace(/\D/g, "");
+    if (!custName.trim() || phoneDigits.length !== 11) {
+      toast.error("Informe seu nome e um WhatsApp válido com 11 dígitos (DDD + 9 + número).");
+      return;
+    }
+
     setIsCreatingWaOrder(true);
     const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -699,6 +705,7 @@ const MonteSeuCardapioContent = () => {
             sendWhatsAppWithOrder(name, phone, email);
           }}
           onSkip={() => setShowWaIdModal(false)}
+          phoneMinDigits={11}
         />
       </div>
     </>
