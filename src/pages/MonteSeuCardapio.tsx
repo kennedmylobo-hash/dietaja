@@ -316,29 +316,98 @@ const MonteSeuCardapioContent = () => {
     setTimeout(() => setIsCartOpen(true), 300);
   }, [flavors, selectedQuantity, lineConfig, unitPrice, totalPrice, selectedLine, addItem]);
 
-  const handleWhatsApp = () => {
+  const sendWhatsAppWithOrder = useCallback(async (custName: string, custPhone: string, custEmail: string) => {
     if (!flavors || !selectedQuantity) return;
 
+    setIsCreatingWaOrder(true);
     const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-    let message = `Oi 😊\nMontei meu cardápio personalizado no site da *${brand.name}*!\n\n`;
-    message += `📋 *CARDÁPIO - ${selectedQuantity} MARMITAS ${lineConfig.label} (${lineConfig.weight}g)*\n`;
-    message += `_(${lineConfig.description})_\n\n`;
+    try {
+      const flavorSelections: FlavorSelection[] = flavors.map((f) => ({
+        name: f.name,
+        quantity: f.quantity,
+        category: "proteina",
+      }));
 
-    flavors.forEach((f, i) => {
-      message += `*${i + 1}. ${f.name}* (${f.quantity}x)\n`;
-      message += `   🥩 ${f.protein}\n`;
-      message += `   🍚 ${f.carb}\n`;
-      message += `   🥗 ${f.mix}\n\n`;
-    });
+      const description = flavors.map((f) => `${f.quantity}x ${f.name}`).join(", ");
 
-    message += `💰 *Valor: ${fmt(totalPrice)}* (${fmt(unitPrice)}/un.)\n\n`;
-    message += `Pode me confirmar o pedido?`;
+      const orderItem = {
+        type: "marmita",
+        name: `Cardápio Personalizado - ${lineConfig.label} ${lineConfig.weight}g`,
+        quantity: selectedQuantity,
+        unitPrice,
+        totalPrice,
+        description,
+        flavors: flavorSelections,
+        lineType: selectedLine,
+      };
 
-    window.open(
-      `https://wa.me/${contact.whatsapp}?text=${encodeURIComponent(message)}`,
-      "_blank"
-    );
+      const normalizedEmail = (custEmail || `${custPhone}@whatsapp.local`).trim().toLowerCase();
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("orders")
+        .insert({
+          tenant_id: tenantId,
+          customer_name: custName,
+          customer_phone: custPhone,
+          customer_email: normalizedEmail,
+          status: "pending",
+          payment_method: "whatsapp",
+          delivery_option: "pickup",
+          items: [orderItem],
+          subtotal: totalPrice,
+          delivery_fee: 0,
+          total: totalPrice,
+        })
+        .select("id, order_number")
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Persist customer info locally for future flows
+      try {
+        localStorage.setItem("tenant_customer", JSON.stringify({ name: custName, phone: custPhone, email: normalizedEmail }));
+      } catch {}
+
+      const orderRef = inserted?.order_number || `#${inserted?.id?.slice(0, 8) ?? ""}`;
+
+      let message = `Oi 😊\nMontei meu cardápio personalizado no site da *${brand.name}*!\n\n`;
+      message += `🔖 *Pedido ${orderRef}*\n\n`;
+      message += `📋 *CARDÁPIO - ${selectedQuantity} MARMITAS ${lineConfig.label} (${lineConfig.weight}g)*\n`;
+      message += `_(${lineConfig.description})_\n\n`;
+
+      flavors.forEach((f, i) => {
+        message += `*${i + 1}. ${f.name}* (${f.quantity}x)\n`;
+        message += `   🥩 ${f.protein}\n`;
+        message += `   🍚 ${f.carb}\n`;
+        message += `   🥗 ${f.mix}\n\n`;
+      });
+
+      message += `💰 *Valor: ${fmt(totalPrice)}* (${fmt(unitPrice)}/un.)\n\n`;
+      message += `Pode me confirmar o pedido?`;
+
+      window.open(
+        `https://wa.me/${contact.whatsapp}?text=${encodeURIComponent(message)}`,
+        "_blank"
+      );
+
+      toast.success(`Pedido ${orderRef} reservado! Envie a mensagem no WhatsApp para confirmar.`);
+    } catch (err: any) {
+      console.error("Erro ao criar pedido pendente:", err);
+      toast.error("Não foi possível registrar o pedido. Tente novamente.");
+    } finally {
+      setIsCreatingWaOrder(false);
+      setShowWaIdModal(false);
+    }
+  }, [flavors, selectedQuantity, lineConfig, unitPrice, totalPrice, selectedLine, tenantId, brand.name, contact.whatsapp]);
+
+  const handleWhatsApp = () => {
+    if (!flavors || !selectedQuantity) return;
+    if (customerInfo?.name && customerInfo?.phone) {
+      sendWhatsAppWithOrder(customerInfo.name, customerInfo.phone, customerInfo.email || "");
+    } else {
+      setShowWaIdModal(true);
+    }
   };
 
 
