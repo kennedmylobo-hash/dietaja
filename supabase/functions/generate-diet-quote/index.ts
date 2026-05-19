@@ -8,10 +8,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { customerName, dietText, brandName, quoteNumber, pricing, notes } = await req.json();
+    const { customerName, dietText, dietImageBase64, brandName, quoteNumber, pricing, notes } = await req.json();
 
-    if (!customerName || !dietText) {
-      return new Response(JSON.stringify({ error: "Informe nome do cliente e a dieta." }), {
+    if (!customerName || (!dietText && !dietImageBase64)) {
+      return new Response(JSON.stringify({ error: "Informe nome do cliente e a dieta (texto ou imagem)." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
