@@ -276,10 +276,21 @@ export default function CustomDietQuoter() {
       CARNE:  { dark: [198, 40, 40],  light: [255, 235, 230], med: [239, 154, 154], label: "CARNE"  },
       PEIXE:  { dark: [21, 101, 192], light: [227, 242, 253], med: [144, 202, 249], label: "PEIXE"  },
     };
-    const KIT_PRICES: Record<ProteinKey, { qty: number; unit: number }[]> = {
-      FRANGO: [{ qty: 10, unit: 24.90 }, { qty: 20, unit: 22.90 }, { qty: 30, unit: 20.90 }],
-      CARNE:  [{ qty: 10, unit: 28.90 }, { qty: 20, unit: 26.90 }, { qty: 30, unit: 23.90 }],
-      PEIXE:  [{ qty: 10, unit: 33.90 }, { qty: 20, unit: 31.90 }, { qty: 30, unit: 28.90 }],
+    // Tabela de regras (preço Kit 10 por proteína e peso). Kits 20 = -5%, 30 = -10%.
+    const RULES: Record<ProteinKey, { w100: number; w200: number }> = {
+      FRANGO: { w100: 24.90, w200: 29.90 },
+      CARNE:  { w100: 27.90, w200: 34.90 },
+      PEIXE:  { w100: 33.90, w200: 39.90 }, // Peixe = Frango + 9 (mantido como tier alto)
+    };
+    // Calcula preço-base do Kit 10 conforme peso médio da proteína no grupo.
+    // 100g → w100; 200g → w200; intermediário → interpolação linear; <100 ou >200 → extrapolado.
+    const basePriceFor = (protein: ProteinKey, avgProteinG: number): number => {
+      const r = RULES[protein];
+      const w = Math.max(1, avgProteinG || 100);
+      // Interpolação linear entre 100g e 200g
+      const ratio = (w - 100) / 100; // 0 em 100g, 1 em 200g
+      const price = r.w100 + (r.w200 - r.w100) * ratio;
+      return Math.round(price * 100) / 100;
     };
     const GREY_TXT: [number, number, number] = [85, 85, 85];
 
@@ -306,23 +317,42 @@ export default function CustomDietQuoter() {
       return (it.description || "").trim();
     };
 
-    // Group items by protein, preserving the original Opcao numbering across groups
-    const groups: { protein: ProteinKey; items: { number: number; description: string }[] }[] = [];
+    // Agrupa itens por proteína (cap em 3) + calcula peso médio da proteína por grupo
+    type GroupItem = { number: number; description: string };
+    const groups: { protein: ProteinKey; items: GroupItem[]; avgProteinG: number }[] = [];
     const order: ProteinKey[] = ["FRANGO", "CARNE", "PEIXE"];
-    const byProtein: Record<ProteinKey, { number: number; description: string }[]> = {
+    const byProtein: Record<ProteinKey, { it: QuoteItem; description: string }[]> = {
       FRANGO: [], CARNE: [], PEIXE: [],
     };
-    // Renumber sequentially: 01..N following Frango → Carne → Peixe order
+    for (const it of items) {
+      byProtein[classify(it.description)].push({ it, description: buildDesc(it) });
+    }
     let opNum = 1;
-    const itemsByProtein = items.map(it => ({ protein: classify(it.description), description: buildDesc(it) }));
     for (const p of order) {
-      for (const it of itemsByProtein.filter(i => i.protein === p)) {
-        byProtein[p].push({ number: opNum++, description: it.description });
-      }
+      const list = byProtein[p].slice(0, 3); // máx 3 sabores por proteína
+      if (list.length === 0) continue;
+      const avgProteinG = list.reduce((s, x) => s + (x.it.proteinWeight || 0), 0) / list.length;
+      groups.push({
+        protein: p,
+        items: list.map(x => ({ number: opNum++, description: x.description })),
+        avgProteinG,
+      });
     }
-    for (const p of order) {
-      if (byProtein[p].length > 0) groups.push({ protein: p, items: byProtein[p].slice(0, 8) }); // cap at 8
+
+    // Calcula preços dos kits por grupo (com override manual se fornecido)
+    const kitPricesByProtein: Record<ProteinKey, { qty: number; unit: number }[]> = {
+      FRANGO: [], CARNE: [], PEIXE: [],
+    };
+    for (const g of groups) {
+      const baseOverride = kitOverrides[g.protein];
+      const base = baseOverride != null ? baseOverride : basePriceFor(g.protein, g.avgProteinG);
+      kitPricesByProtein[g.protein] = [
+        { qty: 10, unit: Math.round(base * 100) / 100 },
+        { qty: 20, unit: Math.round(base * 0.95 * 100) / 100 },
+        { qty: 30, unit: Math.round(base * 0.90 * 100) / 100 },
+      ];
     }
+    const KIT_PRICES = kitPricesByProtein;
 
     let y = 14;
 
