@@ -30,10 +30,17 @@ export default function AIDietQuoter() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [dietText, setDietText] = useState("");
+  const [autoPricing, setAutoPricing] = useState(true);
   const [priceChicken, setPriceChicken] = useState("22.90");
   const [priceBeef, setPriceBeef] = useState("25.90");
   const [priceFish, setPriceFish] = useState("28.90");
   const [priceVeggie, setPriceVeggie] = useState("21.90");
+  // Manual mode: full table (10/20/30 per protein) — comes from another sheet
+  const [manualPrices, setManualPrices] = useState({
+    FRANGO: { "10": "", "20": "", "30": "" },
+    CARNE: { "10": "", "20": "", "30": "" },
+    PEIXE: { "10": "", "20": "", "30": "" },
+  });
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -41,6 +48,11 @@ export default function AIDietQuoter() {
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [dietImage, setDietImage] = useState<string | null>(null); // base64 data URL
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+
+  const setManualPrice = (protein: "FRANGO" | "CARNE" | "PEIXE", qty: "10" | "20" | "30", value: string) => {
+    setManualPrices((prev) => ({ ...prev, [protein]: { ...prev[protein], [qty]: value } }));
+  };
+  const fmtBR = (n: number) => n.toFixed(2).replace(".", ",");
 
   const handleImageUpload = (file: File) => {
     if (!file.type.startsWith("image/")) {
