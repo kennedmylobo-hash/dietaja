@@ -100,11 +100,13 @@ Dieta Personalizada NÃO tem relação com kits prontos. SEMPRE estruture em blo
 - NUNCA inclua: saladas cruas, folhas verdes cruas (alface, rúcula, agrião), tomate cru, pepino cru, frutas frescas — não congelam bem.
 - Se a dieta original do cliente trouxer esses itens, SUBSTITUA por equivalentes cozidos/refogados/grelhados (ex.: salada crua → legumes refogados; fruta → batata doce cozida ou purê de abóbora; tomate cru → tomate refogado).
 - Sempre especifique gramas E ingrediente (ex.: "150g peito de frango grelhado + 100g arroz branco + 80g feijão carioca + 50g mix de legumes refogados").
-- Cardápios com FRANGO devem custar menos que CARNE; PEIXE = preço do FRANGO + R$ 9,00 por unidade (a menos que a tabela do admin diga outra coisa).
+- Cardápios com FRANGO devem custar menos que CARNE; PEIXE = preço do FRANGO + R$ 9,00 por unidade (a menos que a tabela do admin diga outra coisa, OU o modo manual esteja ativo — nesse caso ignore essa regra).
 
 REGRAS DE PREÇO:
-- Use EXATAMENTE os preços unitários da tabela do admin (REGRAS DE PREÇO abaixo) quando fornecidos. Caso contrário, use os padrões: Frango R$ 24,90 (10un) / R$ 22,90 (20un); Carne R$ 28,90 (10un) / R$ 26,90 (20un); Peixe = Frango + R$ 9,00.
-- Desconto por volume aplica em CADA proteína: 10 un = preço cheio, 20 un = 5% OFF, 30 un = 10% OFF.
+${isManual
+  ? `- MODO MANUAL: copie EXATAMENTE os valores da TABELA MANUAL fornecida abaixo. NÃO calcule descontos. NÃO assuma relação entre proteínas. Se faltar alguma linha (ex.: só veio 10un de frango), mostre só essa linha, omitindo "20 marmitas" e "30 marmitas" daquele bloco.`
+  : `- Use EXATAMENTE os preços unitários da tabela do admin (REGRAS DE PREÇO abaixo) quando fornecidos. Caso contrário, use os padrões: Frango R$ 24,90 (10un) / R$ 22,90 (20un); Carne R$ 28,90 (10un) / R$ 26,90 (20un); Peixe = Frango + R$ 9,00.
+- Desconto por volume aplica em CADA proteína: 10 un = preço cheio, 20 un = 5% OFF, 30 un = 10% OFF.`}
 - Arredonde para 2 casas, vírgula como decimal (R$ 26,90).
 
 FORMATO:
