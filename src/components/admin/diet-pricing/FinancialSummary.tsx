@@ -64,16 +64,18 @@ export default function FinancialSummary({
         </div>
 
         <div className="border-t pt-4 space-y-2">
-          <p className="font-semibold text-sm text-muted-foreground mb-2">Pacotes:</p>
+          <p className="font-semibold text-sm text-muted-foreground mb-2">Kits:</p>
           {settings.packageOptions.map((pkg) => {
-            const vendaTotal = subtotalVenda * items.length * pkg.days * (1 - pkg.discount);
-            const custoTotal = subtotalCusto * items.length * pkg.days;
+            const avgVenda = items.length > 0 ? subtotalVenda / items.length : 0;
+            const avgCusto = items.length > 0 ? subtotalCusto / items.length : 0;
+            const vendaTotal = avgVenda * pkg.days * (1 - pkg.discount);
+            const custoTotal = avgCusto * pkg.days;
             const lucroTotal = vendaTotal - custoTotal;
             return (
               <div key={`${pkg.days}-${pkg.label}`} className="space-y-0.5">
                 <div className="flex justify-between items-center">
                   <span className="text-sm">
-                    Kit {pkg.label} ({pkg.days}x cada)
+                    Kit {pkg.label}
                     {pkg.discount > 0 && (
                       <span className="text-primary ml-1 text-xs">-{Math.round(pkg.discount * 100)}%</span>
                     )}
