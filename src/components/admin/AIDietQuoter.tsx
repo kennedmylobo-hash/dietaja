@@ -30,10 +30,17 @@ export default function AIDietQuoter() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [dietText, setDietText] = useState("");
+  const [autoPricing, setAutoPricing] = useState(true);
   const [priceChicken, setPriceChicken] = useState("22.90");
   const [priceBeef, setPriceBeef] = useState("25.90");
   const [priceFish, setPriceFish] = useState("28.90");
   const [priceVeggie, setPriceVeggie] = useState("21.90");
+  // Manual mode: full table (10/20/30 per protein) — comes from another sheet
+  const [manualPrices, setManualPrices] = useState({
+    FRANGO: { "10": "", "20": "", "30": "" },
+    CARNE: { "10": "", "20": "", "30": "" },
+    PEIXE: { "10": "", "20": "", "30": "" },
+  });
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -41,6 +48,11 @@ export default function AIDietQuoter() {
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [dietImage, setDietImage] = useState<string | null>(null); // base64 data URL
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+
+  const setManualPrice = (protein: "FRANGO" | "CARNE" | "PEIXE", qty: "10" | "20" | "30", value: string) => {
+    setManualPrices((prev) => ({ ...prev, [protein]: { ...prev[protein], [qty]: value } }));
+  };
+  const fmtBR = (n: number) => n.toFixed(2).replace(".", ",");
 
   const handleImageUpload = (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -89,12 +101,31 @@ export default function AIDietQuoter() {
     setMessage("");
     try {
       const qn = await generateQuoteNumber();
-      const pricingHints = [
-        `Marmita com FRANGO (peito, coxa, file de frango, almôndegas de frango, estrogonofe de frango): R$ ${priceChicken}/un`,
-        `Marmita com CARNE BOVINA (filé, patinho, carne moída, almôndegas de carne, alcatra): R$ ${priceBeef}/un`,
-        `Marmita com PEIXE (tilápia, filé de peixe, salmão): R$ ${priceFish}/un`,
-        `Marmita VEGETARIANA / sem proteína animal: R$ ${priceVeggie}/un`,
-      ].join("\n");
+      let pricingHints = "";
+      if (autoPricing) {
+        pricingHints = [
+          `Marmita com FRANGO (peito, coxa, file de frango, almôndegas de frango, estrogonofe de frango): R$ ${priceChicken}/un`,
+          `Marmita com CARNE BOVINA (filé, patinho, carne moída, almôndegas de carne, alcatra): R$ ${priceBeef}/un`,
+          `Marmita com PEIXE (tilápia, filé de peixe, salmão): R$ ${priceFish}/un`,
+          `Marmita VEGETARIANA / sem proteína animal: R$ ${priceVeggie}/un`,
+        ].join("\n");
+      } else {
+        // Manual mode — exact totals per quantity, no auto discounts/rules
+        const lines: string[] = [];
+        (["FRANGO", "CARNE", "PEIXE"] as const).forEach((p) => {
+          (["10", "20", "30"] as const).forEach((q) => {
+            const raw = manualPrices[p][q];
+            const v = parseFloat((raw || "").replace(",", "."));
+            if (!isNaN(v) && v > 0) {
+              const isTotal = v >= parseInt(q) * 5; // heuristic: >R$5/un means it's total
+              const unit = isTotal ? v / parseInt(q) : v;
+              const total = isTotal ? v : v * parseInt(q);
+              lines.push(`${p} • ${q} marmitas → R$ ${fmtBR(unit)}/un = R$ ${fmtBR(total)} (TOTAL)`);
+            }
+          });
+        });
+        pricingHints = lines.join("\n");
+      }
       const { data, error } = await supabase.functions.invoke("generate-diet-quote", {
         body: {
           customerName,
@@ -103,6 +134,7 @@ export default function AIDietQuoter() {
           brandName: tenant?.brand_name || "Marmitaria",
           quoteNumber: qn,
           pricing: pricingHints,
+          pricingMode: autoPricing ? "auto" : "manual",
           notes,
         },
       });
@@ -438,57 +470,100 @@ export default function AIDietQuoter() {
       </div>
 
       <div>
-        <Label>💰 Preço unitário por tipo de proteína (a IA aplica o valor certo em cada marmita)</Label>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-          <div>
-            <Label className="text-xs flex items-center gap-1">🍗 Frango</Label>
-            <Input type="number" step="0.10" value={priceChicken} onChange={(e) => setPriceChicken(e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs flex items-center gap-1">🥩 Carne</Label>
-            <Input type="number" step="0.10" value={priceBeef} onChange={(e) => setPriceBeef(e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs flex items-center gap-1">🐟 Peixe</Label>
-            <Input type="number" step="0.10" value={priceFish} onChange={(e) => setPriceFish(e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs flex items-center gap-1">🥗 Veggie</Label>
-            <Input type="number" step="0.10" value={priceVeggie} onChange={(e) => setPriceVeggie(e.target.value)} />
-          </div>
+        <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+          <Label className="m-0">💰 Preços</Label>
+          <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
+            <input
+              type="checkbox"
+              checked={autoPricing}
+              onChange={(e) => setAutoPricing(e.target.checked)}
+              className="w-4 h-4 accent-primary"
+            />
+            <span className="font-medium">
+              {autoPricing ? "🤖 Calcular preço automático (ligado)" : "✍️ Preços manuais (tabela própria)"}
+            </span>
+          </label>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Cada marmita é precificada individualmente pela proteína dela — o total do orçamento é soma item a item.
-        </p>
+
+        {autoPricing ? (
+          <>
+            <p className="text-xs text-muted-foreground mb-2">
+              Preço unitário por proteína — a IA aplica volume (10un cheio, 20un 5% off, 30un 10% off) e regras padrão.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <Label className="text-xs">🍗 Frango</Label>
+                <Input type="number" step="0.10" value={priceChicken} onChange={(e) => setPriceChicken(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">🥩 Carne</Label>
+                <Input type="number" step="0.10" value={priceBeef} onChange={(e) => setPriceBeef(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">🐟 Peixe</Label>
+                <Input type="number" step="0.10" value={priceFish} onChange={(e) => setPriceFish(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">🥗 Veggie</Label>
+                <Input type="number" step="0.10" value={priceVeggie} onChange={(e) => setPriceVeggie(e.target.value)} />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground mb-2">
+              Cole valores da sua tabela. Digite preço <b>unitário</b> (ex: 24,90) <b>OU total</b> (ex: 249,00) — detectamos sozinho. Deixe em branco pra IA pular aquela linha. Nenhum desconto/regra automática é aplicado.
+            </p>
+            <div className="space-y-3">
+              {(["FRANGO", "CARNE", "PEIXE"] as const).map((p) => {
+                const emoji = p === "FRANGO" ? "🍗" : p === "CARNE" ? "🥩" : "🐟";
+                return (
+                  <div key={p} className="rounded-lg border p-3 bg-muted/20">
+                    <div className="text-sm font-semibold mb-2">{emoji} {p}</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["10", "20", "30"] as const).map((q) => (
+                        <div key={q}>
+                          <Label className="text-xs">{q} marmitas</Label>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder={q === "10" ? "ex: 249,00" : q === "20" ? "ex: 458,00" : "ex: 657,00"}
+                            value={manualPrices[p][q]}
+                            onChange={(e) => setManualPrice(p, q, e.target.value)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Quick checklist — what the AI will quote */}
-      <Card className="border-dashed">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">✅ Confira antes de gerar — o que a IA vai cotar:</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-            {([["🍗 Frango", priceChicken, "FRANGO"], ["🥩 Carne", priceBeef, "CARNE"], ["🐟 Peixe", priceFish, "PEIXE"]] as const).map(([label, p]) => {
-              const unit = parseFloat(p || "0");
-              const p10 = unit;
-              const p20 = unit * 0.95;
-              const p30 = unit * 0.90;
-              return (
-                <div key={label} className="rounded-lg border p-2 bg-muted/30">
-                  <div className="font-semibold mb-1">{label}</div>
-                  <div>10un → R$ {p10.toFixed(2)}/un = <b>R$ {(p10 * 10).toFixed(2)}</b></div>
-                  <div>20un (5% off) → R$ {p20.toFixed(2)}/un = <b>R$ {(p20 * 20).toFixed(2)}</b></div>
-                  <div>30un (10% off) → R$ {p30.toFixed(2)}/un = <b>R$ {(p30 * 30).toFixed(2)}</b></div>
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-2">
-            💡 Mude os preços acima se algum valor estiver fora do esperado antes de gerar.
-          </p>
-        </CardContent>
-      </Card>
+      {autoPricing && (
+        <Card className="border-dashed">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">✅ Confira antes de gerar:</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              {([["🍗 Frango", priceChicken], ["🥩 Carne", priceBeef], ["🐟 Peixe", priceFish]] as const).map(([label, p]) => {
+                const unit = parseFloat(p || "0");
+                return (
+                  <div key={label} className="rounded-lg border p-2 bg-muted/30">
+                    <div className="font-semibold mb-1">{label}</div>
+                    <div>10un → R$ {unit.toFixed(2)}/un = <b>R$ {(unit * 10).toFixed(2)}</b></div>
+                    <div>20un (5% off) → R$ {(unit * 0.95).toFixed(2)}/un = <b>R$ {(unit * 0.95 * 20).toFixed(2)}</b></div>
+                    <div>30un (10% off) → R$ {(unit * 0.90).toFixed(2)}/un = <b>R$ {(unit * 0.90 * 30).toFixed(2)}</b></div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div>
         <Label>Observações para a IA (opcional)</Label>
