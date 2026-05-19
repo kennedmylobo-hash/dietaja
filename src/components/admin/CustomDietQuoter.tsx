@@ -321,17 +321,15 @@ export default function CustomDietQuoter() {
         if (/legume|salada|verdura|brocoli|br[óo]coli|cenoura|chuchu|abobrinha|vagem|couve|alface|tomate|repolho|maxixe|quiabo|berinjela|aboboranga|ab[óo]bora|mix/.test(t)) return 2;
         return 3;
       };
-      // Limpa "E "/"com " inicial, parênteses órfãos e capitaliza
+      // Limpa cada parte: "1x", "E " perdidos, parênteses órfãos, "ou X" alternativos.
       const balanceParens = (s: string) => {
         let t = s;
-        // Remove ")" sem "(" correspondente à esquerda
         const opens = (t.match(/\(/g) || []).length;
         const closes = (t.match(/\)/g) || []).length;
         if (closes > opens) {
           let extra = closes - opens;
           t = t.replace(/\)/g, (m) => (extra-- > 0 ? "" : m));
         }
-        // Remove "(" sem ")" correspondente à direita
         const opens2 = (t.match(/\(/g) || []).length;
         const closes2 = (t.match(/\)/g) || []).length;
         if (opens2 > closes2) {
@@ -340,9 +338,40 @@ export default function CustomDietQuoter() {
         }
         return t.replace(/\s{2,}/g, " ").trim();
       };
+
+      // Substitui alternativas tipo "A, B ou C" / "A ou B" por uma escolha canônica.
+      // Heurística: olha o conjunto e devolve o nome mais "comercial" (carne bovina magra, peito de frango, etc).
+      const canonicalize = (text: string): string => {
+        const low = text.toLowerCase();
+        // Carne bovina
+        if (/(fil[ée]|patinho|al[cs]atra|m[íi]gnon|cox[aã]o|m[úu]sculo|cup[íi]m|moid[ao])/.test(low)
+            && /(carne|magra|bovin)/.test(low)) {
+          return text.replace(/\b[^+]*?(carne magra|carne bovina[^+]*|fil[ée][^+]*|patinho[^+]*)\b/i, "Carne Bovina Magra");
+        }
+        // Frango
+        if (/(peito|coxa|sobrecoxa|frango)/.test(low)) {
+          // Se cita "peito ou coxa" → "Peito de Frango"
+          return text.replace(/\b(peito( de frango)?(\s*(ou|,)\s*(sobre)?coxa)?|frango( fit)?|(sobre)?coxa( de frango)?)\b/i, "Peito de Frango");
+        }
+        // Peixe
+        if (/(til[áa]pia|salm[ãa]o|merluza|atum|peixe|saint)/.test(low)) {
+          return text.replace(/\b(til[áa]pia|salm[ãa]o|merluza|atum|peixe|saint[- ]?peter)( filé|filé)?\b/i, "Tilápia");
+        }
+        return text;
+      };
+
+      // Mantém só o primeiro método de cocção em "Assada ou Cozida", "Grelhada ou Assada", etc.
+      const stripAlternativeCook = (s: string) =>
+        s.replace(/\b(assad[ao]|grelhad[ao]|cozid[ao]|refogad[ao]|frita[ao])\s+ou\s+(assad[ao]|grelhad[ao]|cozid[ao]|refogad[ao]|frita[ao])\b/gi, "$1");
+
       const clean = parts
-        .map(p => p.replace(/^\s*(?:[eE]|com)\s+/, "").trim())
+        .map(p => p.replace(/^\s*(?:[eE]|com)\s+/, "").trim())          // "E Arroz" / "com Arroz"
+        .map(p => p.replace(/(\d+\s*g)\s+[eE]\s+/i, "$1 "))             // "50g E Arroz" → "50g Arroz"
+        .map(p => p.replace(/\b\d+\s*x\s+/gi, ""))                       // remove "1x", "2x"
         .map(p => balanceParens(p))
+        .map(p => stripAlternativeCook(p))
+        .map(p => canonicalize(p))
+        .map(p => p.replace(/\s{2,}/g, " ").trim())
         .map(p => cap(p));
       const sorted = clean
         .map((p, i) => ({ p, k: classifyPart(p), i }))
