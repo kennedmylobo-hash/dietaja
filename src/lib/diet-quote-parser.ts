@@ -94,7 +94,49 @@ export function parseDietMessage(text: string): ParsedDietItem[] {
     items.push(parseItem(currentItem.num, currentItem.text));
   }
 
-  return items;
+  return expandAlternatives(items);
+}
+
+/**
+ * Para cada item, quando houver alternativas tipo "Filé Mignon ou Patinho ou Carne Magra",
+ * gera UMA linha de cardápio por opção (cartesiano entre ingredientes).
+ * Remove apenas alternativas de método de cocção ("Assada ou Cozida" → "Assada").
+ */
+function expandAlternatives(items: ParsedDietItem[]): ParsedDietItem[] {
+  const COOK_ALT = /\s+ou\s+(assad[ao]|grelhad[ao]|cozid[ao]|refogad[ao]|frita[ao]|fritad[ao])\b/gi;
+  const out: ParsedDietItem[] = [];
+  for (const it of items) {
+    const altLists: ParsedIngredient[][] = it.ingredients.map((ing) => {
+      const cleaned = ing.name.replace(COOK_ALT, "").trim();
+      const parts = cleaned.split(/\s+ou\s+/i).map((p) => p.trim()).filter(Boolean);
+      if (parts.length <= 1) return [{ ...ing, name: cleaned }];
+      // Só expande quando todas as alternativas pertencem à mesma categoria (ex.: proteínas distintas)
+      const valid = parts.filter((p) => classifyIngredient(p) === ing.category);
+      if (valid.length <= 1) return [{ ...ing, name: cleaned }];
+      return valid.map((name) => ({ ...ing, name }));
+    });
+    const combos = altLists.reduce<ParsedIngredient[][]>(
+      (acc, list) => acc.flatMap((prev) => list.map((x) => [...prev, x])),
+      [[]]
+    );
+    for (const ingredients of combos) {
+      const totalWeight = ingredients.reduce((s, i) => s + i.weightGrams, 0);
+      const proteinWeight = ingredients.filter((i) => i.category === "protein").reduce((s, i) => s + i.weightGrams, 0);
+      const carbWeight = ingredients.filter((i) => i.category === "carb").reduce((s, i) => s + i.weightGrams, 0);
+      const veggieWeight = ingredients.filter((i) => i.category === "veggie").reduce((s, i) => s + i.weightGrams, 0);
+      const description = ingredients.map((i) => i.name).join(" + ");
+      out.push({
+        number: 0,
+        description,
+        ingredients,
+        totalWeight,
+        proteinWeight,
+        carbWeight,
+        veggieWeight,
+      });
+    }
+  }
+  return out.map((it, i) => ({ ...it, number: i + 1 }));
 }
 
 function parseItem(num: number, text: string): ParsedDietItem {
