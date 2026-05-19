@@ -388,22 +388,62 @@ export default function CustomDietQuoter() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <ClipboardPaste className="w-4 h-4" />
-            Cola a lista do WhatsApp
+            Cole a lista ou print do WhatsApp
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <Textarea
-            placeholder={`Cole aqui a mensagem da nutricionista, ex:\n1- Strogonoff de grão de bico (100g) com arroz com brócolis (100g) + legumes variados (100g)\n2- Hambúrguer de grão de bico (120g) + macarrão ao molho branco (180g)`}
+            placeholder={`Cole o texto OU um print (Ctrl+V) da dieta. Ex:\n1- 3x Filé de Peixe (100g) com Arroz (150g) e Legumes (50g)\n2- 4x Frango Fit (100g) com Batata Doce (150g) e Mix (50g)`}
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
+            onPaste={handlePaste}
             rows={6}
+            disabled={extractingImage}
           />
-          <Button onClick={handleParse} className="w-full" variant="cta">
-            <Calculator className="w-4 h-4 mr-2" />
-            Extrair Itens
-          </Button>
+
+          {imagePreview && (
+            <div className="relative inline-block">
+              <img src={imagePreview} alt="Print da dieta" className="max-h-40 rounded-lg border" />
+              <button
+                type="button"
+                onClick={() => setImagePreview(null)}
+                className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:opacity-90"
+                aria-label="Remover imagem"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <label className="flex-1">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={extractingImage}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) extractFromImageFile(f);
+                  e.target.value = "";
+                }}
+              />
+              <div className={`w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors ${extractingImage ? "opacity-50 pointer-events-none" : ""}`}>
+                {extractingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                <span className="text-sm">{extractingImage ? "Lendo print..." : "📷 Enviar print da dieta"}</span>
+              </div>
+            </label>
+            <Button onClick={handleParse} className="flex-1" variant="cta" disabled={extractingImage}>
+              <Calculator className="w-4 h-4 mr-2" />
+              Extrair Itens
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            💡 Dica: você pode colar uma imagem direto no campo de texto (Ctrl+V) — igual no Claude.
+          </p>
         </CardContent>
       </Card>
+
 
       {items.length > 0 && (
         <>
