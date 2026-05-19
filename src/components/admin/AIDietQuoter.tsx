@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Sparkles, Copy, Send, History, ChevronDown, ChevronUp, Loader2, Trash2, FileText } from "lucide-react";
+import { Sparkles, Copy, Send, History, ChevronDown, ChevronUp, Loader2, Trash2, FileText, Image as ImageIcon, X, Download } from "lucide-react";
+import jsPDF from "jspdf";
 
 interface SavedQuote {
   id: string;
