@@ -148,12 +148,6 @@ export default function CustomDietQuoter() {
     }
   };
 
-      proteinWeight: p.proteinWeight, carbWeight: p.carbWeight,
-      veggieWeight: p.veggieWeight, totalWeight: p.totalWeight,
-      priceOverride: null,
-    })));
-    toast({ title: `${parsed.length} itens extraídos!` });
-  };
 
   const updateItem = (idx: number, field: keyof QuoteItem, value: any) => {
     setItems(prev => prev.map((item, i) => {
