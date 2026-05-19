@@ -65,6 +65,8 @@ export default function CustomDietQuoter() {
   const [showHistory, setShowHistory] = useState(false);
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [saving, setSaving] = useState(false);
+  const [extractingImage, setExtractingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (showHistory) loadHistory();
