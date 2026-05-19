@@ -67,6 +67,8 @@ export default function CustomDietQuoter() {
   const [saving, setSaving] = useState(false);
   const [extractingImage, setExtractingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  // Override manual do preço do Kit 10 por proteína (R$/un). Kits 20/30 derivam (-5% / -10%). null = automático.
+  const [kitOverrides, setKitOverrides] = useState<{ FRANGO: number | null; CARNE: number | null; PEIXE: number | null }>({ FRANGO: null, CARNE: null, PEIXE: null });
 
   useEffect(() => {
     if (showHistory) loadHistory();
