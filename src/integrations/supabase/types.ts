@@ -655,12 +655,14 @@ export type Database = {
           created_at: string | null
           customer_name: string | null
           customer_phone: string | null
+          formatted_message: string | null
           id: string
           items: Json
           notes: string | null
           package_options: Json | null
           price_per_gram: number | null
           quote_number: string | null
+          raw_diet_input: string | null
           status: string | null
           subtotal_per_unit: number | null
           tenant_id: string
@@ -670,12 +672,14 @@ export type Database = {
           created_at?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          formatted_message?: string | null
           id?: string
           items?: Json
           notes?: string | null
           package_options?: Json | null
           price_per_gram?: number | null
           quote_number?: string | null
+          raw_diet_input?: string | null
           status?: string | null
           subtotal_per_unit?: number | null
           tenant_id: string
@@ -685,12 +689,14 @@ export type Database = {
           created_at?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          formatted_message?: string | null
           id?: string
           items?: Json
           notes?: string | null
           package_options?: Json | null
           price_per_gram?: number | null
           quote_number?: string | null
+          raw_diet_input?: string | null
           status?: string | null
           subtotal_per_unit?: number | null
           tenant_id?: string
