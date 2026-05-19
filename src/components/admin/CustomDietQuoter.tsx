@@ -67,6 +67,8 @@ export default function CustomDietQuoter() {
   const [saving, setSaving] = useState(false);
   const [extractingImage, setExtractingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  // Override manual do preço do Kit 10 por proteína (R$/un). Kits 20/30 derivam (-5% / -10%). null = automático.
+  const [kitOverrides, setKitOverrides] = useState<{ FRANGO: number | null; CARNE: number | null; PEIXE: number | null }>({ FRANGO: null, CARNE: null, PEIXE: null });
 
   useEffect(() => {
     if (showHistory) loadHistory();
@@ -274,10 +276,21 @@ export default function CustomDietQuoter() {
       CARNE:  { dark: [198, 40, 40],  light: [255, 235, 230], med: [239, 154, 154], label: "CARNE"  },
       PEIXE:  { dark: [21, 101, 192], light: [227, 242, 253], med: [144, 202, 249], label: "PEIXE"  },
     };
-    const KIT_PRICES: Record<ProteinKey, { qty: number; unit: number }[]> = {
-      FRANGO: [{ qty: 10, unit: 24.90 }, { qty: 20, unit: 22.90 }, { qty: 30, unit: 20.90 }],
-      CARNE:  [{ qty: 10, unit: 28.90 }, { qty: 20, unit: 26.90 }, { qty: 30, unit: 23.90 }],
-      PEIXE:  [{ qty: 10, unit: 33.90 }, { qty: 20, unit: 31.90 }, { qty: 30, unit: 28.90 }],
+    // Tabela de regras (preço Kit 10 por proteína e peso). Kits 20 = -5%, 30 = -10%.
+    const RULES: Record<ProteinKey, { w100: number; w200: number }> = {
+      FRANGO: { w100: 24.90, w200: 29.90 },
+      CARNE:  { w100: 27.90, w200: 34.90 },
+      PEIXE:  { w100: 33.90, w200: 39.90 }, // Peixe = Frango + 9 (mantido como tier alto)
+    };
+    // Calcula preço-base do Kit 10 conforme peso médio da proteína no grupo.
+    // 100g → w100; 200g → w200; intermediário → interpolação linear; <100 ou >200 → extrapolado.
+    const basePriceFor = (protein: ProteinKey, avgProteinG: number): number => {
+      const r = RULES[protein];
+      const w = Math.max(1, avgProteinG || 100);
+      // Interpolação linear entre 100g e 200g
+      const ratio = (w - 100) / 100; // 0 em 100g, 1 em 200g
+      const price = r.w100 + (r.w200 - r.w100) * ratio;
+      return Math.round(price * 100) / 100;
     };
     const GREY_TXT: [number, number, number] = [85, 85, 85];
 
@@ -304,23 +317,42 @@ export default function CustomDietQuoter() {
       return (it.description || "").trim();
     };
 
-    // Group items by protein, preserving the original Opcao numbering across groups
-    const groups: { protein: ProteinKey; items: { number: number; description: string }[] }[] = [];
+    // Agrupa itens por proteína (cap em 3) + calcula peso médio da proteína por grupo
+    type GroupItem = { number: number; description: string };
+    const groups: { protein: ProteinKey; items: GroupItem[]; avgProteinG: number }[] = [];
     const order: ProteinKey[] = ["FRANGO", "CARNE", "PEIXE"];
-    const byProtein: Record<ProteinKey, { number: number; description: string }[]> = {
+    const byProtein: Record<ProteinKey, { it: QuoteItem; description: string }[]> = {
       FRANGO: [], CARNE: [], PEIXE: [],
     };
-    // Renumber sequentially: 01..N following Frango → Carne → Peixe order
+    for (const it of items) {
+      byProtein[classify(it.description)].push({ it, description: buildDesc(it) });
+    }
     let opNum = 1;
-    const itemsByProtein = items.map(it => ({ protein: classify(it.description), description: buildDesc(it) }));
     for (const p of order) {
-      for (const it of itemsByProtein.filter(i => i.protein === p)) {
-        byProtein[p].push({ number: opNum++, description: it.description });
-      }
+      const list = byProtein[p].slice(0, 3); // máx 3 sabores por proteína
+      if (list.length === 0) continue;
+      const avgProteinG = list.reduce((s, x) => s + (x.it.proteinWeight || 0), 0) / list.length;
+      groups.push({
+        protein: p,
+        items: list.map(x => ({ number: opNum++, description: x.description })),
+        avgProteinG,
+      });
     }
-    for (const p of order) {
-      if (byProtein[p].length > 0) groups.push({ protein: p, items: byProtein[p].slice(0, 8) }); // cap at 8
+
+    // Calcula preços dos kits por grupo (com override manual se fornecido)
+    const kitPricesByProtein: Record<ProteinKey, { qty: number; unit: number }[]> = {
+      FRANGO: [], CARNE: [], PEIXE: [],
+    };
+    for (const g of groups) {
+      const baseOverride = kitOverrides[g.protein];
+      const base = baseOverride != null ? baseOverride : basePriceFor(g.protein, g.avgProteinG);
+      kitPricesByProtein[g.protein] = [
+        { qty: 10, unit: Math.round(base * 100) / 100 },
+        { qty: 20, unit: Math.round(base * 0.95 * 100) / 100 },
+        { qty: 30, unit: Math.round(base * 0.90 * 100) / 100 },
+      ];
     }
+    const KIT_PRICES = kitPricesByProtein;
 
     let y = 14;
 
@@ -369,8 +401,7 @@ export default function CustomDietQuoter() {
         doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
         const lines = doc.splitTextToSize(desc, contentW - numW - 8);
         const rowH = Math.max(8, 3.2 + lines.length * 4.2);
-        // page break if needed (keep 30mm reserved for footer)
-        if (y + rowH > H - 32) { doc.addPage(); y = margin; }
+        // SINGLE PAGE: não quebra página, apenas mantém compacto.
         const bg = i % 2 === 0 ? pal.light : [255, 255, 255] as [number, number, number];
         doc.setFillColor(...bg);
         doc.roundedRect(margin, y, contentW, rowH, 1.2, 1.2, "F");
@@ -389,8 +420,7 @@ export default function CustomDietQuoter() {
 
       y += 3;
 
-      // Kit table header
-      if (y + 30 > H - 32) { doc.addPage(); y = margin; }
+      // Kit table header (single page)
       doc.setFillColor(...pal.dark);
       doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, "F");
       doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
@@ -432,8 +462,7 @@ export default function CustomDietQuoter() {
 
     groups.forEach(renderSection);
 
-    // ── FOOTER ────────────────────────────────────────────────────────────────
-    if (y + 30 > H - 10) { doc.addPage(); y = margin; }
+    // ── FOOTER (single page) ──────────────────────────────────────────────────
     const footerY = Math.max(y, H - 28);
     doc.setDrawColor(0); doc.setLineWidth(0.4);
     doc.line(margin, footerY, margin + contentW, footerY);
@@ -715,6 +744,38 @@ export default function CustomDietQuoter() {
             getItemCost={getItemCost}
             formatCurrency={formatCurrency}
           />
+
+          {/* Override manual dos preços do Kit 10 no PDF (por proteína) */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Preços dos Kits no PDF</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Deixe em branco para calcular automaticamente pelo peso da proteína (100g/200g). Kits 20 = −5%, Kit 30 = −10%.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(["FRANGO", "CARNE", "PEIXE"] as const).map((p) => (
+                  <div key={p}>
+                    <Label className="text-xs">Kit 10 {p} (R$/un.)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="auto"
+                      value={kitOverrides[p] ?? ""}
+                      onChange={(e) =>
+                        setKitOverrides((prev) => ({
+                          ...prev,
+                          [p]: e.target.value ? parseFloat(e.target.value) : null,
+                        }))
+                      }
+                      className={kitOverrides[p] != null ? "border-primary ring-1 ring-primary/30" : ""}
+                    />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-3">
