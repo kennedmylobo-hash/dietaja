@@ -104,6 +104,57 @@ export default function CustomDietQuoter() {
     toast({ title: `${parsed.length} itens extraídos!` });
   };
 
+  const extractFromImageFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Arquivo inválido", description: "Envie uma imagem (PNG/JPG).", variant: "destructive" });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: "Imagem muito grande", description: "Máx 8MB.", variant: "destructive" });
+      return;
+    }
+    setExtractingImage(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      setImagePreview(base64);
+      const { data, error } = await supabase.functions.invoke("extract-diet-from-image", {
+        body: { imageBase64: base64 },
+      });
+      if (error) throw error;
+      const text = (data as any)?.text?.trim();
+      if (!text) throw new Error("Não foi possível extrair a dieta da imagem.");
+      setRawText(prev => (prev ? prev + "\n" : "") + text);
+      toast({ title: "📷 Dieta extraída!", description: "Revise e clique em Extrair Itens." });
+    } catch (err: any) {
+      toast({ title: "Erro ao ler imagem", description: err.message, variant: "destructive" });
+    } finally {
+      setExtractingImage(false);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const item = Array.from(e.clipboardData.items).find(i => i.type.startsWith("image/"));
+    if (item) {
+      const file = item.getAsFile();
+      if (file) {
+        e.preventDefault();
+        extractFromImageFile(file);
+      }
+    }
+  };
+
+      proteinWeight: p.proteinWeight, carbWeight: p.carbWeight,
+      veggieWeight: p.veggieWeight, totalWeight: p.totalWeight,
+      priceOverride: null,
+    })));
+    toast({ title: `${parsed.length} itens extraídos!` });
+  };
+
   const updateItem = (idx: number, field: keyof QuoteItem, value: any) => {
     setItems(prev => prev.map((item, i) => {
       if (i !== idx) return item;
