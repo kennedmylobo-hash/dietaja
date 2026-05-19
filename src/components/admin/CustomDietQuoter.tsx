@@ -321,9 +321,28 @@ export default function CustomDietQuoter() {
         if (/legume|salada|verdura|brocoli|br[óo]coli|cenoura|chuchu|abobrinha|vagem|couve|alface|tomate|repolho|maxixe|quiabo|berinjela|aboboranga|ab[óo]bora|mix/.test(t)) return 2;
         return 3;
       };
-      // Limpa "E " inicial (artefato de OCR) e capitaliza
+      // Limpa "E "/"com " inicial, parênteses órfãos e capitaliza
+      const balanceParens = (s: string) => {
+        let t = s;
+        // Remove ")" sem "(" correspondente à esquerda
+        const opens = (t.match(/\(/g) || []).length;
+        const closes = (t.match(/\)/g) || []).length;
+        if (closes > opens) {
+          let extra = closes - opens;
+          t = t.replace(/\)/g, (m) => (extra-- > 0 ? "" : m));
+        }
+        // Remove "(" sem ")" correspondente à direita
+        const opens2 = (t.match(/\(/g) || []).length;
+        const closes2 = (t.match(/\)/g) || []).length;
+        if (opens2 > closes2) {
+          let extra = opens2 - closes2;
+          t = t.replace(/\(/g, (m) => (extra-- > 0 ? "" : m));
+        }
+        return t.replace(/\s{2,}/g, " ").trim();
+      };
       const clean = parts
-        .map(p => p.replace(/^\s*[eE]\s+/, "").trim())
+        .map(p => p.replace(/^\s*(?:[eE]|com)\s+/, "").trim())
+        .map(p => balanceParens(p))
         .map(p => cap(p));
       const sorted = clean
         .map((p, i) => ({ p, k: classifyPart(p), i }))
