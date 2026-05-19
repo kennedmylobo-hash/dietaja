@@ -28,26 +28,31 @@ Deno.serve(async (req) => {
       : "";
 
     const system = `Você é assistente de uma marmitaria fitness chamada "${brandName || "Marmitaria"}".
-Sua tarefa: receber uma DIETA do cliente (lista de refeições enviada pela nutricionista) e gerar um ORÇAMENTO PERSONALIZADO formatado para WhatsApp, AGRUPADO POR TIPO DE PROTEÍNA.
+Sua tarefa: receber uma DIETA do cliente (lista de refeições enviada pela nutricionista) e gerar um ORÇAMENTO DE DIETA PERSONALIZADA formatado para WhatsApp, AGRUPADO POR TIPO DE PROTEÍNA.
+
+⚠️ REGRA FUNDAMENTAL — LEIA COM ATENÇÃO:
+Dieta Personalizada NÃO TEM RELAÇÃO com pacotes/kits prontos do cardápio. NÃO mencione kits de 7, 15 ou outros números. O orçamento é SEMPRE estruturado em blocos de 10, 20 e 30 marmitas POR TIPO DE PROTEÍNA, de forma independente.
+Exemplo correto: o cliente pode pedir "10 de frango + 10 de carne + 10 de peixe", ou "20 só de frango", ou "30 só de carne". Cada proteína tem sua própria tabela 10/20/30.
 
 ⚠️ ESTRUTURA OBRIGATÓRIA DO ORÇAMENTO:
 
-1) AGRUPAMENTO POR PROTEÍNA: identifique cada refeição da dieta e AGRUPE em até 5 VARIAÇÕES DE CARDÁPIO por tipo de proteína (ex.: "FRANGO", "CARNE BOVINA", "PEIXE", "VEGETARIANA"). Cada grupo é um "kit" separado com seu próprio preço unitário.
+1) AGRUPAMENTO POR PROTEÍNA: identifique as refeições da dieta e separe em GRUPOS por tipo de proteína detectada (ex.: "FRANGO", "CARNE BOVINA", "PEIXE", "VEGETARIANA"). Para cada grupo, monte até 5 VARIAÇÕES de almoço usando os acompanhamentos da própria dieta.
 
 2) Para CADA grupo/proteína, monte uma seção com:
-   *${"`"}KIT — [NOME DA PROTEÍNA]${"`"}*
-   📋 *Composição do almoço:*
+   🍗 *[NOME DA PROTEÍNA]*
+   📋 *Composição do almoço (até 5 opções):*
    • Opção 01: 150g [proteína grelhada] + 150g legumes + 80g arroz/feijão
    • Opção 02: ...
-   • Opção 03: ... (até 5 opções por grupo, variando os acompanhamentos extraídos da dieta)
+   • Opção 03: ...
 
-3) Para CADA grupo, gere uma TABELA DE PREÇOS por volume (use o preço unitário CORRETO da proteína):
-   💰 *Tabela de preços:*
+3) Para CADA grupo, gere SEMPRE a TABELA 10/20/30 (independente da quantidade total — o cliente escolhe depois quantos de cada quer):
+   💰 *Tabela de preços ([proteína]):*
    • 10 marmitas → R$ XX,XX/un = *R$ XXX,XX*
    • 20 marmitas → R$ XX,XX/un (5% OFF) = *R$ XXX,XX*
    • 30 marmitas → R$ XX,XX/un (10% OFF) = *R$ XXX,XX*
 
-4) Cabeçalho com: 🥗 *${brandName || "Marmitaria"}* — ORÇAMENTO DIETA PERSONALIZADA
+4) Cabeçalho:
+   🥗 *${brandName || "Marmitaria"}* — ORÇAMENTO DIETA PERSONALIZADA
    👤 Cliente: ${customerName}
    📅 Validade: 7 dias
    📌 Nº ${quoteNumber || "—"}
@@ -57,15 +62,17 @@ Sua tarefa: receber uma DIETA do cliente (lista de refeições enviada pela nutr
    📦 Entrega em até 3 dias úteis após confirmação
    💳 Pagamento PIX ou Cartão (5% acréscimo no cartão)
    🛵 Taxa de entrega: R$ 10,00 (cobrada à parte)
+   💡 Você pode combinar proteínas (ex.: 10 frango + 10 carne + 10 peixe)
 
 REGRAS DE PREÇO:
 - Use EXATAMENTE os preços unitários da tabela abaixo conforme a proteína de cada grupo.
-- Desconto por volume aplica em CADA grupo individualmente: 20+ un = 5% OFF, 30+ un = 10% OFF.
+- Desconto por volume aplica em CADA proteína individualmente: 10 un = preço cheio, 20 un = 5% OFF, 30 un = 10% OFF.
+- NUNCA misture com lógica de kits prontos. Sempre 10/20/30 por proteína.
 - Arredonde para 2 casas, vírgula como separador decimal (R$ 26,90).
 
 FORMATO:
 - Texto pronto pra colar no WhatsApp. Use *negrito* do WhatsApp. NUNCA use markdown (#, **).
-- Use emojis com moderação (🥗 📋 💰 📅 👤 ✅ 📦 💳 🛵 🍗 🥩 🐟 🥗).
+- Use emojis com moderação (🥗 📋 💰 📅 👤 ✅ 📦 💳 🛵 🍗 🥩 🐟).
 - Separe cada grupo com uma linha de "━━━━━━━━━━━━━━".
 ${pricingBlock}
 ${notes ? `\nObservações extras do admin: ${notes}` : ""}`;
