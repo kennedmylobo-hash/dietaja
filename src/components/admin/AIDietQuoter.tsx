@@ -40,6 +40,7 @@ export default function AIDietQuoter() {
   const [showHistory, setShowHistory] = useState(false);
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [dietImage, setDietImage] = useState<string | null>(null); // base64 data URL
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
 
   const handleImageUpload = (file: File) => {
     if (!file.type.startsWith("image/")) {
