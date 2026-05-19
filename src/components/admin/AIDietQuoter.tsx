@@ -258,9 +258,34 @@ export default function AIDietQuoter() {
         <Textarea
           value={dietText}
           onChange={(e) => setDietText(e.target.value)}
-          rows={10}
-          placeholder={`Cole a dieta completa aqui. Ex:\n\nALMOÇO 12:00 – 13:00\n★ FRANGO GRELHADO OU ASSADO – PEITO DE FRANGO OU COXA: 200g\nSubstitutos: tilápia 240g, filé/patinho 200g\n★ LEGUMES REFOGADOS 200g (tomate, cenoura, chuchu...)\n★ 70g ARROZ BRANCO (subst: 50g arroz + 50g feijão / 100g batata inglesa)\n+ SALADA DE FOLHAS`}
+          rows={8}
+          placeholder={`Cole a dieta completa aqui OU envie o print abaixo. Ex:\n\nALMOÇO 12:00 – 13:00\n★ FRANGO GRELHADO – PEITO DE FRANGO: 200g\n★ LEGUMES REFOGADOS 200g\n★ 70g ARROZ BRANCO`}
         />
+        <div className="mt-2 flex items-center gap-3">
+          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-dashed cursor-pointer hover:bg-muted text-sm">
+            <ImageIcon className="w-4 h-4" />
+            {dietImage ? "Trocar print" : "📷 Enviar print da dieta"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
+            />
+          </label>
+          {dietImage && (
+            <div className="relative">
+              <img src={dietImage} alt="Dieta" className="h-16 w-16 object-cover rounded border" />
+              <button
+                type="button"
+                onClick={() => setDietImage(null)}
+                className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+          <span className="text-xs text-muted-foreground">A IA lê a imagem e extrai os itens automaticamente.</span>
+        </div>
       </div>
 
       <div>
