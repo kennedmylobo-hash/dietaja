@@ -276,21 +276,15 @@ export default function CustomDietQuoter() {
       CARNE:  { dark: [198, 40, 40],  light: [255, 235, 230], med: [239, 154, 154], label: "CARNE"  },
       PEIXE:  { dark: [21, 101, 192], light: [227, 242, 253], med: [144, 202, 249], label: "PEIXE"  },
     };
-    // Tabela de regras (preço Kit 10 por proteína e peso). Kits 20 = -5%, 30 = -10%.
-    const RULES: Record<ProteinKey, { w100: number; w200: number }> = {
-      FRANGO: { w100: 24.90, w200: 29.90 },
-      CARNE:  { w100: 27.90, w200: 34.90 },
-      PEIXE:  { w100: 33.90, w200: 39.90 }, // Peixe = Frango + 9 (mantido como tier alto)
+    // Tabela de regras (preço Kit 10 por proteína). Kit 20 = -5%, Kit 30 = -10%.
+    // Valores fixos padrão (independente do peso) — admin pode sobrescrever manualmente por proteína.
+    const RULES: Record<ProteinKey, number> = {
+      FRANGO: 24.90,
+      CARNE:  28.90,
+      PEIXE:  33.90,
     };
-    // Calcula preço-base do Kit 10 conforme peso médio da proteína no grupo.
-    // 100g → w100; 200g → w200; intermediário → interpolação linear; <100 ou >200 → extrapolado.
-    const basePriceFor = (protein: ProteinKey, avgProteinG: number): number => {
-      const r = RULES[protein];
-      const w = Math.max(1, avgProteinG || 100);
-      // Interpolação linear entre 100g e 200g
-      const ratio = (w - 100) / 100; // 0 em 100g, 1 em 200g
-      const price = r.w100 + (r.w200 - r.w100) * ratio;
-      return Math.round(price * 100) / 100;
+    const basePriceFor = (protein: ProteinKey, _avgProteinG: number): number => {
+      return RULES[protein];
     };
     const GREY_TXT: [number, number, number] = [85, 85, 85];
 
@@ -495,16 +489,14 @@ export default function CustomDietQuoter() {
       "✓ Validade do produto: 90 dias congelado no freezer",
     ];
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...GREY_TXT);
-    // duas colunas para caber tudo
-    const colW = contentW / 2;
     const lineH = 4.2;
-    const half = Math.ceil(tips.length / 2);
     tips.forEach((t, i) => {
-      const col = i < half ? 0 : 1;
-      const row = i < half ? i : i - half;
-      doc.text(t, margin + col * colW + (col === 1 ? 2 : 0), y + 3 + row * lineH);
+      const lines = doc.splitTextToSize(t, contentW - 4);
+      lines.forEach((ln: string, li: number) => {
+        doc.text(ln, margin + 2, y + 3 + (i * lineH) + (li * lineH));
+      });
     });
-    y += half * lineH + 4;
+    y += tips.length * lineH + 4;
 
     // ── CONTATO (rodapé final) ────────────────────────────────────────────────
     doc.setDrawColor(180); doc.setLineWidth(0.3);
