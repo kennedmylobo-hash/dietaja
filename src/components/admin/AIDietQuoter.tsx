@@ -28,9 +28,10 @@ export default function AIDietQuoter() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [dietText, setDietText] = useState("");
-  const [pricingHints, setPricingHints] = useState(
-    "Kit 10 unidades — Peito de Frango: R$ 35,90/un. (Total R$ 359,00)\nKit 10 unidades — Carne (Filé/Patinho/Carne magra): R$ 42,90/un. (Total R$ 429,00)\nKit 10 unidades — Peixe (Tilápia 240g): R$ 48,90/un. (Total R$ 489,00)"
-  );
+  const [priceChicken, setPriceChicken] = useState("22.90");
+  const [priceBeef, setPriceBeef] = useState("25.90");
+  const [priceFish, setPriceFish] = useState("28.90");
+  const [priceVeggie, setPriceVeggie] = useState("21.90");
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -70,6 +71,12 @@ export default function AIDietQuoter() {
     setMessage("");
     try {
       const qn = await generateQuoteNumber();
+      const pricingHints = [
+        `Marmita com FRANGO (peito, coxa, file de frango, almôndegas de frango, estrogonofe de frango): R$ ${priceChicken}/un`,
+        `Marmita com CARNE BOVINA (filé, patinho, carne moída, almôndegas de carne, alcatra): R$ ${priceBeef}/un`,
+        `Marmita com PEIXE (tilápia, filé de peixe, salmão): R$ ${priceFish}/un`,
+        `Marmita VEGETARIANA / sem proteína animal: R$ ${priceVeggie}/un`,
+      ].join("\n");
       const { data, error } = await supabase.functions.invoke("generate-diet-quote", {
         body: {
           customerName,
@@ -206,8 +213,28 @@ export default function AIDietQuoter() {
       </div>
 
       <div>
-        <Label>Tabela de preços de referência (a IA usa estes valores)</Label>
-        <Textarea value={pricingHints} onChange={(e) => setPricingHints(e.target.value)} rows={4} className="font-mono text-xs" />
+        <Label>💰 Preço unitário por tipo de proteína (a IA aplica o valor certo em cada marmita)</Label>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+          <div>
+            <Label className="text-xs flex items-center gap-1">🍗 Frango</Label>
+            <Input type="number" step="0.10" value={priceChicken} onChange={(e) => setPriceChicken(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs flex items-center gap-1">🥩 Carne</Label>
+            <Input type="number" step="0.10" value={priceBeef} onChange={(e) => setPriceBeef(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs flex items-center gap-1">🐟 Peixe</Label>
+            <Input type="number" step="0.10" value={priceFish} onChange={(e) => setPriceFish(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs flex items-center gap-1">🥗 Veggie</Label>
+            <Input type="number" step="0.10" value={priceVeggie} onChange={(e) => setPriceVeggie(e.target.value)} />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Cada marmita é precificada individualmente pela proteína dela — o total do orçamento é soma item a item.
+        </p>
       </div>
 
       <div>
