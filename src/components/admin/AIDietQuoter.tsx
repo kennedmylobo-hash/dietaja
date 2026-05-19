@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Sparkles, Copy, Send, History, ChevronDown, ChevronUp, Loader2, Trash2, FileText } from "lucide-react";
+import { Sparkles, Copy, Send, History, ChevronDown, ChevronUp, Loader2, Trash2, FileText, Image as ImageIcon, X, Download } from "lucide-react";
+import jsPDF from "jspdf";
 
 interface SavedQuote {
   id: string;
@@ -37,6 +38,21 @@ export default function AIDietQuoter() {
   const [generating, setGenerating] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
+  const [dietImage, setDietImage] = useState<string | null>(null); // base64 data URL
+
+  const handleImageUpload = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Envie uma imagem", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Imagem grande demais (máx 5MB)", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => setDietImage(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => { if (showHistory) loadHistory(); }, [showHistory]);
 
@@ -63,8 +79,8 @@ export default function AIDietQuoter() {
   };
 
   const handleGenerate = async () => {
-    if (!customerName.trim() || !dietText.trim()) {
-      toast({ title: "Preencha nome do cliente e a dieta", variant: "destructive" });
+    if (!customerName.trim() || (!dietText.trim() && !dietImage)) {
+      toast({ title: "Informe nome do cliente e a dieta (texto ou print)", variant: "destructive" });
       return;
     }
     setGenerating(true);
@@ -81,6 +97,7 @@ export default function AIDietQuoter() {
         body: {
           customerName,
           dietText,
+          dietImageBase64: dietImage || undefined,
           brandName: tenant?.brand_name || "Marmitaria",
           quoteNumber: qn,
           pricing: pricingHints,
@@ -92,13 +109,12 @@ export default function AIDietQuoter() {
       const msg = (data as any)?.message || "";
       setMessage(msg);
 
-      // Save to history
       await supabase.from("custom_diet_quotes" as any).insert({
         tenant_id: tenantId,
         customer_name: customerName,
         customer_phone: customerPhone || null,
         items: [] as any,
-        raw_diet_input: dietText,
+        raw_diet_input: dietText || "[imagem enviada pelo cliente]",
         formatted_message: msg,
         quote_number: qn,
         notes: notes || null,
@@ -111,6 +127,41 @@ export default function AIDietQuoter() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleDownloadPDF = () => {
+    if (!message) return;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const brand = tenant?.brand_name || "Marmitaria";
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const maxW = pageW - margin * 2;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text(brand, pageW / 2, 18, { align: "center" });
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text("Orçamento — Dieta Personalizada", pageW / 2, 25, { align: "center" });
+    doc.setDrawColor(200);
+    doc.line(margin, 30, pageW - margin, 30);
+
+    // Strip WhatsApp markdown (*bold*) for cleaner PDF
+    const cleaned = message.replace(/\*(.+?)\*/g, "$1");
+    doc.setFontSize(10);
+    const lines = doc.splitTextToSize(cleaned, maxW);
+    let y = 38;
+    const lineH = 5;
+    lines.forEach((ln: string) => {
+      if (y > pageH - margin) { doc.addPage(); y = margin; }
+      doc.text(ln, margin, y);
+      y += lineH;
+    });
+
+    const fname = `orcamento-${(customerName || "cliente").replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.pdf`;
+    doc.save(fname);
+    toast({ title: "📄 PDF baixado!" });
   };
 
   const handleCopy = async () => {
@@ -207,9 +258,34 @@ export default function AIDietQuoter() {
         <Textarea
           value={dietText}
           onChange={(e) => setDietText(e.target.value)}
-          rows={10}
-          placeholder={`Cole a dieta completa aqui. Ex:\n\nALMOÇO 12:00 – 13:00\n★ FRANGO GRELHADO OU ASSADO – PEITO DE FRANGO OU COXA: 200g\nSubstitutos: tilápia 240g, filé/patinho 200g\n★ LEGUMES REFOGADOS 200g (tomate, cenoura, chuchu...)\n★ 70g ARROZ BRANCO (subst: 50g arroz + 50g feijão / 100g batata inglesa)\n+ SALADA DE FOLHAS`}
+          rows={8}
+          placeholder={`Cole a dieta completa aqui OU envie o print abaixo. Ex:\n\nALMOÇO 12:00 – 13:00\n★ FRANGO GRELHADO – PEITO DE FRANGO: 200g\n★ LEGUMES REFOGADOS 200g\n★ 70g ARROZ BRANCO`}
         />
+        <div className="mt-2 flex items-center gap-3">
+          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-dashed cursor-pointer hover:bg-muted text-sm">
+            <ImageIcon className="w-4 h-4" />
+            {dietImage ? "Trocar print" : "📷 Enviar print da dieta"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
+            />
+          </label>
+          {dietImage && (
+            <div className="relative">
+              <img src={dietImage} alt="Dieta" className="h-16 w-16 object-cover rounded border" />
+              <button
+                type="button"
+                onClick={() => setDietImage(null)}
+                className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+          <span className="text-xs text-muted-foreground">A IA lê a imagem e extrai os itens automaticamente.</span>
+        </div>
       </div>
 
       <div>
@@ -262,6 +338,9 @@ export default function AIDietQuoter() {
               </Button>
               <Button onClick={handleSendWhatsApp} variant="outline" className="flex-1">
                 <Send className="w-4 h-4 mr-2" /> Enviar WhatsApp
+              </Button>
+              <Button onClick={handleDownloadPDF} variant="outline" className="flex-1">
+                <Download className="w-4 h-4 mr-2" /> Baixar PDF
               </Button>
             </div>
           </CardContent>
