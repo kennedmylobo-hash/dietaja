@@ -267,150 +267,171 @@ export default function CustomDietQuoter() {
     const contentW = W - 2 * margin;
     const brandName = tenant?.brand_name || "Restaurante";
 
-    // Palette (matches user's reference)
-    const GREEN: [number, number, number] = [46, 125, 50];
-    const GREEN_LIGHT: [number, number, number] = [232, 245, 233];
-    const GREEN_MED: [number, number, number] = [165, 214, 167];
+    // ── Protein palettes + price tables (independent per protein) ─────────────
+    type ProteinKey = "FRANGO" | "CARNE" | "PEIXE";
+    const PALETTE: Record<ProteinKey, { dark: [number, number, number]; light: [number, number, number]; med: [number, number, number]; label: string }> = {
+      FRANGO: { dark: [46, 125, 50],  light: [232, 245, 233], med: [165, 214, 167], label: "FRANGO" },
+      CARNE:  { dark: [198, 40, 40],  light: [255, 235, 230], med: [239, 154, 154], label: "CARNE"  },
+      PEIXE:  { dark: [21, 101, 192], light: [227, 242, 253], med: [144, 202, 249], label: "PEIXE"  },
+    };
+    const KIT_PRICES: Record<ProteinKey, { qty: number; unit: number }[]> = {
+      FRANGO: [{ qty: 10, unit: 24.90 }, { qty: 20, unit: 22.90 }, { qty: 30, unit: 20.90 }],
+      CARNE:  [{ qty: 10, unit: 28.90 }, { qty: 20, unit: 26.90 }, { qty: 30, unit: 23.90 }],
+      PEIXE:  [{ qty: 10, unit: 33.90 }, { qty: 20, unit: 31.90 }, { qty: 30, unit: 28.90 }],
+    };
     const GREY_TXT: [number, number, number] = [85, 85, 85];
+
+    // Classify each item by protein keyword in description
+    const classify = (desc: string): ProteinKey => {
+      const d = desc.toLowerCase();
+      if (/peixe|til[áa]pia|salm[ãa]o|mer?luza|atum|saint/.test(d)) return "PEIXE";
+      if (/frango|peito|coxa|sobrecoxa/.test(d)) return "FRANGO";
+      if (/carne|patinho|al[cs]atra|file?[ ]?mignon|file?[ ]?bovino|m[íi]gnon|bovina|moid[ao]|cup[íi]m|m[úu]sculo/.test(d)) return "CARNE";
+      return "FRANGO"; // default fallback
+    };
+
+    // Group items by protein, preserving the original Opcao numbering across groups
+    const groups: { protein: ProteinKey; items: { number: number; description: string }[] }[] = [];
+    const order: ProteinKey[] = ["FRANGO", "CARNE", "PEIXE"];
+    const byProtein: Record<ProteinKey, { number: number; description: string }[]> = {
+      FRANGO: [], CARNE: [], PEIXE: [],
+    };
+    // Renumber sequentially: 01..N following Frango → Carne → Peixe order
+    let opNum = 1;
+    const itemsByProtein = items.map(it => ({ protein: classify(it.description), description: it.description.trim() }));
+    for (const p of order) {
+      for (const it of itemsByProtein.filter(i => i.protein === p)) {
+        byProtein[p].push({ number: opNum++, description: it.description });
+      }
+    }
+    for (const p of order) {
+      if (byProtein[p].length > 0) groups.push({ protein: p, items: byProtein[p].slice(0, 8) }); // cap at 8
+    }
 
     let y = 14;
 
-    // HEADER (green bar)
-    doc.setFillColor(...GREEN);
-    doc.roundedRect(margin, y, contentW, 20, 2, 2, "F");
+    // ── HEADER (dark) ─────────────────────────────────────────────────────────
+    doc.setFillColor(33, 33, 33);
+    doc.roundedRect(margin, y, contentW, 22, 2, 2, "F");
     doc.setTextColor(255);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(15);
+    doc.text("ORÇAMENTO — DIETA PERSONALIZADA", W / 2, y + 9, { align: "center" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+    doc.text(`${brandName} • Marmitas personalizadas • Produção sob demanda • Ingredientes frescos`, W / 2, y + 16, { align: "center" });
+    y += 26;
+
+    // ── CLIENT ROW ────────────────────────────────────────────────────────────
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(margin, y, contentW, 10, 2, 2, "F");
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold"); doc.setTextColor(0);
+    doc.text("Cliente:", margin + 3, y + 6.5);
+    doc.setFont("helvetica", "normal"); doc.text(customerName || "—", margin + 17, y + 6.5);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
-    doc.text("ORÇAMENTO — DIETA PERSONALIZADA", W / 2, y + 8, { align: "center" });
+    doc.text("Data:", margin + contentW / 2 - 18, y + 6.5);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(`${brandName} • Marmitas personalizadas • Produção sob demanda`, W / 2, y + 15, { align: "center" });
-    y += 24;
+    doc.text(new Date().toLocaleDateString("pt-BR"), margin + contentW / 2 - 8, y + 6.5);
+    doc.setFont("helvetica", "bold");
+    doc.text("Validade:", W - margin - 35, y + 6.5);
+    doc.setFont("helvetica", "normal");
+    doc.text("7 dias", W - margin - 18, y + 6.5);
+    y += 14;
 
-    // CLIENT ROW
-    doc.setFillColor(...GREEN_LIGHT);
-    doc.roundedRect(margin, y, contentW, 11, 2, 2, "F");
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold"); doc.setTextColor(...GREEN);
-    doc.text("Cliente:", margin + 3, y + 7);
-    doc.setTextColor(0); doc.text(customerName || "—", margin + 18, y + 7);
-    if (customerPhone) {
-      doc.setTextColor(...GREEN); doc.text("WhatsApp:", margin + 80, y + 7);
-      doc.setTextColor(0); doc.setFont("helvetica", "normal"); doc.text(customerPhone, margin + 100, y + 7);
-    }
-    doc.setFont("helvetica", "bold"); doc.setTextColor(...GREEN);
-    doc.text("Data:", W - margin - 32, y + 7);
-    doc.setTextColor(0); doc.setFont("helvetica", "normal");
-    doc.text(new Date().toLocaleDateString("pt-BR"), W - margin - 22, y + 7);
-    y += 15;
+    // ── Helper: render one protein section (menu + price table) ───────────────
+    const renderSection = (g: typeof groups[number]) => {
+      const pal = PALETTE[g.protein];
 
-    // SECTION: CARDÁPIOS
-    doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...GREEN);
-    doc.text("CARDÁPIOS DISPONÍVEIS", margin, y);
-    y += 1.5;
-    doc.setDrawColor(...GREEN_MED); doc.setLineWidth(0.6);
-    doc.line(margin, y, margin + contentW, y);
-    y += 2;
-
-    const rowH = 9;
-    const numW = 26;
-    items.forEach((item, i) => {
-      if (y + rowH > H - 50) { doc.addPage(); y = margin; }
-      const bg = i % 2 === 0 ? GREEN_LIGHT : [255, 255, 255] as [number, number, number];
-      doc.setFillColor(...bg);
-      doc.roundedRect(margin, y, contentW, rowH, 1.5, 1.5, "F");
-      // num badge
-      doc.setFillColor(...GREEN);
-      doc.roundedRect(margin + 1.2, y + 1.2, numW - 2.4, rowH - 2.4, 1.5, 1.5, "F");
-      doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
-      doc.text(`Opção ${String(item.number).padStart(2, "0")}`, margin + numW / 2, y + rowH / 2 + 1, { align: "center" });
-      // desc
-      doc.setTextColor(0); doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-      const descMax = contentW - numW - 30;
-      const descLines = doc.splitTextToSize(item.description, descMax);
-      doc.text(descLines[0] + (descLines.length > 1 ? "…" : ""), margin + numW + 3, y + rowH / 2 + 1);
-      // weight on right
-      doc.setFont("helvetica", "bold"); doc.setTextColor(...GREY_TXT);
-      doc.text(`${item.totalWeight}g`, margin + contentW - 4, y + rowH / 2 + 1, { align: "right" });
-      y += rowH;
-    });
-
-    y += 6;
-
-    // SECTION: KITS 10/20/30
-    doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...GREEN);
-    doc.text("KITS E PREÇOS (DIETA PERSONALIZADA)", margin, y);
-    y += 1.5;
-    doc.setDrawColor(...GREEN_MED); doc.setLineWidth(0.6);
-    doc.line(margin, y, margin + contentW, y);
-    y += 2;
-
-    // 4 columns: Kit | Qtd | Valor Unit | Total
-    const colW = [contentW * 0.33, contentW * 0.22, contentW * 0.23, contentW * 0.22];
-    const colX = [margin];
-    for (let i = 0; i < 3; i++) colX.push(colX[i] + colW[i]);
-    const centers = colX.map((cx, i) => cx + colW[i] / 2);
-
-    // header row
-    doc.setFillColor(...GREEN);
-    doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, "F");
-    doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
-    ["Kit", "Qtd.", "Valor Unitário", "Total"].forEach((h, i) =>
-      doc.text(h, centers[i], y + 5.4, { align: "center" })
-    );
-    y += 8;
-
-    // Volume rules: 10un cheio, 20un -5%, 30un -10%
-    const unitPrice = subtotalPerUnit; // R$/un already configured
-    const kits = [
-      { label: "Kit 10 unidades", qty: 10, discount: 0 },
-      { label: "Kit 20 unidades", qty: 20, discount: 0.05 },
-      { label: "Kit 30 unidades", qty: 30, discount: 0.10 },
-    ];
-
-    kits.forEach((k, i) => {
-      const bg = i % 2 === 0 ? GREEN_LIGHT : [255, 255, 255] as [number, number, number];
-      doc.setFillColor(...bg);
-      doc.roundedRect(margin, y, contentW, 9, 1.5, 1.5, "F");
-      const u = unitPrice * (1 - k.discount);
-      const total = u * k.qty;
-      doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
-      doc.text(k.label, colX[0] + 3, y + 6);
-      doc.setFont("helvetica", "normal");
-      doc.text(`${k.qty} marmitas`, centers[1], y + 6, { align: "center" });
-      const discTag = k.discount > 0 ? `  (-${Math.round(k.discount * 100)}%)` : "";
-      doc.text(`${formatCurrency(u)}/un${discTag}`, centers[2], y + 6, { align: "center" });
-      doc.setFont("helvetica", "bold"); doc.setTextColor(...GREEN);
-      doc.text(formatCurrency(total), centers[3], y + 6, { align: "center" });
+      // Cardápio header bar
+      doc.setFillColor(...pal.dark);
+      doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, "F");
+      doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+      doc.text(`CARDÁPIOS — ${pal.label}`, margin + 3, y + 5.5);
       y += 9;
-    });
 
-    y += 6;
+      // Menu rows (full description, wraps to multiple lines, no "…")
+      const numW = 24;
+      g.items.forEach((it, i) => {
+        const desc = it.description;
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+        const lines = doc.splitTextToSize(desc, contentW - numW - 8);
+        const rowH = Math.max(8, 3.2 + lines.length * 4.2);
+        // page break if needed (keep 30mm reserved for footer)
+        if (y + rowH > H - 32) { doc.addPage(); y = margin; }
+        const bg = i % 2 === 0 ? pal.light : [255, 255, 255] as [number, number, number];
+        doc.setFillColor(...bg);
+        doc.roundedRect(margin, y, contentW, rowH, 1.2, 1.2, "F");
+        // badge
+        doc.setFillColor(...pal.dark);
+        doc.roundedRect(margin + 1.2, y + 1.2, numW - 2.4, rowH - 2.4, 1.2, 1.2, "F");
+        doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
+        doc.text(`Opcao ${String(it.number).padStart(2, "0")}`, margin + numW / 2, y + rowH / 2 + 1, { align: "center" });
+        // description (multi-line)
+        doc.setTextColor(0); doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+        lines.forEach((ln: string, li: number) => {
+          doc.text(ln, margin + numW + 3, y + 5 + li * 4.2);
+        });
+        y += rowH;
+      });
 
-    // Subtotal note
-    doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); doc.setTextColor(...GREY_TXT);
-    doc.text(
-      `Valor unitário base por marmita: ${formatCurrency(unitPrice)} • Combine proteínas livremente (ex.: 10 frango + 10 carne + 10 peixe).`,
-      margin, y
-    );
-    y += 6;
+      y += 3;
 
-    if (notes) {
-      const noteLines = doc.splitTextToSize(`Obs.: ${notes}`, contentW);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(0);
-      noteLines.forEach((ln: string) => { doc.text(ln, margin, y); y += 4.2; });
-      y += 2;
-    }
+      // Kit table header
+      if (y + 30 > H - 32) { doc.addPage(); y = margin; }
+      doc.setFillColor(...pal.dark);
+      doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, "F");
+      doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+      doc.text(`KITS E PREÇOS — ${pal.label}`, margin + 3, y + 5.5);
+      y += 8;
 
-    // FOOTER
-    const footerY = H - 22;
-    doc.setDrawColor(...GREEN); doc.setLineWidth(0.8);
+      // Table column header
+      const colW = [contentW * 0.20, contentW * 0.28, contentW * 0.28, contentW * 0.24];
+      const colX = [margin];
+      for (let i = 0; i < 3; i++) colX.push(colX[i] + colW[i]);
+      const centers = colX.map((cx, i) => cx + colW[i] / 2);
+
+      doc.setFillColor(...pal.med);
+      doc.rect(margin, y, contentW, 7, "F");
+      doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
+      ["Kit", "Qtd.", "Valor Unitário", "Total"].forEach((h, i) =>
+        doc.text(h, centers[i], y + 5, { align: "center" })
+      );
+      y += 7;
+
+      // Kit rows (independent per-protein prices)
+      KIT_PRICES[g.protein].forEach((k, i) => {
+        const bg = i % 2 === 0 ? pal.light : [255, 255, 255] as [number, number, number];
+        doc.setFillColor(...bg);
+        doc.rect(margin, y, contentW, 8.5, "F");
+        const total = k.unit * k.qty;
+        doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+        doc.text(`Kit ${k.qty}`, centers[0], y + 5.8, { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.text(`${k.qty} marmitas`, centers[1], y + 5.8, { align: "center" });
+        doc.text(`${formatCurrency(k.unit)}/un.`, centers[2], y + 5.8, { align: "center" });
+        doc.setFont("helvetica", "bold"); doc.setTextColor(...pal.dark);
+        doc.text(formatCurrency(total), centers[3], y + 5.8, { align: "center" });
+        y += 8.5;
+      });
+
+      y += 6;
+    };
+
+    groups.forEach(renderSection);
+
+    // ── FOOTER ────────────────────────────────────────────────────────────────
+    if (y + 30 > H - 10) { doc.addPage(); y = margin; }
+    const footerY = Math.max(y, H - 28);
+    doc.setDrawColor(0); doc.setLineWidth(0.4);
     doc.line(margin, footerY, margin + contentW, footerY);
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...GREY_TXT);
-    doc.text("❄ Marmitas preparadas, CONGELADAS e enviadas — validade 90 dias no freezer.", margin, footerY + 5);
-    doc.text("💳 Pagamento PIX ou Cartão (+5%)   🛵 Taxa de entrega: R$ 10,00   📦 Produção em até 3 dias úteis.", margin, footerY + 9.5);
-    doc.setFont("helvetica", "italic");
-    doc.text("Obrigado pela preferência! Estamos à disposição para qualquer dúvida.", W / 2, footerY + 15, { align: "center" });
+    const tips = [
+      "✓ Produzimos após confirmação do pedido",
+      "✓ Entregamos em até 3 dias úteis",
+      "✓ Taxa de entrega: R$ 10,00",
+      "✓ Pagamento cartão: +5%   •   PIX: chave via WhatsApp",
+      "❄ Marmitas preparadas, CONGELADAS e enviadas — validade 90 dias no freezer.",
+    ];
+    tips.forEach((t, i) => doc.text(t, margin, footerY + 4.5 + i * 4));
 
     doc.save(`orcamento-dieta-${(customerName || "cliente").replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.pdf`);
     handleSave();
