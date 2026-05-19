@@ -101,12 +101,31 @@ export default function AIDietQuoter() {
     setMessage("");
     try {
       const qn = await generateQuoteNumber();
-      const pricingHints = [
-        `Marmita com FRANGO (peito, coxa, file de frango, almôndegas de frango, estrogonofe de frango): R$ ${priceChicken}/un`,
-        `Marmita com CARNE BOVINA (filé, patinho, carne moída, almôndegas de carne, alcatra): R$ ${priceBeef}/un`,
-        `Marmita com PEIXE (tilápia, filé de peixe, salmão): R$ ${priceFish}/un`,
-        `Marmita VEGETARIANA / sem proteína animal: R$ ${priceVeggie}/un`,
-      ].join("\n");
+      let pricingHints = "";
+      if (autoPricing) {
+        pricingHints = [
+          `Marmita com FRANGO (peito, coxa, file de frango, almôndegas de frango, estrogonofe de frango): R$ ${priceChicken}/un`,
+          `Marmita com CARNE BOVINA (filé, patinho, carne moída, almôndegas de carne, alcatra): R$ ${priceBeef}/un`,
+          `Marmita com PEIXE (tilápia, filé de peixe, salmão): R$ ${priceFish}/un`,
+          `Marmita VEGETARIANA / sem proteína animal: R$ ${priceVeggie}/un`,
+        ].join("\n");
+      } else {
+        // Manual mode — exact totals per quantity, no auto discounts/rules
+        const lines: string[] = [];
+        (["FRANGO", "CARNE", "PEIXE"] as const).forEach((p) => {
+          (["10", "20", "30"] as const).forEach((q) => {
+            const raw = manualPrices[p][q];
+            const v = parseFloat((raw || "").replace(",", "."));
+            if (!isNaN(v) && v > 0) {
+              const isTotal = v >= parseInt(q) * 5; // heuristic: >R$5/un means it's total
+              const unit = isTotal ? v / parseInt(q) : v;
+              const total = isTotal ? v : v * parseInt(q);
+              lines.push(`${p} • ${q} marmitas → R$ ${fmtBR(unit)}/un = R$ ${fmtBR(total)} (TOTAL)`);
+            }
+          });
+        });
+        pricingHints = lines.join("\n");
+      }
       const { data, error } = await supabase.functions.invoke("generate-diet-quote", {
         body: {
           customerName,
@@ -115,6 +134,7 @@ export default function AIDietQuoter() {
           brandName: tenant?.brand_name || "Marmitaria",
           quoteNumber: qn,
           pricing: pricingHints,
+          pricingMode: autoPricing ? "auto" : "manual",
           notes,
         },
       });
