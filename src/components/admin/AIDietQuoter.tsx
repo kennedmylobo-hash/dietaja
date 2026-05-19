@@ -28,9 +28,10 @@ export default function AIDietQuoter() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [dietText, setDietText] = useState("");
-  const [pricingHints, setPricingHints] = useState(
-    "Kit 10 unidades — Peito de Frango: R$ 35,90/un. (Total R$ 359,00)\nKit 10 unidades — Carne (Filé/Patinho/Carne magra): R$ 42,90/un. (Total R$ 429,00)\nKit 10 unidades — Peixe (Tilápia 240g): R$ 48,90/un. (Total R$ 489,00)"
-  );
+  const [priceChicken, setPriceChicken] = useState("22.90");
+  const [priceBeef, setPriceBeef] = useState("25.90");
+  const [priceFish, setPriceFish] = useState("28.90");
+  const [priceVeggie, setPriceVeggie] = useState("21.90");
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
   const [generating, setGenerating] = useState(false);
