@@ -290,6 +290,20 @@ export default function CustomDietQuoter() {
       return "FRANGO"; // default fallback
     };
 
+    // Build a weighted description from ingredients (e.g. "150g Frango grelhado + 100g Arroz + 80g Feijão")
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+    const buildDesc = (it: QuoteItem): string => {
+      if (it.ingredients && it.ingredients.length > 0) {
+        const catOrder: Record<string, number> = { protein: 0, carb: 1, veggie: 2 };
+        const parts = [...it.ingredients]
+          .filter(ing => (ing.weightGrams || 0) > 0 && ing.name?.trim())
+          .sort((a, b) => (catOrder[a.category] ?? 9) - (catOrder[b.category] ?? 9))
+          .map(ing => `${Math.round(ing.weightGrams)}g ${cap(ing.name.trim())}`);
+        if (parts.length > 0) return parts.join(" + ");
+      }
+      return (it.description || "").trim();
+    };
+
     // Group items by protein, preserving the original Opcao numbering across groups
     const groups: { protein: ProteinKey; items: { number: number; description: string }[] }[] = [];
     const order: ProteinKey[] = ["FRANGO", "CARNE", "PEIXE"];
@@ -298,7 +312,7 @@ export default function CustomDietQuoter() {
     };
     // Renumber sequentially: 01..N following Frango → Carne → Peixe order
     let opNum = 1;
-    const itemsByProtein = items.map(it => ({ protein: classify(it.description), description: it.description.trim() }));
+    const itemsByProtein = items.map(it => ({ protein: classify(it.description), description: buildDesc(it) }));
     for (const p of order) {
       for (const it of itemsByProtein.filter(i => i.protein === p)) {
         byProtein[p].push({ number: opNum++, description: it.description });
