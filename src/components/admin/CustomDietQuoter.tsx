@@ -393,7 +393,7 @@ export default function CustomDietQuoter() {
     }
     let opNum = 1;
     for (const p of order) {
-      const list = byProtein[p].slice(0, 6); // máx 6 sabores por proteína
+      const list = byProtein[p].slice(0, 10); // máx 10 sabores por proteína
       if (list.length === 0) continue;
       const avgProteinG = list.reduce((s, x) => s + (x.it.proteinWeight || 0), 0) / list.length;
       groups.push({
