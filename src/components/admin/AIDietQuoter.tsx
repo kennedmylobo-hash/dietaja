@@ -542,7 +542,7 @@ export default function AIDietQuoter() {
         )}
       </div>
 
-      {autoPricing && (
+      {autoPricing ? (
         <Card className="border-dashed">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">✅ Confira antes de gerar:</CardTitle>
@@ -563,6 +563,74 @@ export default function AIDietQuoter() {
             </div>
           </CardContent>
         </Card>
+      ) : (
+        (() => {
+          const proteinas = [
+            { key: "FRANGO" as const, label: "🍗 Frango" },
+            { key: "CARNE" as const, label: "🥩 Carne" },
+            { key: "PEIXE" as const, label: "🐟 Peixe" },
+          ];
+          let grandTotal = 0;
+          let totalLines = 0;
+          let skipped = 0;
+          const rows = proteinas.map((pr) => {
+            const cells = (["10", "20", "30"] as const).map((q) => {
+              const raw = manualPrices[pr.key][q];
+              const v = parseFloat((raw || "").replace(",", "."));
+              if (isNaN(v) || v <= 0) { skipped++; return { q, blank: true as const }; }
+              const qty = parseInt(q);
+              const isTotal = v >= qty * 5;
+              const unit = isTotal ? v / qty : v;
+              const total = isTotal ? v : v * qty;
+              grandTotal += total;
+              totalLines++;
+              return { q, blank: false as const, unit, total };
+            });
+            return { ...pr, cells };
+          });
+          return (
+            <Card className="border-dashed">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center justify-between flex-wrap gap-2">
+                  <span>✅ Prévia do que a IA vai somar:</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {totalLines} linha{totalLines === 1 ? "" : "s"} preenchida{totalLines === 1 ? "" : "s"}
+                    {skipped > 0 && <> · {skipped} em branco (IA pula)</>}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  {rows.map((pr) => (
+                    <div key={pr.key} className="rounded-lg border p-2 bg-muted/30">
+                      <div className="font-semibold mb-1">{pr.label}</div>
+                      {pr.cells.map((c) =>
+                        c.blank ? (
+                          <div key={c.q} className="text-muted-foreground italic">
+                            {c.q}un → — <span className="text-[10px]">(em branco · IA pula)</span>
+                          </div>
+                        ) : (
+                          <div key={c.q}>
+                            {c.q}un → R$ {fmtBR(c.unit)}/un = <b>R$ {fmtBR(c.total)}</b>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {totalLines > 0 && (
+                  <div className="mt-3 pt-2 border-t flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Soma máxima (se cliente pegar todas as opções acima):</span>
+                    <span className="font-bold text-sm">R$ {fmtBR(grandTotal)}</span>
+                  </div>
+                )}
+                {totalLines === 0 && (
+                  <p className="mt-2 text-xs text-destructive">⚠️ Preencha pelo menos uma linha — a IA não tem o que cotar.</p>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()
       )}
 
       <div>
