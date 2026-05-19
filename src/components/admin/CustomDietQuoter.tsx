@@ -462,8 +462,7 @@ export default function CustomDietQuoter() {
 
     groups.forEach(renderSection);
 
-    // ── FOOTER ────────────────────────────────────────────────────────────────
-    if (y + 30 > H - 10) { doc.addPage(); y = margin; }
+    // ── FOOTER (single page) ──────────────────────────────────────────────────
     const footerY = Math.max(y, H - 28);
     doc.setDrawColor(0); doc.setLineWidth(0.4);
     doc.line(margin, footerY, margin + contentW, footerY);
