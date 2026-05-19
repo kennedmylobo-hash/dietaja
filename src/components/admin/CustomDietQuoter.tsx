@@ -489,16 +489,14 @@ export default function CustomDietQuoter() {
       "✓ Validade do produto: 90 dias congelado no freezer",
     ];
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...GREY_TXT);
-    // duas colunas para caber tudo
-    const colW = contentW / 2;
     const lineH = 4.2;
-    const half = Math.ceil(tips.length / 2);
     tips.forEach((t, i) => {
-      const col = i < half ? 0 : 1;
-      const row = i < half ? i : i - half;
-      doc.text(t, margin + col * colW + (col === 1 ? 2 : 0), y + 3 + row * lineH);
+      const lines = doc.splitTextToSize(t, contentW - 4);
+      lines.forEach((ln: string, li: number) => {
+        doc.text(ln, margin + 2, y + 3 + (i * lineH) + (li * lineH));
+      });
     });
-    y += half * lineH + 4;
+    y += tips.length * lineH + 4;
 
     // ── CONTATO (rodapé final) ────────────────────────────────────────────────
     doc.setDrawColor(180); doc.setLineWidth(0.3);
