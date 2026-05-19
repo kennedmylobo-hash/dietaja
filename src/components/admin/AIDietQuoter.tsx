@@ -71,6 +71,12 @@ export default function AIDietQuoter() {
     setMessage("");
     try {
       const qn = await generateQuoteNumber();
+      const pricingHints = [
+        `Marmita com FRANGO (peito, coxa, file de frango, almôndegas de frango, estrogonofe de frango): R$ ${priceChicken}/un`,
+        `Marmita com CARNE BOVINA (filé, patinho, carne moída, almôndegas de carne, alcatra): R$ ${priceBeef}/un`,
+        `Marmita com PEIXE (tilápia, filé de peixe, salmão): R$ ${priceFish}/un`,
+        `Marmita VEGETARIANA / sem proteína animal: R$ ${priceVeggie}/un`,
+      ].join("\n");
       const { data, error } = await supabase.functions.invoke("generate-diet-quote", {
         body: {
           customerName,
