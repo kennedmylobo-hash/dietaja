@@ -420,8 +420,7 @@ export default function CustomDietQuoter() {
 
       y += 3;
 
-      // Kit table header
-      if (y + 30 > H - 32) { doc.addPage(); y = margin; }
+      // Kit table header (single page)
       doc.setFillColor(...pal.dark);
       doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, "F");
       doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
