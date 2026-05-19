@@ -339,6 +339,9 @@ export default function AIDietQuoter() {
               <Button onClick={handleSendWhatsApp} variant="outline" className="flex-1">
                 <Send className="w-4 h-4 mr-2" /> Enviar WhatsApp
               </Button>
+              <Button onClick={handleDownloadPDF} variant="outline" className="flex-1">
+                <Download className="w-4 h-4 mr-2" /> Baixar PDF
+              </Button>
             </div>
           </CardContent>
         </Card>
