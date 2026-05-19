@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { customerName, dietText, dietImageBase64, brandName, quoteNumber, pricing, notes } = await req.json();
+    const { customerName, dietText, dietImageBase64, brandName, quoteNumber, pricing, pricingMode, notes } = await req.json();
 
     if (!customerName || (!dietText && !dietImageBase64)) {
       return new Response(JSON.stringify({ error: "Informe nome do cliente e a dieta (texto ou imagem)." }), {
@@ -23,9 +23,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    const isManual = pricingMode === "manual";
     const pricingBlock = pricing
-      ? `\n\nREGRAS DE PREÇO (use exatamente estes valores):\n${pricing}\n`
+      ? (isManual
+          ? `\n\nTABELA DE PREÇOS MANUAL DO ADMIN (USE EXATAMENTE ESTES VALORES — UM POR LINHA, JÁ INCLUI UNITÁRIO E TOTAL):\n${pricing}\n\n⚠️ MODO MANUAL ATIVO: NÃO aplique nenhuma regra automática (sem 5%/10% off, sem "peixe = frango + 9", sem comparar frango vs carne). Apenas reproduza os valores acima como vieram. Se alguma linha não foi informada (proteína/quantidade), OMITA aquela linha da tabela de preços.\n`
+          : `\n\nREGRAS DE PREÇO (use exatamente estes valores unitários — aplique 5% OFF em 20un e 10% OFF em 30un):\n${pricing}\n`)
       : "";
+
 
     const system = `Você é assistente de uma marmitaria fitness chamada "${brandName || "Marmitaria"}".
 Sua tarefa: receber uma DIETA do cliente e gerar um ORÇAMENTO DE DIETA PERSONALIZADA formatado para WhatsApp, SEMPRE SEPARADO EM 3 BLOCOS POR PROTEÍNA (FRANGO, CARNE, PEIXE), idêntico ao modelo abaixo.
