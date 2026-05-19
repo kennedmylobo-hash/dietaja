@@ -38,6 +38,21 @@ export default function AIDietQuoter() {
   const [generating, setGenerating] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
+  const [dietImage, setDietImage] = useState<string | null>(null); // base64 data URL
+
+  const handleImageUpload = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Envie uma imagem", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Imagem grande demais (máx 5MB)", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => setDietImage(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => { if (showHistory) loadHistory(); }, [showHistory]);
 
