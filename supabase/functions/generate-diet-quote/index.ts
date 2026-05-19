@@ -47,6 +47,16 @@ FORMATO:
 - Texto pronto para colar no WhatsApp. NÃO use markdown (#). Use *negrito* do WhatsApp.${pricingBlock}
 ${notes ? `\nObservações extras do admin: ${notes}` : ""}`;
 
+    const userContent: any[] = [
+      { type: "text", text: `Cliente: ${customerName}\n\n${dietText ? `Dieta (texto):\n${dietText}` : "Dieta enviada como imagem — extraia os itens, quantidades e proteínas da imagem."}` },
+    ];
+    if (dietImageBase64) {
+      const dataUrl = dietImageBase64.startsWith("data:")
+        ? dietImageBase64
+        : `data:image/jpeg;base64,${dietImageBase64}`;
+      userContent.push({ type: "image_url", image_url: { url: dataUrl } });
+    }
+
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
@@ -54,7 +64,7 @@ ${notes ? `\nObservações extras do admin: ${notes}` : ""}`;
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: system },
-          { role: "user", content: `Cliente: ${customerName}\n\nDieta:\n${dietText}` },
+          { role: "user", content: userContent },
         ],
       }),
     });
