@@ -79,8 +79,8 @@ export default function AIDietQuoter() {
   };
 
   const handleGenerate = async () => {
-    if (!customerName.trim() || !dietText.trim()) {
-      toast({ title: "Preencha nome do cliente e a dieta", variant: "destructive" });
+    if (!customerName.trim() || (!dietText.trim() && !dietImage)) {
+      toast({ title: "Informe nome do cliente e a dieta (texto ou print)", variant: "destructive" });
       return;
     }
     setGenerating(true);
@@ -97,6 +97,7 @@ export default function AIDietQuoter() {
         body: {
           customerName,
           dietText,
+          dietImageBase64: dietImage || undefined,
           brandName: tenant?.brand_name || "Marmitaria",
           quoteNumber: qn,
           pricing: pricingHints,
@@ -108,13 +109,12 @@ export default function AIDietQuoter() {
       const msg = (data as any)?.message || "";
       setMessage(msg);
 
-      // Save to history
       await supabase.from("custom_diet_quotes" as any).insert({
         tenant_id: tenantId,
         customer_name: customerName,
         customer_phone: customerPhone || null,
         items: [] as any,
-        raw_diet_input: dietText,
+        raw_diet_input: dietText || "[imagem enviada pelo cliente]",
         formatted_message: msg,
         quote_number: qn,
         notes: notes || null,
@@ -127,6 +127,41 @@ export default function AIDietQuoter() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleDownloadPDF = () => {
+    if (!message) return;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const brand = tenant?.brand_name || "Marmitaria";
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const maxW = pageW - margin * 2;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text(brand, pageW / 2, 18, { align: "center" });
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text("Orçamento — Dieta Personalizada", pageW / 2, 25, { align: "center" });
+    doc.setDrawColor(200);
+    doc.line(margin, 30, pageW - margin, 30);
+
+    // Strip WhatsApp markdown (*bold*) for cleaner PDF
+    const cleaned = message.replace(/\*(.+?)\*/g, "$1");
+    doc.setFontSize(10);
+    const lines = doc.splitTextToSize(cleaned, maxW);
+    let y = 38;
+    const lineH = 5;
+    lines.forEach((ln: string) => {
+      if (y > pageH - margin) { doc.addPage(); y = margin; }
+      doc.text(ln, margin, y);
+      y += lineH;
+    });
+
+    const fname = `orcamento-${(customerName || "cliente").replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.pdf`;
+    doc.save(fname);
+    toast({ title: "📄 PDF baixado!" });
   };
 
   const handleCopy = async () => {
