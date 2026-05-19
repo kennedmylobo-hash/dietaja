@@ -332,8 +332,6 @@ export default function CustomDietQuoter() {
       return sorted.join(" + ");
     };
 
-    // (placeholder removido)
-    const _unused = () => {
 
     // Agrupa itens por proteína (cap em 3) + calcula peso médio da proteína por grupo
     type GroupItem = { number: number; description: string };
