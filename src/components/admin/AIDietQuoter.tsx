@@ -131,36 +131,183 @@ export default function AIDietQuoter() {
     }
   };
 
-  const handleDownloadPDF = () => {
-    if (!message) return;
-    const doc = new jsPDF({ unit: "mm", format: "a4" });
+  // === Professional PDF builder (1 page, colored sections per protein) ===
+  const PROTEIN_COLORS: Record<string, [number, number, number]> = {
+    FRANGO: [46, 125, 50],   // green
+    CARNE: [230, 81, 0],     // orange
+    PEIXE: [21, 101, 192],   // blue
+    VEGGIE: [106, 27, 154],  // purple
+  };
+  const PROTEIN_EMOJI: Record<string, string> = {
+    FRANGO: "[F]", CARNE: "[C]", PEIXE: "[P]", VEGGIE: "[V]",
+  };
+
+  type Block = { protein: keyof typeof PROTEIN_COLORS; options: string[]; prices: string[] };
+
+  const parseMessageIntoBlocks = (raw: string): Block[] => {
+    const cleaned = raw.replace(/\*(.+?)\*/g, "$1"); // strip *bold*
+    const sections = cleaned.split(/━+/g).map(s => s.trim()).filter(Boolean);
+    const blocks: Block[] = [];
+    for (const sec of sections) {
+      const protein = (["FRANGO", "CARNE", "PEIXE", "VEGGIE"] as const).find(p => sec.toUpperCase().includes(p));
+      if (!protein) continue;
+      const lines = sec.split("\n").map(l => l.trim()).filter(Boolean);
+      const options: string[] = [];
+      const prices: string[] = [];
+      let mode: "opt" | "price" | null = null;
+      for (const ln of lines) {
+        if (/Composi[çc][aã]o/i.test(ln)) { mode = "opt"; continue; }
+        if (/Tabela de pre/i.test(ln)) { mode = "price"; continue; }
+        if (/^[•\-]/.test(ln)) {
+          const txt = ln.replace(/^[•\-]\s*/, "");
+          if (mode === "opt") options.push(txt);
+          else if (mode === "price") prices.push(txt);
+        }
+      }
+      blocks.push({ protein, options: options.slice(0, 5), prices: prices.slice(0, 3) });
+    }
+    return blocks;
+  };
+
+  const buildProfessionalPDF = (): jsPDF => {
     const brand = tenant?.brand_name || "Marmitaria";
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
-    const margin = 15;
-    const maxW = pageW - margin * 2;
+    const margin = 12;
 
+    // Header bar
+    doc.setFillColor(33, 33, 33);
+    doc.rect(0, 0, pageW, 22, "F");
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text(brand, pageW / 2, 18, { align: "center" });
-    doc.setFontSize(11);
+    doc.setFontSize(15);
+    doc.text(brand.toUpperCase(), margin, 11);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text("Orçamento — Dieta Personalizada", pageW / 2, 25, { align: "center" });
-    doc.setDrawColor(200);
-    doc.line(margin, 30, pageW - margin, 30);
+    doc.text("ORÇAMENTO — DIETA PERSONALIZADA", margin, 17);
+    doc.setFontSize(8);
+    const today = new Date().toLocaleDateString("pt-BR");
+    doc.text(`Validade: 7 dias  •  ${today}`, pageW - margin, 17, { align: "right" });
 
-    // Strip WhatsApp markdown (*bold*) for cleaner PDF
-    const cleaned = message.replace(/\*(.+?)\*/g, "$1");
-    doc.setFontSize(10);
-    const lines = doc.splitTextToSize(cleaned, maxW);
-    let y = 38;
-    const lineH = 5;
-    lines.forEach((ln: string) => {
-      if (y > pageH - margin) { doc.addPage(); y = margin; }
-      doc.text(ln, margin, y);
-      y += lineH;
+    // Client info row
+    doc.setTextColor(33);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("Cliente:", margin, 30);
+    doc.setFont("helvetica", "normal");
+    doc.text(customerName || "—", margin + 14, 30);
+    if (customerPhone) {
+      doc.setFont("helvetica", "bold");
+      doc.text("WhatsApp:", pageW / 2, 30);
+      doc.setFont("helvetica", "normal");
+      doc.text(customerPhone, pageW / 2 + 18, 30);
+    }
+
+    // Parse blocks
+    const blocks = parseMessageIntoBlocks(message);
+    const blockCount = blocks.length || 1;
+    const blockW = (pageW - margin * 2 - (blockCount - 1) * 4) / blockCount;
+    const blockY = 36;
+    const blockH = pageH - blockY - 30; // leave room for footer
+
+    blocks.forEach((b, i) => {
+      const x = margin + i * (blockW + 4);
+      const [r, g, bl] = PROTEIN_COLORS[b.protein];
+
+      // colored header
+      doc.setFillColor(r, g, bl);
+      doc.rect(x, blockY, blockW, 9, "F");
+      doc.setTextColor(255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text(`${PROTEIN_EMOJI[b.protein]} ${b.protein}`, x + 3, blockY + 6);
+
+      // body background
+      doc.setFillColor(250, 250, 250);
+      doc.rect(x, blockY + 9, blockW, blockH - 9, "F");
+      doc.setDrawColor(r, g, bl);
+      doc.setLineWidth(0.3);
+      doc.rect(x, blockY + 9, blockW, blockH - 9, "S");
+
+      // Options
+      doc.setTextColor(33);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.text("OPÇÕES DE COMPOSIÇÃO", x + 3, blockY + 14);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      let yy = blockY + 18;
+      b.options.forEach((opt, oi) => {
+        const label = `${String(oi + 1).padStart(2, "0")}. ${opt}`;
+        const wrapped = doc.splitTextToSize(label, blockW - 6);
+        wrapped.forEach((ln: string) => {
+          doc.text(ln, x + 3, yy);
+          yy += 3.4;
+        });
+        yy += 0.8;
+      });
+
+      // Prices table
+      const priceY = blockY + blockH - 30;
+      doc.setFillColor(r, g, bl);
+      doc.rect(x, priceY, blockW, 6, "F");
+      doc.setTextColor(255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.text("TABELA DE PREÇOS", x + 3, priceY + 4.2);
+
+      doc.setTextColor(33);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      let py = priceY + 10;
+      b.prices.forEach((p) => {
+        const wrapped = doc.splitTextToSize(p, blockW - 6);
+        wrapped.forEach((ln: string) => {
+          doc.text(ln, x + 3, py);
+          py += 3.8;
+        });
+        py += 0.5;
+      });
     });
 
+    // Footer
+    const footerY = pageH - 24;
+    doc.setDrawColor(200);
+    doc.line(margin, footerY, pageW - margin, footerY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(33);
+    doc.text("INFORMAÇÕES", margin, footerY + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text("• Marmitas preparadas, CONGELADAS e enviadas (validade 90 dias no freezer)", margin, footerY + 8);
+    doc.text("• Produção sob demanda — entrega em até 3 dias úteis após confirmação", margin, footerY + 11.5);
+    doc.text("• Pagamento: PIX  |  Cartão (+5% acréscimo)  •  Taxa de entrega: R$ 10,00", margin, footerY + 15);
+    doc.text("• Você pode combinar proteínas (ex.: 10 frango + 10 carne + 10 peixe)", margin, footerY + 18.5);
+    doc.setFontSize(6.5);
+    doc.setTextColor(120);
+    doc.text(`Gerado por ${brand}  •  ${today}`, pageW - margin, footerY + 22, { align: "right" });
+
+    return doc;
+  };
+
+  const handlePreviewPDF = () => {
+    if (!message) return;
+    try {
+      const doc = buildProfessionalPDF();
+      const blob = doc.output("blob");
+      const url = URL.createObjectURL(blob);
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl(url);
+    } catch (err: any) {
+      toast({ title: "Erro no preview", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    if (!message) return;
+    const doc = buildProfessionalPDF();
     const fname = `orcamento-${(customerName || "cliente").replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.pdf`;
     doc.save(fname);
     toast({ title: "📄 PDF baixado!" });
