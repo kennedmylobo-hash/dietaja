@@ -18,7 +18,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   ClipboardPaste, Trash2, Plus, Send, FileText, Save, History,
-  Calculator, ChevronDown, ChevronUp, Copy,
+  Calculator, ChevronDown, ChevronUp, Copy, Image as ImageIcon, Loader2, X,
 } from "lucide-react";
 import { buildFormattedQuoteMessage } from "@/lib/quote-message-builder";
 import jsPDF from "jspdf";
