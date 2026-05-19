@@ -401,8 +401,7 @@ export default function CustomDietQuoter() {
         doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
         const lines = doc.splitTextToSize(desc, contentW - numW - 8);
         const rowH = Math.max(8, 3.2 + lines.length * 4.2);
-        // page break if needed (keep 30mm reserved for footer)
-        if (y + rowH > H - 32) { doc.addPage(); y = margin; }
+        // SINGLE PAGE: não quebra página, apenas mantém compacto.
         const bg = i % 2 === 0 ? pal.light : [255, 255, 255] as [number, number, number];
         doc.setFillColor(...bg);
         doc.roundedRect(margin, y, contentW, rowH, 1.2, 1.2, "F");
