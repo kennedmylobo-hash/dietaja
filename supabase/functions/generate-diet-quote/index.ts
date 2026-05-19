@@ -28,23 +28,46 @@ Deno.serve(async (req) => {
       : "";
 
     const system = `Você é assistente de uma marmitaria fitness chamada "${brandName || "Marmitaria"}".
-Sua tarefa: receber uma DIETA do cliente (com lista de marmitas e quantidades) e gerar um ORÇAMENTO PERSONALIZADO em texto formatado para WhatsApp.
+Sua tarefa: receber uma DIETA do cliente (lista de refeições enviada pela nutricionista) e gerar um ORÇAMENTO PERSONALIZADO formatado para WhatsApp, AGRUPADO POR TIPO DE PROTEÍNA.
 
-⚠️ REGRA CRÍTICA DE PREÇO — cada marmita tem preço DIFERENTE conforme a PROTEÍNA principal:
-- Identifique a proteína de CADA marmita individualmente (frango, carne bovina/moída/almôndegas, peixe/tilápia, vegetariana etc.)
-- Aplique o preço unitário correspondente da TABELA DE PREÇOS abaixo para CADA marmita
-- O TOTAL do pedido = soma (preço_unitário_da_marmita × quantidade) para cada item
-- NUNCA use um preço médio único — cada cliente recebe um orçamento sob medida
-- Mostre na lista o preço unitário ao lado de cada item: "3x Filé de Peixe — R$ X,XX/un = R$ XX,XX"
-- No final mostre subtotal, possíveis descontos por volume (5% em 20+, 10% em 30+) e TOTAL final
+⚠️ ESTRUTURA OBRIGATÓRIA DO ORÇAMENTO:
+
+1) AGRUPAMENTO POR PROTEÍNA: identifique cada refeição da dieta e AGRUPE em até 5 VARIAÇÕES DE CARDÁPIO por tipo de proteína (ex.: "FRANGO", "CARNE BOVINA", "PEIXE", "VEGETARIANA"). Cada grupo é um "kit" separado com seu próprio preço unitário.
+
+2) Para CADA grupo/proteína, monte uma seção com:
+   *${"`"}KIT — [NOME DA PROTEÍNA]${"`"}*
+   📋 *Composição do almoço:*
+   • Opção 01: 150g [proteína grelhada] + 150g legumes + 80g arroz/feijão
+   • Opção 02: ...
+   • Opção 03: ... (até 5 opções por grupo, variando os acompanhamentos extraídos da dieta)
+
+3) Para CADA grupo, gere uma TABELA DE PREÇOS por volume (use o preço unitário CORRETO da proteína):
+   💰 *Tabela de preços:*
+   • 10 marmitas → R$ XX,XX/un = *R$ XXX,XX*
+   • 20 marmitas → R$ XX,XX/un (5% OFF) = *R$ XXX,XX*
+   • 30 marmitas → R$ XX,XX/un (10% OFF) = *R$ XXX,XX*
+
+4) Cabeçalho com: 🥗 *${brandName || "Marmitaria"}* — ORÇAMENTO DIETA PERSONALIZADA
+   👤 Cliente: ${customerName}
+   📅 Validade: 7 dias
+   📌 Nº ${quoteNumber || "—"}
+
+5) Rodapé fixo:
+   ✅ Produzimos sob demanda — sempre fresquinho
+   📦 Entrega em até 3 dias úteis após confirmação
+   💳 Pagamento PIX ou Cartão (5% acréscimo no cartão)
+   🛵 Taxa de entrega: R$ 10,00 (cobrada à parte)
+
+REGRAS DE PREÇO:
+- Use EXATAMENTE os preços unitários da tabela abaixo conforme a proteína de cada grupo.
+- Desconto por volume aplica em CADA grupo individualmente: 20+ un = 5% OFF, 30+ un = 10% OFF.
+- Arredonde para 2 casas, vírgula como separador decimal (R$ 26,90).
 
 FORMATO:
-- Use emojis simples (🥗 📋 📅 👤 ✅ 💰 📦 🍗 🥩 🐟).
-- Cabeçalho com nome da marca, nº do orçamento (${quoteNumber || "—"}) e cliente: ${customerName}.
-- Liste TODAS as marmitas do pedido com qtd, descrição curta, preço unitário e subtotal da linha.
-- Mostre RESUMO: total de marmitas, subtotal, desconto (se aplicável), total final.
-- Rodapé com: produção sob demanda, entrega em 3 dias úteis, pagamento PIX ou cartão (5% acréscimo no cartão), taxa de entrega R$ 10,00.
-- Texto pronto para colar no WhatsApp. NÃO use markdown (#). Use *negrito* do WhatsApp.${pricingBlock}
+- Texto pronto pra colar no WhatsApp. Use *negrito* do WhatsApp. NUNCA use markdown (#, **).
+- Use emojis com moderação (🥗 📋 💰 📅 👤 ✅ 📦 💳 🛵 🍗 🥩 🐟 🥗).
+- Separe cada grupo com uma linha de "━━━━━━━━━━━━━━".
+${pricingBlock}
 ${notes ? `\nObservações extras do admin: ${notes}` : ""}`;
 
     const userContent: any[] = [
