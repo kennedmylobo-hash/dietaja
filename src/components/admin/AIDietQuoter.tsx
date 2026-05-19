@@ -462,6 +462,34 @@ export default function AIDietQuoter() {
         </p>
       </div>
 
+      {/* Quick checklist — what the AI will quote */}
+      <Card className="border-dashed">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">✅ Confira antes de gerar — o que a IA vai cotar:</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            {([["🍗 Frango", priceChicken, "FRANGO"], ["🥩 Carne", priceBeef, "CARNE"], ["🐟 Peixe", priceFish, "PEIXE"]] as const).map(([label, p]) => {
+              const unit = parseFloat(p || "0");
+              const p10 = unit;
+              const p20 = unit * 0.95;
+              const p30 = unit * 0.90;
+              return (
+                <div key={label} className="rounded-lg border p-2 bg-muted/30">
+                  <div className="font-semibold mb-1">{label}</div>
+                  <div>10un → R$ {p10.toFixed(2)}/un = <b>R$ {(p10 * 10).toFixed(2)}</b></div>
+                  <div>20un (5% off) → R$ {p20.toFixed(2)}/un = <b>R$ {(p20 * 20).toFixed(2)}</b></div>
+                  <div>30un (10% off) → R$ {p30.toFixed(2)}/un = <b>R$ {(p30 * 30).toFixed(2)}</b></div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            💡 Mude os preços acima se algum valor estiver fora do esperado antes de gerar.
+          </p>
+        </CardContent>
+      </Card>
+
       <div>
         <Label>Observações para a IA (opcional)</Label>
         <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
@@ -481,20 +509,40 @@ export default function AIDietQuoter() {
           </CardHeader>
           <CardContent className="space-y-3">
             <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={20} className="font-mono text-xs" />
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button onClick={handleCopy} variant="cta" className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+              <Button onClick={handleCopy} variant="cta" className="flex-1 min-w-[140px]">
                 <Copy className="w-4 h-4 mr-2" /> Copiar
               </Button>
-              <Button onClick={handleSendWhatsApp} variant="outline" className="flex-1">
+              <Button onClick={handleSendWhatsApp} variant="outline" className="flex-1 min-w-[140px]">
                 <Send className="w-4 h-4 mr-2" /> Enviar WhatsApp
               </Button>
-              <Button onClick={handleDownloadPDF} variant="outline" className="flex-1">
+              <Button onClick={handlePreviewPDF} variant="outline" className="flex-1 min-w-[140px]">
+                <Eye className="w-4 h-4 mr-2" /> Pré-visualizar PDF
+              </Button>
+              <Button onClick={handleDownloadPDF} variant="outline" className="flex-1 min-w-[140px]">
                 <Download className="w-4 h-4 mr-2" /> Baixar PDF
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* PDF Preview Modal */}
+      <Dialog open={!!pdfPreviewUrl} onOpenChange={(open) => { if (!open) { if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl); setPdfPreviewUrl(null); } }}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-4 py-3 border-b">
+            <DialogTitle className="flex items-center justify-between">
+              <span>📄 Pré-visualização do PDF</span>
+              <Button size="sm" onClick={handleDownloadPDF}>
+                <Download className="w-4 h-4 mr-2" /> Baixar
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          {pdfPreviewUrl && (
+            <iframe src={pdfPreviewUrl} className="flex-1 w-full" title="Pré-visualização do orçamento" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
