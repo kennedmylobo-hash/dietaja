@@ -308,8 +308,32 @@ export default function CustomDietQuoter() {
           .map(ing => `${Math.round(ing.weightGrams)}g ${cap(ing.name.trim())}`);
         if (parts.length > 0) return parts.join(" + ");
       }
-      return (it.description || "").trim();
+      // Fallback: reordena o texto bruto para sempre iniciar pela proteína.
+      const raw = (it.description || "").trim();
+      if (!raw) return raw;
+      // Quebra por "+", classifica cada parte e ordena: proteína → carbo → legume → resto.
+      const parts = raw.split(/\s*\+\s*/).filter(Boolean);
+      if (parts.length <= 1) return raw;
+      const classifyPart = (p: string): number => {
+        const t = p.toLowerCase();
+        if (/frango|peito|coxa|sobrecoxa|carne|patinho|al[cs]atra|file|m[íi]gnon|bovin|moid[ao]|cup[íi]m|m[úu]sculo|peixe|til[áa]pia|salm[ãa]o|merluza|atum|saint|f[íi]gado/.test(t)) return 0;
+        if (/arroz|feij[ãa]o|batata|mandioca|macarr[ãa]o|massa|p[ãa]o|farofa|pur[êe]|inhame|cuscuz|quinoa/.test(t)) return 1;
+        if (/legume|salada|verdura|brocoli|br[óo]coli|cenoura|chuchu|abobrinha|vagem|couve|alface|tomate|repolho|maxixe|quiabo|berinjela|aboboranga|ab[óo]bora|mix/.test(t)) return 2;
+        return 3;
+      };
+      // Limpa "E " inicial (artefato de OCR) e capitaliza
+      const clean = parts
+        .map(p => p.replace(/^\s*[eE]\s+/, "").trim())
+        .map(p => cap(p));
+      const sorted = clean
+        .map((p, i) => ({ p, k: classifyPart(p), i }))
+        .sort((a, b) => a.k - b.k || a.i - b.i)
+        .map(x => x.p);
+      return sorted.join(" + ");
     };
+
+    // (placeholder removido)
+    const _unused = () => {
 
     // Agrupa itens por proteína (cap em 3) + calcula peso médio da proteína por grupo
     type GroupItem = { number: number; description: string };
