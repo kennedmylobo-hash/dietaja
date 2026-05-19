@@ -383,84 +383,97 @@ export default function CustomDietQuoter() {
     doc.text("7 dias", W - margin - 18, y + 6.5);
     y += 14;
 
-    // ── Helper: render one protein section (menu + price table) ───────────────
-    const renderSection = (g: typeof groups[number]) => {
+    // ── CARDÁPIOS (unificado, com badges coloridos por proteína) ──────────────
+    doc.setFillColor(33, 33, 33);
+    doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, "F");
+    doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+    doc.text("CARDÁPIOS", margin + 3, y + 5.5);
+    // Legenda inline (Frango / Carne / Peixe) à direita do título
+    doc.setFontSize(7.5);
+    let legendX = W - margin - 3;
+    [...groups].reverse().forEach((g) => {
       const pal = PALETTE[g.protein];
-
-      // Cardápio header bar
+      const label = pal.label;
+      const tw = doc.getTextWidth(label) + 6;
       doc.setFillColor(...pal.dark);
-      doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, "F");
-      doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-      doc.text(`CARDÁPIOS — ${pal.label}`, margin + 3, y + 5.5);
-      y += 9;
+      doc.roundedRect(legendX - tw, y + 1.8, tw, 4.4, 1, 1, "F");
+      doc.setTextColor(255);
+      doc.text(label, legendX - tw / 2, y + 5, { align: "center" });
+      legendX -= tw + 3;
+    });
+    y += 9;
 
-      // Menu rows (full description, wraps to multiple lines, no "…")
-      const numW = 24;
-      g.items.forEach((it, i) => {
-        const desc = it.description;
-        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
-        const lines = doc.splitTextToSize(desc, contentW - numW - 8);
-        const rowH = Math.max(8, 3.2 + lines.length * 4.2);
-        // SINGLE PAGE: não quebra página, apenas mantém compacto.
-        const bg = i % 2 === 0 ? pal.light : [255, 255, 255] as [number, number, number];
-        doc.setFillColor(...bg);
-        doc.roundedRect(margin, y, contentW, rowH, 1.2, 1.2, "F");
-        // badge
-        doc.setFillColor(...pal.dark);
-        doc.roundedRect(margin + 1.2, y + 1.2, numW - 2.4, rowH - 2.4, 1.2, 1.2, "F");
-        doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
-        doc.text(`Opcao ${String(it.number).padStart(2, "0")}`, margin + numW / 2, y + rowH / 2 + 1, { align: "center" });
-        // description (multi-line)
-        doc.setTextColor(0); doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
-        lines.forEach((ln: string, li: number) => {
-          doc.text(ln, margin + numW + 3, y + 5 + li * 4.2);
-        });
-        y += rowH;
+    // Lista compacta unificada: badge "Opcao NN" colorido pela proteína + descrição
+    const allItems: { number: number; description: string; protein: ProteinKey }[] = [];
+    for (const g of groups) g.items.forEach(it => allItems.push({ ...it, protein: g.protein }));
+
+    const numW = 22;
+    allItems.forEach((it, i) => {
+      const pal = PALETTE[it.protein];
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+      const lines = doc.splitTextToSize(it.description, contentW - numW - 8);
+      const rowH = Math.max(7, 2.6 + lines.length * 4);
+      const bg = i % 2 === 0 ? pal.light : [255, 255, 255] as [number, number, number];
+      doc.setFillColor(...bg);
+      doc.roundedRect(margin, y, contentW, rowH, 1.2, 1.2, "F");
+      // badge colorido
+      doc.setFillColor(...pal.dark);
+      doc.roundedRect(margin + 1, y + 1, numW - 2, rowH - 2, 1, 1, "F");
+      doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(7);
+      doc.text(`Opcao ${String(it.number).padStart(2, "0")}`, margin + numW / 2, y + rowH / 2 + 1, { align: "center" });
+      // descrição
+      doc.setTextColor(0); doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+      lines.forEach((ln: string, li: number) => {
+        doc.text(ln, margin + numW + 3, y + 4.6 + li * 4);
       });
+      y += rowH;
+    });
 
-      y += 3;
+    y += 5;
 
-      // Kit table header (single page)
-      doc.setFillColor(...pal.dark);
-      doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, "F");
-      doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
-      doc.text(`KITS E PREÇOS — ${pal.label}`, margin + 3, y + 5.5);
-      y += 8;
+    // ── KITS E PREÇOS (tabela única: linhas = proteínas, colunas = 10/20/30) ──
+    doc.setFillColor(33, 33, 33);
+    doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, "F");
+    doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+    doc.text("KITS E PREÇOS", margin + 3, y + 5.5);
+    y += 9;
 
-      // Table column header
-      const colW = [contentW * 0.20, contentW * 0.28, contentW * 0.28, contentW * 0.24];
-      const colX = [margin];
-      for (let i = 0; i < 3; i++) colX.push(colX[i] + colW[i]);
-      const centers = colX.map((cx, i) => cx + colW[i] / 2);
+    // Cabeçalho colunas: Proteína | Kit 10 | Kit 20 (-5%) | Kit 30 (-10%)
+    const kcolW = [contentW * 0.22, contentW * 0.26, contentW * 0.26, contentW * 0.26];
+    const kcolX = [margin];
+    for (let i = 0; i < 3; i++) kcolX.push(kcolX[i] + kcolW[i]);
+    const kcenters = kcolX.map((cx, i) => cx + kcolW[i] / 2);
 
-      doc.setFillColor(...pal.med);
-      doc.rect(margin, y, contentW, 7, "F");
-      doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
-      ["Kit", "Qtd.", "Valor Unitário", "Total"].forEach((h, i) =>
-        doc.text(h, centers[i], y + 5, { align: "center" })
-      );
-      y += 7;
+    doc.setFillColor(220, 220, 220);
+    doc.rect(margin, y, contentW, 7, "F");
+    doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
+    ["Sabor", "Kit 10 un.", "Kit 20 un. (-5%)", "Kit 30 un. (-10%)"].forEach((h, i) =>
+      doc.text(h, kcenters[i], y + 5, { align: "center" })
+    );
+    y += 7;
 
-      // Kit rows (independent per-protein prices)
-      KIT_PRICES[g.protein].forEach((k, i) => {
-        const bg = i % 2 === 0 ? pal.light : [255, 255, 255] as [number, number, number];
-        doc.setFillColor(...bg);
-        doc.rect(margin, y, contentW, 8.5, "F");
+    groups.forEach((g, i) => {
+      const pal = PALETTE[g.protein];
+      const prices = KIT_PRICES[g.protein];
+      const bg = i % 2 === 0 ? pal.light : [255, 255, 255] as [number, number, number];
+      doc.setFillColor(...bg);
+      doc.rect(margin, y, contentW, 9, "F");
+      // coluna 1: nome proteína em destaque
+      doc.setTextColor(...pal.dark); doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
+      doc.text(pal.label, kcenters[0], y + 6, { align: "center" });
+      // colunas 2-4: unitário + total
+      prices.forEach((k, idx) => {
         const total = k.unit * k.qty;
-        doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
-        doc.text(`Kit ${k.qty}`, centers[0], y + 5.8, { align: "center" });
-        doc.setFont("helvetica", "normal");
-        doc.text(`${k.qty} marmitas`, centers[1], y + 5.8, { align: "center" });
-        doc.text(`${formatCurrency(k.unit)}/un.`, centers[2], y + 5.8, { align: "center" });
-        doc.setFont("helvetica", "bold"); doc.setTextColor(...pal.dark);
-        doc.text(formatCurrency(total), centers[3], y + 5.8, { align: "center" });
-        y += 8.5;
+        const cx = kcenters[idx + 1];
+        doc.setTextColor(0); doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+        doc.text(`${formatCurrency(k.unit)}/un.`, cx, y + 4, { align: "center" });
+        doc.setFont("helvetica", "bold"); doc.setTextColor(...pal.dark); doc.setFontSize(9);
+        doc.text(formatCurrency(total), cx, y + 8, { align: "center" });
       });
+      y += 9;
+    });
 
-      y += 6;
-    };
-
-    groups.forEach(renderSection);
+    y += 4;
 
     // ── FOOTER (single page) ──────────────────────────────────────────────────
     const footerY = Math.max(y, H - 28);
