@@ -8,10 +8,9 @@ import { DEFAULT_SUBCATEGORY_PRICING, getSubcategoryCostPerGram } from "@/lib/su
 import type { SubcategoryPricing } from "@/lib/subcategory-pricing";
 
 const DEFAULT_PACKAGES: PackageOption[] = [
-  { days: 7, label: "7 dias", discount: 0 },
-  { days: 14, label: "14 dias", discount: 0.05 },
-  { days: 21, label: "21 dias", discount: 0.08 },
-  { days: 28, label: "28 dias", discount: 0.10 },
+  { days: 10, label: "10 marmitas", discount: 0 },
+  { days: 20, label: "20 marmitas", discount: 0.05 },
+  { days: 30, label: "30 marmitas", discount: 0.10 },
 ];
 
 const DEFAULT_SETTINGS: PricingSettings = {
