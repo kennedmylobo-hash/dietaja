@@ -475,19 +475,48 @@ export default function CustomDietQuoter() {
 
     y += 4;
 
-    // ── FOOTER (single page) ──────────────────────────────────────────────────
-    const footerY = Math.max(y, H - 28);
-    doc.setDrawColor(0); doc.setLineWidth(0.4);
-    doc.line(margin, footerY, margin + contentW, footerY);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...GREY_TXT);
+    // ── INFORMAÇÕES IMPORTANTES ───────────────────────────────────────────────
+    doc.setFillColor(33, 33, 33);
+    doc.roundedRect(margin, y, contentW, 7, 1.5, 1.5, "F");
+    doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+    doc.text("INFORMAÇÕES IMPORTANTES", margin + 3, y + 5);
+    y += 8;
+
     const tips = [
-      "✓ Produzimos após confirmação do pedido",
-      "✓ Entregamos em até 3 dias úteis",
-      "✓ Taxa de entrega: R$ 10,00",
-      "✓ Pagamento cartão: +5%   •   PIX: chave via WhatsApp",
-      "❄ Marmitas preparadas, CONGELADAS e enviadas — validade 90 dias no freezer.",
+      "✓ Produzimos sempre após confirmação do pedido — tudo fresquinho!",
+      "✓ Marmitas preparadas, congeladas e entregues — descongelar na hora",
+      "✓ Entregamos em até 3 dias úteis após confirmação",
+      "✓ Ingredientes frescos e naturais, sem ultraprocessados",
+      "✓ Taxa de entrega: R$ 10,00 (cobrada à parte)",
+      "✓ Pagamento via PIX: chave informada via WhatsApp",
+      "✓ Pagamento no cartão: acréscimo de 5% sobre o valor total",
+      "✓ Legumes: Mix de cenoura, chuchu, abobrinha, vagem, brócolis",
+      "✓ Salada de folhas (opcional): alface, rúcula, acelga — pode ser refogada",
+      "✓ Validade do produto: 90 dias congelado no freezer",
     ];
-    tips.forEach((t, i) => doc.text(t, margin, footerY + 4.5 + i * 4));
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...GREY_TXT);
+    // duas colunas para caber tudo
+    const colW = contentW / 2;
+    const lineH = 4.2;
+    const half = Math.ceil(tips.length / 2);
+    tips.forEach((t, i) => {
+      const col = i < half ? 0 : 1;
+      const row = i < half ? i : i - half;
+      doc.text(t, margin + col * colW + (col === 1 ? 2 : 0), y + 3 + row * lineH);
+    });
+    y += half * lineH + 4;
+
+    // ── CONTATO (rodapé final) ────────────────────────────────────────────────
+    doc.setDrawColor(180); doc.setLineWidth(0.3);
+    doc.line(margin, y, margin + contentW, y);
+    y += 4;
+    doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); doc.setTextColor(0);
+    doc.text("Obrigado pela preferência! Ficamos à disposição para qualquer dúvida.", W / 2, y, { align: "center" });
+    y += 4.5;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(...GREY_TXT);
+    const contactPhone = tenant?.whatsapp_formatted || tenant?.whatsapp || "";
+    const contactLine = `${brandName}${contactPhone ? "  •  " + contactPhone : ""}`;
+    doc.text(contactLine, W / 2, y, { align: "center" });
 
     doc.save(`orcamento-dieta-${(customerName || "cliente").replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.pdf`);
     handleSave();
