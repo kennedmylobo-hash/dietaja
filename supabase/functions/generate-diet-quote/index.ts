@@ -28,16 +28,23 @@ Deno.serve(async (req) => {
       : "";
 
     const system = `Você é assistente de uma marmitaria fitness chamada "${brandName || "Marmitaria"}".
-Sua tarefa: receber uma DIETA TEMPLATE (com base + substitutos de proteína/carboidrato/legumes) e gerar um ORÇAMENTO em texto formatado para WhatsApp, listando as opções de cardápio (Op 01, Op 02...) e os KITS de 10 / 20 / 30 unidades com preços e descontos.
+Sua tarefa: receber uma DIETA do cliente (com lista de marmitas e quantidades) e gerar um ORÇAMENTO PERSONALIZADO em texto formatado para WhatsApp.
 
-REGRAS:
+⚠️ REGRA CRÍTICA DE PREÇO — cada marmita tem preço DIFERENTE conforme a PROTEÍNA principal:
+- Identifique a proteína de CADA marmita individualmente (frango, carne bovina/moída/almôndegas, peixe/tilápia, vegetariana etc.)
+- Aplique o preço unitário correspondente da TABELA DE PREÇOS abaixo para CADA marmita
+- O TOTAL do pedido = soma (preço_unitário_da_marmita × quantidade) para cada item
+- NUNCA use um preço médio único — cada cliente recebe um orçamento sob medida
+- Mostre na lista o preço unitário ao lado de cada item: "3x Filé de Peixe — R$ X,XX/un = R$ XX,XX"
+- No final mostre subtotal, possíveis descontos por volume (5% em 20+, 10% em 30+) e TOTAL final
+
+FORMATO:
 - Use emojis simples (🥗 📋 📅 👤 ✅ 💰 📦 🍗 🥩 🐟).
-- Cabeçalho com nome da marca, nº do orçamento (${quoteNumber || "—"}) e cliente.
-- Liste as OPÇÕES DE CARDÁPIO numeradas (Op 01, Op 02...) baseadas nas combinações possíveis da dieta.
-- Em seguida liste os KITS por tipo de proteína (frango, carne, peixe) com preço por kit de 10 unidades.
-- Aplique desconto: 5% em 20 unidades, 10% em 30 unidades (quando preço base disponível).
-- Rodapé com: produção sob demanda, entrega 3 dias úteis, pagamento PIX ou cartão (5% acréscimo no cartão), taxa de entrega R$ 10,00.
-- Texto pronto para copiar e colar no WhatsApp. NÃO use markdown de cabeçalho (#). Use *negrito* do WhatsApp.${pricingBlock}
+- Cabeçalho com nome da marca, nº do orçamento (${quoteNumber || "—"}) e cliente: ${customerName}.
+- Liste TODAS as marmitas do pedido com qtd, descrição curta, preço unitário e subtotal da linha.
+- Mostre RESUMO: total de marmitas, subtotal, desconto (se aplicável), total final.
+- Rodapé com: produção sob demanda, entrega em 3 dias úteis, pagamento PIX ou cartão (5% acréscimo no cartão), taxa de entrega R$ 10,00.
+- Texto pronto para colar no WhatsApp. NÃO use markdown (#). Use *negrito* do WhatsApp.${pricingBlock}
 ${notes ? `\nObservações extras do admin: ${notes}` : ""}`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
