@@ -745,6 +745,38 @@ export default function CustomDietQuoter() {
             formatCurrency={formatCurrency}
           />
 
+          {/* Override manual dos preços do Kit 10 no PDF (por proteína) */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Preços dos Kits no PDF</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Deixe em branco para calcular automaticamente pelo peso da proteína (100g/200g). Kits 20 = −5%, Kit 30 = −10%.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(["FRANGO", "CARNE", "PEIXE"] as const).map((p) => (
+                  <div key={p}>
+                    <Label className="text-xs">Kit 10 {p} (R$/un.)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="auto"
+                      value={kitOverrides[p] ?? ""}
+                      onChange={(e) =>
+                        setKitOverrides((prev) => ({
+                          ...prev,
+                          [p]: e.target.value ? parseFloat(e.target.value) : null,
+                        }))
+                      }
+                      className={kitOverrides[p] != null ? "border-primary ring-1 ring-primary/30" : ""}
+                    />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-3">
             <Button onClick={handleCopyQuote} variant="cta" className="flex-1">
