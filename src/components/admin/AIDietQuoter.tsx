@@ -213,8 +213,28 @@ export default function AIDietQuoter() {
       </div>
 
       <div>
-        <Label>Tabela de preços de referência (a IA usa estes valores)</Label>
-        <Textarea value={pricingHints} onChange={(e) => setPricingHints(e.target.value)} rows={4} className="font-mono text-xs" />
+        <Label>💰 Preço unitário por tipo de proteína (a IA aplica o valor certo em cada marmita)</Label>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+          <div>
+            <Label className="text-xs flex items-center gap-1">🍗 Frango</Label>
+            <Input type="number" step="0.10" value={priceChicken} onChange={(e) => setPriceChicken(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs flex items-center gap-1">🥩 Carne</Label>
+            <Input type="number" step="0.10" value={priceBeef} onChange={(e) => setPriceBeef(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs flex items-center gap-1">🐟 Peixe</Label>
+            <Input type="number" step="0.10" value={priceFish} onChange={(e) => setPriceFish(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs flex items-center gap-1">🥗 Veggie</Label>
+            <Input type="number" step="0.10" value={priceVeggie} onChange={(e) => setPriceVeggie(e.target.value)} />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Cada marmita é precificada individualmente pela proteína dela — o total do orçamento é soma item a item.
+        </p>
       </div>
 
       <div>
