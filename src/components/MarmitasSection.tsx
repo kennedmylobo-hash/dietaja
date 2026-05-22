@@ -64,9 +64,10 @@ interface MarmitaCarouselProps {
   loadingMarmita: string | null;
   isInView: boolean;
   minFlavorOverride?: number;
+  minUnitPriceByQuantity?: Record<number, number>;
 }
 
-const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita, isInView, minFlavorOverride }: MarmitaCarouselProps) => {
+const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita, isInView, minFlavorOverride, minUnitPriceByQuantity }: MarmitaCarouselProps) => {
   const carouselRef = useRef<HTMLDivElement>(null);
   const {
     api,
