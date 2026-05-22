@@ -180,6 +180,21 @@ const FlavorSelectionModal = ({
   const getFlavorPrice = (flavorName: string, effectiveBase: number): number => {
     const stockData = getFlavorStock(flavorName);
     if (!stockData) return effectiveBase;
+    // Per-flavor tier override (e.g., frango): pick the highest tier <= totalSelected
+    const tiers = lineType === 'hipertrofia'
+      ? stockData.price_tiers_fitness
+      : stockData.price_tiers_fit;
+    if (tiers && typeof tiers === 'object') {
+      const sortedKeys = Object.keys(tiers)
+        .map(k => Number(k))
+        .filter(n => !isNaN(n))
+        .sort((a, b) => a - b);
+      let tierPrice: number | null = null;
+      for (const k of sortedKeys) {
+        if (totalSelected >= k) tierPrice = Number(tiers[String(k)]);
+      }
+      if (tierPrice !== null) return tierPrice;
+    }
     const override = lineType === 'hipertrofia' 
       ? stockData.price_override_fitness 
       : stockData.price_override_fit;
