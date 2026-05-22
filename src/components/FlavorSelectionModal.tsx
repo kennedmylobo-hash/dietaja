@@ -611,7 +611,7 @@ const FlavorSelectionModal = ({
                       Pronta entrega
                     </div>
                     <p className="text-sm text-muted-foreground leading-snug mb-2">
-                      Apenas sabores em estoque. <strong className="text-emerald-700 dark:text-emerald-300">Enviamos no mesmo dia 🚀</strong>
+                      Apenas sabores em estoque. <strong className="text-emerald-700 dark:text-emerald-300">Receba o seu pedido em até 24 horas 🚀</strong>
                     </p>
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 group-hover:gap-2 transition-all">
                       Ver sabores disponíveis →
