@@ -826,9 +826,17 @@ const FlavorSelectionModal = ({
                                   (+R$ 4,99/un)
                                 </span>
                               )}
-                              <span className={`text-xs font-bold sm:hidden ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
-                                {formatPrice(flavorPrice)}
-                              </span>
+                              {hasCustomPrice && flavorPrice < effectiveBasePrice ? (
+                                <span className="flex items-baseline gap-1 sm:hidden">
+                                  <span className="text-[10px] text-muted-foreground line-through">{formatPrice(effectiveBasePrice)}</span>
+                                  <span className="text-xs font-bold text-primary">{formatPrice(flavorPrice)}</span>
+                                  <span className="text-[9px] font-bold text-primary-foreground bg-primary px-1 py-0.5 rounded">OFERTA</span>
+                                </span>
+                              ) : (
+                                <span className={`text-xs font-bold sm:hidden ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
+                                  {formatPrice(flavorPrice)}
+                                </span>
+                              )}
                               {(() => {
                                 const flavorStock = getFlavorStock(flavor);
                                 const desc = flavorStock?.sides ? getFlavorDescription(flavorStock.sides, lineKey) : null;
