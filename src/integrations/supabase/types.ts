@@ -1161,6 +1161,8 @@ export type Database = {
           name: string
           price_override_fit: number | null
           price_override_fitness: number | null
+          price_tiers_fit: Json | null
+          price_tiers_fitness: Json | null
           show_stock: boolean
           sides: Json | null
           sort_order: number
@@ -1176,6 +1178,8 @@ export type Database = {
           name: string
           price_override_fit?: number | null
           price_override_fitness?: number | null
+          price_tiers_fit?: Json | null
+          price_tiers_fitness?: Json | null
           show_stock?: boolean
           sides?: Json | null
           sort_order?: number
@@ -1191,6 +1195,8 @@ export type Database = {
           name?: string
           price_override_fit?: number | null
           price_override_fitness?: number | null
+          price_tiers_fit?: Json | null
+          price_tiers_fitness?: Json | null
           show_stock?: boolean
           sides?: Json | null
           sort_order?: number
