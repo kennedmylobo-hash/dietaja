@@ -64,9 +64,10 @@ interface MarmitaCarouselProps {
   loadingMarmita: string | null;
   isInView: boolean;
   minFlavorOverride?: number;
+  minUnitPriceByQuantity?: Record<number, number>;
 }
 
-const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita, isInView, minFlavorOverride }: MarmitaCarouselProps) => {
+const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita, isInView, minFlavorOverride, minUnitPriceByQuantity }: MarmitaCarouselProps) => {
   const carouselRef = useRef<HTMLDivElement>(null);
   const {
     api,
@@ -149,17 +150,38 @@ const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita
                     Marmitas de {marmita.weight}g
                   </p>
 
-                  <div className="flex items-baseline gap-2 mb-4">
-                    <span className={`text-xl sm:text-2xl font-bold ${accentColor}`}>
-                      R$ {marmita.unitPrice.toFixed(2).replace(".", ",")}
-                    </span>
-                    <span className="text-xs sm:text-sm text-muted-foreground">cada</span>
-                  </div>
+                  {(() => {
+                    const minUnit = minUnitPriceByQuantity?.[marmita.quantity] ?? marmita.unitPrice;
+                    const effectiveUnit = Math.min(minUnit, marmita.unitPrice);
+                    const hasOffer = effectiveUnit < marmita.unitPrice;
+                    return (
+                      <>
+                        <div className="flex items-baseline flex-wrap gap-x-2 gap-y-1 mb-1">
+                          <span className="text-xs text-muted-foreground">a partir de</span>
+                          {hasOffer && (
+                            <span className="text-sm text-muted-foreground line-through">
+                              R$ {marmita.unitPrice.toFixed(2).replace(".", ",")}
+                            </span>
+                          )}
+                          <span className={`text-xl sm:text-2xl font-bold ${accentColor}`}>
+                            R$ {effectiveUnit.toFixed(2).replace(".", ",")}
+                          </span>
+                          <span className="text-xs sm:text-sm text-muted-foreground">cada</span>
+                          {hasOffer && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-terracotta text-white rounded-full">
+                              OFERTA
+                            </span>
+                          )}
+                        </div>
 
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                    <Clock className="w-4 h-4" />
-                    <span>A partir de R$ {(marmita.quantity * Math.min(marmita.unitPrice, minFlavorOverride ?? marmita.unitPrice)).toFixed(2).replace(".", ",")}</span>
-                  </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                          <Clock className="w-4 h-4" />
+                          <span>A partir de R$ {(marmita.quantity * effectiveUnit).toFixed(2).replace(".", ",")}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+
 
                   <Button
                     variant={marmita.popular ? "cta" : "cta-outline"}
@@ -256,6 +278,40 @@ const MarmitasSection = () => {
     const prices = collectFlavorPrices('price_override_fitness', 'price_tiers_fitness');
     return prices.length > 0 ? Math.min(...prices) : undefined;
   }, [flavorsData]);
+
+  // Compute min unit price per quantity (considers tier for that quantity + flat override)
+  const computeMinByQuantity = (
+    packages: Marmita[],
+    field: 'price_override_fit' | 'price_override_fitness',
+    tierField: 'price_tiers_fit' | 'price_tiers_fitness',
+  ): Record<number, number> => {
+    const result: Record<number, number> = {};
+    if (!flavorsData) return result;
+    for (const pkg of packages) {
+      let min = pkg.unitPrice;
+      for (const f of flavorsData) {
+        const tiers = (f as any)[tierField];
+        const tierVal = tiers && typeof tiers === 'object' ? Number(tiers[String(pkg.quantity)] ?? tiers[pkg.quantity]) : NaN;
+        const flat = Number((f as any)[field]);
+        const candidate = !isNaN(tierVal) && tierVal > 0
+          ? tierVal
+          : (!isNaN(flat) && flat > 0 ? flat : pkg.unitPrice);
+        if (candidate < min) min = candidate;
+      }
+      result[pkg.quantity] = min;
+    }
+    return result;
+  };
+
+  const minUnitByQuantityFit = useMemo(
+    () => computeMinByQuantity(marmitasEmagrecimento, 'price_override_fit', 'price_tiers_fit'),
+    [flavorsData, marmitasEmagrecimento]
+  );
+  const minUnitByQuantityFitness = useMemo(
+    () => computeMinByQuantity(marmitasHipertrofia, 'price_override_fitness', 'price_tiers_fitness'),
+    [flavorsData, marmitasHipertrofia]
+  );
+
 
   // Group flavors by category for modal
   const flavorsByCategory = useMemo(() => {
@@ -393,6 +449,7 @@ const MarmitasSection = () => {
                 loadingMarmita={loadingMarmita}
                 isInView={isInView}
                 minFlavorOverride={minFlavorOverrideFit}
+                minUnitPriceByQuantity={minUnitByQuantityFit}
               />
             </motion.div>
           </div>
@@ -431,6 +488,7 @@ const MarmitasSection = () => {
                 loadingMarmita={loadingMarmita}
                 isInView={isInView}
                 minFlavorOverride={minFlavorOverrideFitness}
+                minUnitPriceByQuantity={minUnitByQuantityFitness}
               />
             </motion.div>
           </div>
