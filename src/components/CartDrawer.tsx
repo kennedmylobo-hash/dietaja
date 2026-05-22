@@ -156,6 +156,10 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       stock_quantity: flavor.stock_quantity,
       show_stock: flavor.show_stock,
       low_stock_threshold: flavor.low_stock_threshold,
+      price_override_fit: (flavor as any).price_override_fit ?? null,
+      price_override_fitness: (flavor as any).price_override_fitness ?? null,
+      price_tiers_fit: (flavor as any).price_tiers_fit ?? null,
+      price_tiers_fitness: (flavor as any).price_tiers_fitness ?? null,
     }));
   }, [flavorsData]);
 
