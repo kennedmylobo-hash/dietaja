@@ -130,8 +130,8 @@ const FlavorSelectionModal = ({
   const [celebrationInfo, setCelebrationInfo] = useState<{ discount: number } | null>(null);
   const prevTierPriceRef = useRef<number | null>(null);
 
-  // Delivery mode toggle — only for FIT (emagrecimento) line, where we hold ready stock
-  const isFitLine = lineKey === 'fit';
+  // Delivery mode toggle — habilitado para FIT e Hipertrofia (ambas as linhas têm estoque pronto)
+  const isFitLine = true;
   const [deliveryMode, setDeliveryMode] = useState<'pronta' | 'encomenda'>('pronta');
   const [modeChosen, setModeChosen] = useState<boolean>(!isFitLine);
 
