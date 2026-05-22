@@ -150,17 +150,38 @@ const MarmitaCarousel = ({ marmitas, lineType, onOpenFlavorModal, loadingMarmita
                     Marmitas de {marmita.weight}g
                   </p>
 
-                  <div className="flex items-baseline gap-2 mb-4">
-                    <span className={`text-xl sm:text-2xl font-bold ${accentColor}`}>
-                      R$ {marmita.unitPrice.toFixed(2).replace(".", ",")}
-                    </span>
-                    <span className="text-xs sm:text-sm text-muted-foreground">cada</span>
-                  </div>
+                  {(() => {
+                    const minUnit = minUnitPriceByQuantity?.[marmita.quantity] ?? marmita.unitPrice;
+                    const effectiveUnit = Math.min(minUnit, marmita.unitPrice);
+                    const hasOffer = effectiveUnit < marmita.unitPrice;
+                    return (
+                      <>
+                        <div className="flex items-baseline flex-wrap gap-x-2 gap-y-1 mb-1">
+                          <span className="text-xs text-muted-foreground">a partir de</span>
+                          {hasOffer && (
+                            <span className="text-sm text-muted-foreground line-through">
+                              R$ {marmita.unitPrice.toFixed(2).replace(".", ",")}
+                            </span>
+                          )}
+                          <span className={`text-xl sm:text-2xl font-bold ${accentColor}`}>
+                            R$ {effectiveUnit.toFixed(2).replace(".", ",")}
+                          </span>
+                          <span className="text-xs sm:text-sm text-muted-foreground">cada</span>
+                          {hasOffer && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-terracotta text-white rounded-full">
+                              OFERTA
+                            </span>
+                          )}
+                        </div>
 
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                    <Clock className="w-4 h-4" />
-                    <span>A partir de R$ {(marmita.quantity * Math.min(marmita.unitPrice, minFlavorOverride ?? marmita.unitPrice)).toFixed(2).replace(".", ",")}</span>
-                  </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                          <Clock className="w-4 h-4" />
+                          <span>A partir de R$ {(marmita.quantity * effectiveUnit).toFixed(2).replace(".", ",")}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+
 
                   <Button
                     variant={marmita.popular ? "cta" : "cta-outline"}
