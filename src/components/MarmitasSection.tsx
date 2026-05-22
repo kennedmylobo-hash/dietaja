@@ -226,17 +226,35 @@ const MarmitasSection = () => {
     return hipertrofiaData.map(transformPackage);
   }, [hipertrofiaData]);
 
-  // Compute minimum flavor override per line
+  // Compute minimum flavor price per line (considers flat overrides AND tier prices)
+  const collectFlavorPrices = (
+    field: 'price_override_fit' | 'price_override_fitness',
+    tierField: 'price_tiers_fit' | 'price_tiers_fitness',
+  ): number[] => {
+    if (!flavorsData) return [];
+    const prices: number[] = [];
+    for (const f of flavorsData) {
+      const flat = (f as any)[field];
+      if (typeof flat === 'number' && flat > 0) prices.push(flat);
+      const tiers = (f as any)[tierField];
+      if (tiers && typeof tiers === 'object') {
+        for (const v of Object.values(tiers)) {
+          const n = Number(v);
+          if (!isNaN(n) && n > 0) prices.push(n);
+        }
+      }
+    }
+    return prices;
+  };
+
   const minFlavorOverrideFit = useMemo(() => {
-    if (!flavorsData) return undefined;
-    const overrides = flavorsData.map(f => f.price_override_fit).filter((v): v is number => v != null && v > 0);
-    return overrides.length > 0 ? Math.min(...overrides) : undefined;
+    const prices = collectFlavorPrices('price_override_fit', 'price_tiers_fit');
+    return prices.length > 0 ? Math.min(...prices) : undefined;
   }, [flavorsData]);
 
   const minFlavorOverrideFitness = useMemo(() => {
-    if (!flavorsData) return undefined;
-    const overrides = flavorsData.map(f => f.price_override_fitness).filter((v): v is number => v != null && v > 0);
-    return overrides.length > 0 ? Math.min(...overrides) : undefined;
+    const prices = collectFlavorPrices('price_override_fitness', 'price_tiers_fitness');
+    return prices.length > 0 ? Math.min(...prices) : undefined;
   }, [flavorsData]);
 
   // Group flavors by category for modal
@@ -262,6 +280,8 @@ const MarmitasSection = () => {
       sides: f.sides,
       price_override_fit: f.price_override_fit,
       price_override_fitness: f.price_override_fitness,
+      price_tiers_fit: f.price_tiers_fit as any,
+      price_tiers_fitness: f.price_tiers_fitness as any,
     }));
   }, [flavorsData]);
 
