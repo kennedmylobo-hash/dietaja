@@ -488,6 +488,7 @@ const MarmitasSection = () => {
                 loadingMarmita={loadingMarmita}
                 isInView={isInView}
                 minFlavorOverride={minFlavorOverrideFitness}
+                minUnitPriceByQuantity={minUnitByQuantityFitness}
               />
             </motion.div>
           </div>
