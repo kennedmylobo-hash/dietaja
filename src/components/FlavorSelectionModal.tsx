@@ -190,8 +190,17 @@ const FlavorSelectionModal = ({
         .filter(n => !isNaN(n))
         .sort((a, b) => a - b);
       let tierPrice: number | null = null;
+      // Match by current selection (progressive tier)
       for (const k of sortedKeys) {
         if (totalSelected >= k) tierPrice = Number(tiers[String(k)]);
+      }
+      // Fallback: use tier matching the current package quantity (so the displayed price reflects what the user pays in this pack)
+      if (tierPrice === null) {
+        let pkgTier: number | null = null;
+        for (const k of sortedKeys) {
+          if (packageQuantity >= k) pkgTier = Number(tiers[String(k)]);
+        }
+        if (pkgTier !== null) tierPrice = pkgTier;
       }
       if (tierPrice !== null) return tierPrice;
     }
