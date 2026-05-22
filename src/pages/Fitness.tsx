@@ -82,10 +82,20 @@ const FitnessContent = () => {
     price_tiers_fitness: f.price_tiers_fitness as any,
   }));
 
-  // Compute minimum flavor override for fitness line
+  // Compute minimum flavor price for fitness line (flat overrides + tier prices)
   const minFlavorUnitPrice = (() => {
-    const overrides = flavorsRaw.map(f => f.price_override_fitness).filter((v): v is number => v != null && v > 0);
-    return overrides.length > 0 ? Math.min(...overrides) : undefined;
+    const prices: number[] = [];
+    for (const f of flavorsRaw) {
+      if (typeof f.price_override_fitness === 'number' && f.price_override_fitness > 0) prices.push(f.price_override_fitness);
+      const tiers = (f as any).price_tiers_fitness;
+      if (tiers && typeof tiers === 'object') {
+        for (const v of Object.values(tiers)) {
+          const n = Number(v);
+          if (!isNaN(n) && n > 0) prices.push(n);
+        }
+      }
+    }
+    return prices.length > 0 ? Math.min(...prices) : undefined;
   })();
 
   // Build pricing tiers from packages for progressive discount nudge/celebration
