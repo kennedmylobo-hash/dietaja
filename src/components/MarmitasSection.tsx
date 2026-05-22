@@ -279,6 +279,40 @@ const MarmitasSection = () => {
     return prices.length > 0 ? Math.min(...prices) : undefined;
   }, [flavorsData]);
 
+  // Compute min unit price per quantity (considers tier for that quantity + flat override)
+  const computeMinByQuantity = (
+    packages: Marmita[],
+    field: 'price_override_fit' | 'price_override_fitness',
+    tierField: 'price_tiers_fit' | 'price_tiers_fitness',
+  ): Record<number, number> => {
+    const result: Record<number, number> = {};
+    if (!flavorsData) return result;
+    for (const pkg of packages) {
+      let min = pkg.unitPrice;
+      for (const f of flavorsData) {
+        const tiers = (f as any)[tierField];
+        const tierVal = tiers && typeof tiers === 'object' ? Number(tiers[String(pkg.quantity)] ?? tiers[pkg.quantity]) : NaN;
+        const flat = Number((f as any)[field]);
+        const candidate = !isNaN(tierVal) && tierVal > 0
+          ? tierVal
+          : (!isNaN(flat) && flat > 0 ? flat : pkg.unitPrice);
+        if (candidate < min) min = candidate;
+      }
+      result[pkg.quantity] = min;
+    }
+    return result;
+  };
+
+  const minUnitByQuantityFit = useMemo(
+    () => computeMinByQuantity(marmitasEmagrecimento, 'price_override_fit', 'price_tiers_fit'),
+    [flavorsData, marmitasEmagrecimento]
+  );
+  const minUnitByQuantityFitness = useMemo(
+    () => computeMinByQuantity(marmitasHipertrofia, 'price_override_fitness', 'price_tiers_fitness'),
+    [flavorsData, marmitasHipertrofia]
+  );
+
+
   // Group flavors by category for modal
   const flavorsByCategory = useMemo(() => {
     if (!flavorsData || flavorsData.length === 0) return undefined;
