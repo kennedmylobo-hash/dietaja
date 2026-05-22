@@ -856,7 +856,7 @@ const FlavorSelectionModal = ({
                                 ) : null;
                               })()}
                             </div>
-                            {hasLowStock && !isOutOfStock && (
+                            {false && hasLowStock && !isOutOfStock && (
                               <span className="text-xs text-destructive font-medium animate-pulse">
                                 🔥 Apenas {stockData.stock_quantity} disponíveis
                               </span>
