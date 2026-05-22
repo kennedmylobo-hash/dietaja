@@ -78,6 +78,8 @@ const FitnessContent = () => {
     sides: f.sides,
     price_override_fit: f.price_override_fit,
     price_override_fitness: f.price_override_fitness,
+    price_tiers_fit: f.price_tiers_fit as any,
+    price_tiers_fitness: f.price_tiers_fitness as any,
   }));
 
   // Compute minimum flavor override for fitness line
