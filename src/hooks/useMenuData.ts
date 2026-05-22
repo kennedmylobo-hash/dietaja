@@ -29,6 +29,8 @@ export interface MarmitaFlavor {
   sides: Json | null;
   price_override_fit: number | null;
   price_override_fitness: number | null;
+  price_tiers_fit: Record<string, number> | null;
+  price_tiers_fitness: Record<string, number> | null;
 }
 
 export interface KitPackage {
