@@ -146,6 +146,58 @@ const PagamentoSucesso = () => {
   }, [realStatus, orderId, order?.total, order?.items, tenantId]);
 
   const isPending = realStatus === 'pending';
+  const isApproved = realStatus === 'approved' || realStatus === 'paid';
+
+  // === Escolha de sabores pós-pagamento (Kit Primeiro Pedido) ===
+  const isPrimeiroPedido = useMemo(
+    () => (order?.items || []).some((i: any) => i?.type === 'kit-primeiro-pedido' || /primeiro pedido/i.test(i?.name || '')),
+    [order?.items]
+  );
+  const { data: flavors = [] } = useMarmitaFlavors();
+  const KIT_SIZE = 10;
+  const CATEGORY_LABELS: Record<string, { label: string; emoji: string }> = {
+    carnes: { label: "Carnes", emoji: "🥩" },
+    frangos: { label: "Frangos", emoji: "🍗" },
+    massas: { label: "Massas", emoji: "🍝" },
+    especiais: { label: "Especiais", emoji: "✨" },
+  };
+  const [flavorSelections, setFlavorSelections] = useState<Record<string, number>>({});
+  const [leaveToUs, setLeaveToUs] = useState(false);
+  const [flavorsSent, setFlavorsSent] = useState(false);
+  const totalSelected = Object.values(flavorSelections).reduce((a, b) => a + b, 0);
+  const groupedFlavors = flavors.reduce<Record<string, typeof flavors>>((acc, f) => {
+    (acc[f.category] = acc[f.category] || []).push(f);
+    return acc;
+  }, {});
+  const adjustFlavor = (name: string, delta: number) => {
+    setFlavorSelections((prev) => {
+      const current = prev[name] || 0;
+      const next = Math.max(0, current + delta);
+      const otherTotal = Object.entries(prev).reduce(
+        (s, [k, v]) => (k === name ? s : s + v),
+        0,
+      );
+      if (otherTotal + next > KIT_SIZE) return prev;
+      return { ...prev, [name]: next };
+    });
+    if (leaveToUs) setLeaveToUs(false);
+  };
+  const canSendFlavors = leaveToUs || totalSelected === KIT_SIZE;
+  const sendFlavorsWhatsApp = () => {
+    const orderRef = orderId ? `#${orderId.slice(0, 8)}` : '';
+    let body = `Olá! Acabei de pagar o Kit Primeiro Pedido ${orderRef} e quero registrar meus 10 sabores:\n\n`;
+    if (leaveToUs) {
+      body += `✨ Pode deixar por conta da cozinha — quero o sortido dos mais pedidos!`;
+    } else {
+      const picks = Object.entries(flavorSelections)
+        .filter(([, q]) => q > 0)
+        .map(([n, q]) => `• ${q}x ${n}`)
+        .join("\n");
+      body += picks;
+    }
+    window.open(getWhatsAppLink(body), "_blank");
+    setFlavorsSent(true);
+  };
 
   // Loading state
   if (loading) {
