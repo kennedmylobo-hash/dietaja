@@ -875,16 +875,18 @@ const FlavorSelectionModal = ({
                           </div>
                           
                           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                            {hasCustomPrice && flavorPrice < effectiveBasePrice ? (
-                              <span className="hidden sm:flex items-baseline gap-1.5 whitespace-nowrap">
-                                <span className="text-xs text-muted-foreground line-through">{formatPrice(effectiveBasePrice)}</span>
-                                <span className="text-sm font-bold text-primary">{formatPrice(flavorPrice)}</span>
-                                <span className="text-[10px] font-bold text-primary-foreground bg-primary px-1.5 py-0.5 rounded">OFERTA</span>
-                              </span>
-                            ) : (
-                              <span className={`text-sm font-bold whitespace-nowrap hidden sm:inline ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
-                                {formatPrice(flavorPrice)}
-                              </span>
+                            {SHOW_FLAVOR_PRICES && (
+                              hasCustomPrice && flavorPrice < effectiveBasePrice ? (
+                                <span className="hidden sm:flex items-baseline gap-1.5 whitespace-nowrap">
+                                  <span className="text-xs text-muted-foreground line-through">{formatPrice(effectiveBasePrice)}</span>
+                                  <span className="text-sm font-bold text-primary">{formatPrice(flavorPrice)}</span>
+                                  <span className="text-[10px] font-bold text-primary-foreground bg-primary px-1.5 py-0.5 rounded">OFERTA</span>
+                                </span>
+                              ) : (
+                                <span className={`text-sm font-bold whitespace-nowrap hidden sm:inline ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
+                                  {formatPrice(flavorPrice)}
+                                </span>
+                              )
                             )}
                             {isSelected && (
                               <motion.button
