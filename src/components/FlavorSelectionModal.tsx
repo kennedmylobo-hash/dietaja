@@ -422,6 +422,10 @@ const FlavorSelectionModal = ({
 
   const formatPrice = (value: number) => `R$ ${value.toFixed(2).replace(".", ",")}`;
 
+  // 🚩 PROMO FLAG: oculta preço individual por sabor enquanto vendemos por kit (promo 20%).
+  // Para reativar quando a promo acabar, basta trocar para `true`.
+  const SHOW_FLAVOR_PRICES = false;
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[100dvh] sm:max-h-[90vh] h-[100dvh] sm:h-auto p-0 gap-0 flex flex-col sm:rounded-lg rounded-none">
