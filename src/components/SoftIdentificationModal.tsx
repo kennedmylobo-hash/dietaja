@@ -96,9 +96,9 @@ export const SoftIdentificationModal = ({
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && onSkip) onSkip(); }}>
       <DialogContent 
-        className="sm:max-w-md mx-4 rounded-2xl animate-enter"
+        className="sm:max-w-md w-[calc(100%-2rem)] max-w-[calc(100%-2rem)] sm:w-full mx-auto rounded-2xl animate-enter px-5 sm:px-6"
       >
-        <DialogHeader className="text-center pb-2">
+        <DialogHeader className="text-center pb-2 px-6">
           <div className="mx-auto mb-3 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
             {isSubmitting ? (
               <CheckCircle2 className="w-8 h-8 text-primary animate-success-pop" />
@@ -106,10 +106,10 @@ export const SoftIdentificationModal = ({
               <Sparkles className="w-8 h-8 text-primary animate-sparkle-pulse" />
             )}
           </div>
-          <DialogTitle className="text-2xl font-bold text-foreground">
-            {isSubmitting ? "Pronto! ✨" : "Reservando seu pedido... 🛒"}
+          <DialogTitle className="text-xl sm:text-2xl font-bold text-foreground text-center text-balance leading-tight">
+            {isSubmitting ? "Pronto! ✨" : "Reservando seu pedido 🛒"}
           </DialogTitle>
-          <p className="text-muted-foreground mt-2 text-base">
+          <p className="text-muted-foreground mt-2 text-sm sm:text-base text-balance">
             {isSubmitting 
               ? "Adicionando ao seu carrinho..." 
               : "Para agilizar sua compra e garantir atendimento personalizado:"}
