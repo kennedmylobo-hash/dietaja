@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CheckCircle, Home, MessageCircle, Loader2, Clock } from "lucide-react";
+import { CheckCircle, Home, MessageCircle, Loader2, Clock, Minus, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import { Helmet } from "react-helmet-async";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { trackMetaEvent } from "@/lib/meta";
 import { useTenantId } from "@/hooks/useTenantId";
+import { useMarmitaFlavors } from "@/hooks/useMenuData";
 
 interface OrderData {
   id: string;
