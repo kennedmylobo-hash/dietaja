@@ -110,11 +110,19 @@ const PrimeiroPedido = () => {
   const tenantId = useTenantId();
   const countdown = useDailyCountdown();
   const [selectedKit, setSelectedKit] = useState<KitLine>("fit");
-  const [excluded, setExcluded] = useState<string[]>([]);
-  const [includeSalad, setIncludeSalad] = useState(true);
+  const [flavorSelections, setFlavorSelections] = useState<Record<string, number>>({});
+  const [leaveToUs, setLeaveToUs] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMethod, setLoadingMethod] = useState<"pix" | "card" | null>(null);
   const isSubmittingRef = useRef(false);
+
+  const { data: flavors = [] } = useMarmitaFlavors();
+  const groupedFlavors = flavors.reduce<Record<string, typeof flavors>>((acc, f) => {
+    (acc[f.category] = acc[f.category] || []).push(f);
+    return acc;
+  }, {});
+  const totalSelected = Object.values(flavorSelections).reduce((a, b) => a + b, 0);
+  const remaining = KIT_SIZE - totalSelected;
 
   const [pixModalData, setPixModalData] = useState<{
     qrCode: string;
