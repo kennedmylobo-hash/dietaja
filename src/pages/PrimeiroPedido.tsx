@@ -62,14 +62,7 @@ const KITS = {
 
 type KitLine = keyof typeof KITS;
 
-const KIT_SIZE = 10;
 
-const CATEGORY_LABELS: Record<string, { label: string; emoji: string }> = {
-  carnes: { label: "Carnes", emoji: "🥩" },
-  frangos: { label: "Frangos", emoji: "🍗" },
-  massas: { label: "Massas", emoji: "🍝" },
-  especiais: { label: "Especiais", emoji: "✨" },
-};
 
 
 // ===== COUNTDOWN HOOK (24h reset à meia-noite) =====
