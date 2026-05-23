@@ -335,26 +335,81 @@ const PrimeiroPedido = () => {
               <strong className="text-foreground"> Cupom PRIMEIRO20 aplicado automaticamente</strong> — só pra quem nunca pediu.
             </p>
 
-            {/* ===== TOGGLE FIT/FITNESS ===== */}
-            <div className="bg-card border-2 border-border rounded-2xl p-1.5 flex gap-1.5">
-              {(Object.keys(KITS) as KitLine[]).map((key) => {
-                const k = KITS[key];
-                const active = selectedKit === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setSelectedKit(key)}
-                    className={`flex-1 py-3 px-3 rounded-xl text-sm font-bold transition-all ${
-                      active
-                        ? "bg-primary text-primary-foreground shadow-md scale-[1.02]"
-                        : "bg-transparent text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {k.emoji} Linha {k.label}
-                    <div className="text-[10px] font-normal opacity-80">{k.weight}g</div>
-                  </button>
-                );
-              })}
+            {/* ===== QUIZ FIT/FITNESS ===== */}
+            <div className="space-y-2">
+              <p className="text-sm font-bold text-center text-foreground">
+                👇 Qual é o seu objetivo? Escolha sua linha:
+              </p>
+              <div className="grid grid-cols-1 gap-2.5">
+                {(Object.keys(KITS) as KitLine[]).map((key) => {
+                  const k = KITS[key];
+                  const active = selectedKit === key;
+                  const isFit = key === "fit";
+                  const goal = isFit ? "Definição · Emagrecimento" : "Hipertrofia · Ganho de Massa";
+                  const desc = isFit
+                    ? "Pra quem quer perder gordura e definir. Proteína magra, pouco carbo."
+                    : "Pra quem treina forte e quer crescer. Mais proteína + carbo de qualidade.";
+                  const tags = isFit
+                    ? ["Emagrecimento", "Low carb", "Cutting"]
+                    : ["Hipertrofia", "Bulking", "+ Proteína"];
+                  const accent = isFit ? "primary" : "orange-500";
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setSelectedKit(key)}
+                      className={`relative text-left rounded-2xl p-4 border-2 transition-all ${
+                        active
+                          ? isFit
+                            ? "border-primary bg-primary/5 shadow-md"
+                            : "border-orange-500 bg-orange-500/5 shadow-md"
+                          : "border-border bg-card hover:border-muted-foreground/30"
+                      }`}
+                    >
+                      {/* Radio */}
+                      <div
+                        className={`absolute top-3 right-3 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          active
+                            ? isFit
+                              ? "border-primary bg-primary"
+                              : "border-orange-500 bg-orange-500"
+                            : "border-muted-foreground/40"
+                        }`}
+                      >
+                        {active && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+
+                      <div className="flex items-center gap-2 pr-7">
+                        <span className="text-2xl">{k.emoji}</span>
+                        <div>
+                          <h3 className="text-base font-extrabold text-foreground leading-tight">
+                            Linha {k.label}
+                          </h3>
+                          <p className={`text-[11px] font-bold uppercase tracking-wide ${isFit ? "text-primary" : "text-orange-600"}`}>
+                            {goal}
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground leading-relaxed mt-2">
+                        {desc} Porções de <strong className="text-foreground">{k.weight}g</strong>.
+                      </p>
+
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                              isFit ? "bg-primary/10 text-primary" : "bg-orange-500/10 text-orange-600"
+                            }`}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <p className="text-xs text-muted-foreground italic">{kit.tagline}</p>
@@ -397,56 +452,6 @@ const PrimeiroPedido = () => {
           </div>
         </section>
 
-        {/* ===== PARA QUEM É ===== */}
-        <section className="px-4 py-8 bg-gradient-to-b from-primary/5 to-background">
-          <div className="max-w-lg mx-auto space-y-4">
-            <h2 className="text-xl font-extrabold text-center text-foreground">
-              Para quem é cada linha?
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* FIT */}
-              <div className="bg-card border-2 border-primary/20 rounded-2xl p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">🥗</span>
-                  <h3 className="text-lg font-bold text-foreground">Linha FIT</h3>
-                </div>
-                <p className="text-xs font-bold text-primary uppercase tracking-wide">
-                  Definição · Emagrecimento
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Ideal pra quem quer <strong className="text-foreground">perder gordura</strong> e manter o corpo definido. Porções de <strong>300g</strong> com proteína magra, pouco carboidrato e baixa caloria. Perfeita pra dietas de cutting, reeducação alimentar ou manutenção de peso.
-                </p>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {["Emagrecimento", "Definição", "Low carb"].map((tag) => (
-                    <span key={tag} className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              {/* FITNESS */}
-              <div className="bg-card border-2 border-orange-500/20 rounded-2xl p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">💪</span>
-                  <h3 className="text-lg font-bold text-foreground">Linha FITNESS</h3>
-                </div>
-                <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">
-                  Hipertrofia · Ganho de Massa
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Feita pra quem treina forte e busca <strong className="text-foreground">crescer</strong>. Porções de <strong>450g</strong> com mais proteína e carboidrato de qualidade pra repor energia e construir músculo. Ideal pra bulking, hipertrofia ou quem precisa de mais calorias no dia.
-                </p>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {["Hipertrofia", "Bulking", "+ Proteína"].map((tag) => (
-                    <span key={tag} className="text-[10px] bg-orange-500/10 text-orange-600 px-2 py-0.5 rounded-full font-medium">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
         {/* ===== BENEFITS ===== */}
         <section className="px-4 py-8 bg-card">
