@@ -584,13 +584,19 @@ const PrimeiroPedido = () => {
 
         {pixModalData && (
           <PixPaymentModal
-            isOpen={!!pixModalData}
-            onClose={() => setPixModalData(null)}
+            open={!!pixModalData}
+            onOpenChange={(o) => !o && setPixModalData(null)}
             qrCode={pixModalData.qrCode}
             qrCodeBase64={pixModalData.qrCodeBase64}
             orderId={pixModalData.orderId}
+            paymentId={pixModalData.paymentId}
             total={pixModalData.total}
             expirationDate={pixModalData.expirationDate}
+            onPaymentSuccess={(orderNumber) => {
+              setPixModalData(null);
+              window.location.href = `/pagamento/sucesso?order=${orderNumber}`;
+            }}
+            onPaymentFailed={() => setPixModalData(null)}
           />
         )}
       </div>
