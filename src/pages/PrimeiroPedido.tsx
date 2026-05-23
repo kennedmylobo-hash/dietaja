@@ -62,6 +62,34 @@ const KITS = {
 
 type KitLine = keyof typeof KITS;
 
+// ===== INGREDIENTES (para quiz de restrições) =====
+const INGREDIENT_GROUPS: { label: string; emoji: string; items: string[] }[] = [
+  {
+    label: "Proteínas",
+    emoji: "🥩",
+    items: [
+      "Almôndegas",
+      "Carne em cubos",
+      "Estrogonofe de carne",
+      "Estrogonofe de frango",
+      "Frango desfiado",
+      "Frango em cubos",
+      "Frango grelhado",
+    ],
+  },
+  {
+    label: "Carboidratos",
+    emoji: "🍚",
+    items: ["Arroz", "Aipim", "Purê de aipim", "Purê de batata doce", "Batata doce"],
+  },
+  { label: "Grãos", emoji: "🫘", items: ["Feijão"] },
+  {
+    label: "Salada",
+    emoji: "🥗",
+    items: ["Mix de salada (cenoura, abobrinha, vagem)"],
+  },
+];
+
 // ===== COUNTDOWN HOOK (24h reset à meia-noite) =====
 const useDailyCountdown = () => {
   const [time, setTime] = useState({ h: 0, m: 0, s: 0 });
