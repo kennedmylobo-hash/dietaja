@@ -83,12 +83,9 @@ const INGREDIENT_GROUPS: { label: string; emoji: string; items: string[] }[] = [
     items: ["Arroz", "Aipim", "Purê de aipim", "Purê de batata doce", "Batata doce"],
   },
   { label: "Grãos", emoji: "🫘", items: ["Feijão"] },
-  {
-    label: "Salada",
-    emoji: "🥗",
-    items: ["Mix de salada (cenoura, abobrinha, vagem)"],
-  },
 ];
+
+const SALAD_OPTION = "Mix de salada (cenoura, abobrinha, vagem)";
 
 // ===== COUNTDOWN HOOK (24h reset à meia-noite) =====
 const useDailyCountdown = () => {
