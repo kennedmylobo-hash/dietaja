@@ -218,13 +218,23 @@ const PagamentoSucesso = () => {
               </div>
             )}
 
-            <div className="bg-sage-light/30 rounded-lg p-4 mb-6">
-              <p className="text-sm font-medium text-foreground mb-2">📅 Próximos passos</p>
+            {/* 🎉 Parabéns + entrega */}
+            <div className="bg-primary/10 border-2 border-primary/30 rounded-xl p-5 mb-5">
+              <p className="text-lg font-extrabold text-foreground mb-1">
+                🎉 Parabéns pela sua escolha!
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Seu pedido foi confirmado com sucesso. <strong className="text-foreground">A entrega será em até 3 dias úteis</strong> — levamos esse tempo para preparar tudo com muito cuidado e carinho!
+              </p>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-4 mb-5">
+              <p className="text-sm font-medium text-foreground mb-2">📅 O que acontece agora?</p>
               <ul className="text-sm text-muted-foreground text-left space-y-2">
-                <li>✅ Pagamento confirmado com sucesso</li>
-                <li>🍽️ Seu pedido ficará pronto em até <strong className="text-foreground">72 horas úteis</strong></li>
-                <li>📲 Assim que estiver pronto, entraremos em contato — podendo ficar pronto antes!</li>
-                <li>💬 Dúvidas? Fale conosco pelo WhatsApp</li>
+                <li className="flex gap-2"><span>🍳</span> Nossa equipe prepara suas marmitas com ingredientes frescos</li>
+                <li className="flex gap-2"><span>🚚</span> Entrega em até <strong className="text-foreground">3 dias úteis</strong></li>
+                <li className="flex gap-2"><span>📲</span> Assim que sair pra entrega, você recebe notificação no WhatsApp</li>
+                <li className="flex gap-2"><span>❄️</span> Chega congelada, pronta pra guardar no freezer!</li>
               </ul>
             </div>
 
