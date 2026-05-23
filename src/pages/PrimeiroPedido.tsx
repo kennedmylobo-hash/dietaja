@@ -124,6 +124,7 @@ const PrimeiroPedido = () => {
   const countdown = useDailyCountdown();
   const [selectedKit, setSelectedKit] = useState<KitLine>("fit");
   const [excluded, setExcluded] = useState<string[]>([]);
+  const [includeSalad, setIncludeSalad] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMethod, setLoadingMethod] = useState<"pix" | "card" | null>(null);
   const isSubmittingRef = useRef(false);
