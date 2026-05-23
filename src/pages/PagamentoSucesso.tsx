@@ -200,13 +200,13 @@ const PagamentoSucesso = () => {
             </motion.div>
 
             <h1 className="text-2xl font-bold text-foreground mb-2">
-              {isPending ? "Pagamento em processamento!" : "Pagamento confirmado!"}
+              {isPending ? "Pagamento em processamento!" : "Pedido confirmado! 🎉"}
             </h1>
 
             <p className="text-muted-foreground mb-6">
               {isPending
                 ? "Seu pagamento está sendo processado. Você receberá uma confirmação em breve."
-                : "Obrigado pela sua compra! Seu pedido foi recebido com sucesso."}
+                : "Obrigado pela confiança! Seu kit de 10 marmitas já está separado para produção."}
             </p>
 
             {orderId && (
