@@ -110,19 +110,9 @@ const PrimeiroPedido = () => {
   const tenantId = useTenantId();
   const countdown = useDailyCountdown();
   const [selectedKit, setSelectedKit] = useState<KitLine>("fit");
-  const [flavorSelections, setFlavorSelections] = useState<Record<string, number>>({});
-  const [leaveToUs, setLeaveToUs] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMethod, setLoadingMethod] = useState<"pix" | "card" | null>(null);
   const isSubmittingRef = useRef(false);
-
-  const { data: flavors = [] } = useMarmitaFlavors();
-  const groupedFlavors = flavors.reduce<Record<string, typeof flavors>>((acc, f) => {
-    (acc[f.category] = acc[f.category] || []).push(f);
-    return acc;
-  }, {});
-  const totalSelected = Object.values(flavorSelections).reduce((a, b) => a + b, 0);
-  const remaining = KIT_SIZE - totalSelected;
 
   const [pixModalData, setPixModalData] = useState<{
     qrCode: string;
@@ -177,41 +167,15 @@ const PrimeiroPedido = () => {
     document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const adjustFlavor = (name: string, delta: number) => {
-    setFlavorSelections((prev) => {
-      const current = prev[name] || 0;
-      const next = Math.max(0, current + delta);
-      const otherTotal = Object.entries(prev).reduce(
-        (s, [k, v]) => (k === name ? s : s + v),
-        0,
-      );
-      if (otherTotal + next > KIT_SIZE) return prev;
-      return { ...prev, [name]: next };
-    });
-    if (leaveToUs) setLeaveToUs(false);
-  };
-
-  const buildItems = () => {
-    let suffix = "";
-    if (leaveToUs) {
-      suffix = " (Sortido — deixar por conta da cozinha)";
-    } else if (totalSelected > 0) {
-      const picks = Object.entries(flavorSelections)
-        .filter(([, q]) => q > 0)
-        .map(([n, q]) => `${q}x ${n}`)
-        .join(", ");
-      suffix = ` (Sabores escolhidos: ${picks})`;
-    }
-    return [
-      {
-        name: kit.name + suffix,
-        quantity: 1,
-        unitPrice: kit.finalPrice,
-        totalPrice: kit.finalPrice,
-        type: "kit-primeiro-pedido",
-      },
-    ];
-  };
+  const buildItems = () => [
+    {
+      name: kit.name,
+      quantity: 1,
+      unitPrice: kit.finalPrice,
+      totalPrice: kit.finalPrice,
+      type: "kit-primeiro-pedido",
+    },
+  ];
 
   const onSubmitCard = async (data: FormData) => {
     if (isSubmittingRef.current || isLoading) return;
