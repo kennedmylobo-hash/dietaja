@@ -100,6 +100,7 @@ const LiveCarts = () => {
 
     if (error) {
       console.error('Error fetching carts:', error);
+      setIsLoading(false);
       return;
     }
 
