@@ -423,7 +423,7 @@ const PrimeiroPedido = () => {
                     </span>
                   ))}
                 </div>
-              </<div>
+              </div>
               {/* FITNESS */}
               <div className="bg-card border-2 border-orange-500/20 rounded-2xl p-4 space-y-2">
                 <div className="flex items-center gap-2">
