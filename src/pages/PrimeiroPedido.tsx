@@ -188,7 +188,7 @@ const PrimeiroPedido = () => {
   const buildItems = () => {
     const restrictions: string[] = [...excluded];
     if (!includeSalad) restrictions.push("Mix de salada");
-    const suffix = restrictions.length > 1 ? ` (Restrições: sem ${restrictions.join(", ")})` : "";
+    const suffix = restrictions.length > 0 ? ` (Restrições: sem ${restrictions.join(", ")})` : "";
     return [
       {
         name: kit.name + suffix,
