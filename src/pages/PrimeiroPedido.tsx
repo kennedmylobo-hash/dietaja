@@ -397,6 +397,57 @@ const PrimeiroPedido = () => {
           </div>
         </section>
 
+        {/* ===== PARA QUEM É ===== */}
+        <section className="px-4 py-8 bg-gradient-to-b from-primary/5 to-background">
+          <div className="max-w-lg mx-auto space-y-4">
+            <h2 className="text-xl font-extrabold text-center text-foreground">
+              Para quem é cada linha?
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* FIT */}
+              <div className="bg-card border-2 border-primary/20 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🥗</span>
+                  <h3 className="text-lg font-bold text-foreground">Linha FIT</h3>
+                </div>
+                <p className="text-xs font-bold text-primary uppercase tracking-wide">
+                  Definição · Emagrecimento
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Ideal pra quem quer <strong className="text-foreground">perder gordura</strong> e manter o corpo definido. Porções de <strong>300g</strong> com proteína magra, pouco carboidrato e baixa caloria. Perfeita pra dietas de cutting, reeducação alimentar ou manutenção de peso.
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {["Emagrecimento", "Definição", "Low carb"].map((tag) => (
+                    <span key={tag} className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </<div>
+              {/* FITNESS */}
+              <div className="bg-card border-2 border-orange-500/20 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">💪</span>
+                  <h3 className="text-lg font-bold text-foreground">Linha FITNESS</h3>
+                </div>
+                <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">
+                  Hipertrofia · Ganho de Massa
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Feita pra quem treina forte e busca <strong className="text-foreground">crescer</strong>. Porções de <strong>450g</strong> com mais proteína e carboidrato de qualidade pra repor energia e construir músculo. Ideal pra bulking, hipertrofia ou quem precisa de mais calorias no dia.
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {["Hipertrofia", "Bulking", "+ Proteína"].map((tag) => (
+                    <span key={tag} className="text-[10px] bg-orange-500/10 text-orange-600 px-2 py-0.5 rounded-full font-medium">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ===== BENEFITS ===== */}
         <section className="px-4 py-8 bg-card">
           <div className="max-w-lg mx-auto space-y-4">
