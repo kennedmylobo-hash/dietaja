@@ -177,13 +177,31 @@ const PrimeiroPedido = () => {
     document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const toggleExcluded = (item: string) =>
-    setExcluded((prev) => (prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]));
+  const adjustFlavor = (name: string, delta: number) => {
+    setFlavorSelections((prev) => {
+      const current = prev[name] || 0;
+      const next = Math.max(0, current + delta);
+      const otherTotal = Object.entries(prev).reduce(
+        (s, [k, v]) => (k === name ? s : s + v),
+        0,
+      );
+      if (otherTotal + next > KIT_SIZE) return prev;
+      return { ...prev, [name]: next };
+    });
+    if (leaveToUs) setLeaveToUs(false);
+  };
 
   const buildItems = () => {
-    const restrictions: string[] = [...excluded];
-    if (!includeSalad) restrictions.push("Mix de salada");
-    const suffix = restrictions.length > 0 ? ` (Restrições: sem ${restrictions.join(", ")})` : "";
+    let suffix = "";
+    if (leaveToUs) {
+      suffix = " (Sortido — deixar por conta da cozinha)";
+    } else if (totalSelected > 0) {
+      const picks = Object.entries(flavorSelections)
+        .filter(([, q]) => q > 0)
+        .map(([n, q]) => `${q}x ${n}`)
+        .join(", ");
+      suffix = ` (Sabores escolhidos: ${picks})`;
+    }
     return [
       {
         name: kit.name + suffix,
