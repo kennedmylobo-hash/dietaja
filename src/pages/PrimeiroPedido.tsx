@@ -460,122 +460,120 @@ const PrimeiroPedido = () => {
               </div>
             </div>
 
-            {/* ===== QUIZ DE RESTRIÇÕES ===== */}
+            {/* ===== ESCOLHA DOS SABORES ===== */}
             <div className="bg-card border-2 border-dashed border-border rounded-2xl p-4 text-left space-y-3">
               <div className="text-center space-y-0.5">
                 <p className="text-sm font-bold text-foreground">
-                  🚫 Tem algo que você <span className="text-destructive">não gosta</span>?
+                  🍽️ Monte seu kit — escolha os <span className="text-primary">10 sabores</span>
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  Marque o que prefere evitar — vamos respeitar no seu kit.
+                  Selecione os sabores que mais combinam com você. Pode repetir!
                 </p>
               </div>
 
-              {INGREDIENT_GROUPS.map((group) => (
-                <div key={group.label} className="space-y-1.5">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                    {group.emoji} {group.label}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {group.items.map((item) => {
-                      const checked = excluded.includes(item);
-                      return (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => toggleExcluded(item)}
-                          className={`text-[11px] px-2.5 py-1.5 rounded-full border-2 font-medium transition-all ${
-                            checked
-                              ? "bg-destructive/10 border-destructive text-destructive line-through"
-                              : "bg-background border-border text-foreground hover:border-muted-foreground/40"
-                          }`}
-                        >
-                          {checked ? "✕ " : "+ "}
-                          {item}
-                        </button>
-                      );
-                    })}
+              {/* Contador */}
+              <div
+                className={`rounded-lg px-3 py-2 text-center text-xs font-bold ${
+                  totalSelected === KIT_SIZE
+                    ? "bg-success/10 text-success"
+                    : totalSelected > KIT_SIZE
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-primary/10 text-primary"
+                }`}
+              >
+                {leaveToUs
+                  ? "✨ Deixar por conta da cozinha (sortido)"
+                  : totalSelected === KIT_SIZE
+                  ? `✓ ${totalSelected}/${KIT_SIZE} marmitas escolhidas`
+                  : `${totalSelected}/${KIT_SIZE} marmitas — faltam ${Math.max(0, remaining)}`}
+              </div>
+
+              {/* Deixar por nossa conta */}
+              <button
+                type="button"
+                onClick={() => {
+                  setLeaveToUs((v) => !v);
+                  if (!leaveToUs) setFlavorSelections({});
+                }}
+                className={`w-full text-left rounded-xl p-3 border-2 transition-all ${
+                  leaveToUs
+                    ? "border-primary bg-primary/5 shadow-sm"
+                    : "border-border bg-background hover:border-muted-foreground/30"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      leaveToUs ? "border-primary bg-primary" : "border-muted-foreground/40"
+                    }`}
+                  >
+                    {leaveToUs && <div className="w-2 h-2 rounded-full bg-white" />}
+                  </div>
+                  <div>
+                    <p className={`text-[12px] font-bold ${leaveToUs ? "text-primary" : "text-foreground"}`}>
+                      ✨ Deixar por conta da cozinha
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Mandamos uma seleção variada dos sabores mais pedidos
+                    </p>
                   </div>
                 </div>
-              ))}
+              </button>
 
-              {/* ===== MIX DE SALADA ===== */}
-              <div className="space-y-2 pt-1">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                  🥗 Mix de salada
-                </p>
-                <div className="grid grid-cols-1 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIncludeSalad(true)}
-                    className={`text-left rounded-xl p-3 border-2 transition-all ${
-                      includeSalad
-                        ? "border-primary bg-primary/5 shadow-sm"
-                        : "border-border bg-background hover:border-muted-foreground/30"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          includeSalad ? "border-primary bg-primary" : "border-muted-foreground/40"
-                        }`}
-                      >
-                        {includeSalad && <div className="w-2 h-2 rounded-full bg-white" />}
-                      </div>
-                      <div>
-                        <p className={`text-[12px] font-bold ${includeSalad ? "text-primary" : "text-foreground"}`}>
-                          Quero com mix de salada
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">Cenoura, abobrinha e vagem</p>
-                      </div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIncludeSalad(false)}
-                    className={`text-left rounded-xl p-3 border-2 transition-all ${
-                      !includeSalad
-                        ? "border-destructive bg-destructive/5 shadow-sm"
-                        : "border-border bg-background hover:border-muted-foreground/30"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          !includeSalad ? "border-destructive bg-destructive" : "border-muted-foreground/40"
-                        }`}
-                      >
-                        {!includeSalad && <div className="w-2 h-2 rounded-full bg-white" />}
-                      </div>
-                      <div>
-                        <p className={`text-[12px] font-bold ${!includeSalad ? "text-destructive" : "text-foreground"}`}>
-                          Não quero o mix de salada
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">Remover salada do kit</p>
-                      </div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {(() => {
-                const restrictions: string[] = [...excluded];
-                if (!includeSalad) restrictions.push("Mix de salada");
-                if (restrictions.length > 0) {
+              {!leaveToUs &&
+                Object.entries(groupedFlavors).map(([category, items]) => {
+                  const meta = CATEGORY_LABELS[category] || { label: category, emoji: "🍱" };
                   return (
-                    <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-2 text-[11px] text-foreground">
-                      <strong className="text-destructive">Sem:</strong> {restrictions.join(", ")}
+                    <div key={category} className="space-y-1.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                        {meta.emoji} {meta.label}
+                      </p>
+                      <div className="space-y-1.5">
+                        {items.map((f) => {
+                          const qty = flavorSelections[f.name] || 0;
+                          const canAdd = totalSelected < KIT_SIZE;
+                          return (
+                            <div
+                              key={f.id}
+                              className={`flex items-center justify-between gap-2 rounded-lg border-2 p-2 transition-all ${
+                                qty > 0 ? "border-primary bg-primary/5" : "border-border bg-background"
+                              }`}
+                            >
+                              <p className="text-[12px] font-medium text-foreground flex-1 leading-tight">
+                                {f.name}
+                              </p>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => adjustFlavor(f.name, -1)}
+                                  disabled={qty === 0}
+                                  className="w-7 h-7 rounded-full border-2 border-border flex items-center justify-center disabled:opacity-30 hover:border-primary"
+                                  aria-label={`Remover ${f.name}`}
+                                >
+                                  <Minus className="w-3.5 h-3.5" />
+                                </button>
+                                <span className="w-6 text-center text-sm font-bold tabular-nums">
+                                  {qty}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => adjustFlavor(f.name, +1)}
+                                  disabled={!canAdd}
+                                  className="w-7 h-7 rounded-full border-2 border-primary bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-30"
+                                  aria-label={`Adicionar ${f.name}`}
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
-                }
-                return (
-                  <p className="text-[11px] text-success text-center font-medium">
-                    ✓ Você come de tudo — vamos mandar sortidão!
-                  </p>
-                );
-              })()}
+                })}
             </div>
+
 
             <p className="text-xs text-muted-foreground italic">{kit.tagline}</p>
 
