@@ -486,16 +486,82 @@ const PrimeiroPedido = () => {
                 </div>
               ))}
 
-              {excluded.length > 0 && (
-                <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-2 text-[11px] text-foreground">
-                  <strong className="text-destructive">Sem:</strong> {excluded.join(", ")}
-                </div>
-              )}
-              {excluded.length === 0 && (
-                <p className="text-[11px] text-success text-center font-medium">
-                  ✓ Você come de tudo — vamos mandar sortidão!
+              {/* ===== MIX DE SALADA ===== */}
+              <div className="space-y-2 pt-1">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                  🥗 Mix de salada
                 </p>
-              )}
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIncludeSalad(true)}
+                    className={`text-left rounded-xl p-3 border-2 transition-all ${
+                      includeSalad
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border bg-background hover:border-muted-foreground/30"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          includeSalad ? "border-primary bg-primary" : "border-muted-foreground/40"
+                        }`}
+                      >
+                        {includeSalad && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+                      <div>
+                        <p className={`text-[12px] font-bold ${includeSalad ? "text-primary" : "text-foreground"}`}>
+                          Quero com mix de salada
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">Cenoura, abobrinha e vagem</p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIncludeSalad(false)}
+                    className={`text-left rounded-xl p-3 border-2 transition-all ${
+                      !includeSalad
+                        ? "border-destructive bg-destructive/5 shadow-sm"
+                        : "border-border bg-background hover:border-muted-foreground/30"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          !includeSalad ? "border-destructive bg-destructive" : "border-muted-foreground/40"
+                        }`}
+                      >
+                        {!includeSalad && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+                      <div>
+                        <p className={`text-[12px] font-bold ${!includeSalad ? "text-destructive" : "text-foreground"}`}>
+                          Não quero o mix de salada
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">Remover salada do kit</p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {(() => {
+                const restrictions: string[] = [...excluded];
+                if (!includeSalad) restrictions.push("Mix de salada");
+                if (restrictions.length > 0) {
+                  return (
+                    <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-2 text-[11px] text-foreground">
+                      <strong className="text-destructive">Sem:</strong> {restrictions.join(", ")}
+                    </div>
+                  );
+                }
+                return (
+                  <p className="text-[11px] text-success text-center font-medium">
+                    ✓ Você come de tudo — vamos mandar sortidão!
+                  </p>
+                );
+              })()}
             </div>
 
             <p className="text-xs text-muted-foreground italic">{kit.tagline}</p>
