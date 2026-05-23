@@ -106,6 +106,7 @@ const PrimeiroPedido = () => {
     qrCode: string;
     qrCodeBase64: string;
     orderId: string;
+    paymentId: string;
     total: number;
     expirationDate: string;
   } | null>(null);
