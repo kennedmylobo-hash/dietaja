@@ -442,7 +442,7 @@ const PrimeiroPedido = () => {
                   R$ {fmt(kit.finalPrice)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Apenas <strong className="text-foreground">R$ {fmt(kit.perMeal * 0.8)}</strong> por marmita
+                  Apenas <strong className="text-foreground">R$ {fmt(kit.perMeal)}</strong> por marmita
                 </p>
               </div>
 
