@@ -422,6 +422,10 @@ const FlavorSelectionModal = ({
 
   const formatPrice = (value: number) => `R$ ${value.toFixed(2).replace(".", ",")}`;
 
+  // 🚩 PROMO FLAG: oculta preço individual por sabor enquanto vendemos por kit (promo 20%).
+  // Para reativar quando a promo acabar, basta trocar para `true`.
+  const SHOW_FLAVOR_PRICES = false;
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[100dvh] sm:max-h-[90vh] h-[100dvh] sm:h-auto p-0 gap-0 flex flex-col sm:rounded-lg rounded-none">
@@ -835,16 +839,18 @@ const FlavorSelectionModal = ({
                                   (+R$ 4,99/un)
                                 </span>
                               )}
-                              {hasCustomPrice && flavorPrice < effectiveBasePrice ? (
-                                <span className="flex items-baseline gap-1 sm:hidden">
-                                  <span className="text-[10px] text-muted-foreground line-through">{formatPrice(effectiveBasePrice)}</span>
-                                  <span className="text-xs font-bold text-primary">{formatPrice(flavorPrice)}</span>
-                                  <span className="text-[9px] font-bold text-primary-foreground bg-primary px-1 py-0.5 rounded">OFERTA</span>
-                                </span>
-                              ) : (
-                                <span className={`text-xs font-bold sm:hidden ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
-                                  {formatPrice(flavorPrice)}
-                                </span>
+                              {SHOW_FLAVOR_PRICES && (
+                                hasCustomPrice && flavorPrice < effectiveBasePrice ? (
+                                  <span className="flex items-baseline gap-1 sm:hidden">
+                                    <span className="text-[10px] text-muted-foreground line-through">{formatPrice(effectiveBasePrice)}</span>
+                                    <span className="text-xs font-bold text-primary">{formatPrice(flavorPrice)}</span>
+                                    <span className="text-[9px] font-bold text-primary-foreground bg-primary px-1 py-0.5 rounded">OFERTA</span>
+                                  </span>
+                                ) : (
+                                  <span className={`text-xs font-bold sm:hidden ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
+                                    {formatPrice(flavorPrice)}
+                                  </span>
+                                )
                               )}
                               {(() => {
                                 const flavorStock = getFlavorStock(flavor);
@@ -869,16 +875,18 @@ const FlavorSelectionModal = ({
                           </div>
                           
                           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                            {hasCustomPrice && flavorPrice < effectiveBasePrice ? (
-                              <span className="hidden sm:flex items-baseline gap-1.5 whitespace-nowrap">
-                                <span className="text-xs text-muted-foreground line-through">{formatPrice(effectiveBasePrice)}</span>
-                                <span className="text-sm font-bold text-primary">{formatPrice(flavorPrice)}</span>
-                                <span className="text-[10px] font-bold text-primary-foreground bg-primary px-1.5 py-0.5 rounded">OFERTA</span>
-                              </span>
-                            ) : (
-                              <span className={`text-sm font-bold whitespace-nowrap hidden sm:inline ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
-                                {formatPrice(flavorPrice)}
-                              </span>
+                            {SHOW_FLAVOR_PRICES && (
+                              hasCustomPrice && flavorPrice < effectiveBasePrice ? (
+                                <span className="hidden sm:flex items-baseline gap-1.5 whitespace-nowrap">
+                                  <span className="text-xs text-muted-foreground line-through">{formatPrice(effectiveBasePrice)}</span>
+                                  <span className="text-sm font-bold text-primary">{formatPrice(flavorPrice)}</span>
+                                  <span className="text-[10px] font-bold text-primary-foreground bg-primary px-1.5 py-0.5 rounded">OFERTA</span>
+                                </span>
+                              ) : (
+                                <span className={`text-sm font-bold whitespace-nowrap hidden sm:inline ${hasCustomPrice ? 'text-primary' : 'text-foreground'}`}>
+                                  {formatPrice(flavorPrice)}
+                                </span>
+                              )
                             )}
                             {isSelected && (
                               <motion.button
