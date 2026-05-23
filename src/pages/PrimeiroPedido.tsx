@@ -62,6 +62,34 @@ const KITS = {
 
 type KitLine = keyof typeof KITS;
 
+// ===== INGREDIENTES (para quiz de restrições) =====
+const INGREDIENT_GROUPS: { label: string; emoji: string; items: string[] }[] = [
+  {
+    label: "Proteínas",
+    emoji: "🥩",
+    items: [
+      "Almôndegas",
+      "Carne em cubos",
+      "Estrogonofe de carne",
+      "Estrogonofe de frango",
+      "Frango desfiado",
+      "Frango em cubos",
+      "Frango grelhado",
+    ],
+  },
+  {
+    label: "Carboidratos",
+    emoji: "🍚",
+    items: ["Arroz", "Aipim", "Purê de aipim", "Purê de batata doce", "Batata doce"],
+  },
+  { label: "Grãos", emoji: "🫘", items: ["Feijão"] },
+  {
+    label: "Salada",
+    emoji: "🥗",
+    items: ["Mix de salada (cenoura, abobrinha, vagem)"],
+  },
+];
+
 // ===== COUNTDOWN HOOK (24h reset à meia-noite) =====
 const useDailyCountdown = () => {
   const [time, setTime] = useState({ h: 0, m: 0, s: 0 });
@@ -98,6 +126,7 @@ const PrimeiroPedido = () => {
   const tenantId = useTenantId();
   const countdown = useDailyCountdown();
   const [selectedKit, setSelectedKit] = useState<KitLine>("fit");
+  const [excluded, setExcluded] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMethod, setLoadingMethod] = useState<"pix" | "card" | null>(null);
   const isSubmittingRef = useRef(false);
@@ -155,15 +184,21 @@ const PrimeiroPedido = () => {
     document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const buildItems = () => [
-    {
-      name: kit.name,
-      quantity: 1,
-      unitPrice: kit.finalPrice,
-      totalPrice: kit.finalPrice,
-      type: "kit-primeiro-pedido",
-    },
-  ];
+  const toggleExcluded = (item: string) =>
+    setExcluded((prev) => (prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]));
+
+  const buildItems = () => {
+    const suffix = excluded.length > 0 ? ` (Restrições: sem ${excluded.join(", ")})` : "";
+    return [
+      {
+        name: kit.name + suffix,
+        quantity: 1,
+        unitPrice: kit.finalPrice,
+        totalPrice: kit.finalPrice,
+        type: "kit-primeiro-pedido",
+      },
+    ];
+  };
 
   const onSubmitCard = async (data: FormData) => {
     if (isSubmittingRef.current || isLoading) return;
@@ -410,6 +445,57 @@ const PrimeiroPedido = () => {
                   );
                 })}
               </div>
+            </div>
+
+            {/* ===== QUIZ DE RESTRIÇÕES ===== */}
+            <div className="bg-card border-2 border-dashed border-border rounded-2xl p-4 text-left space-y-3">
+              <div className="text-center space-y-0.5">
+                <p className="text-sm font-bold text-foreground">
+                  🚫 Tem algo que você <span className="text-destructive">não gosta</span>?
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Marque o que prefere evitar — vamos respeitar no seu kit.
+                </p>
+              </div>
+
+              {INGREDIENT_GROUPS.map((group) => (
+                <div key={group.label} className="space-y-1.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                    {group.emoji} {group.label}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.items.map((item) => {
+                      const checked = excluded.includes(item);
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => toggleExcluded(item)}
+                          className={`text-[11px] px-2.5 py-1.5 rounded-full border-2 font-medium transition-all ${
+                            checked
+                              ? "bg-destructive/10 border-destructive text-destructive line-through"
+                              : "bg-background border-border text-foreground hover:border-muted-foreground/40"
+                          }`}
+                        >
+                          {checked ? "✕ " : "+ "}
+                          {item}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {excluded.length > 0 && (
+                <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-2 text-[11px] text-foreground">
+                  <strong className="text-destructive">Sem:</strong> {excluded.join(", ")}
+                </div>
+              )}
+              {excluded.length === 0 && (
+                <p className="text-[11px] text-success text-center font-medium">
+                  ✓ Você come de tudo — vamos mandar sortidão!
+                </p>
+              )}
             </div>
 
             <p className="text-xs text-muted-foreground italic">{kit.tagline}</p>
