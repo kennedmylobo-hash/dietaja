@@ -184,15 +184,21 @@ const PrimeiroPedido = () => {
     document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const buildItems = () => [
-    {
-      name: kit.name,
-      quantity: 1,
-      unitPrice: kit.finalPrice,
-      totalPrice: kit.finalPrice,
-      type: "kit-primeiro-pedido",
-    },
-  ];
+  const toggleExcluded = (item: string) =>
+    setExcluded((prev) => (prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]));
+
+  const buildItems = () => {
+    const suffix = excluded.length > 0 ? ` (Restrições: sem ${excluded.join(", ")})` : "";
+    return [
+      {
+        name: kit.name + suffix,
+        quantity: 1,
+        unitPrice: kit.finalPrice,
+        totalPrice: kit.finalPrice,
+        type: "kit-primeiro-pedido",
+      },
+    ];
+  };
 
   const onSubmitCard = async (data: FormData) => {
     if (isSubmittingRef.current || isLoading) return;
