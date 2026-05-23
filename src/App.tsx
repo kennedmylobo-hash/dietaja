@@ -35,6 +35,7 @@ const SuperAdmin = lazy(() => import("./pages/SuperAdmin"));
 const MonteSeuCardapio = lazy(() => import("./pages/MonteSeuCardapio"));
 const Licenca = lazy(() => import("./pages/Licenca"));
 const KitMensal = lazy(() => import("./pages/KitMensal"));
+const PrimeiroPedido = lazy(() => import("./pages/PrimeiroPedido"));
 
 // Simple loading fallback
 const PageLoader = () => (
@@ -96,6 +97,7 @@ const App = () => (
                   <Route path="/monte-seu-cardapio" element={<MonteSeuCardapio />} />
                   <Route path="/licenca" element={<Licenca />} />
                   <Route path="/kit-mensal" element={<KitMensal />} />
+                  <Route path="/primeiro-pedido" element={<PrimeiroPedido />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
