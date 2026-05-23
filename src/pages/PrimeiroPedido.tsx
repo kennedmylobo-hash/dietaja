@@ -186,7 +186,9 @@ const PrimeiroPedido = () => {
     setExcluded((prev) => (prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]));
 
   const buildItems = () => {
-    const suffix = excluded.length > 0 ? ` (Restrições: sem ${excluded.join(", ")})` : "";
+    const restrictions: string[] = [...excluded];
+    if (!includeSalad) restrictions.push("Mix de salada");
+    const suffix = restrictions.length > 1 ? ` (Restrições: sem ${restrictions.join(", ")})` : "";
     return [
       {
         name: kit.name + suffix,
