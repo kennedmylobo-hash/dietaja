@@ -447,6 +447,57 @@ const PrimeiroPedido = () => {
               </div>
             </div>
 
+            {/* ===== QUIZ DE RESTRIÇÕES ===== */}
+            <div className="bg-card border-2 border-dashed border-border rounded-2xl p-4 text-left space-y-3">
+              <div className="text-center space-y-0.5">
+                <p className="text-sm font-bold text-foreground">
+                  🚫 Tem algo que você <span className="text-destructive">não gosta</span>?
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Marque o que prefere evitar — vamos respeitar no seu kit.
+                </p>
+              </div>
+
+              {INGREDIENT_GROUPS.map((group) => (
+                <div key={group.label} className="space-y-1.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                    {group.emoji} {group.label}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.items.map((item) => {
+                      const checked = excluded.includes(item);
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => toggleExcluded(item)}
+                          className={`text-[11px] px-2.5 py-1.5 rounded-full border-2 font-medium transition-all ${
+                            checked
+                              ? "bg-destructive/10 border-destructive text-destructive line-through"
+                              : "bg-background border-border text-foreground hover:border-muted-foreground/40"
+                          }`}
+                        >
+                          {checked ? "✕ " : "+ "}
+                          {item}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {excluded.length > 0 && (
+                <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-2 text-[11px] text-foreground">
+                  <strong className="text-destructive">Sem:</strong> {excluded.join(", ")}
+                </div>
+              )}
+              {excluded.length === 0 && (
+                <p className="text-[11px] text-success text-center font-medium">
+                  ✓ Você come de tudo — vamos mandar sortidão!
+                </p>
+              )}
+            </div>
+
             <p className="text-xs text-muted-foreground italic">{kit.tagline}</p>
 
             {/* ===== PRICE BOX ===== */}
