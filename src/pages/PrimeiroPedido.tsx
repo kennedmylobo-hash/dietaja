@@ -126,6 +126,7 @@ const PrimeiroPedido = () => {
   const tenantId = useTenantId();
   const countdown = useDailyCountdown();
   const [selectedKit, setSelectedKit] = useState<KitLine>("fit");
+  const [excluded, setExcluded] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMethod, setLoadingMethod] = useState<"pix" | "card" | null>(null);
   const isSubmittingRef = useRef(false);
