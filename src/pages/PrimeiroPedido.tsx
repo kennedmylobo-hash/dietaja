@@ -18,8 +18,10 @@ import { getUTMParams } from "@/lib/utm";
 import { EmailAutocomplete } from "@/components/EmailAutocomplete";
 import PixPaymentModal from "@/components/PixPaymentModal";
 import { useTenantId } from "@/hooks/useTenantId";
+import { useMarmitaFlavors } from "@/hooks/useMenuData";
 import { Helmet } from "react-helmet-async";
 import { generateMetaEventId, trackMetaEvent } from "@/lib/meta";
+import { Minus, Plus } from "lucide-react";
 
 const trackGA4 = (eventName: string, params?: Record<string, unknown>) => {
   if (typeof window !== "undefined" && (window as any).gtag) {
