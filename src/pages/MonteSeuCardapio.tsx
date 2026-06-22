@@ -313,8 +313,17 @@ const MonteSeuCardapioContent = () => {
       lineType: selectedLine,
     });
 
+    try {
+      const phone = customerInfo?.phone || "";
+      const planData = { flavors, selectedQuantity, selectedLine, lineConfig, unitPrice, totalPrice, savedAt: new Date().toISOString() };
+      if (phone) {
+        localStorage.setItem(`meal_plan_${phone.replace(/\D/g, "")}`, JSON.stringify(planData));
+      }
+      localStorage.setItem("meal_plan_last", JSON.stringify(planData));
+    } catch {}
+
     setTimeout(() => setIsCartOpen(true), 300);
-  }, [flavors, selectedQuantity, lineConfig, unitPrice, totalPrice, selectedLine, addItem]);
+  }, [flavors, selectedQuantity, lineConfig, unitPrice, totalPrice, selectedLine, addItem, customerInfo?.phone]);
 
   const sendWhatsAppWithOrder = useCallback(async (custName: string, custPhone: string, custEmail: string) => {
     if (!flavors || !selectedQuantity) return;
@@ -396,6 +405,12 @@ const MonteSeuCardapioContent = () => {
         `https://wa.me/${contact.whatsapp}?text=${encodeURIComponent(message)}`,
         "_blank"
       );
+
+      try {
+        const planData = { flavors, selectedQuantity, selectedLine, lineConfig, unitPrice, totalPrice, savedAt: new Date().toISOString() };
+        localStorage.setItem(`meal_plan_${custPhone.replace(/\D/g, "")}`, JSON.stringify(planData));
+        localStorage.setItem("meal_plan_last", JSON.stringify(planData));
+      } catch {}
 
       toast.success(`Pedido ${orderRef} reservado! Envie a mensagem no WhatsApp para confirmar.`);
     } catch (err: any) {

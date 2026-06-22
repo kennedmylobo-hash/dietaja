@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -47,7 +48,7 @@ serve(async (req) => {
         console.error('[process-cashback] No loyalty levels configured');
         return new Response(
           JSON.stringify({ success: false, error: 'No loyalty levels configured' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' }, status: 400 }
         );
       }
 
@@ -102,7 +103,7 @@ serve(async (req) => {
           new_balance: newBalance,
           level: level.name,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
 
     } else if (action === 'use') {
@@ -120,7 +121,7 @@ serve(async (req) => {
         console.error('[process-cashback] Balance not found for', customer_email);
         return new Response(
           JSON.stringify({ success: false, error: 'Balance not found' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' }, status: 400 }
         );
       }
 
@@ -128,7 +129,7 @@ serve(async (req) => {
         console.error('[process-cashback] Insufficient balance');
         return new Response(
           JSON.stringify({ success: false, error: 'Insufficient balance' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' }, status: 400 }
         );
       }
 
@@ -168,7 +169,7 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ success: true, amount_used: amount, new_balance: newBalance }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
 
     } else if (action === 'expire') {
@@ -233,13 +234,13 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ success: true, expired_count: expiredTx?.length || 0, total_expired: totalExpired }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
     return new Response(
       JSON.stringify({ error: 'Invalid action' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' }, status: 400 }
     );
 
   } catch (error: unknown) {
@@ -247,7 +248,7 @@ serve(async (req) => {
     console.error('[process-cashback] Error:', error);
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });

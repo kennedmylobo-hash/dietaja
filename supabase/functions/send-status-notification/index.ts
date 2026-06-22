@@ -5,6 +5,7 @@ import { getTenantBranding, getTenantBaseUrl, type TenantBranding } from "../_sh
 import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -130,19 +131,19 @@ serve(async (req: Request) => {
     const { order_id, new_status }: NotificationRequest = await req.json();
     if (!order_id || !new_status) {
       return new Response(JSON.stringify({ error: "order_id and new_status are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 400, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
     console.log(`[STATUS] Processing notification for order ${order_id}, status: ${new_status}`);
 
     if (new_status === "pending" || new_status === "whatsapp_pending") {
       return new Response(JSON.stringify({ success: true, skipped: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
     if (new_status === "approved") {
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "handled_by_approved_function" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -159,7 +160,7 @@ serve(async (req: Request) => {
       if (existingPending) {
         await supabase.from("pending_notifications").update({ status: new_status, scheduled_for: scheduledFor }).eq("order_id", order_id);
         return new Response(JSON.stringify({ success: true, debounced: true, updated: true }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
       }
 
       const { error: insertError } = await supabase
@@ -167,7 +168,7 @@ serve(async (req: Request) => {
 
       if (!insertError) {
         return new Response(JSON.stringify({ success: true, debounced: true, queued: true }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
       }
     }
 
@@ -178,7 +179,7 @@ serve(async (req: Request) => {
 
     if (error || !order) {
       return new Response(JSON.stringify({ error: "Order not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 404, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
     const { data: template } = await supabase
@@ -190,7 +191,7 @@ serve(async (req: Request) => {
     const fallback = FALLBACK_MESSAGES[effectiveStatus] || FALLBACK_MESSAGES[new_status];
     if (!template?.is_active && !fallback) {
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "no_template" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
     const branding = await getTenantBranding(supabase, order.tenant_id);
@@ -230,10 +231,10 @@ serve(async (req: Request) => {
     }
 
     return new Response(JSON.stringify({ success: true, order_number: order.order_number, immediate: true }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
   } catch (error) {
     console.error("Error in send-status-notification:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
   }
 });

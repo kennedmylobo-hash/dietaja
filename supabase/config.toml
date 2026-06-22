@@ -1,4 +1,4 @@
-project_id = "fxlhpizydnbdkhuzrkpr"
+project_id = "glomfmkevgwomeqpsixy"
 
 [functions.send-pending-reminders]
 verify_jwt = false

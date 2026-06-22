@@ -34,8 +34,9 @@ export interface CustomerInfo {
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, "id">) => void;
+  addItem: (item: Omit<CartItem, "id">, append?: boolean) => void;
   removeItem: (id: string) => void;
+  updateItemQuantity: (id: string, delta: number) => void;
   updateItemFlavors: (id: string, flavors: FlavorSelection[], fishAdditional?: number) => void;
   clearCart: () => void;
   getTotal: () => number;
@@ -57,11 +58,20 @@ interface CartContextType {
 }
 
 const STORAGE_KEY = 'tenant_customer';
+const CART_STORAGE_KEY = 'cart_items';
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [items, setItems] = useState<CartItem[]>([]);
+  // Load from localStorage first, then let database override if available
+  const [items, setItems] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(CART_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [customerInfo, setCustomerInfoState] = useState<CustomerInfo>({
     name: '',
     phone: '',
@@ -74,6 +84,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { trackCartEvent } = useCartTracking();
   const tenantId = useTenantId();
   const pendingAddToCartTrackedRef = useRef(false);
+  const pendingItemAppendRef = useRef(false);
 
   const isIdentified = !!(customerInfo.phone && customerInfo.name);
 
@@ -294,7 +305,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [items, customerInfo, isIdentified, syncCartToDatabase]);
 
-  const addItem = useCallback((newItem: Omit<CartItem, "id">) => {
+  // Always persist carrinho no localStorage para usuario fechar e voltar
+  useEffect(() => {
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+  }, [items]);
+
+  const addItem = useCallback((newItem: Omit<CartItem, "id">, append?: boolean) => {
     const trackAddToCartMeta = () => {
       const eventId = generateMetaEventId('add_to_cart');
 
@@ -315,12 +331,32 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       });
     };
 
-    // If not identified, track intent first and then show modal
+    // If not identified, add item directly to cart without blocking modal
+    // Customer data will be requested only during checkout
     if (!isIdentified) {
       trackAddToCartMeta();
       pendingAddToCartTrackedRef.current = true;
-      setPendingItem(newItem);
-      setShowIdentificationModal(true);
+      pendingItemAppendRef.current = !!append;
+      
+      // Continue with adding item
+      const id = `${newItem.type}-${newItem.name}-${Date.now()}`;
+      
+      setItems((prev) => {
+        if (append) {
+          const existing = prev.find((item) => item.name === newItem.name && item.type === newItem.type);
+          if (existing) {
+            return prev.map((item) =>
+              item.id === existing.id
+                ? { ...item, quantity: item.quantity + 1, totalPrice: item.totalPrice + newItem.unitPrice }
+                : item
+            );
+          }
+          return [...prev, { ...newItem, id }];
+        }
+        const filtered = prev.filter((item) => item.type !== newItem.type);
+        return [...filtered, { ...newItem, id }];
+      });
+      
       return;
     }
 
@@ -350,8 +386,18 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       value: newItem.totalPrice,
     });
     
-    // Check if same type already exists, replace it
     setItems((prev) => {
+      if (append) {
+        const existing = prev.find((item) => item.name === newItem.name && item.type === newItem.type);
+        if (existing) {
+          return prev.map((item) =>
+            item.id === existing.id
+              ? { ...item, quantity: item.quantity + 1, totalPrice: item.totalPrice + newItem.unitPrice }
+              : item
+          );
+        }
+        return [...prev, { ...newItem, id }];
+      }
       const filtered = prev.filter((item) => item.type !== newItem.type);
       return [...filtered, { ...newItem, id }];
     });
@@ -404,13 +450,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       value: pendingItem.totalPrice,
     });
     
-    // Check if same type already exists, replace it
     setItems((prev) => {
+      if (pendingItemAppendRef.current) {
+        const existing = prev.find((item) => item.name === pendingItem.name && item.type === pendingItem.type);
+        if (existing) {
+          return prev.map((item) =>
+            item.id === existing.id
+              ? { ...item, quantity: item.quantity + 1, totalPrice: item.totalPrice + pendingItem.unitPrice }
+              : item
+          );
+        }
+        return [...prev, { ...pendingItem, id }];
+      }
       const filtered = prev.filter((item) => item.type !== pendingItem.type);
       return [...filtered, { ...pendingItem, id }];
     });
 
     pendingAddToCartTrackedRef.current = false;
+    pendingItemAppendRef.current = false;
     setPendingItem(null);
     setShowIdentificationModal(false);
   }, [pendingItem, trackCartEvent, tenantId, customerInfo.email, customerInfo.phone]);
@@ -419,6 +476,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     trackCartEvent('cart_remove');
     setItems((prev) => prev.filter((item) => item.id !== id));
   }, [trackCartEvent]);
+
+  const updateItemQuantity = useCallback((id: string, delta: number) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? { ...item, quantity: Math.max(0, item.quantity + delta), totalPrice: item.unitPrice * Math.max(0, item.quantity + delta) }
+          : item
+      ).filter((item) => item.quantity > 0)
+    );
+  }, []);
 
   const updateItemFlavors = useCallback((id: string, flavors: FlavorSelection[], fishAdditional?: number) => {
     setItems((prev) =>
@@ -430,6 +497,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = useCallback(() => {
     setItems([]);
+    localStorage.removeItem(CART_STORAGE_KEY);
   }, []);
 
   const getTotal = useCallback(() => {
@@ -510,6 +578,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       items, 
       addItem, 
       removeItem, 
+      updateItemQuantity, 
       updateItemFlavors, 
       clearCart, 
       getTotal, 

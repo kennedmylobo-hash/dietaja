@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Save, Store, Upload, Link2, Copy, Check } from "lucide-react";
+import { Save, Store, Upload, Link2, Copy, Check, Truck, Clock } from "lucide-react";
 
 export default function TenantSettingsEditor() {
   const tenantId = useTenantId();
@@ -39,10 +39,16 @@ export default function TenantSettingsEditor() {
     facebook_pixel_id: "",
     google_analytics_id: "",
     domain: "",
+    delivery_days: [3],
+    cutoff_day: 0,
+    cutoff_time: "18:00",
+    production_day: 1,
+    cutoff_message: "Pedidos após as 18h de sábado entram na produção da próxima semana.",
   });
 
   useEffect(() => {
     if (tenant) {
+      const dc = tenant.delivery_config || {};
       setForm({
         brand_name: tenant.brand_name || "",
         brand_slogan: tenant.brand_slogan || "",
@@ -55,15 +61,24 @@ export default function TenantSettingsEditor() {
         facebook_pixel_id: tenant.facebook_pixel_id || "",
         google_analytics_id: tenant.google_analytics_id || "",
         domain: tenant.domain || "",
+        delivery_days: dc.delivery_days || [3],
+        cutoff_day: dc.cutoff_day ?? 0,
+        cutoff_time: dc.cutoff_time || "18:00",
+        production_day: dc.production_day ?? 1,
+        cutoff_message: dc.cutoff_message || "Pedidos após as 18h de sábado entram na produção da próxima semana.",
       });
     }
   }, [tenant]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof form) => {
+      const { delivery_days, cutoff_day, cutoff_time, production_day, cutoff_message, ...flatFields } = data;
       const { error } = await supabase
         .from("tenants")
-        .update(data)
+        .update({
+          ...flatFields,
+          delivery_config: { delivery_days, cutoff_day, cutoff_time, production_day, cutoff_message },
+        })
         .eq("id", tenantId);
       if (error) throw error;
     },
@@ -217,6 +232,112 @@ export default function TenantSettingsEditor() {
             <Save className="w-4 h-4 mr-2" />
             {updateMutation.isPending ? "Salvando..." : "Salvar Configurações"}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Truck className="w-5 h-5" />
+            Agendamento de Entregas
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Dias de Entrega</Label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {[
+                  { value: 0, label: "Dom" },
+                  { value: 1, label: "Seg" },
+                  { value: 2, label: "Ter" },
+                  { value: 3, label: "Qua" },
+                  { value: 4, label: "Qui" },
+                  { value: 5, label: "Sex" },
+                  { value: 6, label: "Sáb" },
+                ].map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    onClick={() => {
+                      const days = form.delivery_days.includes(d.value)
+                        ? form.delivery_days.filter((v) => v !== d.value)
+                        : [...form.delivery_days, d.value];
+                      setForm({ ...form, delivery_days: days });
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
+                      form.delivery_days.includes(d.value)
+                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        : "border-border hover:border-primary/30 bg-muted/30"
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Selecione os dias da semana em que as entregas ocorrem.</p>
+            </div>
+            <div>
+              <Label>Dia de Corte</Label>
+              <select
+                value={form.cutoff_day}
+                onChange={(e) => setForm({ ...form, cutoff_day: Number(e.target.value) })}
+                className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                {[
+                  { value: 0, label: "Domingo" },
+                  { value: 1, label: "Segunda-feira" },
+                  { value: 2, label: "Terça-feira" },
+                  { value: 3, label: "Quarta-feira" },
+                  { value: 4, label: "Quinta-feira" },
+                  { value: 5, label: "Sexta-feira" },
+                  { value: 6, label: "Sábado" },
+                ].map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">Último dia para pedir e entrar na produção da semana.</p>
+            </div>
+            <div>
+              <Label>Horário de Corte</Label>
+              <Input
+                type="time"
+                value={form.cutoff_time}
+                onChange={(e) => setForm({ ...form, cutoff_time: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Horário limite no dia de corte.</p>
+            </div>
+            <div>
+              <Label>Dia de Produção</Label>
+              <select
+                value={form.production_day}
+                onChange={(e) => setForm({ ...form, production_day: Number(e.target.value) })}
+                className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                {[
+                  { value: 0, label: "Domingo" },
+                  { value: 1, label: "Segunda-feira" },
+                  { value: 2, label: "Terça-feira" },
+                  { value: 3, label: "Quarta-feira" },
+                  { value: 4, label: "Quinta-feira" },
+                  { value: 5, label: "Sexta-feira" },
+                  { value: 6, label: "Sábado" },
+                ].map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">Dia em que as marmitas são produzidas.</p>
+            </div>
+          </div>
+          <div>
+            <Label>Mensagem de Corte</Label>
+            <Input
+              value={form.cutoff_message}
+              onChange={(e) => setForm({ ...form, cutoff_message: e.target.value })}
+              placeholder="Pedidos após as 18h de sábado entram na produção da próxima semana."
+            />
+            <p className="text-xs text-muted-foreground mt-1">Texto exibido no checkout sobre o horário de corte.</p>
+          </div>
         </CardContent>
       </Card>
     </div>

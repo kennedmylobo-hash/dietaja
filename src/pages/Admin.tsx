@@ -43,6 +43,7 @@ import {
 } from "recharts";
 import OrdersManager from "@/components/admin/OrdersManager";
 import MenuManager from "@/components/admin/MenuManager";
+import ClubManager from "@/components/admin/ClubManager";
 import StockReport from "@/components/admin/StockReport";
 import StockHistory from "@/components/admin/StockHistory";
 import FunnelReport from "@/components/admin/FunnelReport";
@@ -69,6 +70,7 @@ import FlavorProfitReport from "@/components/admin/FlavorProfitReport";
 import ABTestManager from "@/components/admin/ABTestManager";
 import ClientFeedbackManager from "@/components/admin/ClientFeedbackManager";
 import PersonalizedDietHub from "@/components/admin/PersonalizedDietHub";
+import ReferralManager from "@/components/admin/ReferralManager";
 import UTMCampaignReport from "@/components/admin/UTMCampaignReport";
 
 interface Lead {
@@ -1210,6 +1212,9 @@ const Admin = () => {
           </div>
         );
 
+      case "club":
+        return <ClubManager />;
+
       case "stock":
         return <StockReport />;
 
@@ -1223,6 +1228,9 @@ const Admin = () => {
             <MarketingManager />
           </div>
         );
+
+      case "referrals":
+        return <ReferralManager />;
 
       case "notifications":
         return <NotificationStats />;

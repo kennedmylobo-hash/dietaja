@@ -4,6 +4,7 @@ import { getTenantBranding, getTenantBaseUrl, TenantBranding } from "../_shared/
 import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -65,7 +66,7 @@ serve(async (req: Request) => {
     if (!isBusinessHours()) {
       console.log("[REVIEW] Outside business hours (8h-21h BRT), skipping.");
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "outside_business_hours" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -87,7 +88,7 @@ serve(async (req: Request) => {
     if (!orders || orders.length === 0) {
       console.log("[REVIEW] No eligible orders found");
       return new Response(JSON.stringify({ success: true, processed: 0 }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
     // Busca reviews existentes para não enviar para quem já avaliou
@@ -206,10 +207,10 @@ serve(async (req: Request) => {
 
     console.log(`[REVIEW] Completed. Processed: ${processed}, Skipped: ${skipped}, Failed: ${failed}`);
     return new Response(JSON.stringify({ success: true, processed, skipped, failed }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
   } catch (error) {
     console.error("[REVIEW] Error:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
   }
 });

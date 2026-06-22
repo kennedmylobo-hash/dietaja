@@ -31,6 +31,14 @@ export interface MarmitaFlavor {
   price_override_fitness: number | null;
   price_tiers_fit: Record<string, number> | null;
   price_tiers_fitness: Record<string, number> | null;
+  calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fats_g: number | null;
+  fiber_g: number | null;
+  allergens: string[];
+  restrictions: string[];
+  featured: boolean;
 }
 
 export interface KitPackage {

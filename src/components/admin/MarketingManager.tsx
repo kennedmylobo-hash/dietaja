@@ -42,7 +42,7 @@ import {
   Plus,
   Percent,
   DollarSign,
-  Infinity,
+  Infinity as InfinityIcon,
   Calendar,
   Timer,
   Bell

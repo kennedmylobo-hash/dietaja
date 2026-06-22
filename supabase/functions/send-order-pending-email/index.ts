@@ -4,6 +4,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
 import { getEmailCredentials } from "../_shared/tenant-credentials.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -29,9 +30,23 @@ interface OrderPendingRequest {
   delivery_address?: string;
   order_id?: string;
   tenant_id?: string;
+  pix_qr_code?: string;
+  pix_qr_code_base64?: string;
+  pix_expiration?: string;
 }
 
 function generateEmailHtml(data: OrderPendingRequest, brandName: string, city: string, whatsapp: string, whatsappFormatted: string): string {
+  const pixSection = data.pix_qr_code_base64 ? `
+    <div style="text-align: center; margin-bottom: 25px;">
+      <h3 style="color: #1f2937; font-size: 16px; margin-bottom: 15px;">💳 PAGUE VIA PIX</h3>
+      <div style="background: #fff; border: 2px solid #16a34a; border-radius: 12px; padding: 20px; display: inline-block;">
+        <img src="data:image/png;base64,${data.pix_qr_code_base64}" alt="PIX QR Code" style="width: 200px; height: 200px; display: block; margin: 0 auto 15px;" />
+        <p style="color: #6b7280; font-size: 12px; margin-bottom: 8px;">Ou copie o código PIX abaixo:</p>
+        <div style="background: #f3f4f6; border-radius: 8px; padding: 12px; font-size: 11px; color: #374151; word-break: break-all; font-family: monospace; margin-bottom: 10px;">${data.pix_qr_code || ''}</div>
+        <button onclick="navigator.clipboard.writeText('${(data.pix_qr_code || '').replace(/'/g, "\\'")}')" style="background: #16a34a; color: #fff; border: none; border-radius: 8px; padding: 10px 24px; font-size: 14px; font-weight: bold; cursor: pointer;">📋 Copiar código PIX</button>
+      </div>
+      ${data.pix_expiration ? `<p style="color: #9ca3af; font-size: 12px; margin-top: 10px;">⏳ Válido até ${new Date(data.pix_expiration).toLocaleString('pt-BR')}</p>` : ''}
+    </div>` : '';
   const itemsHtml = data.items.map(item => {
     let flavorsHtml = '';
     if (item.flavors && item.flavors.length > 0) {
@@ -71,6 +86,7 @@ function generateEmailHtml(data: OrderPendingRequest, brandName: string, city: s
     <div style="background-color: #f0fdf4; border-radius: 10px; padding: 15px 20px; margin-bottom: 25px;">
       <p style="margin: 0; color: #166534; font-size: 14px;">🚗 <strong>${deliveryText}</strong></p>
     </div>
+    ${pixSection}
     <div style="text-align: center; margin-bottom: 25px;">
       <p style="color: #4b5563; margin-bottom: 20px; font-size: 14px;">Escolha como deseja efetuar o pagamento:</p>
       <a href="https://wa.me/${whatsapp}?text=${encodeURIComponent(`Olá! Quero pagar o pedido #${data.order_number} via PIX.`)}" style="display: inline-block; background-color: #16a34a; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin: 5px;">💳 Pagar via PIX</a>
@@ -96,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
     const data: OrderPendingRequest = JSON.parse(rawBody);
 
     if (!data.order_number || !data.customer_email || !data.customer_name) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -109,24 +125,38 @@ const handler = async (req: Request): Promise<Response> => {
       tenantId = orderData?.tenant_id;
     }
 
+    // === ATOMIC DEDUP (23505 = unique violation = já enviado) ===
+    const { error: claimError } = await supabase
+      .from('notification_events')
+      .insert({ channel: 'email', event_type: 'sent', order_number: data.order_number, recipient_email: data.customer_email, template_name: 'order_pending', tenant_id: tenantId })
+      .select('id')
+      .single();
+
+    if (claimError?.code === '23505') {
+      console.log('Pending email already sent for order', data.order_number, '— skipping');
+      return new Response(JSON.stringify({ success: true, skipped: true }), { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
+    }
+
     const branding = await getTenantBranding(supabase, tenantId);
     const emailCreds = await getEmailCredentials(supabase, tenantId);
     const resend = new Resend(emailCreds.apiKey);
 
     const html = generateEmailHtml(data, branding.brand_name, branding.city, branding.whatsapp, branding.whatsapp_formatted);
+    console.log('Sending order pending email with PIX data:', { hasQR: !!data.pix_qr_code_base64, hasCode: !!data.pix_qr_code });
 
-    const emailResponse = await resend.emails.send({
+    const { error: sendError } = await resend.emails.send({
       from: `${branding.brand_name} <${emailCreds.fromEmail}>`,
       to: [data.customer_email],
       subject: `Pedido #${data.order_number} Separado - Aguardando Pagamento`,
       html,
     });
-
+    if (sendError) throw sendError;
     console.log(`Email sent successfully to ${data.customer_email}`);
-    return new Response(JSON.stringify({ success: true, data: emailResponse }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
   } catch (error: any) {
     console.error(`Error in send-order-pending-email:`, error);
-    return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
   }
 };
 

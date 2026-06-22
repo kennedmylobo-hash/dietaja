@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -32,7 +33,7 @@ serve(async (req) => {
     if (!couponCode) {
       return new Response(
         JSON.stringify({ valid: false, message: 'Código do cupom é obrigatório' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -91,7 +92,7 @@ serve(async (req) => {
       if (!marketingCoupon) {
         return new Response(
           JSON.stringify({ valid: false, message: 'Cupom inválido' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
         );
       }
 
@@ -109,14 +110,14 @@ serve(async (req) => {
     if (validFrom && new Date(validFrom) > now) {
       return new Response(
         JSON.stringify({ valid: false, message: 'Este cupom ainda não está válido' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
     if (validUntil && new Date(validUntil) < now) {
       return new Response(
         JSON.stringify({ valid: false, message: 'Este cupom expirou' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -124,7 +125,7 @@ serve(async (req) => {
     if (source === 'coupon' && maxUses !== null && currentUses >= maxUses) {
       return new Response(
         JSON.stringify({ valid: false, message: 'Este cupom atingiu o limite de usos' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -143,7 +144,7 @@ serve(async (req) => {
     if (customerUsageCount !== null && customerUsageCount >= maxUsesPerCustomer) {
       return new Response(
         JSON.stringify({ valid: false, message: 'Você já utilizou este cupom' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -154,7 +155,7 @@ serve(async (req) => {
           valid: false, 
           message: `Pedido mínimo de R$ ${minOrderValue.toFixed(2).replace('.', ',')} para usar este cupom` 
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -178,14 +179,14 @@ serve(async (req) => {
           ? `Cupom ${couponCode} aplicado! ${discountValue}% de desconto`
           : `Cupom ${couponCode} aplicado! R$ ${discountValue.toFixed(2).replace('.', ',')} de desconto`,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error validating coupon:', error);
     return new Response(
       JSON.stringify({ valid: false, message: 'Erro ao validar cupom. Tente novamente.' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
     );
   }
 });

@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getWhatsAppCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -43,7 +44,7 @@ serve(async (req) => {
     if (!whatsappCreds) {
       console.log("[MEAL-BALANCE] No WhatsApp credentials configured");
       return new Response(JSON.stringify({ success: false, error: "no_credentials" }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } });
     }
 
     const firstName = customer_name.split(" ")[0];
@@ -84,10 +85,10 @@ Qualquer dúvida, estamos à disposição! 💚`.trim();
     console.log(`[MEAL-BALANCE] Sent to ${customer_phone}: ${result.success}`);
 
     return new Response(JSON.stringify({ success: result.success }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error("[MEAL-BALANCE] Error:", error);
     return new Response(JSON.stringify({ success: false, error: 'Erro interno' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      { status: 500, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } });
   }
 });

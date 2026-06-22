@@ -1,15 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getAsaasCredentials } from "../_shared/tenant-credentials.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
 const ASAAS_API_URL = 'https://api.asaas.com/v3';
 
 serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -146,101 +143,90 @@ serve(async (req) => {
       if (order) {
         orderNumber = order.order_number;
 
-        if (order.status !== 'approved') {
-          console.log('[check-payment-status] Updating order to approved:', orderId);
-          
-          const { error: updateError } = await supabase
-            .from('orders')
-            .update({ 
-              status: 'approved',
-              paid_at: new Date().toISOString(),
-              mp_payment_id: String(paymentIdToCheck),
-              payment_method: 'pix',
-            })
-            .eq('id', orderId);
+        // UPDATE atômico: só atualiza se NÃO estiver approved
+        const { error: updateError, data: updatedOrder } = await supabase
+          .from('orders')
+          .update({ 
+            status: 'approved',
+            paid_at: new Date().toISOString(),
+            mp_payment_id: String(paymentIdToCheck),
+            payment_method: 'pix',
+          })
+          .eq('id', orderId)
+          .neq('status', 'approved')
+          .select('id')
+          .maybeSingle();
 
-          if (updateError) {
-            console.error('Error updating order:', updateError);
-          } else {
-            // Cancel orphan orders
-            const { data: cancelledOrders, error: cancelError } = await supabase
-              .from('orders')
-              .update({ status: 'cancelled', cancellation_type: 'auto_orphan' })
-              .eq('customer_email', order.customer_email)
-              .in('status', ['pending', 'awaiting_payment'])
-              .neq('id', orderId)
-              .select('id, order_number, status');
-            
-            if (!cancelError && cancelledOrders?.length) {
-              console.log('[check-payment-status] Orphan orders cancelled:', cancelledOrders.length);
-              for (const cancelled of cancelledOrders) {
-                await supabase.from('order_status_history').insert({
-                  order_id: cancelled.id,
-                  previous_status: 'awaiting_payment',
-                  new_status: 'cancelled',
-                  changed_by_name: 'Sistema',
-                  notes: `Cancelado automaticamente - Pedido #${order.order_number} foi pago`,
-                  tenant_id: order.tenant_id || '00000000-0000-0000-0000-000000000001',
-                });
-              }
-            }
-
-            // Mark cart as converted
-            if (order.customer_phone) {
-              const normalizedPhone = order.customer_phone.replace(/\D/g, '');
-              const phoneSuffix = normalizedPhone.slice(-10);
-              await supabase.from('carts').update({ status: 'converted' })
-                .ilike('phone', `%${phoneSuffix}`).in('status', ['active', 'abandoned']);
-            }
-
-            // Send confirmation email
-            try {
-              await fetch(`${supabaseUrl}/functions/v1/send-order-approved`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-                body: JSON.stringify({
-                  order_number: order.order_number,
-                  customer_email: order.customer_email,
-                  customer_name: order.customer_name,
-                  customer_phone: order.customer_phone,
-                  items: order.items,
-                  subtotal: order.subtotal,
-                  delivery_fee: order.delivery_fee || 0,
-                  total: order.total,
-                  delivery_option: order.delivery_option,
-                  delivery_address: order.delivery_address,
-                  payment_method: 'pix',
-                  tenant_id: order.tenant_id,
-                }),
-              });
-            } catch (emailError) {
-              console.error('[check-payment-status] Error sending email:', emailError);
-            }
-
-            // Decrement stock
-            if (!order.stock_decremented) {
+        if (updateError) {
+          console.error('Error updating order:', updateError);
+        } else if (updatedOrder) {
+          // Só processa background se realmente atualizou (venceu a corrida)
+          // @ts-expect-error - EdgeRuntime is available in Supabase Edge Functions
+          EdgeRuntime.waitUntil((async () => {
+              // Cancel orphan orders
               try {
-                await fetch(`${supabaseUrl}/functions/v1/decrement-stock`, {
+                const { data: cancelledOrders } = await supabase
+                  .from('orders')
+                  .update({ status: 'cancelled', cancellation_type: 'auto_orphan' })
+                  .eq('customer_email', order.customer_email)
+                  .in('status', ['pending', 'awaiting_payment'])
+                  .neq('id', orderId)
+                  .select('id, order_number');
+                if (cancelledOrders?.length) {
+                  for (const c of cancelledOrders) {
+                    await supabase.from('order_status_history').insert({
+                      order_id: c.id, previous_status: 'awaiting_payment',
+                      new_status: 'cancelled', changed_by_name: 'Sistema',
+                      notes: `Cancelado - Pedido #${order.order_number} foi pago`,
+                      tenant_id: order.tenant_id || '00000000-0000-0000-0000-000000000001',
+                    });
+                  }
+                }
+              } catch (e) { console.error('[check-payment-status] cancel error:', e); }
+
+              // Mark cart as converted
+              if (order.customer_phone) {
+                const p = order.customer_phone.replace(/\D/g, '').slice(-10);
+                await supabase.from('carts').update({ status: 'converted' })
+                  .ilike('phone', `%${p}`).in('status', ['active', 'abandoned']).catch(() => {});
+              }
+
+              // Send confirmation email (dedup feito dentro de send-order-approved)
+              try {
+                await fetch(`${supabaseUrl}/functions/v1/send-order-approved`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-                  body: JSON.stringify({ order_id: orderId }),
+                  body: JSON.stringify({
+                    order_number: order.order_number, customer_email: order.customer_email,
+                    customer_name: order.customer_name, customer_phone: order.customer_phone,
+                    items: order.items, subtotal: order.subtotal, delivery_fee: order.delivery_fee || 0,
+                    total: order.total, delivery_option: order.delivery_option,
+                    delivery_address: order.delivery_address, payment_method: 'pix',
+                    tenant_id: order.tenant_id,
+                  }),
                 });
-              } catch (stockError) {
-                console.error('[check-payment-status] Error decrementing stock:', stockError);
-              }
-            }
+              } catch (e) { console.error('[check-payment-status] email error:', e); }
 
-            // Send WhatsApp confirmation
-            try {
-              await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-                body: JSON.stringify({ order_id: orderId, status: 'approved' }),
-              });
-            } catch (whatsappError) {
-              console.error('[check-payment-status] Error sending WhatsApp:', whatsappError);
-            }
-          }
+              // Decrement stock
+              if (!order.stock_decremented) {
+                try {
+                  await fetch(`${supabaseUrl}/functions/v1/decrement-stock`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+                    body: JSON.stringify({ order_id: orderId }),
+                  });
+                } catch (e) { console.error('[check-payment-status] stock error:', e); }
+              }
+
+              // Send WhatsApp confirmation
+              try {
+                await fetch(`${supabaseUrl}/functions/v1/send-order-whatsapp`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+                  body: JSON.stringify({ order_id: orderId, status: 'approved' }),
+                });
+              } catch (e) { console.error('[check-payment-status] whatsapp error:', e); }
+            })());
         }
       }
     }

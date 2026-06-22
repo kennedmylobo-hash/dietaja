@@ -4,6 +4,7 @@ import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.
 import { getWhatsAppCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -72,7 +73,7 @@ serve(async (req) => {
 
     if (!order_id) {
       return new Response(JSON.stringify({ error: 'order_id required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        { status: 400, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } });
     }
 
     const { data: order, error: orderError } = await supabase
@@ -80,7 +81,34 @@ serve(async (req) => {
 
     if (orderError || !order) {
       return new Response(JSON.stringify({ error: 'Order not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        { status: 404, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } });
+    }
+
+    let messageType = '';
+    if (status === 'pending') messageType = 'order_pix_pending';
+    else if (status === 'whatsapp_pending') messageType = 'order_whatsapp_pending';
+    else if (status === 'approved') messageType = 'order_confirmed';
+    else {
+      return new Response(JSON.stringify({ error: 'Invalid status' }),
+        { status: 400, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } });
+    }
+
+    if (status === 'pending' && !pix_code) {
+      return new Response(JSON.stringify({ error: 'pix_code required for pending status' }),
+        { status: 400, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } });
+    }
+
+    // === ATOMIC DEDUP: WhatsApp (23505 = unique violation = já enviado) ===
+    const { error: wpError } = await supabase
+      .from('notification_events')
+      .insert({ channel: 'whatsapp', event_type: 'sent', order_number: order.order_number, recipient_phone: order.customer_phone, template_name: messageType, tenant_id: order.tenant_id })
+      .select('id')
+      .single();
+
+    if (wpError?.code === '23505') {
+      console.log('WhatsApp already sent for order', order.order_number, 'type:', messageType, '— skipping');
+      return new Response(JSON.stringify({ success: true, skipped: true }),
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } });
     }
 
     const branding = await getTenantBranding(supabase, order.tenant_id);
@@ -90,21 +118,7 @@ serve(async (req) => {
     if (!whatsappCreds) {
       console.warn('WhatsApp credentials not configured, skipping');
       return new Response(JSON.stringify({ success: false, error: 'WhatsApp not configured' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    let messageType = '';
-    if (status === 'pending') messageType = 'order_pix_pending';
-    else if (status === 'whatsapp_pending') messageType = 'order_whatsapp_pending';
-    else if (status === 'approved') messageType = 'order_confirmed';
-    else {
-      return new Response(JSON.stringify({ error: 'Invalid status' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    if (status === 'pending' && !pix_code) {
-      return new Response(JSON.stringify({ error: 'pix_code required for pending status' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } });
     }
 
     // Fetch template from database
@@ -140,21 +154,16 @@ serve(async (req) => {
     const message = replaceVariables(template, variables);
     const result = await sendWhatsAppText(order.customer_phone, message, whatsappCreds);
 
-    // Log notification event
-    await supabase.from('notification_events').insert({
-      channel: 'whatsapp',
+    // Update notification event (insert já foi feito no dedup)
+    await supabase.from('notification_events').update({
       event_type: result.success ? 'sent' : 'failed',
       order_id: order_id,
-      order_number: order.order_number,
-      recipient_phone: order.customer_phone,
-      template_name: messageType,
       message_id: result.messageId,
       metadata: { response: result.response, error: result.error },
-    });
+    }).eq('id', wpClaim.id);
 
-    // Send admin notification for new orders to owner's personal phone
+    // Send admin notification for new orders — com dedup próprio
     if (status === 'pending' || status === 'whatsapp_pending') {
-      // Use tenant admin_notify_phone if available, otherwise fall back to branding whatsapp
       const { data: tenantData } = await supabase
         .from('tenants')
         .select('admin_notify_phone')
@@ -163,25 +172,33 @@ serve(async (req) => {
       
       const adminPhone = tenantData?.admin_notify_phone || branding.whatsapp;
       if (adminPhone) {
-        const items = order.items as OrderItem[];
-        const paymentLabel = status === 'pending' ? '💳 PIX' : '💬 WhatsApp';
-        const adminMsg = `🔔 *NOVO PEDIDO!*\n\n📋 *#${order.order_number}*\n👤 ${order.customer_name}\n📱 ${order.customer_phone}\n\n${formatItems(items)}\n\n💵 *Total:* ${formatCurrency(order.total)}\n${order.delivery_option === 'delivery' ? '🚚 Entrega' : '🏪 Retirada'}\n${paymentLabel}\n\n⏰ ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+        // Atomic dedup para admin notification
+        const { error: adminDup } = await supabase
+          .from('notification_events')
+          .insert({ channel: 'whatsapp', event_type: 'sent', order_number: order.order_number, recipient_phone: adminPhone, template_name: `admin_${messageType}`, tenant_id: order.tenant_id })
+          .select('id')
+          .single();
         
-        try {
-          await sendWhatsAppText(adminPhone, adminMsg, whatsappCreds);
-          console.log(`[ADMIN] ✅ Notification sent to ${adminPhone}`);
-        } catch (e) {
-          console.error(`[ADMIN] ❌ Failed to notify admin:`, e);
+        if (!adminDup || adminDup.code !== '23505') {
+          const items = order.items as OrderItem[];
+          const paymentLabel = status === 'pending' ? '💳 PIX' : '💬 WhatsApp';
+          const adminMsg = `🔔 *NOVO PEDIDO!*\n\n📋 *#${order.order_number}*\n👤 ${order.customer_name}\n📱 ${order.customer_phone}\n\n${formatItems(items)}\n\n💵 *Total:* ${formatCurrency(order.total)}\n${order.delivery_option === 'delivery' ? '🚚 Entrega' : '🏪 Retirada'}\n${paymentLabel}\n\n⏰ ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+          try {
+            await sendWhatsAppText(adminPhone, adminMsg, whatsappCreds);
+            console.log(`[ADMIN] ✅ Notification sent to ${adminPhone}`);
+          } catch (e) {
+            console.error(`[ADMIN] ❌ Failed to notify admin:`, e);
+          }
         }
       }
     }
 
     return new Response(JSON.stringify({ success: true, message: 'WhatsApp sent' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } });
 
   } catch (error) {
     console.error('Error in send-order-whatsapp:', error);
     return new Response(JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      { status: 500, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } });
   }
 });

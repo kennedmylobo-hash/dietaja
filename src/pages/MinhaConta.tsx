@@ -16,6 +16,11 @@ import { useCashback } from '@/hooks/useCashback';
 import CashbackCard from '@/components/minha-conta/CashbackCard';
 import CashbackHistory from '@/components/minha-conta/CashbackHistory';
 import ProfileOnboarding from '@/components/minha-conta/ProfileOnboarding';
+import MealPlanCard from '@/components/minha-conta/MealPlanCard';
+import ClubSubscriptionStatus from '@/components/minha-conta/ClubSubscriptionStatus';
+import OrderReminderBanner from '@/components/minha-conta/OrderReminderBanner';
+import ReferralCard from '@/components/ReferralCard';
+import LoyaltyPointsCard from '@/components/LoyaltyPointsCard';
 import { useCart, FlavorSelection } from '@/components/CartContext';
 
 interface Profile {
@@ -428,10 +433,22 @@ const MinhaConta = () => {
           </CardContent>
         </Card>
 
+        {/* Order Reminder Banner */}
+        <OrderReminderBanner />
+
         {/* Profile Onboarding */}
         {profile && (
           <ProfileOnboarding profile={profile} onComplete={fetchProfile} />
         )}
+
+        {/* Referral Card */}
+        {profile?.email && <ReferralCard customerEmail={profile.email} customerName={profile.name} />}
+
+        {/* Loyalty Points */}
+        {profile?.email && <LoyaltyPointsCard customerEmail={profile.email} />}
+
+        {/* Club Subscription */}
+        <ClubSubscriptionStatus email={profile?.email} />
 
         {/* Cashback Section */}
         <CashbackCard cashbackData={cashbackData} />
@@ -440,6 +457,9 @@ const MinhaConta = () => {
         {cashbackData.transactions.length > 0 && (
           <CashbackHistory transactions={cashbackData.transactions} />
         )}
+
+        {/* Meal Plan */}
+        <MealPlanCard />
 
         {/* Orders Section */}
         <div className="space-y-4">

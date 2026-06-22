@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -82,7 +83,7 @@ serve(async (req) => {
     if (!proteins || !carbs || !mix || !quantity) {
       return new Response(
         JSON.stringify({ error: "Preencha todos os campos" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -204,20 +205,20 @@ Monte o cardápio usando a função suggest_meal_plan.`;
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Muitas solicitações. Tente novamente em alguns segundos." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 429, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
         );
       }
       if (response.status === 402) {
         return new Response(
           JSON.stringify({ error: "Serviço temporariamente indisponível. Tente mais tarde." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 402, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
         );
       }
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
       return new Response(
         JSON.stringify({ error: "Erro ao gerar cardápio. Tente novamente." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -228,20 +229,20 @@ Monte o cardápio usando a função suggest_meal_plan.`;
       console.error("No tool call in response:", JSON.stringify(data));
       return new Response(
         JSON.stringify({ error: "Não foi possível gerar o cardápio. Tente novamente." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
     const mealPlan = JSON.parse(toolCall.function.arguments);
 
     return new Response(JSON.stringify(mealPlan), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("generate-meal-plan error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
     );
   }
 });

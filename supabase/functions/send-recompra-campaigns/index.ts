@@ -5,6 +5,7 @@ import { getTenantBranding, getTenantBaseUrl, TenantBranding } from "../_shared/
 import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -95,7 +96,7 @@ serve(async (req: Request) => {
     if (templateError) throw templateError;
     if (!templates || templates.length === 0) {
       return new Response(JSON.stringify({ success: true, processed: 0, reason: "no_templates" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
     let totalProcessed = 0;
@@ -155,10 +156,10 @@ serve(async (req: Request) => {
     }
 
     return new Response(JSON.stringify({ success: true, processed: totalProcessed }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
   } catch (error) {
     console.error("Error in send-recompra-campaigns:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
   }
 });

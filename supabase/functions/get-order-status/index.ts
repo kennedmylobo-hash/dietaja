@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -39,7 +40,7 @@ serve(async (req: Request) => {
       console.error("Missing order_number parameter");
       return new Response(
         JSON.stringify({ error: "Número do pedido é obrigatório" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -61,7 +62,7 @@ serve(async (req: Request) => {
       console.error("Order not found:", error);
       return new Response(
         JSON.stringify({ error: "Pedido não encontrado" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 404, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -92,14 +93,14 @@ serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify(response),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
     );
 
   } catch (error) {
     console.error("Error fetching order status:", error);
     return new Response(
       JSON.stringify({ error: "Erro ao buscar status do pedido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
     );
   }
 });

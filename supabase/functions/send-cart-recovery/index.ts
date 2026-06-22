@@ -3,6 +3,7 @@ import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.
 import { getWhatsAppCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText, randomDelay, BATCH_LIMITS, type EvolutionCredentials } from "../_shared/evolution-sender.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -24,7 +25,7 @@ Deno.serve(async (req) => {
     const whatsappCreds = await getWhatsAppCredentials(supabase, tenant_id);
     if (!whatsappCreds) {
       return new Response(JSON.stringify({ error: 'WhatsApp não configurado para este tenant' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' },
       });
     }
 
@@ -87,12 +88,12 @@ Deno.serve(async (req) => {
 
     console.log('[send-cart-recovery] Result:', response);
     return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('[send-cart-recovery] Error:', error);
     return new Response(JSON.stringify({ error: 'Erro interno. Tente novamente.' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
 });

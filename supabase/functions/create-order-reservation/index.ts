@@ -1,9 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
 const DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001";
 const MAX_RETRIES = 2;
@@ -24,6 +20,7 @@ interface OrderReservationPayload {
   utm_data?: Record<string, unknown> | null;
   coupon_code?: string | null;
   discount_amount?: number;
+  scheduled_date?: string;
   tenant_id?: string;
 }
 
@@ -33,6 +30,7 @@ const normalizeNumber = (value: unknown, fallback = 0) => {
 };
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -72,6 +70,7 @@ Deno.serve(async (req) => {
       customer_phone: customerPhone,
       delivery_option: body.delivery_option || "pickup",
       delivery_address: body.delivery_address || null,
+      scheduled_date: body.scheduled_date || null,
       utm_data: body.utm_data || null,
       coupon_code: body.coupon_code || null,
       discount_amount: normalizeNumber(body.discount_amount),

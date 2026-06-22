@@ -20,6 +20,8 @@ import { useNavigate } from "react-router-dom";
 import CashbackUsage from "@/components/checkout/CashbackUsage";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { useTenantId } from "@/hooks/useTenantId";
+import { getNextAvailableDeliveryDates, formatDateLong, isBeforeCutoff } from "@/lib/delivery-schedule";
+import { fetchDeliveryZones, DeliveryZone, findZoneByNeighborhood } from "@/lib/delivery-zones";
 
 import { validateCPF, formatCPF } from "@/lib/cpf";
 import { sanitizeCustomerName } from "@/lib/name-sanitizer";
@@ -82,6 +84,12 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   const [useCashback, setUseCashback] = useState(false);
   const [cashbackAmount, setCashbackAmount] = useState(0);
   const [watchedEmail, setWatchedEmail] = useState('');
+  // Referral state
+  const [referralCode, setReferralCode] = useState('');
+  const [validatingReferral, setValidatingReferral] = useState(false);
+  const [referralValid, setReferralValid] = useState<boolean | null>(null);
+  const [referralDiscount, setReferralDiscount] = useState(0);
+  const [referralApplied, setReferralApplied] = useState(false);
 
   // Restore pending order from sessionStorage on mount
   useEffect(() => {
@@ -89,6 +97,15 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
     const storedInitPoint = sessionStorage.getItem('mp_init_point');
     if (storedOrderId && storedInitPoint) {
       setPendingOrderId(storedOrderId);
+    }
+    // Restore referral from session storage
+    const saved = sessionStorage.getItem('referral_code');
+    const savedDiscount = sessionStorage.getItem('referral_discount');
+    if (saved) {
+      setReferralCode(saved);
+      setReferralDiscount(Number(savedDiscount) || 10);
+      setReferralValid(true);
+      setReferralApplied(true);
     }
   }, []);
 
@@ -124,11 +141,62 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   }, [emailValue]);
 
   const deliveryOption = watch("deliveryOption");
-  const { location: tenantLocation } = useTenantConfig();
-  const deliveryFee = deliveryOption === "delivery" ? tenantLocation.deliveryFee : 0;
+  const { location: tenantLocation, delivery: deliveryConfig } = useTenantConfig();
+  const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
+  const [selectedZone, setSelectedZone] = useState<DeliveryZone | null>(null);
+  const [addressInput, setAddressInput] = useState("");
+
+  const availableDates = getNextAvailableDeliveryDates(
+    deliveryConfig.deliveryDays,
+    deliveryConfig.cutoffDay,
+    deliveryConfig.cutoffTime,
+    deliveryConfig.productionDay,
+    4
+  );
+
+  useEffect(() => {
+    if (tenantId) {
+      fetchDeliveryZones(tenantId).then(setDeliveryZones);
+    }
+  }, [tenantId]);
+
+  useEffect(() => {
+    if (!scheduledDate && availableDates.length > 0) {
+      setScheduledDate(availableDates[0].date);
+    }
+  }, [availableDates, scheduledDate]);
+
+  const zoneFee = deliveryOption === "delivery" && selectedZone ? selectedZone.fee : 0;
+  const deliveryFee = deliveryOption === "delivery"
+    ? (deliveryZones.length > 0 ? zoneFee : tenantLocation.deliveryFee)
+    : 0;
   const subtotal = getTotal();
   const totalBeforeCashback = subtotal + deliveryFee;
-  const total = totalBeforeCashback - cashbackAmount;
+  const referralDiscountTotal = referralApplied ? totalBeforeCashback * (referralDiscount / 100) : 0;
+  const total = totalBeforeCashback - cashbackAmount - referralDiscountTotal;
+
+  const handleValidateReferral = async () => {
+    if (!referralCode.trim()) { setReferralValid(false); return; }
+    setValidatingReferral(true);
+    const { data } = await supabase
+      .from('referrals')
+      .select('code, discount_percent, used_count, usage_limit, active, referrer_email')
+      .eq('code', referralCode.trim())
+      .eq('active', true)
+      .maybeSingle();
+    if (data && data.used_count < data.usage_limit && data.referrer_email !== watchedEmail) {
+      setReferralDiscount(data.discount_percent);
+      setReferralValid(true);
+      setReferralApplied(true);
+      sessionStorage.setItem('referral_code', data.code);
+      sessionStorage.setItem('referral_discount', String(data.discount_percent));
+    } else {
+      setReferralValid(false);
+      setReferralApplied(false);
+    }
+    setValidatingReferral(false);
+  };
 
   const handleCashbackChange = useCallback((use: boolean, amount: number) => {
     setUseCashback(use);
@@ -224,11 +292,13 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             option: data.deliveryOption,
             address: data.address,
             fee: deliveryFee,
+            scheduled_date: scheduledDate?.toISOString().split('T')[0],
           },
           cashback: {
             use: useCashback,
             amount: cashbackAmount,
           },
+          referral_code: referralApplied ? referralCode : undefined,
           utm_data: (() => {
             const utm = getUTMParams() || {};
             // Attach A/B test data if present
@@ -329,7 +399,9 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             option: data.deliveryOption,
             address: data.address,
             fee: deliveryFee,
+            scheduled_date: scheduledDate?.toISOString().split('T')[0],
           },
+          referral_code: referralApplied ? referralCode : undefined,
           redirect_url: redirectUrl,
           tenant_id: tenantId,
         },
@@ -477,6 +549,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           onValueChange={(value) => {
             const event = { target: { name: "deliveryOption", value } };
             register("deliveryOption").onChange(event as React.ChangeEvent<HTMLInputElement>);
+            if (value === "pickup") setSelectedZone(null);
           }}
           className="mt-2 space-y-2"
         >
@@ -491,11 +564,44 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             <RadioGroupItem value="delivery" id="delivery" />
             <Label htmlFor="delivery" className="flex-1 cursor-pointer">
               <span className="font-medium">🛵 Entrega</span>
-              <span className="text-sm text-muted-foreground ml-2">+ R$ {tenantLocation.deliveryFee.toFixed(2).replace(".", ",")}</span>
+              <span className="text-sm text-muted-foreground ml-2">
+                {deliveryZones.length > 0 && selectedZone
+                  ? `+ R$ ${selectedZone.fee.toFixed(2).replace(".", ",")}`
+                  : `+ R$ ${tenantLocation.deliveryFee.toFixed(2).replace(".", ",")}`}
+              </span>
             </Label>
           </div>
         </RadioGroup>
       </div>
+
+      {/* Delivery zone selection */}
+      {deliveryOption === "delivery" && deliveryZones.length > 0 && (
+        <div>
+          <Label className="text-sm font-medium">Bairro / Região</Label>
+          <div className="grid grid-cols-1 gap-1.5 mt-1">
+            {deliveryZones.map((zone) => (
+              <button
+                key={zone.id}
+                type="button"
+                onClick={() => setSelectedZone(zone)}
+                className={`flex items-center justify-between p-2.5 rounded-lg border text-left text-sm transition-all ${
+                  selectedZone?.id === zone.id
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border hover:border-primary/30 bg-muted/30"
+                }`}
+              >
+                <div>
+                  <span className="font-medium">{zone.name}</span>
+                  {zone.estimated_time && (
+                    <span className="text-xs text-muted-foreground ml-2">~{zone.estimated_time}</span>
+                  )}
+                </div>
+                <span className="font-semibold">R$ {zone.fee.toFixed(2).replace(".", ",")}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Address (conditional) */}
       {deliveryOption === "delivery" && (
@@ -508,10 +614,46 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             placeholder="Rua, número, bairro"
             {...register("address")}
             className="mt-1"
+            value={addressInput}
+            onChange={(e) => {
+              setAddressInput(e.target.value);
+              register("address").onChange(e);
+            }}
           />
           {errors.address && (
             <p className="text-xs text-destructive mt-1">{errors.address.message}</p>
           )}
+        </div>
+      )}
+
+      {/* Delivery date selection */}
+      {hasItems && (
+        <div>
+          <Label className="text-sm font-medium">Agendar entrega / retirada</Label>
+          <div className="grid grid-cols-2 gap-1.5 mt-1">
+            {availableDates.map((d, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setScheduledDate(d.date)}
+                className={`p-2.5 rounded-lg border text-center text-sm transition-all ${
+                  scheduledDate?.toISOString().split('T')[0] === d.date.toISOString().split('T')[0]
+                    ? "border-primary bg-primary/10 text-foreground font-medium"
+                    : "border-border hover:border-primary/30 bg-muted/30"
+                }`}
+              >
+                <div>{d.label}</div>
+              </button>
+            ))}
+          </div>
+          {!isBeforeCutoff(deliveryConfig.cutoffDay, deliveryConfig.cutoffTime) && (
+            <p className="text-xs text-destructive mt-1">
+              ⏰ Pedidos após o horário de corte entram na próxima produção.
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground mt-1">
+            {deliveryConfig.cutoffMessage}
+          </p>
         </div>
       )}
 
@@ -530,6 +672,29 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
               Criaremos uma conta e enviaremos um link de acesso para seu email
             </span>
           </Label>
+        </div>
+      )}
+
+      {/* Referral code */}
+      {hasItems && (
+        <div className="p-3 bg-muted/20 rounded-lg">
+          <label className="text-xs text-muted-foreground mb-1 block">Código de indicação</label>
+          <div className="flex gap-2">
+            <input
+              value={referralCode}
+              onChange={e => setReferralCode(e.target.value.toUpperCase())}
+              placeholder="MEUCODIGO"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm uppercase font-mono shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+            <Button variant="outline" size="sm" onClick={handleValidateReferral} disabled={validatingReferral}>
+              {validatingReferral ? <Loader2 className="w-3 h-3 animate-spin" /> : "Validar"}
+            </Button>
+          </div>
+          {referralValid !== null && (
+            <p className={`text-xs mt-1 ${referralValid ? "text-green-600" : "text-destructive"}`}>
+              {referralValid ? `✅ ${referralDiscount}% de desconto aplicado!` : "Código inválido"}
+            </p>
+          )}
         </div>
       )}
 
@@ -559,6 +724,12 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
             <div className="flex justify-between text-sm text-green-600">
               <span>Cashback aplicado</span>
               <span>-R$ {cashbackAmount.toFixed(2).replace(".", ",")}</span>
+            </div>
+          )}
+          {referralApplied && (
+            <div className="flex justify-between text-sm text-purple-600">
+              <span>Indicação ({referralDiscount}%)</span>
+              <span>-R$ {referralDiscountTotal.toFixed(2).replace(".", ",")}</span>
             </div>
           )}
           <div className="flex justify-between font-bold text-lg pt-1">

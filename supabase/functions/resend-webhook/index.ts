@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { buildWebhookCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, svix-id, svix-timestamp, svix-signature',
@@ -29,7 +30,7 @@ serve(async (req) => {
         console.log('Body is not JSON, raw text:', body);
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid JSON' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers: { ...buildWebhookCorsHeaders(), 'Content-Type': 'application/json' } }
         );
       }
     }
@@ -38,7 +39,7 @@ serve(async (req) => {
       console.log('No event type found');
       return new Response(
         JSON.stringify({ success: true, message: 'No event to process' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...buildWebhookCorsHeaders(), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -65,7 +66,7 @@ serve(async (req) => {
       console.log('Unknown event type:', event.type);
       return new Response(
         JSON.stringify({ success: true, message: `Unknown event type: ${event.type}` }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...buildWebhookCorsHeaders(), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -130,7 +131,7 @@ serve(async (req) => {
       }),
       { 
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...buildWebhookCorsHeaders(), 'Content-Type': 'application/json' }
       }
     );
   } catch (error: unknown) {
@@ -144,7 +145,7 @@ serve(async (req) => {
       }),
       { 
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...buildWebhookCorsHeaders(), 'Content-Type': 'application/json' }
       }
     );
   }

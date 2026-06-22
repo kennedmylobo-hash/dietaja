@@ -64,6 +64,13 @@ interface MarmitaFlavor {
   sides: any;
   price_override_fit: number | null;
   price_override_fitness: number | null;
+  calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fats_g: number | null;
+  fiber_g: number | null;
+  allergens: string[];
+  restrictions: string[];
 }
 
 interface CompositionModalState {
@@ -123,6 +130,9 @@ const MenuManager = () => {
   const [compositionModal, setCompositionModal] = useState<CompositionModalState>({
     isOpen: false, flavorId: '', flavorName: '', sides: null,
   });
+  const [macrosOpen, setMacrosOpen] = useState<string | null>(null);
+  const allergenOptions = ["glúten", "lactose", "ovos", "amendoim", "castanhas", "soja", "gergelim", "crustáceos"];
+  const restrictionOptions = ["vegano", "vegetariano", "sem lactose", "sem glúten", "low carb", "alta proteína"];
   // Kits state
   const [kitPackages, setKitPackages] = useState<KitPackage[]>([]);
   const [kitSoups, setKitSoups] = useState<KitSoup[]>([]);
@@ -264,6 +274,13 @@ const MenuManager = () => {
             sides: flavor.sides,
             price_override_fit: flavor.price_override_fit,
             price_override_fitness: flavor.price_override_fitness,
+            calories: flavor.calories || null,
+            protein_g: flavor.protein_g || null,
+            carbs_g: flavor.carbs_g || null,
+            fats_g: flavor.fats_g || null,
+            fiber_g: flavor.fiber_g || null,
+            allergens: flavor.allergens || [],
+            restrictions: flavor.restrictions || [],
           })
           .eq('id', flavor.id);
         
@@ -644,105 +661,113 @@ const MenuManager = () => {
               </div>
 
               {/* Flavors by category */}
-              {(['carnes', 'frangos', 'massas', 'especiais'] as const).map((category) => {
-                const categoryFlavors = marmitaFlavors.filter(f => f.category === category);
-                if (categoryFlavors.length === 0) return null;
-                
-                return (
-                  <div key={category} className="space-y-2">
-                    <h4 className="font-medium text-sm text-muted-foreground">
-                      {categoryLabels[category]} ({categoryFlavors.length})
-                    </h4>
-                    <div className="grid gap-2">
-                      {categoryFlavors.map((flavor) => (
-                        <div 
-                          key={flavor.id} 
-                          className={`flex items-center gap-2 p-2 rounded-lg border ${
-                            flavor.active ? 'bg-card' : 'bg-muted/50 opacity-60'
-                          }`}
-                        >
-                          <GripVertical className="w-4 h-4 text-muted-foreground/50" />
-                          <Input
-                            value={flavor.name}
-                            onChange={(e) => updateMarmitaFlavor(flavor.id, 'name', e.target.value)}
-                            className="flex-1 h-8"
-                          />
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              placeholder="∞"
-                              value={flavor.stock_quantity ?? ''}
-                              onChange={(e) => updateMarmitaFlavor(flavor.id, 'stock_quantity', e.target.value === '' ? null : parseInt(e.target.value))}
-                              className="w-16 h-8 text-center"
-                              min={0}
-                              title="Quantidade em estoque"
-                            />
-                            <Input
-                              type="number"
-                              placeholder="5"
-                              value={flavor.low_stock_threshold ?? ''}
-                              onChange={(e) => updateMarmitaFlavor(flavor.id, 'low_stock_threshold', e.target.value === '' ? null : parseInt(e.target.value))}
-                              className="w-12 h-8 text-center text-xs"
-                              min={0}
-                              title="Limite para estoque baixo"
-                            />
-                            <div className="flex items-center gap-1">
-                              <Switch
-                                checked={flavor.show_stock}
-                                onCheckedChange={(checked) => updateMarmitaFlavor(flavor.id, 'show_stock', checked)}
-                              />
-                              <span className="text-xs text-muted-foreground whitespace-nowrap">Mostrar</span>
-                            </div>
-                            {flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity < (flavor.low_stock_threshold ?? 5) && (
-                              <Badge variant="destructive" className="text-[10px] px-1.5">
-                                {flavor.stock_quantity === 0 ? 'Esgotado' : `${flavor.stock_quantity}`}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <div className="flex flex-col gap-0.5">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="Fit R$"
-                                value={flavor.price_override_fit ?? ''}
-                                onChange={(e) => updateMarmitaFlavor(flavor.id, 'price_override_fit' as any, e.target.value === '' ? null : parseFloat(e.target.value))}
-                                className="w-20 h-7 text-xs text-center"
-                                title="Preço unitário Fit (vazio = usa preço do pacote)"
-                              />
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="Fitness R$"
-                                value={flavor.price_override_fitness ?? ''}
-                                onChange={(e) => updateMarmitaFlavor(flavor.id, 'price_override_fitness' as any, e.target.value === '' ? null : parseFloat(e.target.value))}
-                                className="w-20 h-7 text-xs text-center"
-                                title="Preço unitário Fitness (vazio = usa preço do pacote)"
-                              />
-                            </div>
-                            <span className="text-[10px] text-muted-foreground leading-tight">R$/un</span>
-                          </div>
-                          <Button
-                            className="h-8 text-xs gap-1 shrink-0"
-                            onClick={() => setCompositionModal({
-                              isOpen: true,
-                              flavorId: flavor.id,
-                              flavorName: flavor.name,
-                              sides: flavor.sides,
-                            })}
-                            title="Editar composição Fit/Fitness"
-                          >
-                            <ListChecks className="w-3.5 h-3.5" />
-                            {flavor.sides && typeof flavor.sides === 'object' && !Array.isArray(flavor.sides) && (Object.keys(flavor.sides).length > 0) ? (
-                              <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">✓</Badge>
-                            ) : null}
-                          </Button>
-                          <Switch
-                            checked={flavor.active}
-                            onCheckedChange={(checked) => updateMarmitaFlavor(flavor.id, 'active', checked)}
-                          />
-                          <Button 
-                            variant="ghost" 
+      {(['carnes', 'frangos', 'massas', 'especiais'] as const).map((category) => {
+        const categoryFlavors = marmitaFlavors.filter(f => f.category === category);
+        if (categoryFlavors.length === 0) return null;
+        
+        return (
+          <div key={category} className="space-y-2">
+            <h4 className="font-medium text-sm text-muted-foreground">
+              {categoryLabels[category]} ({categoryFlavors.length})
+            </h4>
+            <div className="grid gap-2">
+              {categoryFlavors.map((flavor) => (
+                <div key={flavor.id}>
+                <div 
+                  className={`flex items-center gap-2 p-2 rounded-lg border ${
+                    flavor.active ? 'bg-card' : 'bg-muted/50 opacity-60'
+                  }`}
+                >
+                  <GripVertical className="w-4 h-4 text-muted-foreground/50" />
+                  <Input
+                    value={flavor.name}
+                    onChange={(e) => updateMarmitaFlavor(flavor.id, 'name', e.target.value)}
+                    className="flex-1 h-8"
+                  />
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      placeholder="∞"
+                      value={flavor.stock_quantity ?? ''}
+                      onChange={(e) => updateMarmitaFlavor(flavor.id, 'stock_quantity', e.target.value === '' ? null : parseInt(e.target.value))}
+                      className="w-16 h-8 text-center"
+                      min={0}
+                      title="Quantidade em estoque"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="5"
+                      value={flavor.low_stock_threshold ?? ''}
+                      onChange={(e) => updateMarmitaFlavor(flavor.id, 'low_stock_threshold', e.target.value === '' ? null : parseInt(e.target.value))}
+                      className="w-12 h-8 text-center text-xs"
+                      min={0}
+                      title="Limite para estoque baixo"
+                    />
+                    <div className="flex items-center gap-1">
+                      <Switch
+                        checked={flavor.show_stock}
+                        onCheckedChange={(checked) => updateMarmitaFlavor(flavor.id, 'show_stock', checked)}
+                      />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">Mostrar</span>
+                    </div>
+                    {flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity < (flavor.low_stock_threshold ?? 5) && (
+                      <Badge variant="destructive" className="text-[10px] px-1.5">
+                        {flavor.stock_quantity === 0 ? 'Esgotado' : `${flavor.stock_quantity}`}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="flex flex-col gap-0.5">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Fit R$"
+                        value={flavor.price_override_fit ?? ''}
+                        onChange={(e) => updateMarmitaFlavor(flavor.id, 'price_override_fit' as any, e.target.value === '' ? null : parseFloat(e.target.value))}
+                        className="w-20 h-7 text-xs text-center"
+                        title="Preço unitário Fit (vazio = usa preço do pacote)"
+                      />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Fitness R$"
+                        value={flavor.price_override_fitness ?? ''}
+                        onChange={(e) => updateMarmitaFlavor(flavor.id, 'price_override_fitness' as any, e.target.value === '' ? null : parseFloat(e.target.value))}
+                        className="w-20 h-7 text-xs text-center"
+                        title="Preço unitário Fitness (vazio = usa preço do pacote)"
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground leading-tight">R$/un</span>
+                  </div>
+                  <Button
+                    className="h-8 text-xs gap-1 shrink-0"
+                    onClick={() => setCompositionModal({
+                      isOpen: true,
+                      flavorId: flavor.id,
+                      flavorName: flavor.name,
+                      sides: flavor.sides,
+                    })}
+                    title="Editar composição Fit/Fitness"
+                  >
+                    <ListChecks className="w-3.5 h-3.5" />
+                    {flavor.sides && typeof flavor.sides === 'object' && !Array.isArray(flavor.sides) && (Object.keys(flavor.sides).length > 0) ? (
+                      <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">✓</Badge>
+                    ) : null}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-8 text-xs gap-1 shrink-0"
+                    onClick={() => setMacrosOpen(macrosOpen === flavor.id ? null : flavor.id)}
+                    title="Nutrição e restrições"
+                  >
+                    <Salad className="w-3.5 h-3.5" />
+                  </Button>
+                  <Switch
+                    checked={flavor.active}
+                    onCheckedChange={(checked) => updateMarmitaFlavor(flavor.id, 'active', checked)}
+                  />
+                  <Button 
+                    variant="ghost" 
                             size="icon"
                             className="h-8 w-8 text-destructive hover:text-destructive"
                             onClick={() => deleteMarmitaFlavor(flavor.id)}
@@ -750,14 +775,85 @@ const MenuManager = () => {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
-                      ))}
+                      {macrosOpen === flavor.id && (
+                        <div className="p-3 mt-2 rounded-lg bg-muted/30 border border-border space-y-3">
+                          <div className="grid grid-cols-5 gap-2">
+                            <div>
+                              <span className="text-xs text-muted-foreground block">Calorias</span>
+                              <Input type="number" value={flavor.calories ?? ''} onChange={(e) => updateMarmitaFlavor(flavor.id, 'calories' as any, e.target.value === '' ? null : parseInt(e.target.value))} className="h-7 text-xs text-center" />
+                            </div>
+                            <div>
+                              <span className="text-xs text-muted-foreground block">Proteína (g)</span>
+                              <Input type="number" step="0.1" value={flavor.protein_g ?? ''} onChange={(e) => updateMarmitaFlavor(flavor.id, 'protein_g' as any, e.target.value === '' ? null : parseFloat(e.target.value))} className="h-7 text-xs text-center" />
+                            </div>
+                            <div>
+                              <span className="text-xs text-muted-foreground block">Carboidratos (g)</span>
+                              <Input type="number" step="0.1" value={flavor.carbs_g ?? ''} onChange={(e) => updateMarmitaFlavor(flavor.id, 'carbs_g' as any, e.target.value === '' ? null : parseFloat(e.target.value))} className="h-7 text-xs text-center" />
+                            </div>
+                            <div>
+                              <span className="text-xs text-muted-foreground block">Gorduras (g)</span>
+                              <Input type="number" step="0.1" value={flavor.fats_g ?? ''} onChange={(e) => updateMarmitaFlavor(flavor.id, 'fats_g' as any, e.target.value === '' ? null : parseFloat(e.target.value))} className="h-7 text-xs text-center" />
+                            </div>
+                            <div>
+                              <span className="text-xs text-muted-foreground block">Fibras (g)</span>
+                              <Input type="number" step="0.1" value={flavor.fiber_g ?? ''} onChange={(e) => updateMarmitaFlavor(flavor.id, 'fiber_g' as any, e.target.value === '' ? null : parseFloat(e.target.value))} className="h-7 text-xs text-center" />
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full h-7 text-xs gap-1"
+                            onClick={async () => {
+                              const { supabase } = await import("@/integrations/supabase/client");
+                              toast({ title: "Estimando macros com IA..." });
+                              const { data, error } = await supabase.functions.invoke("estimate-macros", {
+                                body: { name: flavor.name, category: flavor.category },
+                              });
+                              if (error || !data?.success) {
+                                toast({ title: "Erro ao estimar macros", variant: "destructive" });
+                                return;
+                              }
+                              if (data.calories) updateMarmitaFlavor(flavor.id, 'calories' as any, data.calories);
+                              toast({ title: `Calorias estimadas: ${data.calories} kcal` });
+                            }}
+                          >
+                            <Sparkles className="w-3 h-3" /> Estimar kcal
+                          </Button>
+                          <div>
+                            <span className="text-xs text-muted-foreground block">Alérgenos</span>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {allergenOptions.map((a) => (
+                                <button key={a} type="button" onClick={() => {
+                                  const current = flavor.allergens || [];
+                                  const updated = current.includes(a) ? current.filter((x) => x !== a) : [...current, a];
+                                  updateMarmitaFlavor(flavor.id, 'allergens' as any, updated);
+                                }} className={`px-2 py-0.5 rounded text-xs border transition-colors ${(flavor.allergens || []).includes(a) ? 'border-destructive bg-destructive/10 text-destructive' : 'border-border hover:border-destructive/30'}`}>{a}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground block">Restrições / Categorias</span>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {restrictionOptions.map((r) => (
+                                <button key={r} type="button" onClick={() => {
+                                  const current = flavor.restrictions || [];
+                                  const updated = current.includes(r) ? current.filter((x) => x !== r) : [...current, r];
+                                  updateMarmitaFlavor(flavor.id, 'restrictions' as any, updated);
+                                }} className={`px-2 py-0.5 rounded text-xs border transition-colors ${(flavor.restrictions || []).includes(r) ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/30'}`}>{r}</button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    </TabsContent>
 
         {/* KITS TAB */}
         <TabsContent value="kits" className="space-y-6">

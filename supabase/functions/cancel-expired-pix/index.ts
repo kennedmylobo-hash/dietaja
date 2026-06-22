@@ -4,6 +4,7 @@ import { getWhatsAppCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 import { getTenantBranding } from "../_shared/tenant-branding.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -33,14 +34,14 @@ serve(async (req: Request) => {
       console.error("[cancel-expired-pix] Error fetching orders:", fetchError);
       return new Response(JSON.stringify({ error: fetchError.message }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
     if (!expiredOrders || expiredOrders.length === 0) {
       console.log("[cancel-expired-pix] No expired PIX orders found");
       return new Response(JSON.stringify({ cancelled: 0 }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -94,13 +95,13 @@ serve(async (req: Request) => {
     console.log(`[cancel-expired-pix] Done. Cancelled ${cancelledCount} orders.`);
 
     return new Response(JSON.stringify({ cancelled: cancelledCount }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("[cancel-expired-pix] Error:", error);
     return new Response(JSON.stringify({ error: String(error) }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
     });
   }
 });

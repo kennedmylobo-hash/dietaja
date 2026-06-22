@@ -5,6 +5,7 @@ import { getTenantBranding, getTenantBaseUrl, TenantBranding } from "../_shared/
 import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -106,9 +107,9 @@ serve(async (req: Request) => {
     const { data: pendingNotifications, error: fetchError } = await supabase
       .from("pending_notifications").select("*").lte("scheduled_for", new Date().toISOString());
 
-    if (fetchError) return new Response(JSON.stringify({ error: fetchError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (fetchError) return new Response(JSON.stringify({ error: fetchError.message }), { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     if (!pendingNotifications || pendingNotifications.length === 0) {
-      return new Response(JSON.stringify({ success: true, processed: 0 }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true, processed: 0 }), { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
     console.log(`[PROCESS] Found ${pendingNotifications.length} pending notifications`);
@@ -160,9 +161,9 @@ serve(async (req: Request) => {
     }
 
     return new Response(JSON.stringify({ success: true, processed: processedCount, errors: errors.length > 0 ? errors : undefined }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
   } catch (error) {
     console.error("[PROCESS] Fatal error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
   }
 });

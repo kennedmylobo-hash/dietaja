@@ -2,8 +2,9 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle, Fish, TrendingDown, Zap, CalendarClock } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Beef, Drumstick, Utensils, Sparkles, Check, AlertCircle, Fish, TrendingDown, Zap, CalendarClock, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { celebrateCheckout } from "@/lib/confetti";
 import { hapticFeedback } from "@/lib/haptics";
@@ -31,6 +32,13 @@ interface FlavorData {
   price_override_fitness?: number | null;
   price_tiers_fit?: Record<string, number> | null;
   price_tiers_fitness?: Record<string, number> | null;
+  calories?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fats_g?: number | null;
+  fiber_g?: number | null;
+  allergens?: string[];
+  restrictions?: string[];
 }
 
 export interface PricingTier {
@@ -130,6 +138,7 @@ const FlavorSelectionModal = ({
   const [selections, setSelections] = useState<Record<string, number>>({});
   const [leaveToUs, setLeaveToUs] = useState(false);
   const [celebrationInfo, setCelebrationInfo] = useState<{ discount: number } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const prevTierPriceRef = useRef<number | null>(null);
 
   // Delivery mode toggle — habilitado para FIT e Hipertrofia (ambas as linhas têm estoque pronto)
@@ -138,10 +147,21 @@ const FlavorSelectionModal = ({
   const [modeChosen, setModeChosen] = useState<boolean>(!isFitLine);
 
   const allCategories = flavorsByCategory || defaultFlavorCategories;
+  const normalizedQuery = searchQuery.trim().toLowerCase();
   const flavorCategories = useMemo(() => {
-    if (!isFitLine || deliveryMode === 'encomenda') return allCategories;
+    let cats = allCategories;
+
+    // Aplicar busca global apos filtro de estoque
+    if (normalizedQuery) {
+      cats = cats.map(cat => ({
+        ...cat,
+        flavors: cat.flavors.filter(f => f.toLowerCase().includes(normalizedQuery)),
+      }));
+    }
+
+    if (!isFitLine || deliveryMode === 'encomenda') return cats;
     // Pronta entrega: only flavors that have visible stock with quantity > 0
-    return allCategories
+    return cats
       .map(cat => ({
         ...cat,
         flavors: cat.flavors.filter(f => {
@@ -150,7 +170,7 @@ const FlavorSelectionModal = ({
         }),
       }))
       .filter(cat => cat.flavors.length > 0);
-  }, [allCategories, isFitLine, deliveryMode, flavorStockData]);
+  }, [allCategories, isFitLine, deliveryMode, flavorStockData, normalizedQuery]);
 
   const maxFlavors = getMaxFlavors(packageQuantity);
 
@@ -775,6 +795,17 @@ const FlavorSelectionModal = ({
               </motion.div>
             )}
 
+            {/* Busca por sabor */}
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar sabor..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
             {/* Divider */}
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-border" />
@@ -861,8 +892,43 @@ const FlavorSelectionModal = ({
                                   </span>
                                 ) : null;
                               })()}
+                              {(() => {
+                                const fs = getFlavorStock(flavor);
+                                if (fs?.calories || fs?.protein_g) {
+                                  return (
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {fs.calories ? `${fs.calories} kcal` : ''}
+                                      {fs.calories && (fs.protein_g || fs.carbs_g) ? ' · ' : ''}
+                                      {fs.protein_g ? `${fs.protein_g}g prot` : ''}
+                                      {fs.protein_g && fs.carbs_g ? ' · ' : ''}
+                                      {fs.carbs_g ? `${fs.carbs_g}g carb` : ''}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
+                              {(() => {
+                                const fs = getFlavorStock(flavor);
+                                const all = fs?.allergens || [];
+                                if (all.length === 0) return null;
+                                return all.map(a => (
+                                  <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                                    {a}
+                                  </span>
+                                ));
+                              })()}
+                              {(() => {
+                                const fs = getFlavorStock(flavor);
+                                const res = fs?.restrictions || [];
+                                if (res.length === 0) return null;
+                                return res.map(r => (
+                                  <span key={r} className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">
+                                    {r}
+                                  </span>
+                                ));
+                              })()}
                             </div>
-                            {false && hasLowStock && !isOutOfStock && (
+                            {hasLowStock && !isOutOfStock && (
                               <span className="text-xs text-destructive font-medium animate-pulse">
                                 🔥 Apenas {stockData.stock_quantity} disponíveis
                               </span>

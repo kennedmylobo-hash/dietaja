@@ -1,7 +1,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Users } from "lucide-react";
+import { Sparkles, Users, MessageSquare } from "lucide-react";
 import RecurringCustomers from "./RecurringCustomers";
 import AIDietQuoter from "./AIDietQuoter";
+import DietRequestsManager from "./DietRequestsManager";
 
 const PersonalizedDietHub = () => {
   return (
@@ -9,12 +10,15 @@ const PersonalizedDietHub = () => {
       <div>
         <h2 className="text-2xl font-bold">Dieta Personalizada</h2>
         <p className="text-sm text-muted-foreground">
-          Gere orçamentos com IA e gerencie clientes mensalistas
+          Solicitações de clientes, orçamentos com IA e mensalistas
         </p>
       </div>
 
-      <Tabs defaultValue="ai-quoter" className="space-y-4">
+      <Tabs defaultValue="requests" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="requests">
+            <MessageSquare className="w-4 h-4 mr-2" /> Solicitações
+          </TabsTrigger>
           <TabsTrigger value="ai-quoter">
             <Sparkles className="w-4 h-4 mr-2" /> Orçamento IA
           </TabsTrigger>
@@ -22,6 +26,9 @@ const PersonalizedDietHub = () => {
             <Users className="w-4 h-4 mr-2" /> Mensalistas
           </TabsTrigger>
         </TabsList>
+        <TabsContent value="requests">
+          <DietRequestsManager />
+        </TabsContent>
         <TabsContent value="ai-quoter">
           <AIDietQuoter />
         </TabsContent>

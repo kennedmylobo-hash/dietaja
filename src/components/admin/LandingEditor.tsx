@@ -79,7 +79,7 @@ export default function LandingEditor() {
 
   const refreshPreview = useCallback(() => {
     if (iframeRef.current) {
-      iframeRef.current.src = iframeRef.current.src;
+      iframeRef.current.src += "";
     }
   }, []);
 

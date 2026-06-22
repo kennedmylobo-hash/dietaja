@@ -22,6 +22,11 @@ export interface TenantConfig {
   plan_type: string;
   plan_status: string;
   is_active: boolean;
+  cutoff_day: number;
+  cutoff_time: string;
+  production_day: number;
+  delivery_days: number[];
+  cutoff_message: string;
 }
 
 interface TenantContextType {
@@ -57,6 +62,11 @@ const fallbackTenant: TenantConfig = {
   plan_type: 'premium',
   plan_status: 'active',
   is_active: true,
+  cutoff_day: 0,
+  cutoff_time: '18:00:00',
+  production_day: 2,
+  delivery_days: [1],
+  cutoff_message: 'Pedidos até domingo às 18h são produzidos na terça.',
 };
 
 const mapTenantRow = (row: any): TenantConfig => ({
@@ -79,6 +89,11 @@ const mapTenantRow = (row: any): TenantConfig => ({
   plan_type: row.plan_type,
   plan_status: row.plan_status,
   is_active: row.is_active,
+  cutoff_day: row.cutoff_day ?? 0,
+  cutoff_time: row.cutoff_time ?? '18:00:00',
+  production_day: row.production_day ?? 2,
+  delivery_days: row.delivery_days ?? [1],
+  cutoff_message: row.cutoff_message ?? 'Pedidos até domingo às 18h são produzidos na terça.',
 });
 
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

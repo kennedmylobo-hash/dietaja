@@ -2,11 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTenantBranding } from "../_shared/tenant-branding.ts";
 import { getAsaasCredentials } from "../_shared/tenant-credentials.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
 interface FlavorSelection {
   name: string;
@@ -35,6 +31,7 @@ interface RequestBody {
     option: 'pickup' | 'delivery';
     address?: string;
     fee: number;
+    scheduled_date?: string;
   };
   cashback?: {
     use: boolean;
@@ -51,6 +48,7 @@ interface RequestBody {
 const ASAAS_API_URL = 'https://api.asaas.com/v3';
 
 serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -455,7 +453,7 @@ serve(async (req) => {
       total: transactionAmount,
     };
 
-    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+    // @ts-expect-error - EdgeRuntime is available in Supabase Edge Functions
     EdgeRuntime.waitUntil((async () => {
       try {
         await supabase
@@ -489,6 +487,45 @@ serve(async (req) => {
         console.log('✅ WhatsApp notification sent in background');
       } catch (whatsappError) {
         console.error('❌ Background WhatsApp error:', whatsappError);
+      }
+
+      // Send email with PIX
+      try {
+        const { data: orderData } = await supabase
+          .from('orders')
+          .select('order_number, customer_name, customer_email, customer_phone, items, subtotal, delivery_fee, total, delivery_option, delivery_address')
+          .eq('id', orderId)
+          .single();
+
+        if (orderData) {
+          await fetch(`${supabaseUrl}/functions/v1/send-order-pending-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({
+              order_number: orderData.order_number,
+              customer_email: orderData.customer_email,
+              customer_name: orderData.customer_name,
+              customer_phone: orderData.customer_phone,
+              items: orderData.items,
+              subtotal: orderData.subtotal,
+              delivery_fee: orderData.delivery_fee || 0,
+              total: orderData.total,
+              delivery_option: orderData.delivery_option,
+              delivery_address: orderData.delivery_address,
+              order_id: orderId,
+              tenant_id: effectiveTenantId,
+              pix_qr_code: pixData.payload,
+              pix_qr_code_base64: pixData.encodedImage,
+              pix_expiration: expirationDate.toISOString(),
+            }),
+          });
+          console.log('✅ PIX email sent in background');
+        }
+      } catch (emailError) {
+        console.error('❌ Background PIX email error:', emailError);
       }
     })());
 

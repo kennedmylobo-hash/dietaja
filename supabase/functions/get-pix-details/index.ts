@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -19,7 +20,7 @@ serve(async (req) => {
     if (!searchId) {
       return new Response(
         JSON.stringify({ success: false, error: 'payment_id or order_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -41,7 +42,7 @@ serve(async (req) => {
       console.error('Order not found:', orderError);
       return new Response(
         JSON.stringify({ success: false, error: 'Pedido não encontrado' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 404, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -60,7 +61,7 @@ serve(async (req) => {
           order_number: order.order_number,
           customer_name: order.customer_name,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -69,7 +70,7 @@ serve(async (req) => {
     if (!asaasApiKey || !order.mp_payment_id) {
       return new Response(
         JSON.stringify({ success: false, error: 'Dados do PIX não disponíveis' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 404, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -86,7 +87,7 @@ serve(async (req) => {
       console.error('Asaas PIX fetch failed:', await pixResponse.text());
       return new Response(
         JSON.stringify({ success: false, error: 'Erro ao buscar QR Code' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -129,7 +130,7 @@ serve(async (req) => {
         order_number: order.order_number,
         customer_name: order.customer_name,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -137,7 +138,7 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
     );
   }
 });

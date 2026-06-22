@@ -10,6 +10,7 @@ import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { trackMetaEvent } from "@/lib/meta";
 import { useTenantId } from "@/hooks/useTenantId";
 import { useMarmitaFlavors } from "@/hooks/useMenuData";
+import { useCart } from "@/components/CartContext";
 
 interface OrderData {
   id: string;
@@ -30,6 +31,7 @@ const PagamentoSucesso = () => {
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [realStatus, setRealStatus] = useState<string | null>(null);
+  const { clearCart } = useCart();
 
   // Verificar status real do pagamento via Edge Function
   useEffect(() => {
@@ -104,6 +106,13 @@ const PagamentoSucesso = () => {
     
     return () => clearInterval(interval);
   }, [realStatus, orderId]);
+
+  // Zerar carrinho quando pagamento for aprovado (PIX ou cartao)
+  useEffect(() => {
+    if (realStatus === 'approved' || realStatus === 'paid') {
+      clearCart();
+    }
+  }, [realStatus, clearCart]);
 
   const tenantId = useTenantId();
 

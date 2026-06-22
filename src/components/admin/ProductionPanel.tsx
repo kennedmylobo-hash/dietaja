@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Printer, Share2, RefreshCw, ChefHat, Loader2, Package, Utensils, Tag } from "lucide-react";
+import { Printer, Share2, RefreshCw, ChefHat, Loader2, Package, Utensils, Tag, ChevronDown, ChevronRight, CheckCircle2, CookingPot, XCircle, Truck, Store, Lightbulb } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -17,6 +17,9 @@ import { toast } from "@/hooks/use-toast";
 import { formatDateShort } from "@/lib/print-utils";
 import { generateLabelsA7 } from "@/lib/label-utils";
 import { normalizeVeggieName, normalizeCarbName } from "@/lib/ingredient-normalization";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { getOrderProductionLines, generateOrderProductionHTML } from "@/lib/order-production-utils";
+import { nutritionTips } from "@/lib/nutrition-tips";
 
 interface FlavorItem {
   name: string;
@@ -35,11 +38,15 @@ interface OrderItem {
 
 interface Order {
   id: string;
-  order_number: string | null;
+  order_number: string;
   status: string;
   items: OrderItem[];
   customer_name: string;
+  customer_phone?: string;
   created_at: string;
+  scheduled_date?: string;
+  delivery_option?: string;
+  delivery_fee?: number;
 }
 
 interface MarmitaSide {
@@ -125,6 +132,8 @@ const formatSoupDisplay = (quantity: number): string => {
   return `${quantity} un`;
 };
 
+const todayTipIndex = new Date().getDate() % nutritionTips.length;
+
 const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [marmitaSides, setMarmitaSides] = useState<MarmitaSide[]>([]);
@@ -133,6 +142,9 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
   const [kitSoups, setKitSoups] = useState<KitSoup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('production');
+  const [deliveryFilter, setDeliveryFilter] = useState<string>('all');
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const getDateRange = () => {
     const now = new Date();
@@ -159,12 +171,12 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
 
     try {
       const [ordersRes, sidesRes, flavorsRes, juicesRes, soupsRes] = await Promise.all([
-        supabase
-          .from('orders')
-          .select('id, order_number, status, items, customer_name, created_at')
-          .gte('created_at', startDate)
-          .in('status', ['approved', 'paid', 'preparing', 'ready', 'whatsapp_pending'])
-          .order('created_at', { ascending: false }),
+          supabase
+            .from('orders')
+            .select('id, order_number, status, items, customer_name, customer_phone, created_at, scheduled_date, delivery_option, delivery_fee')
+            .gte('created_at', startDate)
+            .in('status', ['approved', 'paid', 'preparing', 'ready', 'whatsapp_pending'])
+            .order('created_at', { ascending: false }),
         supabase.from('marmita_sides').select('*').eq('active', true).order('sort_order'),
         supabase.from('marmita_flavors').select('id, name, category, sides').eq('active', true),
         supabase.from('kit_juices').select('id, emoji, name').eq('active', true).order('sort_order'),
@@ -191,14 +203,51 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
     fetchData();
   }, [dateFilter]);
 
+  // Poll every 30s for new orders
+  useEffect(() => {
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [dateFilter]);
+
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    setUpdatingId(orderId);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+      if (error) throw error;
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      toast({ title: `Pedido atualizado para ${newStatus}` });
+    } catch (err) {
+      toast({ title: "Erro ao atualizar status", variant: "destructive" });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const toggleOrderExpand = (id: string) => {
+    setExpandedOrders(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   // Filter orders by status
   const filteredOrders = useMemo(() => {
-    if (statusFilter === 'all') return orders;
-    if (statusFilter === 'production') {
-      return orders.filter(o => ['approved', 'paid', 'preparing'].includes(o.status));
+    let result = orders;
+    if (statusFilter === 'all') result = orders;
+    else if (statusFilter === 'production') {
+      result = orders.filter(o => ['approved', 'paid', 'preparing'].includes(o.status));
+    } else {
+      result = orders.filter(o => o.status === statusFilter);
     }
-    return orders.filter(o => o.status === statusFilter);
-  }, [orders, statusFilter]);
+    if (deliveryFilter !== 'all') {
+      result = result.filter(o => (o.delivery_option || 'delivery') === deliveryFilter);
+    }
+    return result;
+  }, [orders, statusFilter, deliveryFilter]);
 
   // Normalize for comparison: remove accents, lowercase
   const normForMatch = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -866,9 +915,9 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Filtrar status" />
             </SelectTrigger>
             <SelectContent>
@@ -877,6 +926,17 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
               <SelectItem value="preparing">Preparando</SelectItem>
               <SelectItem value="ready">Prontos</SelectItem>
               <SelectItem value="all">Todos</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={deliveryFilter} onValueChange={setDeliveryFilter}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Entrega" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="delivery">Delivery</SelectItem>
+              <SelectItem value="retirada">Retirada</SelectItem>
             </SelectContent>
           </Select>
 
@@ -921,14 +981,18 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
       ) : (
         <Tabs defaultValue="production" className="space-y-4">
           <div className="flex items-center justify-between">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsList className="grid w-full max-w-lg grid-cols-3">
               <TabsTrigger value="production" className="flex items-center gap-2">
                 <Utensils className="w-4 h-4" />
-                Produção (Cozinha)
+                Cozinha
               </TabsTrigger>
               <TabsTrigger value="assembly" className="flex items-center gap-2">
                 <Package className="w-4 h-4" />
                 Montagem
+              </TabsTrigger>
+              <TabsTrigger value="orders" className="flex items-center gap-2">
+                <Tag className="w-4 h-4" />
+                Pedidos
               </TabsTrigger>
             </TabsList>
             <Button variant="outline" size="sm" onClick={handlePrintAll}>
@@ -939,6 +1003,22 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
 
           {/* PRODUCTION TAB - Kitchen aggregated ingredients */}
           <TabsContent value="production" className="space-y-4">
+            {/* Production schedule summary */}
+            {filteredOrders.some(o => o.scheduled_date) && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Truck className="w-4 h-4" />
+                <span>Produção para:</span>
+                {Array.from(new Set(filteredOrders
+                  .filter(o => o.scheduled_date)
+                  .map(o => new Date(o.scheduled_date!).toLocaleDateString('pt-BR'))
+                )).sort().map((date, i, arr) => (
+                  <Badge key={date} variant="secondary" className="text-xs">
+                    {date}
+                    {i < arr.length - 1 ? '' : ''}
+                  </Badge>
+                ))}
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={handlePrintProduction}>
                 <Printer className="w-4 h-4 mr-2" />
@@ -1102,6 +1182,25 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 </CardContent>
               </Card>
             )}
+
+            {/* Dica Fit do Dia */}
+            <Card className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Lightbulb className="w-4 h-4 text-green-600" />
+                  Dica Fit do Dia
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-start gap-4">
+                  <span className="text-3xl">{nutritionTips[todayTipIndex].icon}</span>
+                  <div>
+                    <h4 className="font-semibold text-sm">{nutritionTips[todayTipIndex].title}</h4>
+                    <p className="text-sm text-muted-foreground mt-1">{nutritionTips[todayTipIndex].body}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* ASSEMBLY TAB - Individual marmita combinations */}
@@ -1111,7 +1210,7 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 const ordersForLabels = filteredOrders.map(o => ({
                   order_number: o.order_number,
                   customer_name: o.customer_name,
-                  delivery_option: 'delivery',
+                  delivery_option: o.delivery_option || 'delivery',
                   items: o.items,
                 }));
                 generateLabelsA7(ordersForLabels);
@@ -1194,6 +1293,118 @@ const ProductionPanel = ({ dateFilter }: ProductionPanelProps) => {
                 </>
               );
             })()}
+          </TabsContent>
+
+          {/* ORDERS TAB - Per-order production tickets */}
+          <TabsContent value="orders" className="space-y-4">
+            <div className="space-y-3">
+              {filteredOrders.map(order => {
+                const isExpanded = expandedOrders.has(order.id);
+                const productionLines = getOrderProductionLines(order as any, {});
+                const kitchenHtml = generateOrderProductionHTML(order as any, productionLines);
+                return (
+                  <Card key={order.id} className="overflow-hidden">
+                    <Collapsible open={isExpanded} onOpenChange={() => toggleOrderExpand(order.id)}>
+                      <CollapsibleTrigger asChild>
+                        <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                              <div>
+                                <span className="font-bold">#{order.order_number}</span>
+                                <span className="ml-2 text-muted-foreground">{order.customer_name}</span>
+                                {order.customer_phone && (
+                                  <span className="ml-2 text-xs text-muted-foreground">📞 {order.customer_phone}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {order.delivery_option === 'retirada' ? (
+                                <Store className="w-3.5 h-3.5 text-muted-foreground" title="Retirada" />
+                              ) : (
+                                <Truck className="w-3.5 h-3.5 text-muted-foreground" title="Delivery" />
+                              )}
+                              {order.scheduled_date && (
+                                <Badge variant="outline" className="text-xs">
+                                  {new Date(order.scheduled_date).toLocaleDateString('pt-BR')}
+                                </Badge>
+                              )}
+                              <Badge className="text-xs" variant={
+                                order.status === 'ready' ? 'default' :
+                                order.status === 'preparing' ? 'secondary' :
+                                'outline'
+                              }>
+                                {order.status === 'approved' ? 'Aprovado' :
+                                 order.status === 'paid' ? 'Pago' :
+                                 order.status === 'preparing' ? 'Preparando' :
+                                 order.status === 'ready' ? 'Pronto' :
+                                 order.status === 'whatsapp_pending' ? 'WhatsApp' : order.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <CardContent className="border-t pt-4 space-y-3">
+                          {/* Status progression buttons */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {order.status === 'approved' || order.status === 'paid' ? (
+                              <Button size="sm" onClick={() => updateOrderStatus(order.id, 'preparing')} disabled={updatingId === order.id}>
+                                <CookingPot className="w-3.5 h-3.5 mr-1" />
+                                Iniciar Preparo
+                              </Button>
+                            ) : null}
+                            {order.status === 'preparing' ? (
+                              <Button size="sm" onClick={() => updateOrderStatus(order.id, 'ready')} disabled={updatingId === order.id}>
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                                Marcar Pronto
+                              </Button>
+                            ) : null}
+                            {order.status !== 'cancelled' && order.status !== 'refunded' ? (
+                              <Button size="sm" variant="destructive" onClick={() => updateOrderStatus(order.id, 'cancelled')} disabled={updatingId === order.id}>
+                                <XCircle className="w-3.5 h-3.5 mr-1" />
+                                Cancelar
+                              </Button>
+                            ) : null}
+                          </div>
+
+                          {/* Order items */}
+                          <div className="text-sm space-y-1">
+                            {order.items && order.items.map((item, idx) => (
+                              <div key={idx} className="flex justify-between py-1 border-b last:border-0">
+                                <span>{item.quantity}x {item.name}</span>
+                                {item.flavors && item.flavors.length > 0 && (
+                                  <span className="text-muted-foreground">
+                                    {item.flavors.map(f => `${f.quantity}x ${f.name}`).join(', ')}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Production ticket */}
+                          {productionLines.length > 0 && (
+                            <div className="bg-muted/30 rounded-lg p-3">
+                              <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Ficha de Produção</div>
+                              <div
+                                className="prose prose-sm max-w-none text-xs"
+                                dangerouslySetInnerHTML={{ __html: kitchenHtml }}
+                              />
+                            </div>
+                          )}
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </Card>
+                );
+              })}
+              {filteredOrders.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <ChefHat className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  Nenhum pedido encontrado
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       )}

@@ -5,6 +5,7 @@ import { getTenantBranding, getTenantBaseUrl, TenantBranding } from "../_shared/
 import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText, type EvolutionCredentials } from "../_shared/evolution-sender.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -126,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (allOrders.length === 0) {
       return new Response(JSON.stringify({ message: "No pending orders to remind", sent: { email: 0, whatsapp: 0 } }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
+        { status: 200, headers: { "Content-Type": "application/json", ...buildCorsHeaders(req) } });
     }
 
     let emailSentCount = 0, whatsappSentCount = 0, errorCount = 0;
@@ -205,10 +206,10 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({
       success: true, sent: { email: emailSentCount, whatsapp: whatsappSentCount },
       total: allOrders.length, errors: errorCount
-    }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }), { status: 200, headers: { "Content-Type": "application/json", ...buildCorsHeaders(req) } });
   } catch (error: any) {
     console.error("Error in send-pending-reminders:", error);
-    return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500, headers: { "Content-Type": "application/json", ...buildCorsHeaders(req) } });
   }
 };
 

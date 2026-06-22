@@ -3,6 +3,7 @@ import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.
 import { getWhatsAppCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText, randomDelay, BATCH_LIMITS, type EvolutionCredentials } from "../_shared/evolution-sender.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -105,7 +106,7 @@ Deno.serve(async (req) => {
     if (error) throw error;
     if (!carts || carts.length === 0) {
       return new Response(JSON.stringify({ success: true, processed: 0 }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' },
       });
     }
 
@@ -197,12 +198,12 @@ Deno.serve(async (req) => {
     const result = { success: true, processed: carts.length, sent, skippedDueToLimit, errors: errors.length > 0 ? errors : undefined };
     console.log('Cart recovery drip job completed:', result);
     return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Error in send-cart-reminders:', error);
     return new Response(JSON.stringify({ error: 'Erro interno. Tente novamente.' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
 });

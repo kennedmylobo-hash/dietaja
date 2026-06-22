@@ -58,6 +58,13 @@ class ErrorBoundary extends Component<Props, State> {
             <p className="text-muted-foreground mb-6">
               Tivemos um problema ao carregar a página. Por favor, tente recarregar.
             </p>
+            {import.meta.env.DEV && this.state.error && (
+              <pre className="text-xs text-left bg-red-50 p-4 rounded mb-4 overflow-auto max-h-60 whitespace-pre-wrap">
+                {this.state.error.message}
+                {'\n\n'}
+                {this.state.error.stack}
+              </pre>
+            )}
             
             <Button 
               onClick={this.handleReload}

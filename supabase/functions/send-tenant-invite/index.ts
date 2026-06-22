@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getPlatformUrl } from "../_shared/platform-config.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
@@ -27,7 +28,7 @@ serve(async (req) => {
     if (!email || !tenant_id || !brand_name) {
       return new Response(JSON.stringify({ error: "Campos obrigatórios faltando" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -49,7 +50,7 @@ serve(async (req) => {
       console.error("Error generating invite link:", linkError);
       return new Response(JSON.stringify({ error: linkError.message }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -57,7 +58,7 @@ serve(async (req) => {
     if (!inviteLink) {
       return new Response(JSON.stringify({ error: "Falha ao gerar link de convite" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -151,7 +152,7 @@ serve(async (req) => {
       console.error("Resend error:", errorData);
       return new Response(JSON.stringify({ error: "Erro ao enviar email" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -159,13 +160,13 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, message: "Convite enviado com sucesso" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
     );
   } catch (err: any) {
     console.error("Error in send-tenant-invite:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
     });
   }
 });

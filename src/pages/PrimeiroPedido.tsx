@@ -201,7 +201,8 @@ const PrimeiroPedido = () => {
 
       if (error) throw error;
       if (response?.success && response?.checkout_url) {
-        window.open(response.checkout_url, "_self") || window.open(response.checkout_url, "_blank");
+        const opened = window.open(response.checkout_url, "_self");
+        if (!opened) window.open(response.checkout_url, "_blank");
       } else {
         throw new Error(response?.error || "Erro ao gerar link de pagamento");
       }

@@ -190,8 +190,8 @@ export default function AIDietQuoter() {
       for (const ln of lines) {
         if (/Composi[çc][aã]o/i.test(ln)) { mode = "opt"; continue; }
         if (/Tabela de pre/i.test(ln)) { mode = "price"; continue; }
-        if (/^[•\-]/.test(ln)) {
-          const txt = ln.replace(/^[•\-]\s*/, "");
+        if (/^[•-]/.test(ln)) {
+          const txt = ln.replace(/^[•-]\s*/, "");
           if (mode === "opt") options.push(txt);
           else if (mode === "price") prices.push(txt);
         }

@@ -4,6 +4,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.ts";
 import { getEmailCredentials } from "../_shared/tenant-credentials.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -124,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Order confirmation request:", JSON.stringify(data, null, 2));
 
     if (!data.order_number || !data.customer_email || !data.customer_name) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json", ...buildCorsHeaders(req) } });
     }
 
     // Fetch tenant branding and email credentials
@@ -161,10 +162,10 @@ const handler = async (req: Request): Promise<Response> => {
       tenant_id: data.tenant_id, message_id: emailResponse?.id, metadata: { response: emailResponse }
     });
 
-    return new Response(JSON.stringify({ success: true, emailId: emailResponse?.id }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    return new Response(JSON.stringify({ success: true, emailId: emailResponse?.id }), { status: 200, headers: { "Content-Type": "application/json", ...buildCorsHeaders(req) } });
   } catch (error: any) {
     console.error("Error in send-order-confirmation function:", error);
-    return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500, headers: { "Content-Type": "application/json", ...buildCorsHeaders(req) } });
   }
 };
 

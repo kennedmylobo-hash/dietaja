@@ -45,6 +45,14 @@ export const useTenantConfig = () => {
     description: `Kits detox e marmitas saudáveis prontas para quem tem rotina corrida em ${location.city}. Coma melhor sem precisar cozinhar.`,
   };
 
+  const delivery = {
+    cutoffDay: tenant?.cutoff_day ?? 0,
+    cutoffTime: tenant?.cutoff_time ?? '18:00:00',
+    productionDay: tenant?.production_day ?? 2,
+    deliveryDays: tenant?.delivery_days ?? [1],
+    cutoffMessage: tenant?.cutoff_message ?? 'Pedidos até domingo às 18h são produzidos na terça.',
+  };
+
   const theme = {
     primaryColor: tenant?.primary_color || siteConfig.theme.primaryColor,
   };
@@ -64,6 +72,7 @@ export const useTenantConfig = () => {
     analytics,
     urls,
     seo,
+    delivery,
     theme,
     formatCurrency,
     getWhatsAppLink,

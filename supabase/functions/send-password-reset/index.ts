@@ -4,6 +4,7 @@ import { getTenantBranding } from "../_shared/tenant-branding.ts";
 import { getPlatformUrl } from "../_shared/platform-config.ts";
 import { getEmailCredentials } from "../_shared/tenant-credentials.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -193,7 +194,7 @@ const handler = async (req: Request): Promise<Response> => {
       }),
       {
         status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { "Content-Type": "application/json", ...buildCorsHeaders(req) },
       }
     );
   } catch (error: any) {
@@ -206,7 +207,7 @@ const handler = async (req: Request): Promise<Response> => {
       }),
       {
         status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { "Content-Type": "application/json", ...buildCorsHeaders(req) },
       }
     );
   }

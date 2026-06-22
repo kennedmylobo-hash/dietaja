@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -84,7 +85,7 @@ serve(async (req) => {
     if (!transcript || typeof transcript !== "string" || transcript.trim().length < 5) {
       return new Response(
         JSON.stringify({ error: "Transcrição muito curta ou inválida." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -163,19 +164,19 @@ REGRAS:
       if (status === 429) {
         return new Response(
           JSON.stringify({ error: "Muitas requisições. Tente novamente em alguns segundos." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 429, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
         );
       }
       if (status === 402) {
         return new Response(
           JSON.stringify({ error: "Créditos de IA esgotados. Entre em contato com o suporte." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 402, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
         );
       }
 
       return new Response(
         JSON.stringify({ error: "Erro ao processar com IA." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -186,7 +187,7 @@ REGRAS:
       console.error("No tool call in response:", JSON.stringify(result));
       return new Response(
         JSON.stringify({ error: "Não foi possível extrair as preferências." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -198,13 +199,13 @@ REGRAS:
         carbs: parsed.carbs || "",
         mix: parsed.mix || "",
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
     );
   } catch (e) {
     console.error("parse-voice-preferences error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
     );
   }
 });

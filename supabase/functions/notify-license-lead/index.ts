@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getWhatsAppCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -25,7 +26,7 @@ Deno.serve(async (req) => {
       console.error("WhatsApp credentials not configured");
       return new Response(JSON.stringify({ success: false, error: "WhatsApp not configured" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -67,13 +68,13 @@ _Responda esse lead o mais rápido possível!_`;
     console.log(`[notify-license-lead] WhatsApp sent: ${result.success}`);
 
     return new Response(JSON.stringify({ success: result.success }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("[notify-license-lead] Error:", error);
     return new Response(JSON.stringify({ success: false, error: String(error) }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
     });
   }
 });

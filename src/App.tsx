@@ -10,6 +10,7 @@ import { TenantProvider } from "./contexts/TenantContext";
 import { lazy, Suspense, useEffect } from "react";
 import MetaPixel from "./components/MetaPixel";
 import GoogleAnalytics from "./components/GoogleAnalytics";
+import Canonical from "./components/Canonical";
 
 // Eager load critical pages
 import Index from "./pages/Index";
@@ -36,6 +37,9 @@ const MonteSeuCardapio = lazy(() => import("./pages/MonteSeuCardapio"));
 const Licenca = lazy(() => import("./pages/Licenca"));
 const KitMensal = lazy(() => import("./pages/KitMensal"));
 const PrimeiroPedido = lazy(() => import("./pages/PrimeiroPedido"));
+const TenantLandingPage = lazy(() => import("./pages/TenantLandingPage"));
+const SiteVendas = lazy(() => import("./pages/SiteVendas"));
+const Campanha = lazy(() => import("./pages/Campanha"));
 
 // Simple loading fallback
 const PageLoader = () => (
@@ -58,7 +62,16 @@ const SpaRedirectHandler = () => {
 };
 
 // v2.0 - Landing pages Fit, Fitness e Detox
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000, // 1 minuto — evita refetch imediato de dados estáveis (cardápio, planos)
+      gcTime: 5 * 60_000, // 5 minutos de cache inativo
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <ErrorBoundary>
@@ -73,6 +86,7 @@ const App = () => (
             <GoogleAnalytics />
             <BrowserRouter>
               <SpaRedirectHandler />
+              <Canonical />
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/" element={<Index />} />
@@ -98,6 +112,9 @@ const App = () => (
                   <Route path="/licenca" element={<Licenca />} />
                   <Route path="/kit-mensal" element={<KitMensal />} />
                   <Route path="/primeiro-pedido" element={<PrimeiroPedido />} />
+                  <Route path="/c/:slug" element={<TenantLandingPage />} />
+                  <Route path="/site" element={<SiteVendas />} />
+                  <Route path="/campanha" element={<Campanha />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

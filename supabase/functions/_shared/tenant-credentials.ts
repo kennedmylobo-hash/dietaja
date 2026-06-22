@@ -8,7 +8,7 @@ export interface AsaasCredentials {
   webhookToken: string | null;
 }
 
-export interface WhatsAppCredentials extends EvolutionCredentials {}
+export type WhatsAppCredentials = EvolutionCredentials
 
 export interface EmailCredentials {
   apiKey: string;

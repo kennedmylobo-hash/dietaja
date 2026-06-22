@@ -5,6 +5,7 @@ import { getTenantBranding, getTenantBaseUrl } from "../_shared/tenant-branding.
 import { getWhatsAppCredentials, getEmailCredentials } from "../_shared/tenant-credentials.ts";
 import { sendWhatsAppText } from "../_shared/evolution-sender.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -105,7 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const data: OrderApprovedRequest = await req.json();
     if (!data.order_number || !data.customer_email || !data.customer_name) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json", ...buildCorsHeaders(req) } });
     }
 
     const branding = await getTenantBranding(supabase, data.tenant_id);
@@ -113,58 +114,60 @@ const handler = async (req: Request): Promise<Response> => {
     const whatsappCreds = await getWhatsAppCredentials(supabase, data.tenant_id);
     const emailCreds = await getEmailCredentials(supabase, data.tenant_id);
 
-    const results = { email: { success: false, error: null as string | null }, whatsapp: { success: false, error: null as string | null } };
+    const results = { email: { success: false, error: null as string | null, skipped: false }, whatsapp: { success: false, error: null as string | null, skipped: false } };
 
-    // Send Email
-    try {
-      const resend = new Resend(emailCreds.apiKey);
-      const html = generateEmailHtml(data, branding.brand_name, branding.whatsapp, branding.whatsapp_formatted, baseUrl);
-      const { data: emailResponse, error } = await resend.emails.send({
-        from: `${branding.brand_name} <${emailCreds.fromEmail}>`,
-        to: [data.customer_email],
-        subject: `Pedido #${data.order_number} Confirmado! ✅ - ${branding.brand_name}`,
-        html,
-      });
+    // === ATOMIC DEDUP: Email (23505 = unique violation = já foi enviado) ===
+    const { error: emailError } = await supabase
+      .from('notification_events')
+      .insert({ channel: 'email', event_type: 'sent', order_number: data.order_number, recipient_email: data.customer_email, template_name: 'order_approved', tenant_id: data.tenant_id })
+      .select('id')
+      .single();
 
-      if (error) {
-        results.email.error = error.message;
-        await supabase.from('notification_events').insert({ channel: 'email', event_type: 'failed', order_number: data.order_number, recipient_email: data.customer_email, template_name: 'order_approved', tenant_id: data.tenant_id, metadata: { error: 'Erro interno' } });
-      } else {
-        results.email.success = true;
-        await supabase.from('notification_events').insert({ channel: 'email', event_type: 'sent', order_number: data.order_number, recipient_email: data.customer_email, template_name: 'order_approved', tenant_id: data.tenant_id, message_id: emailResponse?.id });
-      }
-    } catch (emailError: any) {
-      results.email.error = emailError.message;
-    }
-
-    // Send WhatsApp via Evolution API
-    if (whatsappCreds && data.customer_phone) {
+    if (emailError?.code === '23505') {
+      results.email.skipped = true;
+      console.log('Email already sent for order', data.order_number, '— skipping');
+    } else if (!emailError) {
       try {
-        const firstName = data.customer_name?.split(' ')[0] || 'cliente';
-        const itemsList = formatItemsList(data.items);
-        const message = `✅ *Pagamento Confirmado!*\n\nOlá ${firstName}! 🎉\n\nSeu pedido *#${data.order_number}* foi aprovado!\n\n📋 *Itens:* ${itemsList}\n💰 *Total:* ${formatCurrency(data.total)}\n\nSeu pedido já está sendo preparado! 👨‍🍳\n\nAcompanhe: ${baseUrl}/pedido/${data.order_number}\n\nObrigado pela preferência! 💚`;
-
-        const whatsappResult = await sendWhatsAppText(data.customer_phone, message, whatsappCreds);
-
-        results.whatsapp.success = whatsappResult.success;
-        if (!whatsappResult.success) results.whatsapp.error = whatsappResult.error || 'Unknown error';
-
-        await supabase.from('notification_events').insert({
-          channel: 'whatsapp', event_type: whatsappResult.success ? 'sent' : 'failed',
-          order_number: data.order_number, recipient_phone: data.customer_phone,
-          template_name: 'order_approved', tenant_id: data.tenant_id,
-          message_id: whatsappResult.messageId,
-          metadata: { response: whatsappResult.response, error: whatsappResult.error }
+        const resend = new Resend(emailCreds.apiKey);
+        const html = generateEmailHtml(data, branding.brand_name, branding.whatsapp, branding.whatsapp_formatted, baseUrl);
+        const { data: emailResp, error: sendErr } = await resend.emails.send({
+          from: `${branding.brand_name} <${emailCreds.fromEmail}>`,
+          to: [data.customer_email],
+          subject: `Pedido #${data.order_number} Confirmado! ✅ - ${branding.brand_name}`,
+          html,
         });
-      } catch (whatsappError: any) {
-        results.whatsapp.error = whatsappError.message;
+        if (sendErr) results.email.error = sendErr.message;
+        else results.email.success = true;
+      } catch (e: any) { results.email.error = e.message; }
+    }
+
+    // === ATOMIC DEDUP: WhatsApp ===
+    if (whatsappCreds && data.customer_phone) {
+      const { error: wpError } = await supabase
+        .from('notification_events')
+        .insert({ channel: 'whatsapp', event_type: 'sent', order_number: data.order_number, recipient_phone: data.customer_phone, template_name: 'order_approved', tenant_id: data.tenant_id })
+        .select('id')
+        .single();
+
+      if (wpError?.code === '23505') {
+        results.whatsapp.skipped = true;
+        console.log('WhatsApp already sent for order', data.order_number, '— skipping');
+      } else if (!wpError) {
+        try {
+          const firstName = data.customer_name?.split(' ')[0] || 'cliente';
+          const itemsList = formatItemsList(data.items);
+          const message = `✅ *Pagamento Confirmado!*\n\nOlá ${firstName}! 🎉\n\nSeu pedido *#${data.order_number}* foi aprovado!\n\n📋 *Itens:* ${itemsList}\n💰 *Total:* ${formatCurrency(data.total)}\n\nSeu pedido já está sendo preparado! 👨‍🍳\n\nAcompanhe: ${baseUrl}/pedido/${data.order_number}\n\nObrigado pela preferência! 💚`;
+          const whatsappResult = await sendWhatsAppText(data.customer_phone, message, whatsappCreds);
+          results.whatsapp.success = whatsappResult.success;
+          if (!whatsappResult.success) results.whatsapp.error = whatsappResult.error || 'Unknown error';
+        } catch (e: any) { results.whatsapp.error = e.message; }
       }
     }
 
-    return new Response(JSON.stringify({ success: results.email.success || results.whatsapp.success, results }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    return new Response(JSON.stringify({ success: results.email.success || results.whatsapp.success, results }), { status: 200, headers: { "Content-Type": "application/json", ...buildCorsHeaders(req) } });
   } catch (error: any) {
     console.error("Error in send-order-approved:", error);
-    return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500, headers: { "Content-Type": "application/json", ...buildCorsHeaders(req) } });
   }
 };
 

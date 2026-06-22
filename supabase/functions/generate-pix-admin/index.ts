@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTenantBranding } from "../_shared/tenant-branding.ts";
 import { getAsaasCredentials } from "../_shared/tenant-credentials.ts";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -55,7 +56,7 @@ serve(async (req) => {
         const notificationResults = await sendNotifications(supabaseUrl, supabaseKey, order, order.pix_qr_code, send_whatsapp, send_email);
         return new Response(
           JSON.stringify({ success: true, reused: true, pix_code: order.pix_qr_code, pix_link: `https://diet-on-demand.lovable.app/pix/${order_id}`, qr_code_base64: order.pix_qr_code_base64, expiration: order.pix_expiration, total: order.total, notifications: notificationResults }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
         );
       }
     }
@@ -130,14 +131,14 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, reused: false, pix_code: pixData.payload, pix_link: `https://diet-on-demand.lovable.app/pix/${order_id}`, qr_code_base64: pixData.encodedImage, expiration: expirationDate.toISOString(), total: order.total, notifications: notificationResults }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in generate-pix-admin:', error);
     return new Response(
       JSON.stringify({ success: false, error: 'Erro interno. Tente novamente.' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...buildCorsHeaders(req), 'Content-Type': 'application/json' } }
     );
   }
 });

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { buildWebhookCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -30,7 +31,7 @@ Deno.serve(async (req) => {
       console.error("No order_nsu in webhook payload");
       return new Response(JSON.stringify({ error: "Missing order_nsu" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...buildWebhookCorsHeaders(), "Content-Type": "application/json" },
       });
     }
 
@@ -49,7 +50,7 @@ Deno.serve(async (req) => {
       console.error("Order not found for order_nsu:", order_nsu, findError);
       return new Response(JSON.stringify({ error: "Order not found" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...buildWebhookCorsHeaders(), "Content-Type": "application/json" },
       });
     }
 
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
       console.error("Error updating order:", updateError);
       return new Response(JSON.stringify({ error: "Update failed" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...buildWebhookCorsHeaders(), "Content-Type": "application/json" },
       });
     }
 
@@ -178,7 +179,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...buildWebhookCorsHeaders(), "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Webhook error:", error);
@@ -186,7 +187,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: "Webhook processing error" }),
       {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...buildWebhookCorsHeaders(), "Content-Type": "application/json" },
       }
     );
   }

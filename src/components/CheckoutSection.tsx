@@ -1,9 +1,11 @@
 import { motion, useInView } from "framer-motion";
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { ShoppingBag, HelpCircle } from "lucide-react";
 import { useCart } from "./CartContext";
 import SalesQuizModal from "./SalesQuizModal";
 import CheckoutForm from "./CheckoutForm";
+import { useTenantConfig } from "@/hooks/useTenantConfig";
+import { getNextAvailableDeliveryDates, formatDateLong } from "@/lib/delivery-schedule";
 
 interface CheckoutSectionProps {
   onWhatsAppClick: (customerData: { name: string; phone: string; deliveryOption: string; address?: string }) => void;
@@ -14,35 +16,22 @@ const CheckoutSection = ({ onWhatsAppClick }: CheckoutSectionProps) => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { items, getTotal } = useCart();
   const [quizOpen, setQuizOpen] = useState(false);
+  const { delivery: deliveryConfig } = useTenantConfig();
 
   const total = getTotal();
   const hasItems = items.length > 0;
 
-  // Calculate next Wednesday for delivery
-  const getNextWednesday = (): Date => {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    let daysUntilWednesday: number;
-    
-    if (dayOfWeek === 0) {
-      daysUntilWednesday = 3;
-    } else if (dayOfWeek <= 3) {
-      daysUntilWednesday = 10 - dayOfWeek;
-    } else {
-      daysUntilWednesday = 10 - dayOfWeek;
-    }
-    
-    const nextWednesday = new Date(now);
-    nextWednesday.setDate(now.getDate() + daysUntilWednesday);
-    return nextWednesday;
-  };
-
-  const nextWednesday = getNextWednesday();
-  const months = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-  ];
-  const formattedDate = `Quarta, ${nextWednesday.getDate().toString().padStart(2, '0')} de ${months[nextWednesday.getMonth()]}`;
+  const nextDates = useMemo(() =>
+    getNextAvailableDeliveryDates(
+      deliveryConfig.deliveryDays,
+      deliveryConfig.cutoffDay,
+      deliveryConfig.cutoffTime,
+      deliveryConfig.productionDay,
+      1
+    ),
+    [deliveryConfig]
+  );
+  const formattedDate = nextDates.length > 0 ? formatDateLong(nextDates[0].date) : "Em breve";
 
   return (
     <section ref={ref} id="checkout" className="py-12 md:py-20 lg:py-28 bg-card">

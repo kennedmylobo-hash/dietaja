@@ -27,6 +27,8 @@ import { useTenantConfig } from "@/hooks/useTenantConfig";
 import { validateCPF, formatCPF } from "@/lib/cpf";
 import { sanitizeCustomerName } from "@/lib/name-sanitizer";
 import { useTenantId } from "@/hooks/useTenantId";
+import { getNextAvailableDeliveryDates, isBeforeCutoff } from "@/lib/delivery-schedule";
+import { fetchDeliveryZones, DeliveryZone } from "@/lib/delivery-zones";
 
 // Phone mask function: (XX) XXXXX-XXXX
 const formatPhone = (value: string): string => {
@@ -43,6 +45,7 @@ const formSchema = z.object({
   deliveryOption: z.enum(["pickup", "delivery"]),
   address: z.string().optional(),
   saveData: z.boolean().optional(),
+  scheduled_date: z.string().optional(),
 }).refine((data) => {
   if (data.deliveryOption === "delivery" && (!data.address || data.address.length < 10)) {
     return false;
@@ -62,9 +65,36 @@ interface CartDrawerProps {
 }
 
 const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
-  const { brand, contact, location: tenantLocation } = useTenantConfig();
+  const { brand, contact, location: tenantLocation, delivery: deliveryConfig } = useTenantConfig();
   const { items, removeItem, updateItemFlavors, getTotal, clearCart, trackCartOpen, trackCheckoutStart, trackCheckoutComplete, customerInfo, setCustomerInfo, markCartAsConverted } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'confirmation' | 'success'>('cart');
+  const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
+  const [selectedZone, setSelectedZone] = useState<DeliveryZone | null>(null);
+  const tenantId = useTenantId();
+
+  const availableDates = useMemo(() =>
+    getNextAvailableDeliveryDates(
+      deliveryConfig.deliveryDays,
+      deliveryConfig.cutoffDay,
+      deliveryConfig.cutoffTime,
+      deliveryConfig.productionDay,
+      4
+    ),
+    [deliveryConfig]
+  );
+
+  useEffect(() => {
+    if (tenantId) {
+      fetchDeliveryZones(tenantId).then(setDeliveryZones);
+    }
+  }, [tenantId]);
+
+  useEffect(() => {
+    if (!scheduledDate && availableDates.length > 0) {
+      setScheduledDate(availableDates[0].date);
+    }
+  }, [availableDates, scheduledDate]);
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState<string>("");
   const [confirmedOrderId, setConfirmedOrderId] = useState<string>("");
   const [isConfirming, setIsConfirming] = useState(false);
@@ -106,7 +136,6 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   const [editingMarmita, setEditingMarmita] = useState<CartItem | null>(null);
   const [editingKit, setEditingKit] = useState<CartItem | null>(null);
   const navigate = useNavigate();
-  const tenantId = useTenantId();
 
   // Fetch menu data from database
   const { data: flavorsData } = useMarmitaFlavors();
@@ -302,7 +331,10 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
   }, [step, appliedCoupon]);
 
   const deliveryOption = watch("deliveryOption");
-  const deliveryFee = deliveryOption === "delivery" ? tenantLocation.deliveryFee : 0;
+  const zoneFee = deliveryOption === "delivery" && selectedZone ? selectedZone.fee : 0;
+  const deliveryFee = deliveryOption === "delivery"
+    ? (deliveryZones.length > 0 ? zoneFee : tenantLocation.deliveryFee)
+    : 0;
   const subtotal = getTotal();
   const total = subtotal + deliveryFee - couponDiscount;
 
@@ -385,7 +417,8 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
 
   // NEW: Go to confirmation step
   const handleGoToConfirmation = (data: FormData) => {
-    const sanitizedData = { ...data, name: sanitizeCustomerName(data.name) };
+    const scheduledDateStr = scheduledDate?.toISOString().split('T')[0] || "";
+    const sanitizedData = { ...data, name: sanitizeCustomerName(data.name), scheduled_date: scheduledDateStr };
     setFormData(sanitizedData);
     setStep('confirmation');
   };
@@ -474,6 +507,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
         customer_phone: formData.phone,
         delivery_option: formData.deliveryOption,
         delivery_address: formData.address || null,
+        scheduled_date: formData.scheduled_date || null,
         utm_data: getUTMParams() || null,
         coupon_code: appliedCoupon || null,
         discount_amount: couponDiscount,
@@ -620,6 +654,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             option: formData.deliveryOption,
             address: formData.address,
             fee: deliveryFee,
+            scheduled_date: formData.scheduled_date,
           },
           utm_data: getUTMParams(),
           coupon_code: appliedCoupon || null,
@@ -714,6 +749,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
             option: formData.deliveryOption,
             address: formData.address,
             fee: deliveryFee,
+            scheduled_date: formData.scheduled_date,
           },
           coupon_code: appliedCoupon || null,
           discount_amount: couponDiscount,
@@ -816,6 +852,9 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
       }
       if (deliveryFee > 0) {
         message += `🛵 *ENTREGA:* R$ ${deliveryFee.toFixed(2).replace(".", ",")}\n`;
+      }
+      if (formData?.scheduled_date) {
+        message += `📅 *Agendado para:* ${formData.scheduled_date}\n`;
       }
       message += `✅ *TOTAL:* R$ ${finalTotal.toFixed(2).replace(".", ",")}\n`;
       message += `\n⏳ *Aguardando confirmação de pagamento*\n\nPode me confirmar o pedido?`;
@@ -1130,6 +1169,7 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                       onValueChange={(value) => {
                         const event = { target: { name: "deliveryOption", value } };
                         register("deliveryOption").onChange(event as React.ChangeEvent<HTMLInputElement>);
+                        if (value === "pickup") setSelectedZone(null);
                       }}
                       className="mt-2 space-y-2"
                     >
@@ -1144,11 +1184,44 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                         <RadioGroupItem value="delivery" id="drawer-delivery" />
                         <Label htmlFor="drawer-delivery" className="flex-1 cursor-pointer">
                           <span className="font-medium">🛵 Entrega</span>
-                          <span className="text-sm text-muted-foreground ml-2">+ R$ {tenantLocation.deliveryFee.toFixed(2).replace(".", ",")}</span>
+                          <span className="text-sm text-muted-foreground ml-2">
+                            {deliveryZones.length > 0 && selectedZone
+                              ? `+ R$ ${selectedZone.fee.toFixed(2).replace(".", ",")}`
+                              : `+ R$ ${tenantLocation.deliveryFee.toFixed(2).replace(".", ",")}`}
+                          </span>
                         </Label>
                       </div>
                     </RadioGroup>
                   </div>
+
+                  {/* Delivery zone selection */}
+                  {deliveryOption === "delivery" && deliveryZones.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium">Bairro / Região</Label>
+                      <div className="grid grid-cols-1 gap-1.5 mt-1">
+                        {deliveryZones.map((zone) => (
+                          <button
+                            key={zone.id}
+                            type="button"
+                            onClick={() => setSelectedZone(zone)}
+                            className={`flex items-center justify-between p-2.5 rounded-lg border text-left text-sm transition-all ${
+                              selectedZone?.id === zone.id
+                                ? "border-primary bg-primary/10 text-foreground"
+                                : "border-border hover:border-primary/30 bg-muted/30"
+                            }`}
+                          >
+                            <div>
+                              <span className="font-medium">{zone.name}</span>
+                              {zone.estimated_time && (
+                                <span className="text-xs text-muted-foreground ml-2">~{zone.estimated_time}</span>
+                              )}
+                            </div>
+                            <span className="font-semibold">R$ {zone.fee.toFixed(2).replace(".", ",")}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Address (conditional) */}
                   {deliveryOption === "delivery" && (
@@ -1165,6 +1238,37 @@ const CartDrawer = ({ open, onOpenChange }: CartDrawerProps) => {
                       {errors.address && (
                         <p className="text-xs text-destructive mt-1">{errors.address.message}</p>
                       )}
+                    </div>
+                  )}
+
+                  {/* Delivery date selection */}
+                  {availableDates.length > 1 && (
+                    <div>
+                      <Label className="text-sm font-medium">Agendar entrega / retirada</Label>
+                      <div className="grid grid-cols-2 gap-1.5 mt-1">
+                        {availableDates.map((d, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setScheduledDate(d.date)}
+                            className={`p-2.5 rounded-lg border text-center text-sm transition-all ${
+                              scheduledDate?.toISOString().split('T')[0] === d.date.toISOString().split('T')[0]
+                                ? "border-primary bg-primary/10 text-foreground font-medium"
+                                : "border-border hover:border-primary/30 bg-muted/30"
+                            }`}
+                          >
+                            <div>{d.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                      {!isBeforeCutoff(deliveryConfig.cutoffDay, deliveryConfig.cutoffTime) && (
+                        <p className="text-xs text-destructive mt-1">
+                          ⏰ Pedidos após o horário de corte entram na próxima produção.
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {deliveryConfig.cutoffMessage}
+                      </p>
                     </div>
                   )}
 

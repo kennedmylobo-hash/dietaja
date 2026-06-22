@@ -1,3 +1,4 @@
+import { buildCorsHeaders } from "../_shared/cors.ts";
 // Generate diet quote message via Lovable AI Gateway
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,14 +13,14 @@ Deno.serve(async (req) => {
 
     if (!customerName || (!dietText && !dietImageBase64)) {
       return new Response(JSON.stringify({ error: "Informe nome do cliente e a dieta (texto ou imagem)." }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "AI indisponível." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -145,16 +146,16 @@ ${notes ? `\nObservações extras do admin: ${notes}` : ""}`;
       console.error("AI error", resp.status, txt);
       if (resp.status === 429) {
         return new Response(JSON.stringify({ error: "Limite de uso atingido, tente novamente em instantes." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
         });
       }
       if (resp.status === 402) {
         return new Response(JSON.stringify({ error: "Créditos de AI esgotados. Adicione créditos no Lovable Cloud." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 402, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
         });
       }
       return new Response(JSON.stringify({ error: "Erro ao gerar orçamento." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -162,12 +163,12 @@ ${notes ? `\nObservações extras do admin: ${notes}` : ""}`;
     const message: string = data?.choices?.[0]?.message?.content ?? "";
 
     return new Response(JSON.stringify({ message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("generate-diet-quote error", err);
     return new Response(JSON.stringify({ error: "Erro interno." }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
     });
   }
 });

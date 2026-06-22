@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -39,7 +40,7 @@ Deno.serve(async (req) => {
     if (!accessToken) {
       return new Response(
         JSON.stringify({ error: "META_CONVERSIONS_API_TOKEN not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -65,7 +66,7 @@ Deno.serve(async (req) => {
     if (!pixelId) {
       return new Response(
         JSON.stringify({ error: "No facebook_pixel_id configured for tenant" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -124,13 +125,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: response.ok, status: response.status, result }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Meta CAPI error:", error);
     return new Response(
       JSON.stringify({ error: 'Erro interno' }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
     );
   }
 });
