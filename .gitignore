@@ -32,3 +32,4 @@ supabase/.temp/
 *.sln
 *.sw?
 nul
+.vercel

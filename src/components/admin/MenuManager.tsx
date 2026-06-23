@@ -685,36 +685,54 @@ const MenuManager = () => {
                     className="flex-1 h-8"
                   />
                   <div className="flex items-center gap-1">
+                    {/* Estoque com indicador visual */}
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => updateMarmitaFlavor(flavor.id, 'stock_quantity', Math.max(0, (flavor.stock_quantity ?? 0) - 1))}
+                        className="h-8 w-7 flex items-center justify-center rounded-l-md border border-r-0 border-muted-foreground/30 hover:bg-muted transition-colors text-muted-foreground"
+                      >−</button>
+                      <Input
+                        type="number"
+                        placeholder="∞"
+                        value={flavor.stock_quantity ?? ''}
+                        onChange={(e) => updateMarmitaFlavor(flavor.id, 'stock_quantity', e.target.value === '' ? null : parseInt(e.target.value))}
+                        className="w-14 h-8 text-center rounded-none border-x-0 text-xs"
+                        min={0}
+                        title="Quantidade em estoque"
+                      />
+                      <button
+                        onClick={() => updateMarmitaFlavor(flavor.id, 'stock_quantity', (flavor.stock_quantity ?? 0) + 1)}
+                        className="h-8 w-7 flex items-center justify-center rounded-r-md border border-l-0 border-muted-foreground/30 hover:bg-muted transition-colors text-muted-foreground"
+                      >+</button>
+                    </div>
+                    {/* Status badge */}
+                    {flavor.stock_quantity !== null ? (
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+                        flavor.stock_quantity === 0 ? 'bg-red-100 text-red-700' :
+                        flavor.stock_quantity <= (flavor.low_stock_threshold ?? 5) ? 'bg-amber-100 text-amber-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {flavor.stock_quantity === 0 ? 'Esgotado' :
+                         flavor.stock_quantity <= (flavor.low_stock_threshold ?? 5) ? 'Baixo' : 'OK'}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground px-1">—</span>
+                    )}
+                    {/* Limite + Mostrar */}
                     <Input
                       type="number"
-                      placeholder="∞"
-                      value={flavor.stock_quantity ?? ''}
-                      onChange={(e) => updateMarmitaFlavor(flavor.id, 'stock_quantity', e.target.value === '' ? null : parseInt(e.target.value))}
-                      className="w-16 h-8 text-center"
-                      min={0}
-                      title="Quantidade em estoque"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="5"
+                      placeholder="lim"
                       value={flavor.low_stock_threshold ?? ''}
                       onChange={(e) => updateMarmitaFlavor(flavor.id, 'low_stock_threshold', e.target.value === '' ? null : parseInt(e.target.value))}
-                      className="w-12 h-8 text-center text-xs"
+                      className="w-10 h-7 text-center text-[10px]"
                       min={0}
                       title="Limite para estoque baixo"
                     />
-                    <div className="flex items-center gap-1">
-                      <Switch
-                        checked={flavor.show_stock}
-                        onCheckedChange={(checked) => updateMarmitaFlavor(flavor.id, 'show_stock', checked)}
-                      />
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">Mostrar</span>
-                    </div>
-                    {flavor.show_stock && flavor.stock_quantity !== null && flavor.stock_quantity < (flavor.low_stock_threshold ?? 5) && (
-                      <Badge variant="destructive" className="text-[10px] px-1.5">
-                        {flavor.stock_quantity === 0 ? 'Esgotado' : `${flavor.stock_quantity}`}
-                      </Badge>
-                    )}
+                    <Switch
+                      checked={flavor.show_stock}
+                      onCheckedChange={(checked) => updateMarmitaFlavor(flavor.id, 'show_stock', checked)}
+                      className="scale-75"
+                    />
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="flex flex-col gap-0.5">
