@@ -21,8 +21,8 @@ export const siteConfig = {
   },
 
   contact: {
-    whatsapp: "",
-    whatsappFormatted: "",
+    whatsapp: "5577991001658",
+    whatsappFormatted: "5577991001658",
   },
 
   urls: {
