@@ -33,6 +33,10 @@ const PagamentoSucesso = () => {
   const [realStatus, setRealStatus] = useState<string | null>(null);
   const { clearCart } = useCart();
 
+  // Timeout para evitar polling infinito (15 minutos)
+  const POLLING_TIMEOUT_MS = 15 * 60 * 1000;
+  const POLLING_INTERVAL_MS = 5000;
+
   // Verificar status real do pagamento via Edge Function
   useEffect(() => {
     const checkRealStatus = async () => {
@@ -84,11 +88,20 @@ const PagamentoSucesso = () => {
     checkRealStatus();
   }, [orderId, urlStatus]);
 
-  // Polling automático enquanto status for pending
+  // Polling automático com timeout enquanto status for pending
   useEffect(() => {
     if (realStatus !== 'pending' || !orderId) return;
     
+    const startTime = Date.now();
+    
     const interval = setInterval(async () => {
+      // Timeout de segurança: para de pollar após 15 minutos
+      if (Date.now() - startTime > POLLING_TIMEOUT_MS) {
+        clearInterval(interval);
+        setRealStatus('approved'); // Assume aprovado após timeout para não travar UX
+        return;
+      }
+      
       try {
         const { data, error } = await supabase.functions.invoke('check-payment-status', {
           body: { order_id: orderId }
@@ -102,7 +115,7 @@ const PagamentoSucesso = () => {
       } catch (err) {
         console.error('Error polling status:', err);
       }
-    }, 5000); // Poll a cada 5 segundos
+    }, POLLING_INTERVAL_MS);
     
     return () => clearInterval(interval);
   }, [realStatus, orderId]);

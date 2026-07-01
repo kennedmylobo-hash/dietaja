@@ -1,10 +1,12 @@
 User-agent: *
 Allow: /
+
+# Disallow admin routes
 Disallow: /admin/
 Disallow: /super-admin/
-Disallow: /api/
-Disallow: /functions/
-Disallow: /config/
-Disallow: /src/
 
-Sitemap: https://www.dietajavca.com.br/sitemap.xml
+# Sitemap
+Sitemap: https://dietaja.com.br/sitemap.xml
+
+# Crawl delay (optional)
+Crawl-delay: 1

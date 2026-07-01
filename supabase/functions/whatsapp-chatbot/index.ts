@@ -91,9 +91,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    const apiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
     const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL");
@@ -161,26 +161,36 @@ serve(async (req) => {
       chatMessages.push({ role: "user", content: customerMessage });
     }
 
-    // === 4. CALL AI ===
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: chatMessages,
-        temperature: 0.7,
-        max_tokens: 400,
-      }),
-    });
+    // === 4. CALL AI (Gemini direto) ===
+    const systemMsg = chatMessages.find(m => m.role === "system")?.content || "";
+    const historyMsgs = chatMessages.filter(m => m.role !== "system");
+    const lastUserMsg = historyMsgs.filter(m => m.role === "user").pop()?.content || customerMessage;
+
+    const geminiBody = {
+      contents: [{ role: "user", parts: [{ text: lastUserMsg }] }],
+      systemInstruction: { parts: [{ text: systemMsg }] },
+      generationConfig: { temperature: 0.7, maxOutputTokens: 400 },
+    };
+
+    const aiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(geminiBody),
+      }
+    );
 
     if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("AI API error:", errText);
-      return new Response(JSON.stringify({ error: "AI API error" }), { status: 502, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
+      console.error("AI API error:", await aiResponse.text());
+      const reply = "😊 Oie! No momento estou offline para novas perguntas, mas um atendente humano vai te responder em breve! 💚";
+      const fallbackPhone = customerPhone.startsWith("55") ? customerPhone : `55${customerPhone}`;
+      await fetch(`${evolutionApiUrl}/message/sendText/${instanceName}`, {
+        method: "POST", headers: { "apikey": evolutionApiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ number: fallbackPhone, text: reply }),
+      }).catch(() => {});
+      return new Response(JSON.stringify({ success: true, fallback: true, reply }), { status: 200, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } });
     }
-
-    const aiData = await aiResponse.json();
-    const reply = aiData.choices?.[0]?.message?.content?.trim() || "Desculpe, não consegui processar sua pergunta. Um atendente vai te responder em breve!";
 
     // === 5. SAVE AI response ===
     await supabase.from("chat_messages").insert({

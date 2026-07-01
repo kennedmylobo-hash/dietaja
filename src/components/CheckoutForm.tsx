@@ -31,7 +31,7 @@ const formSchema = z.object({
   email: z.string().email("Email inválido"),
   phone: z.string().min(10, "Telefone inválido").max(15),
   cpf: z.string().optional(),
-  paymentMethod: z.enum(["pix", "card"]).optional(),
+  paymentMethod: z.enum(["pix", "card"]).default("pix"),
   deliveryOption: z.enum(["pickup", "delivery"]),
   address: z.string().optional(),
   saveData: z.boolean().optional(),
@@ -127,13 +127,20 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
   });
 
   const emailValue = watch("email");
-  const [paymentMethod, setPaymentMethod] = useState<"pix" | "card" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
 
   // Sync paymentMethod state with form value for Zod validation
   const handlePaymentMethodChange = (value: "pix" | "card") => {
     setPaymentMethod(value);
     setValue("paymentMethod", value);
   };
+  
+  // CPF dinâmico por método de pagamento
+  useEffect(() => {
+    if (paymentMethod !== "pix") {
+      setValue("cpf", "");
+    }
+  }, [paymentMethod, setValue]);
   
   // Update watchedEmail when email changes (for cashback lookup)
   useEffect(() => {
@@ -446,11 +453,11 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
       <div className="space-y-3">
         <div>
           <Label htmlFor="name" className="text-sm font-medium">
-            Nome completo
+            Nome
           </Label>
           <Input
             id="name"
-            placeholder="Seu nome"
+            placeholder="Ex.: Maria Silva"
             {...register("name")}
             className="mt-1"
           />
@@ -461,7 +468,7 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
 
         <div>
           <Label htmlFor="email" className="text-sm font-medium">
-            Email
+            E-mail
           </Label>
           <Controller
             name="email"
@@ -789,6 +796,9 @@ const CheckoutForm = ({ onWhatsAppClick }: CheckoutFormProps) => {
           {errors.cpf && (
             <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>
           )}
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Apenas para pagamento PIX, conforme exigência do Pix.
+          </p>
         </div>
       )}
 

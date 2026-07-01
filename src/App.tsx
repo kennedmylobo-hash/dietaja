@@ -11,6 +11,8 @@ import { lazy, Suspense, useEffect } from "react";
 import MetaPixel from "./components/MetaPixel";
 import GoogleAnalytics from "./components/GoogleAnalytics";
 import Canonical from "./components/Canonical";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { CartProvider } from "@/components/CartContext";
 
 // Eager load critical pages
 import Index from "./pages/Index";
@@ -39,6 +41,7 @@ const KitMensal = lazy(() => import("./pages/KitMensal"));
 const PrimeiroPedido = lazy(() => import("./pages/PrimeiroPedido"));
 const TenantLandingPage = lazy(() => import("./pages/TenantLandingPage"));
 const SiteVendas = lazy(() => import("./pages/SiteVendas"));
+const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
 const Campanha = lazy(() => import("./pages/Campanha"));
 
 // Simple loading fallback
@@ -82,43 +85,46 @@ const App = () => (
             <Toaster />
             <Sonner />
             
-            <MetaPixel />
-            <GoogleAnalytics />
             <BrowserRouter>
-              <SpaRedirectHandler />
-              <Canonical />
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/cardapio" element={<Cardapio />} />
-                  <Route path="/minha-conta" element={<MinhaConta />} />
-                  <Route path="/obrigado" element={<Obrigado />} />
-                  <Route path="/admin" element={<Admin />} />
-                  <Route path="/admin/reset-password" element={<AdminResetPassword />} />
-                  <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />
-                  <Route path="/pagamento/erro" element={<PagamentoErro />} />
-                  <Route path="/pix/:paymentId" element={<PixPayment />} />
-                  <Route path="/pedido/:orderNumber" element={<StatusPedido />} />
-                  <Route path="/pedido" element={<StatusPedido />} />
-                  {/* Landing pages de categoria */}
-                  <Route path="/detox" element={<Detox />} />
-                  <Route path="/fit" element={<Fit />} />
-                  <Route path="/fitness" element={<Fitness />} />
-                  <Route path="/avaliar/:orderToken" element={<Avaliar />} />
-                  <Route path="/feedback/:token" element={<ClientFeedback />} />
-                  <Route path="/clubedietaja" element={<ClubeDietaJa />} />
-                  <Route path="/super-admin" element={<SuperAdmin />} />
-                  <Route path="/monte-seu-cardapio" element={<MonteSeuCardapio />} />
-                  <Route path="/licenca" element={<Licenca />} />
-                  <Route path="/kit-mensal" element={<KitMensal />} />
-                  <Route path="/primeiro-pedido" element={<PrimeiroPedido />} />
-                  <Route path="/c/:slug" element={<TenantLandingPage />} />
-                  <Route path="/site" element={<SiteVendas />} />
-                  <Route path="/campanha" element={<Campanha />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
+              <CartProvider>
+                <MetaPixel />
+                <GoogleAnalytics />
+                <SpaRedirectHandler />
+                <Canonical />
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/cardapio" element={<Cardapio />} />
+                    <Route path="/minha-conta" element={<ProtectedRoute allowedRoles={["admin", "super_admin", "customer"]}><MinhaConta /></ProtectedRoute>} />
+                    <Route path="/obrigado" element={<Obrigado />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/admin/reset-password" element={<AdminResetPassword />} />
+                    <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />
+                    <Route path="/pagamento/erro" element={<PagamentoErro />} />
+                    <Route path="/pix/:paymentId" element={<PixPayment />} />
+                    <Route path="/pedido/:orderNumber" element={<StatusPedido />} />
+                    <Route path="/pedido" element={<StatusPedido />} />
+                    {/* Landing pages de categoria */}
+                    <Route path="/detox" element={<Detox />} />
+                    <Route path="/fit" element={<Fit />} />
+                    <Route path="/fitness" element={<Fitness />} />
+                    <Route path="/avaliar/:orderToken" element={<Avaliar />} />
+                    <Route path="/feedback/:token" element={<ClientFeedback />} />
+                    <Route path="/clubedietaja" element={<ClubeDietaJa />} />
+                    <Route path="/super-admin" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdmin /></ProtectedRoute>} />
+                    <Route path="/monte-seu-cardapio" element={<MonteSeuCardapio />} />
+                    <Route path="/licenca" element={<Licenca />} />
+                    <Route path="/kit-mensal" element={<KitMensal />} />
+                    <Route path="/primeiro-pedido" element={<PrimeiroPedido />} />
+                    <Route path="/c/:slug" element={<TenantLandingPage />} />
+                    <Route path="/site" element={<SiteVendas />} />
+                    <Route path="/campanha" element={<Campanha />} />
+                    <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </CartProvider>
             </BrowserRouter>
           </TooltipProvider>
         </TenantProvider>

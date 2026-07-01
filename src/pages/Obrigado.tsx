@@ -88,7 +88,7 @@ const Obrigado = () => {
   return (
     <>
       <Helmet>
-        <title>Pedido Enviado - {brand.name}</title>
+        <title>Pedido confirmado - {brand.name}</title>
         <meta name="robots" content="noindex, nofollow" />
         <link rel="canonical" href={urls.canonical} />
       </Helmet>
@@ -123,10 +123,13 @@ const Obrigado = () => {
             className="text-center mb-8"
           >
             <h1 className="text-3xl font-bold text-foreground mb-2">
-              Pedido enviado com sucesso!
+              Pedido confirmado
             </h1>
             <p className="text-muted-foreground">
-              Em instantes você receberá uma mensagem no WhatsApp
+              Em instantes recebe a confirmação no WhatsApp
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Guarde este pedido e acompanhe as atualizações por aqui quando precisar.
             </p>
           </motion.div>
 
@@ -139,7 +142,7 @@ const Obrigado = () => {
               className="bg-card border border-border rounded-2xl p-6 mb-8"
             >
               <h2 className="text-lg font-semibold text-foreground mb-4">
-                Resumo do Pedido
+                Resumo
               </h2>
               <div className="flex justify-between items-center py-3 border-b border-border">
                 <span className="text-muted-foreground">
@@ -150,7 +153,7 @@ const Obrigado = () => {
                 </span>
               </div>
               <div className="flex justify-between items-center pt-3">
-                <span className="text-muted-foreground">Previsão de entrega</span>
+                <span className="text-muted-foreground">Entrega prevista</span>
                 <span className="font-medium text-foreground capitalize">
                   {formattedDate}
                 </span>
@@ -166,7 +169,7 @@ const Obrigado = () => {
             className="mb-10"
           >
             <h2 className="text-lg font-semibold text-foreground mb-6 text-center">
-              Próximos passos
+              O que acontece agora
             </h2>
             <div className="space-y-4">
               {steps.map((step, index) => (
@@ -191,7 +194,27 @@ const Obrigado = () => {
             </div>
           </motion.div>
 
-          {/* WhatsApp CTA */}
+          {/* Details */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="mb-10"
+          >
+            <div className="bg-card border border-border rounded-2xl p-5 space-y-3 text-sm text-muted-foreground">
+              <p>
+                <span className="text-foreground font-semibold">Pagamento:</span> {contact.whatsapp ? "pagamento na entrega" : "conforme combinado"}.
+              </p>
+              <p>
+                <span className="text-foreground font-semibold">Atendimento:</span> {brand.name} atende exclusivamente em Vitória da Conquista.
+              </p>
+              <p>
+                <span className="text-foreground font-semibold">Dúvidas:</span> pode retornar pelo mesmo WhatsApp para ajustar endereço ou horário.
+              </p>
+            </div>
+          </motion.div>
+
+          {/* CTA */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -210,7 +233,7 @@ const Obrigado = () => {
             </a>
             <Link to="/">
               <Button variant="outline" size="lg" className="w-full max-w-xs mt-3">
-                Voltar ao site
+                Voltar ao cardápio
               </Button>
             </Link>
           </motion.div>

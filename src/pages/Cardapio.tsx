@@ -37,7 +37,7 @@ const lines = [
     color: "from-emerald-500/20 to-emerald-600/5",
     borderColor: "border-emerald-500/30",
     iconColor: "text-emerald-600",
-    tag: "🔥 Mais vendida",
+    tag: "🔥 Últimos kits",
     type: "marmita" as const,
     lineType: "emagrecimento",
     weight: 300,
@@ -56,7 +56,7 @@ const lines = [
     color: "from-amber-500/20 to-amber-600/5",
     borderColor: "border-amber-500/30",
     iconColor: "text-amber-600",
-    tag: "💪 +Proteína",
+    tag: "🔥 Últimos kits",
     type: "marmita" as const,
     lineType: "hipertrofia",
     weight: 450,
@@ -75,7 +75,7 @@ const lines = [
     color: "from-primary/20 to-primary/5",
     borderColor: "border-primary/30",
     iconColor: "text-primary",
-    tag: "🥤 Detox completo",
+    tag: "🔥 Últimos kits",
     type: "kit" as const,
     lineType: undefined,
     weight: undefined,
@@ -262,31 +262,33 @@ const CardapioContent = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground leading-tight mb-4">
-                Escolha sua linha de{" "}
-                <span className="text-primary">alimentação saudável</span>
+              <h1 className="text-3xl sm:text-4xl font-bold text-foreground leading-tight mb-3">
+                Escolha seu kit e comece sua transformação hoje
               </h1>
               <p className="text-muted-foreground text-base sm:text-lg">
-                Cada linha foi pensada para um objetivo diferente. Qual é o seu?
+                Pronto em 3 minutos, sem esforço. Performance ou emagrecimento — você escolhe.
               </p>
+              <div className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
+                +200 kits entregues • 98% de satisfação
+              </div>
             </motion.div>
 
-            <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:pb-0 md:grid md:grid-cols-3 md:overflow-visible max-w-5xl mx-auto scrollbar-hide">
+            <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 sm:gap-4 pb-4 md:pb-0 md:grid md:grid-cols-3 md:overflow-visible max-w-5xl mx-auto scrollbar-hide">
               {lines.map((line, i) => {
                 const Icon = line.icon;
                 return (
                   <motion.div
                     key={line.slug}
-                    className={`group relative flex flex-col rounded-2xl border ${line.borderColor} bg-gradient-to-b ${line.color} p-4 sm:p-6 text-left transition-all hover:shadow-lg min-w-[80vw] snap-center md:min-w-0`}
+                    className={`group relative flex flex-col rounded-2xl border ${line.borderColor} bg-gradient-to-b ${line.color} p-3 sm:p-6 text-left transition-all hover:shadow-lg min-w-[88vw] snap-center md:min-w-0`}
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: i * 0.1 }}
                   >
-                    <span className="absolute top-4 right-4 text-xs font-medium bg-background/80 backdrop-blur-sm px-2.5 py-1 rounded-full border border-border/50">
+                    <span className="absolute top-3 right-3 text-[11px] sm:text-xs font-medium bg-background/80 backdrop-blur-sm px-2 sm:px-2.5 py-1 rounded-full border border-border/50">
                       {line.tag}
                     </span>
 
-                    <div className="w-full aspect-[16/9] sm:aspect-[4/3] rounded-xl overflow-hidden mb-4 sm:mb-5 bg-muted/30">
+                    <div className="w-full aspect-[4/3] sm:aspect-[4/3] rounded-xl overflow-hidden mb-3 sm:mb-5 bg-muted/30">
                       {line.video ? (
                         <video
                           src={line.video}
@@ -323,19 +325,19 @@ const CardapioContent = () => {
 
                     <div className="flex flex-col gap-2">
                       <Button
-                        className="w-full gap-2"
+                        className="w-full gap-2 h-10 sm:h-11"
                         onClick={() => handleChooseFlavors(line)}
                       >
                         <ShoppingBag className="w-4 h-4" />
-                        Escolher sabores
+                        Quero montar meu pedido
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="w-full gap-1 text-muted-foreground"
+                        className="w-full gap-1"
                         onClick={() => navigate(`/${line.slug}`)}
                       >
-                        Saiba mais <ArrowRight className="w-3.5 h-3.5" />
+                        Ver detalhes <ArrowRight className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </motion.div>
@@ -348,9 +350,14 @@ const CardapioContent = () => {
         <CartFloatingButton onClick={() => setCartOpen(true)} />
 
         <footer className="py-8 border-t border-border">
-          <div className="container px-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} {brand.name}. Todas as refeições são congeladas e prontas em 3 minutos.
+          <div className="container px-6 text-center space-y-3">
+            <div className="flex items-center justify-center gap-4 text-xs sm:text-sm font-medium text-muted-foreground flex-wrap">
+              <span> ✅ Garantia de satisfação </span>
+              <span className="hidden sm:inline">•</span>
+              <span> 🚚 Entrega gratuita </span>
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              © {new Date().getFullYear()} {brand.name}. Alimentação congelada, pronta em 3 minutos.
             </p>
           </div>
         </footer>

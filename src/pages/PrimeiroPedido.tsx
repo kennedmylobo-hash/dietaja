@@ -470,16 +470,16 @@ const PrimeiroPedido = () => {
         <section className="px-4 py-8 bg-card">
           <div className="max-w-lg mx-auto space-y-4">
             <h2 className="text-xl font-extrabold text-center text-foreground">
-              Por que experimentar?
+              Por que escolher a Dieta Já?
             </h2>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { icon: Snowflake, t: "Congeladas", d: "Guarde no freezer" },
-                { icon: Clock, t: "Pronta em 4min", d: "Micro-ondas" },
-                { icon: Flame, t: "Balanceadas", d: "Proteína + fibra" },
+                { icon: Snowflake, t: "Congeladas", d: "Conserva o sabor" },
+                { icon: Clock, t: "Pronta em 4min", d: "Sem #culpa" },
+                { icon: Flame, t: "Alto teor proteico", d: "Foco no resultado" },
                 { icon: Truck, t: "Entrega grátis", d: "Sem taxa extra" },
-                { icon: ChefHat, t: "Sabor caseiro", d: "Receitas testadas" },
-                { icon: ShieldCheck, t: "Sem compromisso", d: "Compra única" },
+                { icon: ChefHat, t: "Sabor caseiro", d: "Sem gosto de dieta" },
+                { icon: ShieldCheck, t: "Compra única", d: "Sem assinatura" },
               ].map((b, i) => (
                 <div key={i} className="bg-background rounded-xl p-3 border border-border">
                   <b.icon className="w-5 h-5 text-primary mb-1.5" />
@@ -497,10 +497,10 @@ const PrimeiroPedido = () => {
             <h2 className="text-xl font-extrabold text-center text-foreground">Como funciona</h2>
             <div className="space-y-3">
               {[
-                { n: "1", t: "Escolha a linha", d: "FIT (300g) ou FITNESS (450g) — você decide." },
-                { n: "2", t: "Pague com 20% OFF", d: "PIX ou cartão. Cupom PRIMEIRO20 já aplicado." },
-                { n: "3", t: "Receba em casa", d: "Entregamos as 10 marmitas congeladas, prontas pra freezer." },
-                { n: "4", t: "Aproveite", d: "4 min no micro-ondas e tá pronto. Simples assim." },
+                { n: "1", t: "Escolha seu objetivo", d: "FIT para emagrecimento ou FITNESS para ganho de massa." },
+                { n: "2", t: "Primeira compra com 20% OFF", d: "PIX ou cartão. Cupom PRIMEIRO20 já aplicado." },
+                { n: "3", t: "Receba no seu endereço", d: "10 marmitas congeladas, prontas para o freezer." },
+                { n: "4", t: "4 minutos e está pronto", d: "Sem complicação: aqueceu, comeu, seguiu a rotina." },
               ].map((s) => (
                 <div key={s.n} className="flex gap-3 bg-card border border-border rounded-xl p-4">
                   <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground font-extrabold flex items-center justify-center">
@@ -522,13 +522,13 @@ const PrimeiroPedido = () => {
             <div className="text-center space-y-1.5">
               <div className="inline-flex items-center gap-1.5 bg-destructive/10 text-destructive px-3 py-1 rounded-full text-xs font-bold">
                 <Clock className="w-3.5 h-3.5" />
-                Expira em {pad(countdown.h)}:{pad(countdown.m)}:{pad(countdown.s)}
+                Oferta de primeira compra expira em {pad(countdown.h)}:{pad(countdown.m)}:{pad(countdown.s)}
               </div>
-              <h2 className="text-2xl font-extrabold text-foreground">Garanta seu kit</h2>
+              <h2 className="text-2xl font-extrabold text-foreground">Garanta seu kit com 20% OFF</h2>
               <p className="text-sm text-muted-foreground">
-                Linha <strong className="text-foreground">{kit.label}</strong> · 10 marmitas ·{" "}
-                <span className="text-primary font-bold">R$ {fmt(kit.finalPrice)}</span>
+                Primeira compra · Linha <strong className="text-foreground">{kit.label}</strong> · 10 marmitas · Total <span className="text-primary font-bold">R$ {fmt(kit.finalPrice)}</span>
               </p>
+              <p className="text-xs text-muted-foreground">Sem taxa de entrega · Cupom PRIMEIRO20 já aplicado</p>
             </div>
 
             <form className="space-y-3 bg-card border border-border rounded-2xl p-5 shadow-md">
